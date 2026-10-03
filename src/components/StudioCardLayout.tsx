@@ -380,7 +380,7 @@ export function StudioCardLayout({
 
         {/* Dedicated Horizontal Stepper Bar (Below the Navbar, Centered) */}
         {mode === 'wizard' && (
-          <div className="w-full border-b border-border/70 bg-card/60 backdrop-blur-md py-4 px-4 sm:px-6 sticky top-16 z-20 shadow-2xs">
+          <div className="w-full border-b border-border/80 bg-card/90 backdrop-blur-md py-3 sm:py-3.5 px-4 sm:px-6 sticky top-16 z-20 shadow-2xs transition-all">
             <div className="max-w-4xl mx-auto flex items-center justify-center">
               <HorizontalStepper
                 currentStep={currentStep}
