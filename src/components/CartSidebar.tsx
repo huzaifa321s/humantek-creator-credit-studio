@@ -25,6 +25,13 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Alert, AlertTitle, AlertDescription } from '@/components/reui/alert';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyDescription,
+} from '@/components/ui/empty';
 
 const EXTRA_METADATA: Record<
   string,
@@ -194,24 +201,31 @@ export function CartSidebar({
                   ) : (
                     <CreditValue value={credits} size="sm" />
                   )}
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => onRemoveService(service.id)}
-                    className="text-xs text-muted-foreground hover:text-rose-600 transition-colors flex items-center gap-1 ml-auto mt-0.5 cursor-pointer"
+                    className="size-5 ml-auto mt-0.5 flex text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
+                    aria-label={`Remove ${service.name}`}
                     title="Remove service"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))
           ) : (
-            <div className="p-6 rounded-xl border border-dashed border-border text-center bg-secondary/20">
-              <Layers className="w-6 h-6 text-muted-foreground/50 mx-auto mb-1.5" />
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                No services selected yet. Pick creative assets from the catalog.
-              </p>
-            </div>
+            <Empty className="p-6 gap-2 rounded-xl border border-dashed border-border bg-secondary/20">
+              <EmptyHeader className="gap-1.5">
+                <EmptyMedia variant="icon" className="mb-0 size-9 rounded-lg">
+                  <Layers className="w-5 h-5 text-muted-foreground" />
+                </EmptyMedia>
+                <EmptyDescription className="text-xs sm:text-sm">
+                  No services selected yet. Pick creative assets from the catalog.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </div>
 
@@ -343,47 +357,42 @@ export function CartSidebar({
 
         {/* Tier Limit Warning */}
         {isTierRestricted && (
-          <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs space-y-0.5 animate-in fade-in">
-            <div className="flex items-center gap-1.5 font-bold">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>Tier Unit Limit Reached</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-normal">
+          <Alert variant="destructive" className="rounded-xl p-2.5 animate-in fade-in">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <AlertTitle className="text-xs font-bold">Tier Unit Limit Reached</AlertTitle>
+            <AlertDescription className="text-[11px] text-muted-foreground leading-normal">
               {pack.name} has reached maximum Standard or Elite units. Upgrade your package or adjust service tiers to continue.
-            </p>
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Dynamic Contextual Upgrade Callout */}
         {isOverBudget && (
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 space-y-2 animate-in fade-in">
-            <div className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <b className="text-xs sm:text-sm font-bold text-foreground block truncate">
-                  {recommendedPack ? `Upgrade to ${recommendedPack.name}` : 'Upgrade Required'}
-                </b>
-                <span className="text-[11px] text-muted-foreground block mt-0.5 leading-snug">
-                  {recommendedPack
-                    ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString()}`
-                    : 'Contact us for a larger custom creator package.'}
-                </span>
-              </div>
-            </div>
-
-            {recommendedPack && (
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="w-full text-xs gap-1.5 font-semibold h-8 sm:h-9 rounded-xl shadow-xs cursor-pointer"
-                onClick={() => onUpgradePackage(recommendedPack.id)}
-              >
-                <span>Upgrade to {recommendedPack.name}</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </Button>
-            )}
-          </div>
+          <Alert variant="warning" className="rounded-xl p-3 border-amber-500/30 bg-amber-500/10 animate-in fade-in [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
+            <Sparkles className="w-4 h-4" />
+            <AlertTitle className="text-xs sm:text-sm font-bold text-foreground truncate">
+              {recommendedPack ? `Upgrade to ${recommendedPack.name}` : 'Upgrade Required'}
+            </AlertTitle>
+            <AlertDescription className="text-[11px] text-muted-foreground leading-snug">
+              <span className="block">
+                {recommendedPack
+                  ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString()}`
+                  : 'Contact us for a larger custom creator package.'}
+              </span>
+              {recommendedPack && (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  className="mt-2 w-full text-xs gap-1.5 font-semibold h-8 sm:h-9 rounded-xl shadow-xs cursor-pointer"
+                  onClick={() => onUpgradePackage(recommendedPack.id)}
+                >
+                  <span>Upgrade to {recommendedPack.name}</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
       </div>
     </Card>
