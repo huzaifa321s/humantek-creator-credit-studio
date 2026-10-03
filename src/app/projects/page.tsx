@@ -12,6 +12,23 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Package, Check, Search } from 'lucide-react';
+import {
+  Timeline,
+  TimelineContent,
+  TimelineHeader,
+  TimelineIndicator,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineTitle,
+} from '@/components/reui/timeline';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 
 const STATUS_STAGES = [
   'Request Received',
@@ -158,18 +175,27 @@ export default function ProjectsPage() {
             ))}
           </div>
         ) : filteredProjects.length === 0 ? (
-          <Card className="p-14 text-center border-dashed border-border bg-card/60 shadow-none rounded-2xl">
-            <Package className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-            <h3 className="text-xl font-bold text-foreground">No matching creative projects found</h3>
-            <p className="text-sm text-muted-foreground mt-1 mb-5 max-w-sm mx-auto">
-              Start building your first custom branding or streaming pack in the studio.
-            </p>
-            <Link href="/">
-              <Button variant="default" size="default" className="text-sm font-semibold h-10 px-5">
+          <Empty className="rounded-2xl border border-dashed border-border bg-card/60 p-14">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Package />
+              </EmptyMedia>
+              <EmptyTitle className="text-xl font-bold">No matching creative projects found</EmptyTitle>
+              <EmptyDescription>
+                Start building your first custom branding or streaming pack in the studio.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button
+                variant="default"
+                className="text-sm font-semibold h-10 px-5"
+                render={<Link href="/" />}
+                nativeButton={false}
+              >
                 Open Creator Studio
               </Button>
-            </Link>
-          </Card>
+            </EmptyContent>
+          </Empty>
         ) : (
           <div className="space-y-4">
             {filteredProjects.map((proj) => {
@@ -218,31 +244,54 @@ export default function ProjectsPage() {
                       <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
                         Production Pipeline Tracker
                       </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
-                        {STATUS_STAGES.map((stage, idx) => {
-                          const isDone = idx <= activeIndex;
-                          const isCurrent = idx === activeIndex;
-
-                          return (
-                            <div
-                              key={stage}
-                              className={cn(
-                                'p-3 rounded-xl text-center transition-all border',
-                                isCurrent
-                                  ? 'bg-amber-500 text-white border-amber-500 font-bold shadow-xs'
-                                  : isDone
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-semibold'
-                                  : 'bg-card border-border/80 text-muted-foreground opacity-60'
-                              )}
-                            >
-                              <span className="block text-sm font-extrabold mb-1">
-                                {isDone ? <Check className="w-4 h-4 mx-auto stroke-[2.5]" /> : idx + 1}
-                              </span>
-                              <span className="text-xs font-medium leading-tight block truncate">{stage}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {/* ReUI Timeline — horizontal on sm+, vertical on mobile */}
+                      {(['horizontal', 'vertical'] as const).map((orientation) => (
+                        <Timeline
+                          key={orientation}
+                          value={activeIndex + 1}
+                          orientation={orientation}
+                          className={orientation === 'horizontal' ? 'hidden sm:flex' : 'flex sm:hidden'}
+                        >
+                          {STATUS_STAGES.map((stage, idx) => {
+                            const isCurrent = idx === activeIndex;
+                            return (
+                              <TimelineItem key={stage} step={idx + 1}>
+                                <TimelineHeader>
+                                  <TimelineSeparator className="group-data-completed/timeline-item:bg-amber-500" />
+                                  <TimelineIndicator
+                                    className={cn(
+                                      'flex size-6 items-center justify-center border-2 bg-card border-border',
+                                      'group-data-completed/timeline-item:border-emerald-500 group-data-completed/timeline-item:bg-emerald-500 group-data-completed/timeline-item:text-white',
+                                      isCurrent && 'border-amber-500! bg-amber-500! ring-4 ring-amber-500/20'
+                                    )}
+                                  >
+                                    {idx <= activeIndex ? (
+                                      <Check className="size-3.5 stroke-[3] text-white" />
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
+                                    )}
+                                  </TimelineIndicator>
+                                  <TimelineTitle
+                                    className={cn(
+                                      'text-xs leading-tight',
+                                      isCurrent
+                                        ? 'font-bold text-amber-700 dark:text-amber-400'
+                                        : idx < activeIndex
+                                          ? 'font-semibold text-foreground'
+                                          : 'font-medium text-muted-foreground'
+                                    )}
+                                  >
+                                    {stage}
+                                  </TimelineTitle>
+                                </TimelineHeader>
+                                <TimelineContent className="text-[11px]">
+                                  {isCurrent ? 'Current stage' : idx < activeIndex ? 'Completed' : 'Upcoming'}
+                                </TimelineContent>
+                              </TimelineItem>
+                            );
+                          })}
+                        </Timeline>
+                      ))}
                     </div>
 
                     {/* Summary Details */}
