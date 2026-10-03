@@ -1,0 +1,107 @@
+export type ServiceCategory =
+  | 'Branding'
+  | 'Stream'
+  | 'Animation'
+  | 'VTuber'
+  | 'Artwork'
+  | 'Content'
+  | '3D'
+  | 'Custom';
+
+export type ServiceTierLevel = 0 | 1 | 2; // 0 = Basic, 1 = Standard, 2 = Elite
+
+export interface PackageDefinition {
+  id: string;
+  name: string;
+  price: number;
+  credits: number;
+  group: string;
+  bestFor: string;
+  maxLevel: number; // 1 = Basic/Standard, 2 = Elite
+  standardLimit?: number;
+  eliteLimit?: number;
+}
+
+export interface ServiceDefinition {
+  id: string;
+  name: string;
+  category: ServiceCategory;
+  description: string;
+  prices: [number, number, number]; // [Basic, Standard, Elite] credit prices
+  scopeDetails?: [string, string, string];
+  quoteOnly?: boolean;
+  bestFor?: string;
+  deliverables?: string[];
+  exampleImage?: string;
+}
+
+export interface ServiceSelection {
+  level: ServiceTierLevel;
+  quantity: number;
+}
+
+export interface SelectedServiceEntry {
+  service: ServiceDefinition;
+  choice: ServiceSelection;
+  credits: number;
+}
+
+export interface ProjectBrief {
+  clientName: string;
+  channelName: string;
+  email: string;
+  platform: string;
+  style: string;
+  colors: string;
+  instructions: string;
+}
+
+export interface UploadedFile {
+  id: string;
+  filename: string;
+  size: number;
+  url: string;
+}
+
+export interface ProjectRecord {
+  id: string;
+  projectCode: string;
+  packageId: string;
+  packageName: string;
+  packagePrice: number;
+  packageCredits: number;
+  usedCredits: number;
+  remainingCredits: number;
+  status: 'pending_review' | 'payment_confirmed' | 'in_production' | 'review_round' | 'delivered' | 'declined';
+  paymentStatus: 'unpaid' | 'paid' | 'refunded';
+  clientName: string;
+  channelName: string;
+  email: string;
+  platform: string;
+  style: string;
+  colors: string;
+  instructions: string;
+  redeemCode?: string;
+  additions: string[];
+  selections: {
+    id: string;
+    name: string;
+    level: ServiceTierLevel;
+    quantity: number;
+    credits: number;
+  }[];
+  uploadedFiles: UploadedFile[];
+  createdAt: string;
+}
+
+export interface CreditLedgerEntry {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  type: 'package_purchase' | 'service_deduction' | 'manual_topup' | 'redeem_code';
+  creditsDelta: number;
+  usdAmount: number;
+  referenceId: string;
+  description: string;
+  createdAt: string;
+}
