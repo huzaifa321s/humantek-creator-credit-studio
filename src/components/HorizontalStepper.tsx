@@ -8,6 +8,15 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
+import {
+  Stepper,
+  StepperIndicator,
+  StepperItem,
+  StepperNav,
+  StepperSeparator,
+  StepperTitle,
+  StepperTrigger,
+} from '@/components/reui/stepper';
 
 export interface StepItem {
   number: number;
@@ -64,93 +73,52 @@ export function HorizontalStepper({
 }: HorizontalStepperProps) {
   return (
     <nav aria-label="Progress Stepper" className={cn('relative flex items-center justify-center', className)}>
-      {/* Desktop & Tablet Stepper */}
-      <ol className="hidden sm:flex items-center gap-1.5 md:gap-2.5 lg:gap-3 select-none">
-        {STUDIO_STEPS.map((step, idx) => {
-          const stepNum = step.number;
-          const isActive = currentStep === stepNum;
-          const isComplete = currentStep > stepNum;
-          const isAccessible = (isPackageSelected && stepNum <= currentStep + 1) || stepNum === 1;
-          const isLast = idx === STUDIO_STEPS.length - 1;
+      {/* Desktop & Tablet — ReUI Stepper */}
+      <Stepper
+        value={currentStep}
+        onValueChange={(step) => {
+          const accessible = (isPackageSelected && step <= currentStep + 1) || step === 1;
+          if (accessible) onSelectStep(step);
+        }}
+        indicators={{ completed: <Check className="size-4 stroke-[3]" /> }}
+        className="hidden sm:block w-full max-w-4xl select-none"
+      >
+        <StepperNav className="items-center">
+          {STUDIO_STEPS.map((step) => {
+            const stepNum = step.number;
+            const isAccessible = (isPackageSelected && stepNum <= currentStep + 1) || stepNum === 1;
 
-          return (
-            <React.Fragment key={step.name}>
-              <li className="relative flex items-center">
+            return (
+              <StepperItem key={step.name} step={stepNum} disabled={!isAccessible} className="gap-2">
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <button
-                        type="button"
-                        disabled={!isAccessible}
-                        onClick={() => isAccessible && onSelectStep(stepNum)}
-                        className={cn(
-                          'group flex items-center gap-2 py-1.5 px-2 rounded-xl transition-all focus:outline-none select-none',
-                          isAccessible ? 'cursor-pointer hover:bg-secondary/70' : 'cursor-not-allowed opacity-45'
-                        )}
-                      >
-                        {/* Step Circle Node */}
-                        <div
-                          className={cn(
-                            'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all duration-200 border-2',
-                            isComplete
-                              ? 'bg-amber-500 border-amber-500 text-white shadow-2xs'
-                              : isActive
-                              ? 'bg-amber-500 border-amber-500 text-white font-extrabold shadow-sm ring-4 ring-amber-500/20 scale-105'
-                              : 'bg-card border-border text-muted-foreground group-hover:border-zinc-400'
-                          )}
-                        >
-                          {isComplete ? (
-                            <Check className="w-4 h-4 stroke-[3]" />
-                          ) : (
-                            <span>{stepNum}</span>
-                          )}
-                        </div>
-
-                        {/* Step Label */}
-                        <div className="hidden sm:block text-left">
-                          <div
-                            className={cn(
-                              'text-xs tracking-tight transition-colors whitespace-nowrap',
-                              isActive
-                                ? 'font-bold text-foreground'
-                                : isComplete
-                                ? 'font-semibold text-foreground/80'
-                                : 'font-medium text-muted-foreground'
-                            )}
-                          >
-                            <span className="hidden md:inline">{step.name}</span>
-                            <span className="inline md:hidden">{step.shortName}</span>
-                          </div>
-                        </div>
-                      </button>
+                      <StepperTrigger className="group gap-2 rounded-xl px-2 py-1.5 hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-45" />
                     }
-                  />
+                  >
+                    <StepperIndicator className="size-8 border-2 border-border bg-card text-xs font-bold text-muted-foreground transition-all duration-200 group-hover:border-zinc-400 data-[state=completed]:border-amber-500 data-[state=completed]:bg-amber-500 data-[state=completed]:text-white data-[state=active]:scale-105 data-[state=active]:border-amber-500 data-[state=active]:bg-amber-500 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-4 data-[state=active]:ring-amber-500/20">
+                      {stepNum}
+                    </StepperIndicator>
+                    <StepperTitle className="whitespace-nowrap text-xs font-medium tracking-tight text-muted-foreground data-[state=active]:font-bold data-[state=active]:text-foreground data-[state=completed]:font-semibold data-[state=completed]:text-foreground/80">
+                      <span className="hidden md:inline">{step.name}</span>
+                      <span className="inline md:hidden">{step.shortName}</span>
+                    </StepperTitle>
+                  </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs max-w-xs p-3 shadow-xl bg-zinc-900 text-white border border-zinc-700/80">
                     <p className="font-bold text-white text-xs">
                       Step {stepNum}: {step.name}
                     </p>
-                    <p className="text-zinc-300 text-[11px] mt-1 leading-snug">
-                      {step.desc}
-                    </p>
+                    <p className="text-zinc-300 text-[11px] mt-1 leading-snug">{step.desc}</p>
                   </TooltipContent>
                 </Tooltip>
-              </li>
-
-              {/* Connecting Horizontal Line */}
-              {!isLast && (
-                <li aria-hidden="true" className="flex items-center">
-                  <div
-                    className={cn(
-                      'h-0.5 w-6 sm:w-10 md:w-14 lg:w-20 rounded-full transition-colors duration-300',
-                      isComplete ? 'bg-amber-500' : 'bg-border/80'
-                    )}
-                  />
-                </li>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </ol>
+                {stepNum < STUDIO_STEPS.length && (
+                  <StepperSeparator className="mx-1 min-w-6 bg-border/80 transition-colors duration-300 group-data-[state=completed]/step:bg-amber-500" />
+                )}
+              </StepperItem>
+            );
+          })}
+        </StepperNav>
+      </Stepper>
 
       {/* Mobile Compact View (< 640px) */}
       <div className="flex sm:hidden items-center gap-2 px-3 py-1 rounded-full bg-secondary/60 border border-border/70 text-xs font-semibold">

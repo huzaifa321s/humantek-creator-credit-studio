@@ -63,6 +63,35 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip';
 import {
+  NumberField,
+  NumberFieldDecrement,
+  NumberFieldGroup,
+  NumberFieldIncrement,
+  NumberFieldInput,
+} from '@/components/reui/number-field';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { IconTile } from '@/components/reui/icon-tile';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
+import {
   Table,
   TableHeader,
   TableRow,
@@ -90,7 +119,6 @@ import {
   Clock,
   Coins,
   FileCheck,
-  Minus,
   Plus,
   Eye,
   Layers,
@@ -306,8 +334,8 @@ export default function CreatorStudioPage() {
   // Tier limit violations
   const isTierRestricted = Boolean(
     currentPackage &&
-      ((currentPackage.standardLimit !== undefined && standardUnits > currentPackage.standardLimit) ||
-        (currentPackage.eliteLimit !== undefined && eliteUnits > currentPackage.eliteLimit))
+    ((currentPackage.standardLimit !== undefined && standardUnits > currentPackage.standardLimit) ||
+      (currentPackage.eliteLimit !== undefined && eliteUnits > currentPackage.eliteLimit))
   );
 
   // Prohibited words check
@@ -721,8 +749,8 @@ export default function CreatorStudioPage() {
                     isSelected
                       ? 'border-2 border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 shadow-md ring-2 ring-amber-500/20'
                       : isPopular
-                      ? 'border-2 border-amber-400/80 bg-card hover:border-amber-500 shadow-sm'
-                      : 'border border-border/80 bg-card hover:border-zinc-400'
+                        ? 'border-2 border-amber-400/80 bg-card hover:border-amber-500 shadow-sm'
+                        : 'border border-border/80 bg-card hover:border-zinc-400'
                   )}
                 >
                   {isPopular && (
@@ -764,8 +792,8 @@ export default function CreatorStudioPage() {
                         {pkg.maxLevel === 1
                           ? 'Basic + up to 2 Standard units'
                           : pkg.eliteLimit
-                          ? 'Basic, Standard + 2 Elite units'
-                          : 'Full access to all 39 tiers'}
+                            ? 'Basic, Standard + 2 Elite units'
+                            : 'Full access to all 39 tiers'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-foreground font-medium text-xs">
@@ -877,16 +905,18 @@ export default function CreatorStudioPage() {
                     Browse Catalog Categories
                   </span>
                   {(activeCategory !== 'All' || priceFilter !== 'all') && (
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
+                      size="xs"
                       onClick={() => {
                         setActiveCategory('All');
                         setPriceFilter('all');
                       }}
-                      className="text-xs text-muted-foreground hover:text-foreground font-medium underline underline-offset-2 cursor-pointer"
+                      className="h-auto px-0 text-xs font-medium text-muted-foreground hover:text-foreground"
                     >
                       Reset all filters
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -902,21 +932,26 @@ export default function CreatorStudioPage() {
                   <span className="text-xs font-semibold text-muted-foreground mr-1 shrink-0">
                     Filter by price:
                   </span>
-                  {PRICE_FILTER_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setPriceFilter(opt.id)}
-                      className={cn(
-                        'text-xs px-2.5 py-1 rounded-lg transition-all shrink-0 cursor-pointer font-medium select-none',
-                        priceFilter === opt.id
-                          ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold border border-amber-500/35 shadow-2xs'
-                          : 'bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-transparent'
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                  <ToggleGroup
+                    value={[priceFilter]}
+                    onValueChange={(vals) => {
+                      const next = (vals as string[])[0];
+                      if (next) setPriceFilter(next as typeof priceFilter);
+                    }}
+                    size="sm"
+                    spacing={1}
+                    aria-label="Filter by price"
+                  >
+                    {PRICE_FILTER_OPTIONS.map((opt) => (
+                      <ToggleGroupItem
+                        key={opt.id}
+                        value={opt.id}
+                        className="h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium text-muted-foreground bg-secondary/50 border border-transparent hover:bg-secondary/80 hover:text-foreground data-[pressed]:bg-amber-500/15 data-[pressed]:text-amber-800 dark:data-[pressed]:text-amber-300 data-[pressed]:font-bold data-[pressed]:border-amber-500/35 data-[pressed]:shadow-2xs"
+                      >
+                        {opt.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
                 </div>
               </div>
 
@@ -958,16 +993,18 @@ export default function CreatorStudioPage() {
                           <div className="flex items-start gap-3 min-w-0">
                             {/* Service Vector Icon Tile */}
                             <div className="relative shrink-0">
-                              <div
+                              <IconTile
+                                variant={isSelected ? 'solid' : 'outline'}
+                                size="default"
                                 className={cn(
-                                  'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
+                                  'rounded-xl transition-all duration-200',
                                   isSelected
                                     ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs shadow-amber-500/20'
-                                    : 'bg-secondary/80 border border-border/80 text-muted-foreground group-hover:border-amber-500/40 group-hover:text-amber-600 dark:group-hover:text-amber-400'
+                                    : 'bg-secondary/80 border-border/80 text-muted-foreground group-hover:border-amber-500/40 group-hover:text-amber-600 dark:group-hover:text-amber-400'
                                 )}
                               >
-                                <Icon className="w-5 h-5" />
-                              </div>
+                                <Icon />
+                              </IconTile>
                               {isSelected && (
                                 <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center ring-2 ring-card shadow-xs animate-in zoom-in-75">
                                   <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -1076,49 +1113,57 @@ export default function CreatorStudioPage() {
                             </Select>
                           </div>
 
-                          {/* Compact Quantity Stepper */}
-                          <div className="flex items-center border border-border/80 rounded-lg overflow-hidden h-7 bg-card shadow-2xs shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => updateServiceQuantity(svc.id, Math.max(1, currentQty - 1))}
-                              disabled={currentQty <= 1}
-                              className="h-full px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                              title="Decrease quantity"
-                            >
-                              <Minus className="w-2.5 h-2.5" />
-                            </button>
-                            <input
-                              type="number"
-                              min="1"
-                              max="99"
-                              value={currentQty}
-                              onChange={(e) =>
-                                updateServiceQuantity(svc.id, Math.max(1, parseInt(e.target.value) || 1))
-                              }
-                              className="w-7 text-center text-xs font-bold bg-transparent text-foreground focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none tabular-nums"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateServiceQuantity(svc.id, currentQty + 1)}
-                              className="h-full px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-colors"
-                              title="Increase quantity"
-                            >
-                              <Plus className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
+                          {/* Quantity — ReUI Number Field */}
+                          <NumberField
+                            size="sm"
+                            min={1}
+                            max={99}
+                            value={currentQty}
+                            onValueChange={(val) => updateServiceQuantity(svc.id, Math.max(1, val ?? 1))}
+                            className="w-auto shrink-0 gap-0"
+                            aria-label={`${svc.name} quantity`}
+                          >
+                            <NumberFieldGroup className="w-[84px] rounded-lg border-border/80 bg-card shadow-2xs">
+                              <NumberFieldDecrement className="text-muted-foreground hover:text-foreground disabled:opacity-30" />
+                              <NumberFieldInput className="px-0 text-xs font-bold" />
+                              <NumberFieldIncrement className="text-muted-foreground hover:text-foreground" />
+                            </NumberFieldGroup>
+                          </NumberField>
 
                           {/* Quick Remove Action Button */}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleService(svc.id)}
-                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 px-2 shrink-0 rounded-lg cursor-pointer transition-colors ml-auto gap-1"
-                            title="Remove from scope"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span className="text-[11px] font-medium hidden sm:inline">Remove</span>
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 px-2 shrink-0 rounded-lg transition-colors ml-auto gap-1"
+                                  aria-label="Remove from scope"
+                                />
+                              }
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span className="text-[11px] font-medium hidden sm:inline">Remove</span>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent size="sm">
+                              <AlertDialogHeader>
+                                <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                                  <Trash2 />
+                                </AlertDialogMedia>
+                                <AlertDialogTitle>Remove {svc.name}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This frees up <b className="text-foreground">{currentCost} CR</b> from your package. You can add it back anytime.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Keep it</AlertDialogCancel>
+                                <AlertDialogAction variant="destructive" onClick={() => toggleService(svc.id)}>
+                                  Remove
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       )}
                     </Card>
@@ -1127,34 +1172,40 @@ export default function CreatorStudioPage() {
               </div>
 
               {filteredServices.length === 0 && (
-                <div className="text-center py-12 px-4 rounded-2xl border border-dashed border-border/80 bg-secondary/20">
-                  <Layers className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-foreground">
-                    {activeCategory === 'Selected'
-                      ? 'No services selected yet'
-                      : priceFilter !== 'all'
-                      ? `No services found in "${PRICE_FILTER_OPTIONS.find((p) => p.id === priceFilter)?.label}"`
-                      : `No services found in "${activeCategory}"`}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                    {activeCategory === 'Selected'
-                      ? 'Browse catalog categories and click "Add to Scope" to build your custom package.'
-                      : 'Try adjusting your price filter or selecting another category.'}
-                  </p>
+                <Empty className="rounded-2xl border border-dashed border-border/80 bg-secondary/20 py-12">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Layers />
+                    </EmptyMedia>
+                    <EmptyTitle className="text-sm">
+                      {activeCategory === 'Selected'
+                        ? 'No services selected yet'
+                        : priceFilter !== 'all'
+                          ? `No services found in "${PRICE_FILTER_OPTIONS.find((p) => p.id === priceFilter)?.label}"`
+                          : `No services found in "${activeCategory}"`}
+                    </EmptyTitle>
+                    <EmptyDescription className="text-xs">
+                      {activeCategory === 'Selected'
+                        ? 'Browse catalog categories and click "Add to Scope" to build your custom package.'
+                        : 'Try adjusting your price filter or selecting another category.'}
+                    </EmptyDescription>
+                  </EmptyHeader>
                   {(activeCategory !== 'All' || priceFilter !== 'all') && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setActiveCategory('All');
-                        setPriceFilter('all');
-                      }}
-                      className="mt-4 text-xs font-semibold rounded-xl h-8 cursor-pointer"
-                    >
-                      Reset all filters
-                    </Button>
+                    <EmptyContent>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveCategory('All');
+                          setPriceFilter('all');
+                        }}
+                        className="text-xs font-semibold"
+                      >
+                        Reset all filters
+                      </Button>
+                    </EmptyContent>
                   )}
-                </div>
+                </Empty>
               )}
             </div>
 
