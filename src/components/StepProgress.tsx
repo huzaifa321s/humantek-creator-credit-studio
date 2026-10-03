@@ -2,6 +2,7 @@
 
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipTrigger,
@@ -51,12 +52,14 @@ export function StepProgress({
             <Tooltip key={step.name}>
               <TooltipTrigger
                 render={
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     disabled={isDisabled}
                     onClick={() => isPackageSelected && onSelectStep(stepNum)}
                     className={cn(
-                      'group flex flex-col items-center gap-2 relative z-10 transition-all focus:outline-none cursor-pointer',
+                      'h-auto p-0 group flex flex-col items-center gap-2 relative z-10 transition-all hover:bg-transparent shadow-none',
                       isDisabled && 'opacity-40 cursor-not-allowed'
                     )}
                   />

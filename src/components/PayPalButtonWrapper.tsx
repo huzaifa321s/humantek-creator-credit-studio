@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import confetti from 'canvas-confetti';
 import { Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ProjectRecord } from '@/types';
 
 interface PayPalButtonWrapperProps {
@@ -137,11 +138,13 @@ export function PayPalButtonWrapper({
 
       {/* Discrete Sandbox Testing Action (Avoids competing with real checkout) */}
       <div className="pt-1 text-center">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           disabled={isProcessing}
           onClick={handleSimulatePayment}
-          className="text-[11px] text-muted-foreground/70 hover:text-amber-600 dark:hover:text-amber-400 transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 select-none py-1 px-2 rounded-md hover:bg-secondary/30"
+          className="text-[11px] h-7 text-muted-foreground/70 hover:text-amber-600 dark:hover:text-amber-400 gap-1.5"
         >
           {isProcessing ? (
             <>
@@ -154,7 +157,7 @@ export function PayPalButtonWrapper({
               <span>Simulate Sandbox Payment (Dev Test)</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

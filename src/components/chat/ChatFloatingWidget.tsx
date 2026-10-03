@@ -22,14 +22,16 @@ export function ChatFloatingWidget() {
       {/* 1. Floating launcher */}
       {!isOpen && (
         <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setIsOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/95 border border-border/80 text-foreground text-xs font-semibold shadow-lg shadow-black/10 cursor-pointer backdrop-blur-md hover:border-amber-500/50 transition-all select-none"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/95 border-border/80 text-foreground text-xs font-semibold shadow-lg shadow-black/10 cursor-pointer backdrop-blur-md hover:border-amber-500/50 transition-all select-none h-8"
           >
             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
             Chat with Creative Producer
-          </button>
+          </Button>
 
           <Button
             type="button"

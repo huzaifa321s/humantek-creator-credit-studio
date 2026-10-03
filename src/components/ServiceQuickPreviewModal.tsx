@@ -211,12 +211,13 @@ function ServiceQuickPreviewContent({
                 const isActive = selectedLevel === lvl;
 
                 return (
-                  <button
+                  <Button
                     key={lvl}
                     type="button"
+                    variant="outline"
                     onClick={() => setSelectedLevel(lvl as 0 | 1 | 2)}
                     className={cn(
-                      'p-3 rounded-xl border flex flex-col justify-between text-left transition-all cursor-pointer min-h-[76px]',
+                      'h-auto p-3 rounded-xl border flex flex-col items-start justify-between text-left transition-all cursor-pointer min-h-[76px] whitespace-normal',
                       isActive
                         ? 'border-2 border-amber-500 bg-amber-500/10 shadow-xs ring-1 ring-amber-500/30'
                         : 'border-border/80 bg-card hover:border-amber-400/50 hover:bg-secondary/30'
@@ -239,7 +240,7 @@ function ServiceQuickPreviewContent({
                     <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">
                       {scope}
                     </p>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
