@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   PACKAGES,
@@ -69,6 +69,17 @@ import {
   NumberFieldIncrement,
   NumberFieldInput,
 } from '@/components/reui/number-field';
+import {
+  Attachment,
+  AttachmentGroup,
+  AttachmentMedia,
+  AttachmentContent,
+  AttachmentTitle,
+  AttachmentDescription,
+  AttachmentActions,
+  AttachmentAction,
+} from '@/components/ui/attachment';
+import { Spinner } from '@/components/ui/spinner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { IconTile } from '@/components/reui/icon-tile';
 import {
@@ -110,6 +121,7 @@ import {
   Loader2,
   Check,
   X,
+  ImageIcon,
   ChevronDown,
   PackageCheck,
   Zap,
@@ -293,6 +305,9 @@ export default function CreatorStudioPage() {
   );
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingNames, setUploadingNames] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [redeemCodeInput, setRedeemCodeInput] = useState('');
   const [redeemCodeAttached, setRedeemCodeAttached] = useState(false);
 
@@ -455,14 +470,19 @@ export default function CreatorStudioPage() {
     );
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
+  const uploadFiles = async (incoming: File[]) => {
+    const files = incoming.filter((f) => f.type.startsWith('image/'));
+    if (incoming.length && !files.length) {
+      toast.error('Only image files (PNG, JPG, WebP) are supported');
+      return;
+    }
     if (!files.length) return;
 
     setIsUploading(true);
     setErrorMessage('');
     try {
       for (const file of files) {
+        setUploadingNames((prev) => [...prev, file.name]);
         const formData = new FormData();
         formData.append('file', file);
         formData.append('projectId', projectId);
@@ -484,6 +504,7 @@ export default function CreatorStudioPage() {
             url: data.file.url,
           },
         ]);
+        setUploadingNames((prev) => prev.filter((n) => n !== file.name));
         toast.success(`Uploaded ${file.name}`);
       }
     } catch (err: unknown) {
@@ -491,8 +512,21 @@ export default function CreatorStudioPage() {
       setErrorMessage(msg);
       toast.error(msg);
     } finally {
+      setUploadingNames([]);
       setIsUploading(false);
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    void uploadFiles(files);
+  };
+
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    void uploadFiles(Array.from(e.dataTransfer.files ?? []));
   };
 
   const removeUploadedFile = (fileId: string) => {
@@ -1862,54 +1896,119 @@ export default function CreatorStudioPage() {
                     <div className="flex items-center gap-1.5">
                       <Upload className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <b className="text-xs font-bold text-foreground">
-                        Reference Art & Files
+                        Reference Art &amp; Files
                       </b>
                     </div>
-                    <label className="cursor-pointer shrink-0">
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                      <span className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold border border-border bg-card hover:bg-secondary px-2.5 py-1 shadow-2xs transition-colors">
-                        {isUploading ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Upload className="w-3 h-3 text-amber-600" />
-                        )}
-                        Upload
-                      </span>
-                    </label>
+                    <input
+                      ref={fileInputRef}
+                      id="reference-file-input"
+                      type="file"
+                      multiple
+                      accept="image/png,image/jpeg,image/webp,image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      id="reference-upload-button"
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      disabled={isUploading}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="shrink-0 rounded-lg font-semibold shadow-2xs"
+                    >
+                      {isUploading ? (
+                        <Spinner className="size-3" />
+                      ) : (
+                        <Upload className="size-3 text-amber-600" />
+                      )}
+                      Upload
+                    </Button>
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
                     Attach PNG, JPG, or WebP references up to 10MB (optional).
                   </p>
                 </div>
 
-                {uploadedFiles.length > 0 && (
-                  <div className="space-y-1 pt-1 max-h-24 overflow-y-auto pr-1">
+                {/* Drag & drop zone */}
+                <div
+                  id="reference-dropzone"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Drop reference images here or click to browse"
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (!isDragOver) setIsDragOver(true);
+                  }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={handleFileDrop}
+                  data-dragging={isDragOver || undefined}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-[11px] text-muted-foreground cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-50/40 focus-visible:ring-2 focus-visible:ring-amber-500/40 data-[dragging]:border-amber-500 data-[dragging]:bg-amber-50/70 data-[dragging]:text-amber-700 dark:hover:bg-amber-500/5 dark:data-[dragging]:bg-amber-500/10"
+                >
+                  <ImageIcon className="size-3.5 shrink-0 text-amber-600" />
+                  <span>
+                    <span className="font-semibold text-foreground">Drag &amp; drop</span>{' '}
+                    images here, or click to browse
+                  </span>
+                </div>
+
+                {(uploadedFiles.length > 0 || uploadingNames.length > 0) && (
+                  <AttachmentGroup className="pt-0.5">
                     {uploadedFiles.map((f) => (
-                      <div
+                      <Attachment
                         key={f.id}
-                        className="flex items-center justify-between px-2 py-1 rounded-md bg-card border border-border/70 text-xs shadow-2xs"
+                        size="xs"
+                        className="min-w-0 max-w-[200px] border-border/80 shadow-2xs"
                       >
-                        <span className="truncate text-[11px] font-medium max-w-[170px]">
-                          {f.filename}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => removeUploadedFile(f.id)}
-                          className="text-muted-foreground hover:text-rose-600 shrink-0 h-5 w-5"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
+                        <AttachmentMedia variant="image">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={f.url} alt={f.filename} />
+                        </AttachmentMedia>
+                        <AttachmentContent>
+                          <AttachmentTitle className="text-[11px]">{f.filename}</AttachmentTitle>
+                          <AttachmentDescription className="text-[10px]">
+                            {f.size >= 1024 * 1024
+                              ? `${(f.size / (1024 * 1024)).toFixed(1)} MB`
+                              : `${Math.max(1, Math.round(f.size / 1024))} KB`}
+                          </AttachmentDescription>
+                        </AttachmentContent>
+                        <AttachmentActions>
+                          <AttachmentAction
+                            aria-label={`Remove ${f.filename}`}
+                            onClick={() => removeUploadedFile(f.id)}
+                            className="text-muted-foreground hover:text-rose-600"
+                          >
+                            <X />
+                          </AttachmentAction>
+                        </AttachmentActions>
+                      </Attachment>
                     ))}
-                  </div>
+                    {uploadingNames.map((name) => (
+                      <Attachment
+                        key={`uploading-${name}`}
+                        size="xs"
+                        state="uploading"
+                        className="min-w-0 max-w-[200px] border-border/80 shadow-2xs"
+                      >
+                        <AttachmentMedia>
+                          <Spinner />
+                        </AttachmentMedia>
+                        <AttachmentContent>
+                          <AttachmentTitle className="text-[11px]">{name}</AttachmentTitle>
+                          <AttachmentDescription className="text-[10px]">
+                            Uploading…
+                          </AttachmentDescription>
+                        </AttachmentContent>
+                      </Attachment>
+                    ))}
+                  </AttachmentGroup>
                 )}
               </div>
 
