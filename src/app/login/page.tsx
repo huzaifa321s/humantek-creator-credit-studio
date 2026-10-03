@@ -8,9 +8,9 @@ import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertTitle, AlertDescription } from '@/components/reui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
+import { Field, FieldLabel, FieldGroup } from '@/components/ui/field';
 import { toast } from 'sonner';
 import { Lock, Mail, Loader2, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 
@@ -107,33 +107,35 @@ export default function LoginPage() {
 
             <CardContent className="p-0">
               <form onSubmit={handleAuth} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                    <Mail className="w-4 h-4 text-muted-foreground" /> Email address
-                  </Label>
-                  <Input
-                    type="email"
-                    required
-                    placeholder="creator@channel.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="rounded-xl h-10 text-sm"
-                  />
-                </div>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <Mail className="w-4 h-4 text-muted-foreground" /> Email address
+                    </FieldLabel>
+                    <Input
+                      type="email"
+                      required
+                      placeholder="creator@channel.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="rounded-xl h-10 text-sm"
+                    />
+                  </Field>
 
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                    <Lock className="w-4 h-4 text-muted-foreground" /> Password
-                  </Label>
-                  <Input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="rounded-xl h-10 text-sm"
-                  />
-                </div>
+                  <Field>
+                    <FieldLabel className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <Lock className="w-4 h-4 text-muted-foreground" /> Password
+                    </FieldLabel>
+                    <Input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="rounded-xl h-10 text-sm"
+                    />
+                  </Field>
+                </FieldGroup>
 
                 <Button
                   type="submit"
@@ -174,18 +176,20 @@ export default function LoginPage() {
             </CardContent>
 
             <CardFooter className="p-0 mt-6 pt-4 border-t border-border flex justify-center text-sm">
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={() => {
                   setIsSignUp(!isSignUp);
                   setMessage(null);
                 }}
-                className="text-amber-700 dark:text-amber-400 font-bold hover:underline cursor-pointer"
+                className="text-amber-700 dark:text-amber-400 font-bold"
               >
                 {isSignUp
                   ? 'Already have an account? Sign in instead'
                   : "Don't have an account yet? Create one"}
-              </button>
+              </Button>
             </CardFooter>
           </Card>
         </div>
