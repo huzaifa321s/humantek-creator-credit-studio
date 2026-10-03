@@ -215,18 +215,17 @@ export function StudioCardLayout({
                 {showBack && (currentStep > 1 || onBack) && (
                   <>
                     <Separator orientation="vertical" className="h-4 hidden sm:block bg-border" />
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="xs"
                       disabled={isBackDisabled}
                       onClick={handleBack}
-                      className={cn(
-                        'inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors select-none py-1 px-2 rounded-lg hover:bg-secondary/60',
-                        isBackDisabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
-                      )}
+                      className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground h-7 px-2 rounded-lg"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
                       <span className="hidden md:inline">{backLabel}</span>
-                    </button>
+                    </Button>
                   </>
                 )}
 
@@ -252,18 +251,17 @@ export function StudioCardLayout({
               /* Standalone Mode: Back Action & Breadcrumb */
               <>
                 {showBack && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     disabled={isBackDisabled}
                     onClick={handleBack}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 text-sm font-semibold text-foreground transition-colors hover:text-amber-700 select-none',
-                      isBackDisabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
-                    )}
+                    className="gap-1.5 text-sm font-semibold text-foreground transition-colors hover:text-amber-700 h-8 px-2"
                   >
                     <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                     <span>{backLabel}</span>
-                  </button>
+                  </Button>
                 )}
 
                 <Separator orientation="vertical" className="h-4 hidden sm:block bg-border" />
@@ -307,9 +305,11 @@ export function StudioCardLayout({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button
+                  <Button
                     type="button"
-                    className="flex items-center gap-2 p-1.5 pl-2.5 rounded-full border border-border/80 bg-secondary/40 hover:bg-secondary transition-colors cursor-pointer select-none text-sm font-semibold"
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2 p-1.5 pl-2.5 rounded-full border border-border/80 bg-secondary/40 hover:bg-secondary transition-colors cursor-pointer select-none text-sm font-semibold h-9"
                   />
                 }
               >
