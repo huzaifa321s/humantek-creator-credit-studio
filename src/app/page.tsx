@@ -1070,13 +1070,15 @@ export default function CreatorStudioPage() {
                               <Tooltip>
                                 <TooltipTrigger
                                   render={
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="outline"
+                                      size="icon-xs"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setPreviewService(svc);
                                       }}
-                                      className="p-1 rounded-md text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 border border-border/70 hover:border-amber-400/60 transition-colors cursor-pointer"
+                                      className="size-6 rounded-md text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 border-border/70 hover:border-amber-400/60 shadow-none"
                                       aria-label="Quick preview"
                                     />
                                   }
@@ -1437,10 +1439,14 @@ export default function CreatorStudioPage() {
                 )}
 
                 <div className="pt-3 mt-3 border-t border-border/50 flex items-center justify-between">
-                  <button
+                  <Button
+                    id="toggle-restricted-guidelines"
                     type="button"
+                    variant="link"
+                    size="xs"
+                    aria-expanded={showAllRestricted}
                     onClick={() => setShowAllRestricted(!showAllRestricted)}
-                    className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 cursor-pointer select-none transition-colors"
+                    className="h-auto px-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:no-underline"
                   >
                     <span>
                       {showAllRestricted
@@ -1453,7 +1459,7 @@ export default function CreatorStudioPage() {
                         showAllRestricted && 'rotate-180'
                       )}
                     />
-                  </button>
+                  </Button>
                   <span className="text-[11px] text-muted-foreground">
                     Non-compliant briefs declined
                   </span>
@@ -2304,13 +2310,16 @@ export default function CreatorStudioPage() {
                         <Badge variant="outline" className="text-[11px] font-medium">
                           {platform || 'Multi-Platform'}
                         </Badge>
-                        <button
+                        <Button
+                          id="edit-brief-button"
                           type="button"
+                          variant="link"
+                          size="xs"
                           onClick={() => goToStep(4)}
-                          className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                          className="h-auto px-0 text-[11px] font-semibold text-amber-600 dark:text-amber-400"
                         >
                           Edit Brief
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -2464,14 +2473,17 @@ export default function CreatorStudioPage() {
 
                     {/* Direct Producer Chat Trigger */}
                     <div className="pt-1.5 text-center">
-                      <button
+                      <Button
+                        id="chat-with-producer-button"
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setChatOpen(true)}
-                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 font-medium transition-colors cursor-pointer select-none py-1 px-2 rounded-lg hover:bg-secondary/40"
+                        className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
                         <span>Have questions about this brief? Chat with Studio Producer →</span>
-                      </button>
+                      </Button>
                     </div>
 
                     {/* Security & SLA Badges */}
