@@ -5,9 +5,17 @@ import Link from 'next/link';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ProjectRecord } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/reui/badge';
+import { IconTile } from '@/components/reui/icon-tile';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 import {
   Table,
   TableHeader,
@@ -35,6 +43,7 @@ import {
   Clock,
   CheckCircle,
   MessageSquare,
+  FolderOpen,
 } from 'lucide-react';
 import { ChatFullView } from '@/components/chat/ChatFullView';
 
@@ -154,52 +163,60 @@ export default function ManagementPage() {
 
         {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-5 rounded-2xl border-border bg-card border-t-4 border-t-amber-500 shadow-2xs">
-            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider">
+          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Verified Revenue
               </span>
-              <DollarSign className="w-4 h-4 text-amber-600" />
+              <b className="text-2xl sm:text-3xl font-black text-foreground block tabular-nums mt-0.5">
+                ${totalRevenue.toLocaleString()}
+              </b>
+              <small className="text-xs text-amber-700 dark:text-amber-400 font-semibold block mt-0.5">PayPal confirmed orders</small>
             </div>
-            <b className="text-2xl sm:text-3xl font-black text-foreground block tabular-nums">
-              ${totalRevenue.toLocaleString()}
-            </b>
-            <small className="text-xs text-amber-700 dark:text-amber-400 font-semibold block mt-1">PayPal confirmed orders</small>
+            <IconTile variant="soft" size="lg" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+              <DollarSign className="w-5 h-5" />
+            </IconTile>
           </Card>
 
-          <Card className="p-5 rounded-2xl border-border bg-card border-t-4 border-t-emerald-500 shadow-2xs">
-            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider">
+          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Committed Credits
               </span>
-              <Coins className="w-4 h-4 text-emerald-600" />
+              <b className="text-2xl sm:text-3xl font-black text-foreground block tabular-nums mt-0.5">
+                {totalCreditsAllocated.toLocaleString()} CR
+              </b>
+              <small className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold block mt-0.5">Active work scope value</small>
             </div>
-            <b className="text-2xl sm:text-3xl font-black text-foreground block tabular-nums">
-              {totalCreditsAllocated.toLocaleString()} CR
-            </b>
-            <small className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold block mt-1">Active work scope value</small>
+            <IconTile variant="soft" size="lg" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <Coins className="w-5 h-5" />
+            </IconTile>
           </Card>
 
-          <Card className="p-5 rounded-2xl border-border bg-card border-t-4 border-t-blue-500 shadow-2xs">
-            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider">
+          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Active Production
               </span>
-              <Clock className="w-4 h-4 text-blue-600" />
+              <b className="text-2xl sm:text-3xl font-black text-foreground block mt-0.5">{activeOrdersCount}</b>
+              <small className="text-xs text-blue-700 dark:text-blue-400 font-semibold block mt-0.5">In review or production</small>
             </div>
-            <b className="text-2xl sm:text-3xl font-black text-foreground block">{activeOrdersCount}</b>
-            <small className="text-xs text-blue-700 dark:text-blue-400 font-semibold block mt-1">In review or production</small>
+            <IconTile variant="soft" size="lg" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+              <Clock className="w-5 h-5" />
+            </IconTile>
           </Card>
 
-          <Card className="p-5 rounded-2xl border-border bg-card border-t-4 border-t-purple-500 shadow-2xs">
-            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider">
+          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Delivered Work
               </span>
-              <CheckCircle className="w-4 h-4 text-purple-600" />
+              <b className="text-2xl sm:text-3xl font-black text-foreground block mt-0.5">{deliveredCount}</b>
+              <small className="text-xs text-purple-700 dark:text-purple-400 font-semibold block mt-0.5">Completed asset packs</small>
             </div>
-            <b className="text-2xl sm:text-3xl font-black text-foreground block">{deliveredCount}</b>
-            <small className="text-xs text-purple-700 dark:text-purple-400 font-semibold block mt-1">Completed asset packs</small>
+            <IconTile variant="soft" size="lg" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
+              <CheckCircle className="w-5 h-5" />
+            </IconTile>
           </Card>
         </div>
 
@@ -231,7 +248,20 @@ export default function ManagementPage() {
               </div>
             </Card>
 
-            {filteredProjects.map((p) => (
+            {filteredProjects.length === 0 ? (
+              <Empty className="p-10 border border-dashed rounded-2xl bg-secondary/20">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon" className="size-12 rounded-xl">
+                    <FolderOpen className="w-6 h-6 text-muted-foreground" />
+                  </EmptyMedia>
+                  <EmptyTitle className="text-base font-bold">No Projects Found</EmptyTitle>
+                  <EmptyDescription className="text-xs sm:text-sm">
+                    No orders match status &ldquo;{statusFilter}&rdquo;. Try selecting a different filter.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              filteredProjects.map((p) => (
               <Card
                 key={p.id}
                 className="p-5 sm:p-6 rounded-2xl border-border bg-card space-y-4 shadow-sm hover:border-amber-300 transition-all"
@@ -352,7 +382,8 @@ export default function ManagementPage() {
                   </Card>
                 </div>
               </Card>
-            ))}
+            ))
+          )}
           </div>
         )}
 
