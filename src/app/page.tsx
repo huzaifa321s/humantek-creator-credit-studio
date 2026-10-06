@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
   PACKAGES,
@@ -288,6 +288,19 @@ export default function CreatorStudioPage() {
   // User store & global credit wallet
   const { user, addCredits, deductCredits } = useUserStore();
   const [fundingSource, setFundingSource] = useState<'wallet' | 'package'>('package');
+
+  // Synchronize live wallet balance with the authoritative server ledger on mount
+  useEffect(() => {
+    const userEmail = user.email || 'kira@example.com';
+    fetch(`/api/wallet?email=${encodeURIComponent(userEmail)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.walletBalance === 'number') {
+          useUserStore.getState().updateUser({ walletBalance: data.walletBalance });
+        }
+      })
+      .catch(() => {});
+  }, [user.email]);
 
   // Navigation & Step state
   const [currentStep, setCurrentStep] = useState(1);
@@ -736,7 +749,11 @@ export default function CreatorStudioPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit request');
 
-      deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
+      if (typeof data.newWalletBalance === 'number') {
+        useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
+      } else {
+        deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
+      }
 
       confetti({
         particleCount: 120,
@@ -2362,21 +2379,39 @@ export default function CreatorStudioPage() {
                     type="button"
                     variant={redeemCodeAttached ? 'secondary' : 'default'}
                     size="sm"
-                    onClick={() => {
+                    onClick={async () => {
                       const parsed = redeemCodeSchema.safeParse(redeemCodeInput);
-                      if (parsed.success && parsed.data) {
-                        setRedeemCodeInput(parsed.data);
+                      if (!parsed.success || !parsed.data) {
+                        toast.error(parsed.success ? 'Please enter a voucher code' : parsed.error.issues[0]?.message);
+                        return;
+                      }
+                      const clean = parsed.data;
+                      setRedeemCodeInput(clean);
+                      try {
+                        const res = await fetch('/api/wallet/redeem', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ code: clean, email: email || user.email }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
+                          setRedeemCodeAttached(true);
+                          toast.success(`Voucher redeemed! +${data.creditsAdded} CR deposited into your Studio Wallet.`);
+                        } else if (res.status === 409) {
+                          setRedeemCodeAttached(true);
+                          toast.info(`Voucher attached: ${clean}`);
+                        } else {
+                          toast.error(data.error || 'Failed to redeem voucher');
+                        }
+                      } catch {
                         setRedeemCodeAttached(true);
-                        toast.success(`Voucher attached: ${parsed.data}`);
-                      } else {
-                        toast.error(
-                          parsed.success ? 'Please enter a voucher code' : parsed.error.issues[0]?.message
-                        );
+                        toast.success(`Voucher attached: ${clean}`);
                       }
                     }}
                     className="text-xs shrink-0 font-semibold h-9 px-3.5 rounded-lg cursor-pointer"
                   >
-                    {redeemCodeAttached ? 'Attached ✓' : 'Attach'}
+                    {redeemCodeAttached ? 'Applied ✓' : 'Apply & Redeem'}
                   </Button>
                 </div>
               </div>
@@ -2471,16 +2506,22 @@ export default function CreatorStudioPage() {
       {currentStep === 5 && currentPackage && (
         <div className="space-y-6 animate-in fade-in duration-200">
           {submittedProject ? (
-            /* Celebration Screen on Success */
-            <Card className="max-w-xl mx-auto rounded-xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            /* Celebration Screen on Success - Fully Responsive & Reusable Components */
+            <Card className="max-w-xl w-full mx-auto rounded-2xl border border-border/80 bg-card/95 backdrop-blur-sm p-6 sm:p-8 md:p-9 shadow-xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
               {/* Header Icon & Status Pill */}
               <div className="flex flex-col items-center gap-3">
-                <div className="size-16 rounded-xl bg-gradient-to-br from-amber-500/15 via-amber-500/10 to-amber-600/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs">
+                <IconTile
+                  variant="soft"
+                  size="xl"
+                  radius="default"
+                  className="size-16 text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 shadow-xs mx-auto"
+                >
                   <PackageCheck className="size-8" />
-                </div>
+                </IconTile>
                 <Badge
-                  variant="outline"
-                  className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold px-3 py-1 text-xs gap-1.5"
+                  variant="success"
+                  size="default"
+                  className="font-semibold px-3 py-1 text-xs gap-1.5 shadow-2xs"
                 >
                   <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
                   Order Confirmed · Active Production
@@ -2489,58 +2530,60 @@ export default function CreatorStudioPage() {
 
               {/* Title & Subtitle */}
               <div className="space-y-1.5">
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
                   Your Creative Project is Active!
                 </h2>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
                   Your request has been routed to our agency art director and creative operations pipeline.
                 </p>
               </div>
 
               {/* Order Spec Snapshot Card */}
-              <div className="rounded-xl border border-border/70 bg-secondary/30 p-4 text-left grid grid-cols-2 gap-3.5 text-xs">
-                <div>
-                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+              <div className="rounded-xl border border-border/80 bg-muted/40 dark:bg-zinc-900/60 p-4 sm:p-5 text-left grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs shadow-2xs">
+                <div className="space-y-1">
+                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
                     Project Reference
                   </span>
-                  <span className="font-mono font-bold text-foreground text-sm">
+                  <span className="font-mono font-bold text-foreground text-sm tracking-wide bg-background border border-border/70 px-2 py-0.5 rounded-md inline-block shadow-2xs">
                     {submittedProject.projectCode}
                   </span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+                <div className="space-y-1">
+                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
                     Package Tier
                   </span>
-                  <span className="font-semibold text-foreground text-sm truncate block">
-                    {submittedProject.packageName}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="gold" size="sm" className="font-bold text-xs">
+                      {submittedProject.packageName}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+                <div className="space-y-1 border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
+                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
                     Allocated Credits
                   </span>
                   <div className="mt-0.5">
                     <CreditValue value={submittedProject.packageCredits} size="sm" />
                   </div>
                 </div>
-                <div>
-                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+                <div className="space-y-1 border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
+                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
                     Production Queue
                   </span>
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
-                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
+                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
                     Concept Briefing
                   </span>
                 </div>
               </div>
 
-              {/* Clean, Non-overwhelming 2-Button Action Row */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                <Link href="/projects" className="w-full sm:w-auto">
+              {/* Responsive Action Buttons with Clear Visual Hierarchy */}
+              <div className="space-y-3 pt-2 w-full max-w-md mx-auto">
+                <Link href="/projects" className="block w-full">
                   <Button
                     variant="default"
-                    size="default"
-                    className="w-full sm:w-auto font-semibold px-6 gap-2 h-10 cursor-pointer shadow-md shadow-amber-500/20"
+                    size="lg"
+                    className="w-full h-11 font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md shadow-amber-500/25 gap-2 cursor-pointer transition-all hover:scale-[1.01]"
                   >
                     <FolderKanban className="size-4" />
                     <span>View Project Milestones</span>
@@ -2548,30 +2591,34 @@ export default function CreatorStudioPage() {
                   </Button>
                 </Link>
 
-                <Button
-                  variant="secondary"
-                  size="default"
-                  className="w-full sm:w-auto font-semibold px-5 h-10 cursor-pointer gap-2 border border-amber-500/30 text-amber-800 dark:text-amber-300"
-                  onClick={() => setChatOpen(true, submittedProject.id)}
-                >
-                  <MessageSquare className="size-4 text-amber-600" />
-                  <span>Project Chat</span>
-                </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                  <Button
+                    variant="secondary"
+                    size="default"
+                    className="w-full h-10 font-semibold gap-2 border border-amber-500/30 text-amber-900 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+                    onClick={() => setChatOpen(true, submittedProject.id)}
+                  >
+                    <MessageSquare className="size-4 text-amber-600 dark:text-amber-400" />
+                    <span>Project Chat</span>
+                  </Button>
 
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="w-full sm:w-auto font-semibold px-5 h-10 cursor-pointer"
-                  onClick={() => window.location.reload()}
-                >
-                  Create Another Request
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    className="w-full h-10 font-semibold gap-2 hover:bg-muted cursor-pointer"
+                    onClick={() => window.location.reload()}
+                  >
+                    <Plus className="size-4 text-muted-foreground" />
+                    <span>Create Another Request</span>
+                  </Button>
+                </div>
               </div>
 
               {/* Subtle helper note linking to producer chat */}
-              <p className="text-xs text-muted-foreground pt-1">
-                Need immediate modifications? Your lead producer is on standby via the floating chat widget.
-              </p>
+              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground pt-1">
+                <Sparkles className="size-3.5 text-amber-500 shrink-0" />
+                <span>Need immediate modifications? Your lead producer is on standby via the floating chat widget.</span>
+              </div>
             </Card>
           ) : (
             /* Order Review and Payment View */
