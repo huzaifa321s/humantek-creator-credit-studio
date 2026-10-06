@@ -14,9 +14,10 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CreditValue } from '@/components/ui/credit-value';
-import { Alert, AlertTitle, AlertDescription } from '@/components/reui/alert';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { FilterTabs } from '@/components/ui/filter-tabs';
+import { TabsContent } from '@/components/ui/tabs';
 import {
   InputOTP,
   InputOTPGroup,
@@ -29,7 +30,7 @@ import {
   FieldDescription,
   FieldGroup,
 } from '@/components/ui/field';
-import { Badge } from '@/components/reui/badge';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Copy,
@@ -124,17 +125,17 @@ export default function RedeemCodePage() {
         </div>
 
         {/* Mode Tabs */}
-        <Tabs value={tab} onValueChange={(val) => setTab(val as string)} className="w-full">
-          <TabsList className="bg-secondary/60 p-1 rounded-xl h-10 w-full sm:w-auto">
-            <TabsTrigger value="redeem" className="rounded-lg px-4 text-xs font-semibold gap-2">
-              <Gift className="w-3.5 h-3.5 text-amber-600" />
-              <span>Redeem Promo Code</span>
-            </TabsTrigger>
-            <TabsTrigger value="generate" className="rounded-lg px-4 text-xs font-semibold gap-2">
-              <Ticket className="w-3.5 h-3.5 text-amber-600" />
-              <span>Generate Partner Pass</span>
-            </TabsTrigger>
-          </TabsList>
+        <FilterTabs
+          value={tab}
+          onValueChange={(val) => setTab(val as string)}
+          size="sm"
+          className="w-full"
+          listClassName="w-full sm:w-auto"
+          tabs={[
+            { value: 'redeem', label: 'Redeem Promo Code', icon: Gift },
+            { value: 'generate', label: 'Generate Partner Pass', icon: Ticket },
+          ]}
+        >
 
           {/* TAB 1: Redeem Existing Code */}
           <TabsContent value="redeem" className="pt-4">
@@ -164,33 +165,40 @@ export default function RedeemCodePage() {
                           <InputOTP
                             maxLength={6}
                             value={redeemCode}
-                            onChange={(val) => setRedeemCode(val.toUpperCase())}
+                            onChange={(val) => {
+                              // One-paste auto-split: cleans codes like HT-9428 or HT-150CR-ABCD
+                              const cleaned = val.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase();
+                              setRedeemCode(cleaned);
+                            }}
                           >
                             <InputOTPGroup>
-                              <InputOTPSlot index={0} className="size-11 text-base font-mono font-bold" />
-                              <InputOTPSlot index={1} className="size-11 text-base font-mono font-bold" />
-                              <InputOTPSlot index={2} className="size-11 text-base font-mono font-bold" />
+                              <InputOTPSlot index={0} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={1} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={2} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
                             </InputOTPGroup>
                             <InputOTPSeparator />
                             <InputOTPGroup>
-                              <InputOTPSlot index={3} className="size-11 text-base font-mono font-bold" />
-                              <InputOTPSlot index={4} className="size-11 text-base font-mono font-bold" />
-                              <InputOTPSlot index={5} className="size-11 text-base font-mono font-bold" />
+                              <InputOTPSlot index={3} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={4} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={5} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
                             </InputOTPGroup>
                           </InputOTP>
 
                           <div className="flex gap-2 w-full max-w-sm mt-1">
                             <Input
                               type="text"
-                              placeholder="Or paste full format e.g. HT-150CR-ABCD"
+                              placeholder="Or paste code e.g. HT-9428"
                               value={redeemCode}
-                              onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
-                              className="h-10 text-xs font-mono uppercase"
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase();
+                                setRedeemCode(cleaned);
+                              }}
+                              className="h-9 text-xs font-mono uppercase rounded-lg border-border/80 focus-visible:border-amber-500"
                             />
                             <Button
                               type="submit"
                               disabled={isRedeeming || !redeemCode}
-                              className="shrink-0 h-10 px-4 text-xs font-bold gap-1.5"
+                              className="shrink-0 h-9 px-3.5 text-xs font-semibold gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-xs cursor-pointer"
                             >
                               <span>{isRedeeming ? 'Applying…' : 'Redeem'}</span>
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -390,7 +398,7 @@ export default function RedeemCodePage() {
               </div>
             </div>
           </TabsContent>
-        </Tabs>
+        </FilterTabs>
       </div>
     </StudioCardLayout>
   );

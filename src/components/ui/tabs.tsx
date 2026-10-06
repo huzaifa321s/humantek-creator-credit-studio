@@ -1,8 +1,10 @@
 "use client"
 
+import * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 function Tabs({
   className,
@@ -23,16 +25,23 @@ function Tabs({
 }
 
 const tabsListVariants = cva(
-  "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+  "group/tabs-list inline-flex w-fit items-center justify-center p-1 text-muted-foreground group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col",
   {
     variants: {
       variant: {
-        default: "bg-muted",
-        line: "gap-1 bg-transparent",
+        default: "bg-secondary/70 border border-border/60 gap-1 shadow-2xs",
+        line: "gap-2 bg-transparent border-b border-border/80 rounded-none p-0",
+        soft: "bg-secondary/40 border-0 gap-1",
+      },
+      size: {
+        sm: "h-8 p-0.5 rounded-lg",
+        default: "h-10 p-1 rounded-xl",
+        lg: "h-12 p-1.5 rounded-xl",
       },
     },
     defaultVariants: {
       variant: "default",
+      size: "default",
     },
   }
 )
@@ -40,32 +49,85 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  size = "default",
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
-      className={cn("group-data-horizontal/tabs:h-8", tabsListVariants({ variant }), className)}
+      data-size={size}
+      className={cn(tabsListVariants({ variant, size }), className)}
       {...props}
     />
   )
 }
 
-function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+const tabsTriggerVariants = cva(
+  "group/tabs-trigger relative inline-flex items-center justify-center gap-1.5 font-semibold whitespace-nowrap transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default:
+          "text-muted-foreground hover:text-foreground hover:bg-background/40 data-active:bg-card data-active:text-foreground data-active:shadow-2xs data-active:font-bold data-active:ring-1 data-active:ring-border/60",
+        line:
+          "rounded-none bg-transparent pb-3 pt-2 text-muted-foreground hover:text-foreground data-active:bg-transparent data-active:text-foreground data-active:font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-amber-500 after:opacity-0 data-active:after:opacity-100",
+        soft:
+          "text-muted-foreground hover:text-foreground data-active:bg-background data-active:text-foreground data-active:shadow-xs data-active:font-bold",
+      },
+      size: {
+        sm: "h-7 px-2.5 text-xs rounded-md [&_svg]:size-3.5",
+        default: "h-8 px-3.5 text-sm rounded-lg [&_svg]:size-3.5",
+        lg: "h-9 px-4 text-sm rounded-lg [&_svg]:size-4",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function TabsTrigger({
+  className,
+  variant = "default",
+  size = "default",
+  ...props
+}: TabsPrimitive.Tab.Props & VariantProps<typeof tabsTriggerVariants>) {
   return (
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
-      className={cn(
-        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-sm group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
-        "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
-        "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
-        className
-      )}
+      data-variant={variant}
+      data-size={size}
+      className={cn(tabsTriggerVariants({ variant, size }), className)}
       {...props}
     />
   )
+}
+
+function TabsBadge({
+  className,
+  count,
+  children,
+  ...props
+}: React.ComponentProps<typeof Badge> & { count?: number | string }) {
+  const val = count !== undefined ? count : children;
+  if (val === undefined || val === null) return null;
+  return (
+    <Badge
+      variant="secondary"
+      size="xs"
+      data-slot="tabs-badge"
+      className={cn(
+        "tabular-nums transition-colors ml-1 border-0 text-[10.5px] font-bold px-1.5 py-0",
+        "bg-muted/80 text-muted-foreground group-data-active/tabs-trigger:bg-amber-500/15 group-data-active/tabs-trigger:text-amber-800 dark:group-data-active/tabs-trigger:text-amber-300 group-data-active/tabs-trigger:ring-1 group-data-active/tabs-trigger:ring-amber-500/30",
+        className
+      )}
+      {...props}
+    >
+      {val}
+    </Badge>
+  );
 }
 
 function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
@@ -78,4 +140,12 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsBadge,
+  TabsContent,
+  tabsListVariants,
+  tabsTriggerVariants,
+}

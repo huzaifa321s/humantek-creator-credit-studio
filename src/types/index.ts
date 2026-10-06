@@ -105,3 +105,47 @@ export interface CreditLedgerEntry {
   description: string;
   createdAt: string;
 }
+
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  url: string;
+  size?: string;
+  type: 'image' | 'file';
+  previewUrl?: string;
+}
+
+export interface ChatOrderCard {
+  projectCode: string;
+  packageName: string;
+  credits: number;
+  status: string;
+  price: number;
+}
+
+export interface ChatReaction {
+  emoji: string;
+  count: number;
+  reacted?: boolean;
+}
+
+export interface ChatAudioNote {
+  duration: string;
+  url?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  projectId: string;
+  sender: 'client' | 'agent' | 'system';
+  senderName: string;
+  senderRole?: string;
+  content: string;
+  timestamp: string;
+  attachments?: ChatAttachment[];
+  orderCard?: ChatOrderCard;
+  isRead?: boolean;
+  reactions?: ChatReaction[];
+  audioNote?: ChatAudioNote;
+}
+

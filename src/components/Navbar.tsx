@@ -40,7 +40,7 @@ interface NavbarProps {
 export function Navbar({ walletBalance = 0, userEmail = null }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { unreadCount, setIsOpen } = useStudioChat();
+  const { totalUnreadCount, setIsOpen } = useStudioChat();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-card/95 backdrop-blur-md shadow-2xs transition-all">
@@ -85,9 +85,9 @@ export function Navbar({ walletBalance = 0, userEmail = null }: NavbarProps) {
           >
             <MessageSquare className="w-4 h-4 text-amber-600" />
             <span>Messages</span>
-            {unreadCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-black animate-pulse">
-                {unreadCount}
+            {totalUnreadCount > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-xs font-bold animate-pulse">
+                {totalUnreadCount}
               </span>
             )}
           </Button>
@@ -258,9 +258,9 @@ export function Navbar({ walletBalance = 0, userEmail = null }: NavbarProps) {
                     className="w-full justify-start text-xs font-semibold gap-2 cursor-pointer"
                   >
                     <MessageSquare className="w-4 h-4 text-amber-600" /> Chat with Producer
-                    {unreadCount > 0 && (
-                      <span className="ml-auto px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black">
-                        {unreadCount}
+                    {totalUnreadCount > 0 && (
+                      <span className="ml-auto px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-xs font-bold">
+                        {totalUnreadCount}
                       </span>
                     )}
                   </Button>

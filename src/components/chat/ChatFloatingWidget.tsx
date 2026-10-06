@@ -1,130 +1,375 @@
 'use client';
 
-import React, { useState } from 'react';
-import { MessageSquare, X, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  MessageSquare,
+  X,
+  PanelLeft,
+  ExternalLink,
+  ChevronLeft,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { useStudioChat, ChatAttachment } from '@/lib/chatStore';
+import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { useProjectsQuery } from '@/lib/queries/projects';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInputBar } from './ChatInputBar';
 import { ChatAttachmentModal } from './ChatAttachmentModal';
 import { ChatMessageList } from './ChatMessageList';
+import { ChatProjectSidebar } from './ChatProjectSidebar';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
 export function ChatFloatingWidget() {
-  const { messages, agent, isOpen, isTyping, unreadCount, setIsOpen, sendMessage } = useStudioChat();
+  const {
+    projectId,
+    isGlobal,
+    projectMeta,
+    projectMessages,
+    messages,
+    agent,
+    isOpen,
+    isTyping,
+    totalUnreadCount,
+    unreadCounts,
+    setIsOpen,
+    setActiveProjectId,
+    sendMessage,
+    toggleReaction,
+    registerProject,
+  } = useStudioChat();
+
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const pathname = usePathname();
+  const isWizardRoute = pathname === '/' || pathname === '/configure';
+  const [hasFooter, setHasFooter] = useState(isWizardRoute);
+
+  const projectsQuery = useProjectsQuery();
+  const projects = projectsQuery.data ?? [];
+
+  // Adaptive Sidebar: Auto-collapse on mobile screens (<640px)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 640) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    }
+  }, []);
+
+  // Sync projects dynamically into project-based chat store
+  useEffect(() => {
+    if (projects.length > 0) {
+      projects.forEach((p) => {
+        registerProject({
+          id: p.id,
+          projectCode: p.projectCode,
+          packageName: p.packageName,
+          clientName: p.clientName,
+          status: p.status,
+          price: p.packagePrice,
+          credits: p.packageCredits,
+        });
+      });
+    }
+  }, [projects, registerProject]);
+
+  // Adjust bottom distance if wizard footer is present
+  useEffect(() => {
+    const checkFooter = () => {
+      const footerEl = document.getElementById('studio-footer-actions');
+      const exists = Boolean(footerEl);
+      setHasFooter((prev) => (prev !== exists ? exists : prev));
+    };
+
+    checkFooter();
+
+    const observer = new MutationObserver(checkFooter);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [pathname]);
+
+  const handleSelectProject = (id: string) => {
+    setActiveProjectId(id);
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      setIsSidebarOpen(false);
+    }
+  };
 
   return (
     <>
-      {/* 1. Floating launcher & toggle */}
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex items-center gap-2.5">
-        {/* Text pill (visible when chat is closed on sm+ screens) */}
-        {!isOpen && (
+      {/* 1. Floating Launcher (Single Compact Chat Trigger Button) */}
+      {!isOpen && (
+        <div
+          className={cn(
+            'fixed right-5 sm:right-6 md:right-7 z-50 transition-all duration-300 ease-in-out',
+            hasFooter ? 'bottom-20 sm:bottom-22' : 'bottom-5 sm:bottom-6'
+          )}
+        >
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            onClick={() => setIsOpen(true)}
-            className="hidden sm:flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-card/98 border-border/90 text-foreground text-xs font-bold shadow-md shadow-black/5 hover:shadow-lg hover:shadow-amber-500/10 hover:border-amber-400/80 hover:text-amber-700 dark:hover:text-amber-300 transition-all cursor-pointer backdrop-blur-md select-none h-9"
+            onClick={() => {
+              if (isWizardRoute) {
+                setActiveProjectId(GLOBAL_CHAT_ID);
+              }
+              setIsOpen(true);
+            }}
+            aria-label="Open studio chat"
+            className="group/chat-trigger h-9 sm:h-9.5 px-3 sm:px-3.5 py-1.5 rounded-lg bg-card hover:bg-amber-500/5 dark:bg-card border-border hover:border-amber-500/40 text-foreground shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none flex items-center gap-2"
           >
-            <span className="size-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 animate-pulse shrink-0" />
-            <span>Chat with Creative Producer</span>
-          </Button>
-        )}
-
-        {/* Circular Action Launcher / Toggle Button */}
-        <Button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-label={isOpen ? 'Close studio chat' : 'Open studio chat'}
-          className={cn(
-            'relative size-12 sm:size-13 rounded-full text-white transition-all duration-200 border flex items-center justify-center p-0 cursor-pointer select-none',
-            isOpen
-              ? 'bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-zinc-700 shadow-xl shadow-black/20 hover:scale-105 active:scale-95'
-              : 'bg-gradient-to-br from-amber-500 via-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 border-amber-400/50 shadow-xl shadow-amber-500/30 hover:shadow-2xl hover:shadow-amber-500/40 hover:scale-105 active:scale-95'
-          )}
-        >
-          {isOpen ? (
-            <X className="size-6 transition-transform duration-200 rotate-90" />
-          ) : (
-            <>
-              <MessageSquare className="size-6 transition-transform duration-200" />
-              {/* Online Green Signal Dot (visible on mobile where text pill is hidden) */}
-              <span className="sm:hidden absolute bottom-0.5 right-0.5 size-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-zinc-950 shadow-xs" />
-            </>
-          )}
-
-          {/* Unread Message Count Badge */}
-          {unreadCount > 0 && !isOpen && (
-            <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-background animate-bounce shadow-xs">
-              {unreadCount}
+            {/* Brand Orange Chat Icon */}
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover/chat-trigger:bg-amber-500/25 transition-colors">
+              <MessageSquare className="size-3 text-amber-600 dark:text-amber-400" />
             </span>
-          )}
-        </Button>
-      </div>
 
-      {/* 2. Expanded chat card (anchored above the bottom-right launcher) */}
+            {/* Label: Studio Chat · Sarah Miller on wizard / purchase flow, or Project Chat on tracking views */}
+            <div className="flex items-center gap-1.5 text-xs font-medium">
+              <span className="text-foreground font-semibold">
+                {isWizardRoute || isGlobal ? 'Studio Chat' : 'Project Chat'}
+              </span>
+              <span className="text-muted-foreground/60 font-normal">·</span>
+              <span className="text-muted-foreground font-mono text-[11px] font-normal">
+                {isWizardRoute || isGlobal ? 'Sarah Miller' : projectMeta.projectCode}
+              </span>
+            </div>
+
+            {/* Unread Message Count Badge */}
+            {totalUnreadCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="ml-0.5 h-4.5 px-1.5 text-[10px] font-bold rounded-full bg-amber-500 text-white animate-pulse shadow-xs"
+              >
+                {totalUnreadCount}
+              </Badge>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* 2. Slide-over Panel Workspace (Hybrid Two-Column Drawer) */}
       {isOpen && (
-        <Card className="fixed bottom-20 right-4 sm:bottom-22 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[420px] h-[540px] max-h-[calc(100vh-6.5rem)] gap-0 py-0 rounded-2xl border border-border/80 bg-card/98 backdrop-blur-md shadow-2xl shadow-black/25 flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200">
-          <CardHeader className="px-4 py-3 border-b border-border/70 bg-secondary/30 shrink-0 flex flex-row items-center justify-between gap-3 space-y-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="relative shrink-0">
-                <Avatar className="size-9 border border-amber-500/50 bg-gradient-to-br from-amber-500/20 to-amber-600/30 shadow-2xs">
-                  <AvatarFallback className="bg-transparent text-amber-800 dark:text-amber-300 font-bold text-xs">
-                    {agent.avatarInitials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-foreground truncate">{agent.name}</span>
-                  <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[10px] font-medium">
-                    Lead
-                  </Badge>
+        <>
+          {/* Backdrop overlay */}
+          <div
+            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
+          />
+
+          <div
+            className={cn(
+              'fixed right-0 top-0 bottom-0 z-50 h-full w-full sm:w-[680px] md:w-[780px] lg:w-[860px] max-w-full bg-card border-l border-border shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300'
+            )}
+          >
+            {/* ========================================================= */}
+            {/* 1. TOP AGENT BAR (Lightweight & Reassuring, px-4 py-2.5)   */}
+            {/* ========================================================= */}
+            <div className="px-4 py-2.5 border-b border-border/80 bg-secondary/35 shrink-0 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {/* Sidebar toggle button (ChatGPT / Grok style) */}
+                {projects.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    title={isSidebarOpen ? 'Collapse Project Sessions' : 'Show Project Sessions'}
+                    className={cn(
+                      'h-8 w-8 rounded-lg cursor-pointer transition-colors',
+                      isSidebarOpen && 'bg-accent text-accent-foreground'
+                    )}
+                  >
+                    <PanelLeft className="size-4" />
+                  </Button>
+                )}
+
+                <div className="relative shrink-0">
+                  <Avatar className="size-8.5 border border-amber-500/50 bg-gradient-to-br from-amber-500/20 to-amber-600/30 shadow-2xs">
+                    <AvatarFallback className="bg-transparent text-amber-800 dark:text-amber-300 font-semibold text-xs">
+                      {agent.avatarInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
-                  <ShieldCheck className="size-3 text-emerald-500 shrink-0" />
-                  {agent.responseTime}
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-foreground truncate">{agent.name}</span>
+                    <span className="text-xs text-muted-foreground hidden xs:inline">· Lead Producer</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                    <span className="flex size-1.5 rounded-full bg-emerald-500" />
+                    <span>{agent.responseTime}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs font-normal text-muted-foreground hidden sm:inline">
+                  {projects.length} Active
                 </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setIsOpen(false)}
+                  aria-label="Close chat"
+                  title="Close chat"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="size-4" />
+                </Button>
               </div>
             </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setIsOpen(false)}
-              aria-label="Close chat"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-4" />
-            </Button>
-          </CardHeader>
+            {/* ========================================================= */}
+            {/* 2. MAIN BODY: TWO-COLUMN LAYOUT                           */}
+            {/* ========================================================= */}
+            <div className="flex-1 flex min-h-0 overflow-hidden relative">
+              {/* LEFT COLUMN: Pinned Global Chat + Project Sessions Sidebar */}
+              <div
+                className={cn(
+                  'border-r border-border/80 flex flex-col transition-all duration-200 z-10',
+                  isSidebarOpen
+                    ? 'w-full sm:w-[265px] md:w-[275px] shrink-0 flex'
+                    : 'hidden sm:hidden'
+                )}
+              >
+                <ChatProjectSidebar
+                  projects={projects}
+                  activeProjectId={projectId}
+                  unreadCounts={unreadCounts}
+                  projectMessages={projectMessages}
+                  onSelectProject={handleSelectProject}
+                  onNewBriefClick={() => setIsOpen(false)}
+                  className="h-full border-0"
+                />
+              </div>
 
-          {/* Feed — official shadcn MessageScroller */}
-          <div className="flex-1 min-h-0">
-            <ChatMessageList
-              messages={messages}
-              isTyping={isTyping}
-              agentName={agent.name}
-              contentClassName="px-4 py-4 gap-4"
-              renderMessage={(msg) => (
-                <ChatMessageItem message={msg} compact onPreviewAttachment={setPreviewAttachment} />
-              )}
-            />
+              {/* RIGHT COLUMN: Chat Header + Messages Feed */}
+              <div
+                className={cn(
+                  'flex-1 flex flex-col min-w-0 bg-card overflow-hidden',
+                  isSidebarOpen ? 'hidden sm:flex' : 'flex'
+                )}
+              >
+                {/* Mobile Back button when sidebar is collapsed */}
+                <div className="sm:hidden px-3 py-1.5 border-b border-border/70 bg-secondary/25 flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="h-7 text-xs font-medium gap-1 text-amber-700 dark:text-amber-400 cursor-pointer"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                    <span>Back to chats</span>
+                  </Button>
+                  <span className="text-[11px] font-mono font-medium text-muted-foreground">
+                    {isGlobal ? 'Global Chat' : projectMeta.projectCode}
+                  </span>
+                </div>
+
+                {/* ========================================================= */}
+                {/* 3. CONTEXT BAR: Global Header vs Project Context Bar      */}
+                {/* ========================================================= */}
+                {isGlobal ? (
+                  <div className="px-4 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] max-h-[60px] flex flex-col justify-center">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-foreground">Global Chat</span>
+                        <span className="flex size-1.5 rounded-full bg-emerald-500 inline-block align-middle" />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Replies in ~2 mins · Packages, credits & studio support
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] max-h-[60px] flex flex-col justify-center gap-1">
+                    {/* Line 1: Code · Package · Status */}
+                    <div className="flex items-center gap-2 flex-wrap text-sm font-medium">
+                      <span className="font-mono text-foreground font-medium">
+                        {projectMeta.projectCode}
+                      </span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-foreground/90 font-medium">
+                        {projectMeta.packageName}
+                      </span>
+                      <span className="text-muted-foreground">·</span>
+                      <Badge variant="outline" className="text-[11px] font-normal text-amber-700 dark:text-amber-400 border-amber-500/40 px-1.5 py-0.5 h-auto">
+                        {projectMeta.status.replace('_', ' ').toLowerCase()}
+                      </Badge>
+                    </div>
+
+                    {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mt-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>Client: <b className="text-foreground font-medium">{projectMeta.clientName}</b></span>
+                        <span>·</span>
+                        <span><b className="text-amber-600 dark:text-amber-400 font-semibold">{projectMeta.credits || 660} CR</b></span>
+                        {projectMeta.price && (
+                          <>
+                            <span>·</span>
+                            <span>${projectMeta.price.toLocaleString()} USD</span>
+                          </>
+                        )}
+                      </div>
+
+                      <Link
+                        href="/projects"
+                        onClick={() => setIsOpen(false)}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline shrink-0"
+                      >
+                        <span>Milestone Tracker</span>
+                        <ExternalLink className="size-3" />
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {/* Message Scroller Feed */}
+                <div className="flex-1 min-h-0 bg-card/60">
+                  <ChatMessageList
+                    messages={messages}
+                    isTyping={isTyping}
+                    agentName={agent.name}
+                    isGlobal={isGlobal}
+                    contentClassName="px-4 py-3 gap-3"
+                    renderMessage={(msg) => (
+                      <ChatMessageItem
+                        message={msg}
+                        compact
+                        onPreviewAttachment={setPreviewAttachment}
+                        onToggleReaction={(emoji) => toggleReaction(msg.id, emoji)}
+                      />
+                    )}
+                  />
+                </div>
+
+                {/* Input Bar Footer */}
+                <div className="px-4 py-3 border-t border-border/70 bg-card shrink-0">
+                  <ChatInputBar
+                    onSendMessage={sendMessage}
+                    isTyping={isTyping}
+                    compact
+                    isGlobal={isGlobal}
+                    activeProjectCode={isGlobal ? undefined : projectMeta.projectCode}
+                    activeProjectName={isGlobal ? undefined : projectMeta.packageName}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-
-          <CardFooter className="p-3 border-t border-border/70 bg-card shrink-0 block">
-            <ChatInputBar onSendMessage={sendMessage} isTyping={isTyping} compact />
-          </CardFooter>
-        </Card>
+        </>
       )}
 
+      {/* Lightbox Preview Modal */}
       <ChatAttachmentModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
     </>
   );

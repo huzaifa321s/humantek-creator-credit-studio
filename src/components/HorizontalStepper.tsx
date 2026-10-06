@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -20,41 +20,53 @@ import {
 
 export interface StepItem {
   number: number;
+  stepText: string;
   name: string;
   shortName: string;
+  headline: string;
   desc: string;
 }
 
 export const STUDIO_STEPS: StepItem[] = [
   {
     number: 1,
-    name: 'Package',
+    stepText: '1 of 5',
+    name: 'Choose a package',
     shortName: 'Package',
-    desc: 'Select credit tier and bonus multipliers',
+    headline: 'Start with the right credit wallet.',
+    desc: "Pick a package to get your credits. You'll see your balance update as you build your project.",
   },
   {
     number: 2,
-    name: 'Services',
+    stepText: '2 of 5',
+    name: 'Pick your services',
     shortName: 'Services',
-    desc: 'Pick 39 creative services and scope tiers',
+    headline: 'Choose everything you need in one go.',
+    desc: 'Select the services, set the size and quantity, and watch your credits update instantly.',
   },
   {
     number: 3,
-    name: 'Credit Scope',
-    shortName: 'Scope',
-    desc: 'Acknowledge revisions, scope rules & eligibility',
+    stepText: '3 of 5',
+    name: 'What credits cover',
+    shortName: 'Credits cover',
+    headline: 'Check what your credits can be used for.',
+    desc: 'Credits work for approved Humantek Art services only, so please check this before you continue.',
   },
   {
     number: 4,
-    name: 'Project Details',
-    shortName: 'Details',
-    desc: 'Provide instructions, links & reference files',
+    stepText: '4 of 5',
+    name: 'Your project details',
+    shortName: 'Project details',
+    headline: 'Tell us what each item should include.',
+    desc: 'Add your brief, reference images, and any extras, then confirm the terms.',
   },
   {
     number: 5,
-    name: 'Review & Pay',
-    shortName: 'Review',
-    desc: 'Final review and verified PayPal checkout',
+    stepText: '5 of 5',
+    name: 'Review & pay',
+    shortName: 'Review & pay',
+    headline: 'Ready to submit?',
+    desc: 'Check your package, services, brief, and balance, then pay securely with PayPal.',
   },
 ];
 
@@ -62,6 +74,14 @@ interface HorizontalStepperProps {
   currentStep: number;
   onSelectStep: (step: number) => void;
   isPackageSelected: boolean;
+  selectedPackageName?: string;
+  selectedPackagePrice?: number;
+  selectedPackageCredits?: number;
+  selectedServicesCount?: number;
+  usedCredits?: number;
+  remainingCredits?: number;
+  isPolicyAccepted?: boolean;
+  isBriefCompleted?: boolean;
   className?: string;
 }
 
@@ -69,6 +89,14 @@ export function HorizontalStepper({
   currentStep,
   onSelectStep,
   isPackageSelected,
+  selectedPackageName,
+  selectedPackagePrice,
+  selectedPackageCredits,
+  selectedServicesCount = 0,
+  usedCredits = 0,
+  remainingCredits = 0,
+  isPolicyAccepted = false,
+  isBriefCompleted = false,
   className,
 }: HorizontalStepperProps) {
   return (
@@ -93,14 +121,14 @@ export function HorizontalStepper({
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <StepperTrigger className="group gap-2.5 rounded-xl px-2.5 py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed disabled:opacity-40" />
+                      <StepperTrigger className="group gap-2.5 rounded-xl px-2.5 py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed" />
                     }
                   >
                     <StepperIndicator
                       className={cn(
                         'size-8 rounded-full border-2 text-xs font-bold transition-all duration-200 shrink-0',
-                        // Inactive step
-                        'border-border/90 bg-muted/40 text-muted-foreground/80 group-hover:border-amber-400/60 group-hover:text-foreground',
+                        // Inactive / Upcoming step: crisp and legible
+                        'border-border/90 bg-card text-foreground/80 font-bold group-hover:border-amber-400/60 group-hover:text-foreground',
                         // Completed step: crisp amber with white checkmark
                         'data-[state=completed]:border-amber-500 data-[state=completed]:bg-amber-500 data-[state=completed]:text-white data-[state=completed]:shadow-xs data-[state=completed]:shadow-amber-500/20',
                         // Active step: slightly larger size, rich gradient, elevated shadow & vibrant amber ring
@@ -110,17 +138,101 @@ export function HorizontalStepper({
                       {stepNum}
                     </StepperIndicator>
 
-                    <StepperTitle className="whitespace-nowrap text-xs font-medium tracking-tight text-muted-foreground/80 group-hover:text-foreground transition-colors duration-200 data-[state=completed]:font-semibold data-[state=completed]:text-foreground/90 data-[state=active]:font-extrabold data-[state=active]:text-foreground">
-                      <span className="hidden md:inline">{step.name}</span>
-                      <span className="inline md:hidden">{step.shortName}</span>
+                    <StepperTitle className="whitespace-nowrap text-xs font-medium tracking-tight text-foreground/75 group-hover:text-foreground transition-colors duration-200 data-[state=completed]:font-semibold data-[state=completed]:text-foreground/90 data-[state=active]:font-extrabold data-[state=active]:text-foreground">
+                      <span className="hidden xl:inline">{step.name}</span>
+                      <span className="inline xl:hidden">{step.shortName}</span>
                     </StepperTitle>
                   </TooltipTrigger>
 
                   <TooltipContent side="bottom" className="text-xs max-w-xs p-3 shadow-xl bg-zinc-900 text-white border border-zinc-700/80">
                     <p className="font-bold text-white text-xs">
-                      Step {stepNum}: {step.name}
+                      {step.stepText}: {step.name}
                     </p>
-                    <p className="text-zinc-300 text-[11px] mt-1 leading-snug">{step.desc}</p>
+
+                    {/* Step 1: Package Selection Context */}
+                    {stepNum === 1 && isPackageSelected && selectedPackageName ? (
+                      <div className="mt-1.5 pt-1.5 border-t border-zinc-700/80 space-y-0.5">
+                        <p className="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Selected: {selectedPackageName}</span>
+                        </p>
+                        <p className="text-zinc-300 text-xs">
+                          {selectedPackageCredits ? `${selectedPackageCredits} CR` : ''}
+                          {selectedPackagePrice ? ` · $${selectedPackagePrice.toLocaleString()} USD` : ''}
+                        </p>
+                        <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                          Click step 1 to switch package
+                        </p>
+                      </div>
+                    ) : /* Step 2: Selected Services Scope Context */
+                    stepNum === 2 && selectedServicesCount > 0 ? (
+                      <div className="mt-1.5 pt-1.5 border-t border-zinc-700/80 space-y-0.5">
+                        <p className="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>
+                            {selectedServicesCount} {selectedServicesCount === 1 ? 'Service' : 'Services'} Selected
+                          </span>
+                        </p>
+                        <p className="text-zinc-300 text-xs">
+                          {usedCredits} CR allocated · {remainingCredits >= 0 ? `${remainingCredits} CR remaining` : `${Math.abs(remainingCredits)} CR over`}
+                        </p>
+                        {currentStep !== 2 && (
+                          <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                            Click step 2 to modify services
+                          </p>
+                        )}
+                      </div>
+                    ) : /* Step 3: Policy Acceptance Context */
+                    stepNum === 3 && isPolicyAccepted ? (
+                      <div className="mt-1.5 pt-1.5 border-t border-zinc-700/80 space-y-0.5">
+                        <p className="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Scope & Revision Policy Accepted</span>
+                        </p>
+                        <p className="text-zinc-300 text-xs">
+                          Commercial streaming rights & revision rules confirmed
+                        </p>
+                        {currentStep !== 3 && (
+                          <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                            Click step 3 to review policy
+                          </p>
+                        )}
+                      </div>
+                    ) : /* Step 4: Creative Brief Context */
+                    stepNum === 4 && isBriefCompleted ? (
+                      <div className="mt-1.5 pt-1.5 border-t border-zinc-700/80 space-y-0.5">
+                        <p className="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Brief Completed & Terms Agreed</span>
+                        </p>
+                        <p className="text-zinc-300 text-xs">
+                          Channel details, references & requirements locked in
+                        </p>
+                        {currentStep !== 4 && (
+                          <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                            Click step 4 to edit brief
+                          </p>
+                        )}
+                      </div>
+                    ) : /* Step 5: Checkout State Context */
+                    stepNum === 5 && currentStep === 5 ? (
+                      <div className="mt-1.5 pt-1.5 border-t border-zinc-700/80 space-y-0.5">
+                        <p className="text-amber-400 text-xs font-bold flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Ready for Review & Payment</span>
+                        </p>
+                        <p className="text-zinc-300 text-xs">
+                          Final scope verification & secure PayPal checkout
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-amber-400 text-xs font-semibold mt-1">
+                          {step.headline}
+                        </p>
+                        <p className="text-zinc-300 text-xs mt-1 leading-snug">{step.desc}</p>
+                      </>
+                    )}
                   </TooltipContent>
                 </Tooltip>
 
@@ -138,15 +250,15 @@ export function HorizontalStepper({
       <div className="flex sm:hidden flex-col items-center justify-center w-full max-w-xs mx-auto gap-2 py-0.5 select-none">
         <div className="flex items-center justify-between w-full px-0.5">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center size-5 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white text-[10px] font-black shadow-xs shadow-amber-500/30">
+            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white text-xs font-bold shadow-xs shadow-amber-500/30">
               {currentStep}
             </span>
             <span className="text-xs font-bold text-foreground">
               {STUDIO_STEPS[currentStep - 1]?.name}
             </span>
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground tabular-nums">
-            Step {currentStep} of 5
+          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+            {STUDIO_STEPS[currentStep - 1]?.stepText}
           </span>
         </div>
 

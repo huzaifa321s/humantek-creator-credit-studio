@@ -256,8 +256,8 @@ export const SERVICES: ServiceDefinition[] = [
     description: 'A polished illustration within approved scope.',
     prices: [40, 112, 220],
     scopeDetails: [
-      'Simple character art · flat colours',
-      'Full-colour anime-style illustration · background included',
+      'Simple character art · flat colors',
+      'Full-color anime-style illustration · background included',
       'Premium detailed illustration · custom background · high resolution and commercial use',
     ],
   },
@@ -412,7 +412,7 @@ export const RESTRICTED_GUIDELINES = [
 
 export const REVISION_RULES = [
   'Extra revision round: 10%, minimum 4 CR. One consolidated feedback list after the included rounds.',
-  'Minor text or colour change: 5%, minimum 4 CR. Use this or a revision charge for the same work, not both.',
+  'Minor text or color change: 5%, minimum 4 CR. Use this or a revision charge for the same work, not both.',
   'Additional size or platform: 15%, minimum 4 CR. Major redesign requires a new quote.',
   'New concept using the same brief: 60%, minimum 12 CR. It replaces the revision fee for that work.',
   'Direction change after approval: 35%, minimum 12 CR. A new brief and timeline are required.',
@@ -683,6 +683,17 @@ export const CATEGORY_DEFAULT_METADATA: Record<
   },
 };
 
+const CATEGORY_TURNAROUND: Record<string, string> = {
+  Branding: '3–5 days',
+  Stream: '2–4 days',
+  Animation: '4–7 days',
+  VTuber: '7–14 days',
+  Artwork: '5–7 days',
+  Content: '2–3 days',
+  '3D': '7–10 days',
+  Custom: 'Custom schedule',
+};
+
 export function getServiceMetadata(svc: ServiceDefinition) {
   const custom = SERVICE_METADATA_EXTRAS[svc.id];
   const catDefault = CATEGORY_DEFAULT_METADATA[svc.category] || CATEGORY_DEFAULT_METADATA.Custom;
@@ -691,5 +702,8 @@ export function getServiceMetadata(svc: ServiceDefinition) {
     bestFor: svc.bestFor || custom?.bestFor || catDefault.bestFor,
     deliverables: svc.deliverables || custom?.deliverables || catDefault.deliverables,
     previewImage: svc.exampleImage || custom?.previewImage,
+    turnaround: CATEGORY_TURNAROUND[svc.category] || '3–5 days',
+    revisions: '2 rounds included',
   };
 }
+

@@ -2,14 +2,36 @@ const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 const PAYPAL_API_URL = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+/** True when no real PayPal credentials are configured. */
+export function isPayPalMockMode(): boolean {
+  return !PAYPAL_CLIENT_SECRET || PAYPAL_CLIENT_ID === 'sb';
+}
+
+/**
+ * Mock payments are only ever allowed outside production. In production a
+ * missing PayPal configuration is a hard error — never a free order.
+ */
+function assertMockAllowed() {
+  if (isProduction) {
+    throw new Error('Payments are temporarily unavailable (PayPal is not configured).');
+  }
+}
+
+export interface CaptureResult {
+  id: string;
+  status: string;
+  captureId: string | null;
+  amountUSD: number | null;
+  currency: string | null;
+  mock: boolean;
+}
+
 /**
  * Generate PayPal OAuth2 Access Token
  */
 export async function getPayPalAccessToken(): Promise<string> {
-  if (!PAYPAL_CLIENT_SECRET || PAYPAL_CLIENT_ID === 'sb') {
-    return 'mock-sandbox-token';
-  }
-
   const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
   const response = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {
     method: 'POST',
@@ -18,6 +40,7 @@ export async function getPayPalAccessToken(): Promise<string> {
       Authorization: `Basic ${auth}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -31,9 +54,9 @@ export async function getPayPalAccessToken(): Promise<string> {
 /**
  * Create a PayPal Checkout Order
  */
-export async function createPayPalOrder(amountUSD: number, customId?: string) {
-  if (PAYPAL_CLIENT_ID === 'sb' && !PAYPAL_CLIENT_SECRET) {
-    // Sandbox development mock order ID
+export async function createPayPalOrder(amountUSD: number, customId?: string): Promise<{ id: string; status: string }> {
+  if (isPayPalMockMode()) {
+    assertMockAllowed();
     return {
       id: `ORDER-MOCK-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
       status: 'CREATED',
@@ -60,6 +83,7 @@ export async function createPayPalOrder(amountUSD: number, customId?: string) {
         },
       ],
     }),
+    cache: 'no-store',
   });
 
   const data = await response.json();
@@ -71,24 +95,36 @@ export async function createPayPalOrder(amountUSD: number, customId?: string) {
 }
 
 /**
- * Capture an approved PayPal order
+ * Capture an approved PayPal order and return a normalized result
+ * (status + captured amount) so callers can verify the payment.
  */
-export async function capturePayPalOrder(orderId: string) {
-  if (orderId.startsWith('ORDER-MOCK-') || (PAYPAL_CLIENT_ID === 'sb' && !PAYPAL_CLIENT_SECRET)) {
+export async function capturePayPalOrder(orderId: string, expectedAmountUSD: number): Promise<CaptureResult> {
+  const isMockOrder = orderId.startsWith('ORDER-MOCK-');
+
+  if (isMockOrder || isPayPalMockMode()) {
+    // A mock order id must never be accepted when real PayPal is configured.
+    if (isMockOrder && !isPayPalMockMode()) {
+      throw new Error('Invalid PayPal order.');
+    }
+    assertMockAllowed();
     return {
       id: orderId,
       status: 'COMPLETED',
       captureId: `CAPTURE-MOCK-${Date.now()}`,
+      amountUSD: expectedAmountUSD,
+      currency: 'USD',
+      mock: true,
     };
   }
 
   const accessToken = await getPayPalAccessToken();
-  const response = await fetch(`${PAYPAL_API_URL}/v2/checkout/orders/${orderId}/capture`, {
+  const response = await fetch(`${PAYPAL_API_URL}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
+    cache: 'no-store',
   });
 
   const data = await response.json();
@@ -96,5 +132,15 @@ export async function capturePayPalOrder(orderId: string) {
     throw new Error(data.message || 'Could not capture PayPal order');
   }
 
-  return data;
+  const capture = data?.purchase_units?.[0]?.payments?.captures?.[0];
+  const value = capture?.amount?.value;
+
+  return {
+    id: data.id,
+    status: data.status,
+    captureId: capture?.id ?? null,
+    amountUSD: value !== undefined ? Number(value) : null,
+    currency: capture?.amount?.currency_code ?? null,
+    mock: false,
+  };
 }

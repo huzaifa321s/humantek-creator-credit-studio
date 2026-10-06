@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ProjectRecord } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/reui/badge';
+import { Badge } from '@/components/ui/badge';
 import { IconTile } from '@/components/reui/icon-tile';
+import { AgencyDataGrid, type LedgerTransaction } from '@/components/AgencyDataGrid';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FilterTabs } from '@/components/ui/filter-tabs';
 import {
   Empty,
   EmptyHeader,
@@ -46,49 +47,33 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { ChatFullView } from '@/components/chat/ChatFullView';
+import { useProjectsQuery, useUpdateProjectStatus } from '@/lib/queries/projects';
+import { useStudioChat } from '@/lib/chatStore';
+
+const EMPTY_PROJECTS: ProjectRecord[] = [];
 
 export default function ManagementPage() {
+  const { setActiveProjectId } = useStudioChat();
   const [activeTab, setActiveTab] = useState<'projects' | 'ledger' | 'messages'>('projects');
-  const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch('/api/projects')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.projects) setProjects(data.projects);
-      })
-      .catch((err) => console.error(err));
-  }, []);
+  const projectsQuery = useProjectsQuery();
+  const projects = projectsQuery.data ?? EMPTY_PROJECTS;
+  const updateStatus = useUpdateProjectStatus();
+  const isUpdating = updateStatus.isPending ? updateStatus.variables?.id ?? null : null;
 
-  const handleUpdateStatus = async (
+  const handleUpdateStatus = (
     id: string,
     newStatus: ProjectRecord['status'],
     newPayment?: ProjectRecord['paymentStatus']
   ) => {
-    setIsUpdating(id);
-    try {
-      const res = await fetch('/api/projects', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus, paymentStatus: newPayment }),
-      });
-      const data = await res.json();
-      if (res.ok && data.project) {
-        setProjects((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, ...data.project } : p))
-        );
-        toast.success(`Updated project status to ${newStatus.replace('_', ' ')}`);
-      } else {
-        toast.error('Failed to update status');
+    updateStatus.mutate(
+      { id, status: newStatus, paymentStatus: newPayment },
+      {
+        onSuccess: () => toast.success(`Updated project status to ${newStatus.replace('_', ' ')}`),
+        onError: (err) => toast.error(err.message || 'Failed to update status'),
       }
-    } catch (err) {
-      console.error(err);
-      toast.error('Network error updating status');
-    } finally {
-      setIsUpdating(null);
-    }
+    );
   };
 
   const totalRevenue = projects
@@ -104,6 +89,122 @@ export default function ManagementPage() {
   const filteredProjects = projects.filter(
     (p) => statusFilter === 'all' || p.status === statusFilter
   );
+
+  const ledgerTransactions: LedgerTransaction[] = useMemo(() => {
+    const list: LedgerTransaction[] = [];
+
+    // For every real project, generate its package purchase and service deduction
+    projects.forEach((p) => {
+      list.push({
+        id: `tx-purchase-${p.id}`,
+        reference: p.projectCode || `HT-${p.id.slice(-6).toUpperCase()}`,
+        clientEmail: p.email,
+        clientName: p.clientName,
+        type: 'package_purchase',
+        creditsDelta: p.usedCredits + (p.remainingCredits || 0) || 660,
+        usdAmount: p.packagePrice,
+        date: new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', {
+          month: 'short',
+          day: '2-digit',
+          year: 'numeric',
+        }),
+        timestamp: new Date(p.createdAt || Date.now()).getTime(),
+        paymentMethod: 'paypal',
+        status: p.paymentStatus === 'paid' ? 'completed' : 'pending',
+      });
+
+      if (p.usedCredits > 0) {
+        list.push({
+          id: `tx-deduct-${p.id}`,
+          reference: p.projectCode || `HT-${p.id.slice(-6).toUpperCase()}`,
+          clientEmail: p.email,
+          clientName: p.clientName,
+          type: 'service_deduction',
+          creditsDelta: -p.usedCredits,
+          usdAmount: 0,
+          date: new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+          }),
+          timestamp: new Date(p.createdAt || Date.now()).getTime() + 1000,
+          paymentMethod: 'credits',
+          status: 'completed',
+        });
+      }
+    });
+
+    // Seed transaction history for back-office demonstration and testing
+    list.push(
+      {
+        id: 'seed-tx-1',
+        reference: 'HT-9428-FORGE',
+        clientEmail: 'kira@example.com',
+        clientName: 'Kira Vance (Twitch)',
+        type: 'package_purchase',
+        creditsDelta: 660,
+        usdAmount: 1500.0,
+        date: 'Oct 01, 2026',
+        timestamp: 1790841600000,
+        paymentMethod: 'paypal',
+        status: 'completed',
+      },
+      {
+        id: 'seed-tx-2',
+        reference: 'HT-9428-FORGE',
+        clientEmail: 'kira@example.com',
+        clientName: 'Kira Vance (Twitch)',
+        type: 'service_deduction',
+        creditsDelta: -580,
+        usdAmount: 0.0,
+        date: 'Oct 01, 2026',
+        timestamp: 1790841660000,
+        paymentMethod: 'credits',
+        status: 'completed',
+      },
+      {
+        id: 'seed-tx-3',
+        reference: 'HT-7714-VANGUARD',
+        clientEmail: 'apex_org@esports.gg',
+        clientName: 'Apex Vanguard Pro',
+        type: 'package_purchase',
+        creditsDelta: 1500,
+        usdAmount: 3200.0,
+        date: 'Sep 28, 2026',
+        timestamp: 1790582400000,
+        paymentMethod: 'paypal',
+        status: 'completed',
+      },
+      {
+        id: 'seed-tx-4',
+        reference: 'HT-7714-VANGUARD',
+        clientEmail: 'apex_org@esports.gg',
+        clientName: 'Apex Vanguard Pro',
+        type: 'service_deduction',
+        creditsDelta: -1250,
+        usdAmount: 0.0,
+        date: 'Sep 29, 2026',
+        timestamp: 1790668800000,
+        paymentMethod: 'credits',
+        status: 'completed',
+      },
+      {
+        id: 'seed-tx-5',
+        reference: 'HT-PASS-PROMO-90',
+        clientEmail: 'partner@creator.tv',
+        clientName: 'Partner Streamer Grant',
+        type: 'promo_credit',
+        creditsDelta: 150,
+        usdAmount: 0.0,
+        date: 'Sep 25, 2026',
+        timestamp: 1790323200000,
+        paymentMethod: 'promo',
+        status: 'completed',
+      }
+    );
+
+    return list;
+  }, [projects]);
 
   return (
     <StudioCardLayout
@@ -132,33 +233,16 @@ export default function ManagementPage() {
             </p>
           </div>
 
-          <Tabs
+          <FilterTabs
             value={activeTab}
-            onValueChange={(val) => setActiveTab(val as 'projects' | 'ledger')}
-            className="w-auto"
-          >
-            <TabsList className="bg-secondary/70 p-1 rounded-xl">
-              <TabsTrigger
-                value="projects"
-                className="text-sm font-semibold px-3.5 py-1.5 data-active:bg-card data-active:text-amber-700 data-active:shadow-2xs"
-              >
-                Projects ({projects.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="messages"
-                className="text-sm font-semibold px-3.5 py-1.5 data-active:bg-card data-active:text-amber-700 data-active:shadow-2xs gap-1.5"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
-                <span>Client Communications (Live)</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="ledger"
-                className="text-sm font-semibold px-3.5 py-1.5 data-active:bg-card data-active:text-amber-700 data-active:shadow-2xs"
-              >
-                Credit Ledger
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+            onValueChange={(val) => setActiveTab(val as 'projects' | 'ledger' | 'messages')}
+            size="sm"
+            tabs={[
+              { value: 'projects', label: 'Projects', count: projects.length },
+              { value: 'messages', label: 'Client Communications (Live)', icon: MessageSquare },
+              { value: 'ledger', label: 'Credit Ledger' },
+            ]}
+          />
         </div>
 
         {/* KPI Cards Grid */}
@@ -343,6 +427,25 @@ export default function ManagementPage() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    <div>
+                      <span className="text-xs font-bold text-muted-foreground uppercase block mb-1">
+                        Channel Chat
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveProjectId(p.id);
+                          setActiveTab('messages');
+                        }}
+                        className="h-9 text-xs font-semibold gap-1.5 rounded-xl border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+                      >
+                        <MessageSquare className="size-3.5 text-amber-600" />
+                        <span>Open Chat</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -387,89 +490,11 @@ export default function ManagementPage() {
           </div>
         )}
 
-        {/* Tab 2: Credit Ledger using Table */}
+        {/* Tab 2: Credit Ledger using ReUI DataGrid */}
         {activeTab === 'ledger' && (
-          <Card className="rounded-xl border-border bg-card overflow-hidden shadow-2xs">
-            <CardHeader className="p-4 border-b border-border/80 bg-muted/30">
-              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Coins className="w-4 h-4 text-amber-600" /> Audited Transaction Ledger
-              </CardTitle>
-            </CardHeader>
-            <ScrollArea className="w-full">
-              <Table>
-                <TableHeader className="bg-muted/40">
-                  <TableRow className="border-b border-border/80 hover:bg-transparent">
-                    <TableHead className="pl-6 font-semibold text-sm text-foreground/80 h-11">Reference</TableHead>
-                    <TableHead className="font-semibold text-sm text-foreground/80 h-11">Client Email</TableHead>
-                    <TableHead className="font-semibold text-sm text-foreground/80 h-11">Type</TableHead>
-                    <TableHead className="font-semibold text-sm text-foreground/80 text-right h-11">Credits Delta</TableHead>
-                    <TableHead className="font-semibold text-sm text-foreground/80 text-right h-11">USD Amount</TableHead>
-                    <TableHead className="pr-6 font-semibold text-sm text-foreground/80 text-right h-11">Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow className="hover:bg-muted/50 transition-colors border-b border-border/60">
-                    <TableCell className="pl-6 font-mono font-bold text-amber-700 dark:text-amber-400 text-sm">
-                      HT-9428-FORGE
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm font-medium">
-                      kira@example.com
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="success" className="text-xs font-semibold px-2 py-0.5">
-                        package_purchase
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      <CreditValue value="+660" size="sm" variant="delta" />
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-foreground text-sm tabular-nums">
-                      $1,500.00
-                    </TableCell>
-                    <TableCell className="pr-6 text-right text-muted-foreground text-sm">
-                      Oct 01, 2026
-                    </TableCell>
-                  </TableRow>
-                  <TableRow className="hover:bg-muted/50 transition-colors border-b border-border/60">
-                    <TableCell className="pl-6 font-mono font-bold text-amber-700 dark:text-amber-400 text-sm">
-                      HT-9428-FORGE
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm font-medium">
-                      kira@example.com
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs font-semibold text-amber-700 dark:text-amber-400 border-amber-300 px-2 py-0.5">
-                        service_deduction
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      <CreditValue value="-580" size="sm" variant="delta" />
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground text-sm tabular-nums">
-                      $0.00
-                    </TableCell>
-                    <TableCell className="pr-6 text-right text-muted-foreground text-sm">
-                      Oct 01, 2026
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-                <TableFooter>
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={3} className="pl-6 font-semibold text-sm text-foreground">
-                      Audited Net Credits Balance (2 Records)
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-sm text-foreground">
-                      <CreditValue value="+80" size="sm" variant="delta" />
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-sm text-foreground tabular-nums">
-                      $1,500.00
-                    </TableCell>
-                    <TableCell className="pr-6" />
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            </ScrollArea>
-          </Card>
+          <div className="space-y-4">
+            <AgencyDataGrid transactions={ledgerTransactions} />
+          </div>
         )}
 
         {/* TAB 3: Client Communications & Live Studio Chat */}

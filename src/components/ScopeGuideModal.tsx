@@ -29,7 +29,7 @@ import { CreditValue } from '@/components/ui/credit-value';
 import { cn } from '@/lib/utils';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 5;
 
 export function ScopeGuideModal() {
   const [filterQuery, setFilterQuery] = useState('');
@@ -89,34 +89,34 @@ export function ScopeGuideModal() {
         }
       />
 
-      <DialogContent className="sm:max-w-6xl w-[96vw] max-h-[90vh] flex flex-col p-6 overflow-hidden rounded-2xl gap-0">
+      <DialogContent className="sm:max-w-4xl w-[90vw] max-h-[78vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl gap-0 shadow-xl border border-border/80">
         {/* Header */}
-        <DialogHeader className="pb-3 border-b border-border/80 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center text-amber-700 dark:text-amber-400 shrink-0">
-              <Layers className="w-4 h-4" />
+        <DialogHeader className="pb-2 border-b border-border/70 space-y-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <Layers className="w-3.5 h-3.5" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold text-foreground">
+              <DialogTitle className="text-base font-bold text-foreground tracking-tight">
                 Creative Services · Scope Matrix
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Transparent credit values across all 39 Humantek creative services. 1 CR = $2.50 base rate.
+                Transparent rates across all 39 services · 1 CR = $2.50 base rate
               </DialogDescription>
             </div>
           </div>
 
-          {/* Search Bar (Full Width) */}
-          <div className="relative w-full pt-1">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          {/* Compact Search Bar */}
+          <div className="relative w-full">
+            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
-              placeholder="Search 39 services by name, category or scope deliverables (e.g. Logo, VTuber, Intro)..."
+              placeholder="Search 39 services by name or deliverable (e.g. Logo, VTuber, Intro)..."
               value={filterQuery}
               onChange={(e) => {
                 setFilterQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 pr-8 h-10 text-sm rounded-xl bg-card border-border/80 w-full"
+              className="pl-8.5 pr-8 h-8.5 text-xs rounded-lg bg-muted/20 border-border/70 w-full"
             />
             {filterQuery && (
               <Button
@@ -127,16 +127,16 @@ export function ScopeGuideModal() {
                   setFilterQuery('');
                   setCurrentPage(1);
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 size-6 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 size-5 text-muted-foreground hover:text-foreground cursor-pointer"
                 aria-label="Clear search"
                 title="Clear search"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3 h-3" />
               </Button>
             )}
           </div>
 
-          {/* Category Filter Tabs (Shared UI & UX Component) */}
+          {/* Category Filter Tabs (Shared UI Component) */}
           <ServiceCategoryTabs
             categories={categories}
             activeCategory={selectedCategory}
@@ -148,20 +148,36 @@ export function ScopeGuideModal() {
           />
         </DialogHeader>
 
-        {/* Scope Matrix Table Container - table-fixed ensures 100% column containment */}
-        <ScrollArea className="flex-1 min-h-0 border rounded-xl border-border bg-card my-3 shadow-2xs overflow-hidden">
+        {/* Scope Matrix Table Container */}
+        <ScrollArea className="flex-1 min-h-0 border rounded-xl border-border/70 bg-card mt-2 mb-3.5 shadow-2xs overflow-hidden">
           <Table className="w-full table-fixed">
-            <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-xs">
-              <TableRow className="border-b border-border/80 hover:bg-transparent">
-                <TableHead className="w-[30%] font-semibold text-sm text-foreground/80 h-11 px-4">
-                  Service & Description
+            <TableHeader className="bg-muted/30 sticky top-0 z-10 backdrop-blur-xs">
+              <TableRow className="border-b border-border/70 hover:bg-transparent">
+                <TableHead className="w-[25%] font-semibold text-xs text-foreground/80 h-9 px-3">
+                  Service
                 </TableHead>
-                <TableHead className="w-[13%] font-semibold text-sm text-foreground/80 h-11 px-3">
+                <TableHead className="w-[9%] font-semibold text-xs text-foreground/80 h-9 px-2">
                   Category
                 </TableHead>
-                {TIER_NAMES.map((tier) => (
-                  <TableHead key={tier} className="w-[19%] font-semibold text-sm text-right text-foreground/80 h-11 px-4">
-                    {tier} Scope
+                {TIER_NAMES.map((tier, idx) => (
+                  <TableHead
+                    key={tier}
+                    className="w-[22%] font-semibold text-xs text-foreground/80 h-9 px-3"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span>{tier}</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs px-2 py-0.5 font-medium h-5 rounded leading-none",
+                          idx === 0 && "text-muted-foreground border-border/60",
+                          idx === 1 && "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25",
+                          idx === 2 && "bg-amber-600/15 text-amber-800 dark:text-amber-300 border-amber-600/30 font-semibold"
+                        )}
+                      >
+                        Tier {idx}
+                      </Badge>
+                    </div>
                   </TableHead>
                 ))}
               </TableRow>
@@ -169,9 +185,9 @@ export function ScopeGuideModal() {
             <TableBody>
               {filteredServices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-sm text-muted-foreground">
-                    <p className="font-semibold text-foreground text-base">No services matching your filters</p>
-                    <p className="mt-1">Try resetting the category filter or clearing your search term.</p>
+                  <TableCell colSpan={5} className="text-center py-10 text-xs sm:text-sm text-muted-foreground">
+                    <p className="font-semibold text-foreground">No services matching your filters</p>
+                    <p className="mt-1 text-xs">Try resetting the category filter or clearing your search term.</p>
                     <Button
                       type="button"
                       variant="secondary"
@@ -181,7 +197,7 @@ export function ScopeGuideModal() {
                         setSelectedCategory('All');
                         setCurrentPage(1);
                       }}
-                      className="mt-3 text-sm rounded-lg"
+                      className="mt-2.5 text-xs rounded-lg cursor-pointer"
                     >
                       Reset Filters
                     </Button>
@@ -189,18 +205,21 @@ export function ScopeGuideModal() {
                 </TableRow>
               ) : (
                 paginatedServices.map((s) => (
-                  <TableRow key={s.id} className="hover:bg-muted/50 transition-colors border-b border-border/60">
+                  <TableRow key={s.id} className="hover:bg-muted/30 transition-colors border-b border-border/50">
                     {/* Service & Description */}
-                    <TableCell className="py-3.5 px-4 align-top">
-                      <div className="font-semibold text-foreground text-sm">{s.name}</div>
-                      <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">
+                    <TableCell className="py-2.5 px-3 align-top">
+                      <div className="font-semibold text-foreground text-xs leading-snug">{s.name}</div>
+                      <div
+                        className="text-xs text-muted-foreground line-clamp-1 mt-0.5 leading-normal"
+                        title={s.description}
+                      >
                         {s.description}
                       </div>
                     </TableCell>
 
                     {/* Category */}
-                    <TableCell className="py-3.5 px-3 align-top">
-                      <Badge variant="outline" className="text-xs font-medium text-muted-foreground px-2 py-0.5">
+                    <TableCell className="py-2.5 px-2 align-top">
+                      <Badge variant="outline" className="text-xs font-medium text-muted-foreground px-2 py-0.5 whitespace-nowrap border-border/60">
                         {s.category}
                       </Badge>
                     </TableCell>
@@ -209,21 +228,29 @@ export function ScopeGuideModal() {
                     {s.quoteOnly ? (
                       <TableCell
                         colSpan={3}
-                        className="py-3.5 px-4 text-center font-bold text-amber-700 dark:text-amber-400 bg-amber-500/5 text-sm rounded-lg"
+                        className="py-2.5 px-3 text-center font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/5 text-xs rounded-lg border border-dashed border-amber-500/25"
                       >
-                        Custom Scope / Studio Agency Quote Required
+                        Custom Scope / Studio Quote Required
                       </TableCell>
                     ) : (
-                      s.prices.map((price, idx) => (
-                        <TableCell key={idx} className="py-3.5 px-4 align-top text-right text-sm">
-                          <div className="font-semibold">
-                            <CreditValue value={price} size="sm" showUsd />
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
-                            {s.scopeDetails?.[idx] ?? DEFAULT_SCOPE_DETAILS[idx]}
-                          </div>
-                        </TableCell>
-                      ))
+                      s.prices.map((price, idx) => {
+                        const detailText = s.scopeDetails?.[idx] ?? DEFAULT_SCOPE_DETAILS[idx];
+                        return (
+                          <TableCell key={idx} className="py-2.5 px-3 align-top">
+                            <div className="flex flex-col gap-0.5">
+                              <div>
+                                <CreditValue value={price} size="sm" showUsd />
+                              </div>
+                              <p
+                                className="text-xs leading-snug text-muted-foreground line-clamp-2 mt-0.5 break-words"
+                                title={detailText}
+                              >
+                                {detailText}
+                              </p>
+                            </div>
+                          </TableCell>
+                        );
+                      })
                     )}
                   </TableRow>
                 ))
@@ -232,9 +259,9 @@ export function ScopeGuideModal() {
           </Table>
         </ScrollArea>
 
-        {/* Footer with Pagination Controls */}
-        <DialogFooter className="pt-3 border-t border-border/80 flex flex-col sm:flex-row items-center justify-between gap-3 w-full bg-transparent p-0">
-          <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+        {/* Footer with Compact Pagination Controls */}
+        <DialogFooter className="mx-0 mb-0 mt-3 pt-3.5 pb-1 border-t border-border/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 w-full bg-transparent">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
             <span>
               Showing <b className="text-foreground">{startIdx}</b>–<b className="text-foreground">{endIdx}</b> of{' '}
               <b className="text-foreground">{filteredServices.length}</b> services
@@ -255,13 +282,13 @@ export function ScopeGuideModal() {
                 size="sm"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={safeCurrentPage === 1}
-                className="h-8 px-3 text-sm gap-1 rounded-lg cursor-pointer"
+                className="h-7 px-2 text-xs gap-1 rounded-md cursor-pointer"
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-3 h-3" />
                 <span>Prev</span>
               </Button>
 
-              <div className="flex items-center gap-1 px-1">
+              <div className="flex items-center gap-0.5 px-0.5">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
                   <Button
                     key={pageNum}
@@ -270,7 +297,7 @@ export function ScopeGuideModal() {
                     size="sm"
                     onClick={() => setCurrentPage(pageNum)}
                     className={cn(
-                      'h-8 w-8 text-sm font-semibold rounded-lg p-0 cursor-pointer',
+                      'h-7 w-7 text-xs font-semibold rounded-md p-0 cursor-pointer',
                       safeCurrentPage === pageNum
                         ? 'bg-amber-500 text-white hover:bg-amber-600'
                         : 'text-muted-foreground hover:text-foreground'
@@ -287,17 +314,17 @@ export function ScopeGuideModal() {
                 size="sm"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={safeCurrentPage === totalPages}
-                className="h-8 px-3 text-sm gap-1 rounded-lg cursor-pointer"
+                className="h-7 px-2 text-xs gap-1 rounded-md cursor-pointer"
               >
                 <span>Next</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-3 h-3" />
               </Button>
             </div>
           )}
 
           <DialogClose
             render={
-              <Button variant="secondary" size="default" className="text-sm rounded-xl px-4 cursor-pointer font-medium">
+              <Button variant="secondary" size="sm" className="text-xs rounded-lg px-3.5 cursor-pointer font-medium h-7">
                 Close
               </Button>
             }

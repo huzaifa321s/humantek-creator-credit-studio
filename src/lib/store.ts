@@ -1,9 +1,23 @@
-import { ProjectRecord, CreditLedgerEntry } from '@/types';
+import { ProjectRecord, CreditLedgerEntry, ChatMessage } from '@/types';
+import type { OrderQuote } from '@/lib/pricing';
+import type { OrderRequest } from '@/lib/validation';
+
+/** An order created server-side, awaiting PayPal capture. */
+export interface PendingOrder {
+  orderId: string;
+  request: OrderRequest;
+  quote: OrderQuote;
+  createdAt: number;
+  /** Set once captured — makes capture idempotent. */
+  projectId?: string;
+}
 
 // In-memory persistent cache for demo / offline fallback
 const globalStore = globalThis as unknown as {
   __HUMANTEK_PROJECTS__?: ProjectRecord[];
   __HUMANTEK_LEDGER__?: CreditLedgerEntry[];
+  __HUMANTEK_PENDING_ORDERS__?: Map<string, PendingOrder>;
+  __HUMANTEK_PROJECT_MESSAGES__?: Map<string, ChatMessage[]>;
 };
 
 if (!globalStore.__HUMANTEK_PROJECTS__) {
@@ -29,9 +43,12 @@ if (!globalStore.__HUMANTEK_PROJECTS__) {
       additions: ['Extra revision round'],
       selections: [
         { id: 'logo', name: 'Logo', level: 1, quantity: 1, credits: 88 },
-        { id: 'animated-emote', name: 'Animated Emotes Package', level: 0, quantity: 1, credits: 48 },
-        { id: 'overlays', name: 'Overlays 3×', level: 0, quantity: 1, credits: 40 },
+        { id: 'illustration', name: 'Character Illustration Package', level: 1, quantity: 1, credits: 200 },
+        { id: 'static-screen', name: 'Stream Screen Package', level: 1, quantity: 1, credits: 88 },
         { id: 'banner', name: 'Banner', level: 1, quantity: 1, credits: 72 },
+        { id: 'animated-emote', name: 'Animated Emotes Package', level: 0, quantity: 1, credits: 48 },
+        { id: 'alert', name: 'Custom Sound & Alert FX', level: 0, quantity: 1, credits: 44 },
+        { id: 'overlays', name: 'Overlays 3×', level: 0, quantity: 1, credits: 40 },
       ],
       uploadedFiles: [
         { id: 'u1', filename: 'cyberpunk-moodboard.png', size: 1420500, url: '#' },
@@ -66,8 +83,91 @@ if (!globalStore.__HUMANTEK_LEDGER__) {
   ];
 }
 
+if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
+  const demoMessages: ChatMessage[] = [
+    {
+      id: 'msg-proj-demo-1',
+      projectId: 'proj-demo-1',
+      sender: 'system',
+      senderName: 'Humantek Studio System',
+      content: 'Project HT-9428-FORGE Workspace Initialized · Assigned to Sarah Miller (Lead Producer)',
+      timestamp: 'Yesterday at 10:14 AM',
+      isRead: true,
+    },
+    {
+      id: 'msg-proj-demo-2',
+      projectId: 'proj-demo-1',
+      sender: 'agent',
+      senderName: 'Sarah Miller',
+      senderRole: 'Senior Creative Producer',
+      content:
+        "Hi Kira! Welcome to your project workspace for Creator Forge (HT-9428-FORGE). I've reviewed your brief for the cyberpunk neon theme and custom animated emotes. Our production queue is active and Milestone 1 is in progress!",
+      timestamp: 'Yesterday at 10:15 AM',
+      isRead: true,
+    },
+    {
+      id: 'msg-proj-demo-3',
+      projectId: 'proj-demo-1',
+      sender: 'client',
+      senderName: 'Kira Streams',
+      content:
+        "Thanks Sarah! Here is the moodboard reference for the magenta/cyan neon lighting we want for the stream overlays.",
+      timestamp: 'Yesterday at 10:18 AM',
+      attachments: [
+        {
+          id: 'ref-1',
+          name: 'cyberpunk-neon-moodboard.png',
+          url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=800&auto=format&fit=crop',
+          size: '2.4 MB',
+          type: 'image',
+          previewUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=800&auto=format&fit=crop',
+        },
+      ],
+      isRead: true,
+    },
+    {
+      id: 'msg-proj-demo-4',
+      projectId: 'proj-demo-1',
+      sender: 'agent',
+      senderName: 'Sarah Miller',
+      senderRole: 'Senior Creative Producer',
+      content:
+        "This neon palette is locked in! We are on track for the concept preview. Let me know if you need any adjustments to the twitch badges as well.",
+      timestamp: 'Today at 09:30 AM',
+      orderCard: {
+        projectCode: 'HT-9428-FORGE',
+        packageName: 'Creator Forge',
+        credits: 660,
+        status: 'In Production',
+        price: 1500,
+      },
+      isRead: true,
+    },
+  ];
+
+  const map = new Map<string, ChatMessage[]>();
+  map.set('proj-demo-1', demoMessages);
+  map.set('HT-9428-FORGE', demoMessages);
+  globalStore.__HUMANTEK_PROJECT_MESSAGES__ = map;
+}
+
 export function getProjects(): ProjectRecord[] {
-  return globalStore.__HUMANTEK_PROJECTS__ || [];
+  const list = globalStore.__HUMANTEK_PROJECTS__ || [];
+  const demo = list.find((p) => p.id === 'proj-demo-1');
+  if (demo && demo.selections.length <= 4) {
+    demo.selections = [
+      { id: 'logo', name: 'Logo', level: 1, quantity: 1, credits: 88 },
+      { id: 'illustration', name: 'Character Illustration Package', level: 1, quantity: 1, credits: 200 },
+      { id: 'static-screen', name: 'Stream Screen Package', level: 1, quantity: 1, credits: 88 },
+      { id: 'banner', name: 'Banner', level: 1, quantity: 1, credits: 72 },
+      { id: 'animated-emote', name: 'Animated Emotes Package', level: 0, quantity: 1, credits: 48 },
+      { id: 'alert', name: 'Custom Sound & Alert FX', level: 0, quantity: 1, credits: 44 },
+      { id: 'overlays', name: 'Overlays 3×', level: 0, quantity: 1, credits: 40 },
+    ];
+    demo.usedCredits = 580;
+    demo.remainingCredits = 80;
+  }
+  return list;
 }
 
 export function addProject(project: ProjectRecord) {
@@ -104,3 +204,87 @@ export function addLedgerEntry(entry: CreditLedgerEntry) {
   }
   globalStore.__HUMANTEK_LEDGER__.unshift(entry);
 }
+
+// ─── Pending PayPal orders ───────────────────────────────────────────────
+const PENDING_TTL_MS = 1000 * 60 * 60 * 3; // 3h — PayPal approvals expire well before this
+
+function pendingMap(): Map<string, PendingOrder> {
+  if (!globalStore.__HUMANTEK_PENDING_ORDERS__) {
+    globalStore.__HUMANTEK_PENDING_ORDERS__ = new Map();
+  }
+  return globalStore.__HUMANTEK_PENDING_ORDERS__;
+}
+
+export function addPendingOrder(order: PendingOrder) {
+  const map = pendingMap();
+  const now = Date.now();
+  // Opportunistic cleanup of stale, uncaptured orders.
+  for (const [id, o] of map) {
+    if (!o.projectId && now - o.createdAt > PENDING_TTL_MS) map.delete(id);
+  }
+  map.set(order.orderId, order);
+}
+
+export function getPendingOrder(orderId: string): PendingOrder | undefined {
+  return pendingMap().get(orderId);
+}
+
+export function markOrderCaptured(orderId: string, projectId: string) {
+  const order = pendingMap().get(orderId);
+  if (order) order.projectId = projectId;
+}
+
+export function getProjectById(id: string): ProjectRecord | undefined {
+  return getProjects().find((p) => p.id === id || p.projectCode === id);
+}
+
+export function getProjectMessages(projectIdOrCode: string): ChatMessage[] {
+  if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
+    globalStore.__HUMANTEK_PROJECT_MESSAGES__ = new Map();
+  }
+  const map = globalStore.__HUMANTEK_PROJECT_MESSAGES__;
+  return map.get(projectIdOrCode) || [];
+}
+
+export function addProjectMessage(projectIdOrCode: string, message: ChatMessage): ChatMessage {
+  if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
+    globalStore.__HUMANTEK_PROJECT_MESSAGES__ = new Map();
+  }
+  const map = globalStore.__HUMANTEK_PROJECT_MESSAGES__;
+  const project = getProjectById(projectIdOrCode);
+  const ids = new Set([projectIdOrCode]);
+  if (project) {
+    ids.add(project.id);
+    ids.add(project.projectCode);
+  }
+
+  const existing = map.get(projectIdOrCode) || [];
+  const updated = [...existing, message];
+
+  for (const id of ids) {
+    map.set(id, updated);
+  }
+  return message;
+}
+
+export function markProjectMessagesRead(projectIdOrCode: string): void {
+  if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) return;
+  const map = globalStore.__HUMANTEK_PROJECT_MESSAGES__;
+  const project = getProjectById(projectIdOrCode);
+  const ids = new Set([projectIdOrCode]);
+  if (project) {
+    ids.add(project.id);
+    ids.add(project.projectCode);
+  }
+
+  for (const id of ids) {
+    const list = map.get(id);
+    if (list) {
+      map.set(
+        id,
+        list.map((m) => ({ ...m, isRead: true }))
+      );
+    }
+  }
+}
+

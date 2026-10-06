@@ -21,11 +21,14 @@ import {
 } from '@/types';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ScopeGuideModal } from '@/components/ScopeGuideModal';
+import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
-import { ServiceHoverCard } from '@/components/ServiceHoverCard';
-import { ServiceQuickPreviewModal } from '@/components/ServiceQuickPreviewModal';
+import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
 import { PayPalButtonWrapper } from '@/components/PayPalButtonWrapper';
+import { FieldError } from '@/components/ui/field-error';
+import { useBriefValidation, briefFieldId } from '@/lib/hooks/useBriefValidation';
+import { BRIEF_LIMITS, PLATFORM_OPTIONS, redeemCodeSchema } from '@/lib/validation';
 import { cn } from '@/lib/utils';
 import {
   Card,
@@ -45,7 +48,11 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Switch } from '@/components/ui/switch';
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
@@ -117,6 +124,7 @@ import {
   Upload,
   ArrowRight,
   ArrowLeft,
+  ArrowDown,
   ShieldAlert,
   Loader2,
   Check,
@@ -124,7 +132,7 @@ import {
   ImageIcon,
   ChevronDown,
   PackageCheck,
-  Zap,
+  FolderKanban,
   Trash2,
   Lock,
   RefreshCw,
@@ -278,17 +286,16 @@ export default function CreatorStudioPage() {
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [priceFilter, setPriceFilter] = useState<PriceFilterType>('all');
-  const [priorityPassEnabled, setPriorityPassEnabled] = useState(false);
-  const { setIsOpen: setChatOpen } = useStudioChat();
+  const { setIsOpen: setChatOpen, registerProject } = useStudioChat();
 
   // Asset selections & additions
   const [selections, setSelections] = useState<Record<string, ServiceSelection>>({});
   const [additions, setAdditions] = useState<string[]>([]);
-  const [previewService, setPreviewService] = useState<ServiceDefinition | null>(null);
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [openPolicyAccordion, setOpenPolicyAccordion] = useState<string[]>(['revisions']);
   const [showAllRestricted, setShowAllRestricted] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isTermsExpanded, setIsTermsExpanded] = useState(false);
 
   // Creative brief form
   const [clientName, setClientName] = useState('');
@@ -334,8 +341,7 @@ export default function CreatorStudioPage() {
     0
   );
   const usedCredits = servicesCredits + additionsCredits;
-  const bonusCredits = priorityPassEnabled ? 50 : 0;
-  const totalPackageCredits = (currentPackage?.credits ?? 0) + bonusCredits;
+  const totalPackageCredits = currentPackage?.credits ?? 0;
   const remainingCredits = totalPackageCredits - usedCredits;
 
   const standardUnits = selectedEntries
@@ -356,15 +362,22 @@ export default function CreatorStudioPage() {
   // Prohibited words check
   const hasPolicyViolation = PROHIBITED_REGEX.test(instructions);
 
+  // Step 4 brief — validated with the same Zod schema the API enforces
+  const brief = useBriefValidation({
+    clientName,
+    channelName,
+    email,
+    platform,
+    style,
+    colors,
+    instructions,
+  });
+
   // Form validity for steps
   const isStep1Valid = Boolean(selectedPackageId);
   const isStep2Valid = selectedEntries.length > 0 && remainingCredits >= 0 && !isTierRestricted;
   const isStep3Valid = policyAccepted;
-  const isStep4Valid =
-    clientName.trim() !== '' &&
-    instructions.trim() !== '' &&
-    !hasPolicyViolation &&
-    termsAccepted;
+  const isStep4Valid = brief.isValid && termsAccepted;
 
   const serviceCategories = useMemo(() => {
     const cats = Array.from(new Set(SERVICES.map((s) => s.category)));
@@ -418,7 +431,57 @@ export default function CreatorStudioPage() {
 
   // Navigation handlers
   const goToStep = (step: number) => {
-    setCurrentStep(Math.max(1, Math.min(5, step)));
+    const target = Math.max(1, Math.min(5, step));
+
+    // Moving forward requires every step in between to be valid.
+    if (target > currentStep) {
+      const validity = [isStep1Valid, isStep2Valid, isStep3Valid, isStep4Valid];
+      for (let s = currentStep; s < target; s++) {
+        if (validity[s - 1]) continue;
+
+        if (s === 1) {
+          toast.error('Please choose a package to continue.');
+        } else if (s === 2) {
+          if (selectedEntries.length === 0) {
+            toast.error('Please select at least one creative service to continue.');
+          } else if (remainingCredits < 0) {
+            toast.error(
+              `Credit budget exceeded by ${Math.abs(remainingCredits)} CR. Adjust your scope or upgrade package.`
+            );
+          } else if (isTierRestricted) {
+            if (currentPackage?.standardLimit !== undefined && standardUnits > currentPackage.standardLimit) {
+              toast.error(
+                `Standard tier limit reached (${standardUnits}/${currentPackage.standardLimit} units). Upgrade your package to add more.`
+              );
+            } else if (currentPackage?.eliteLimit !== undefined && eliteUnits > currentPackage.eliteLimit) {
+              toast.error(
+                `Elite tier limit reached (${eliteUnits}/${currentPackage.eliteLimit} units). Upgrade your package to add more.`
+              );
+            } else {
+              toast.error('Tier unit limit reached for this package. Adjust your services or upgrade package.');
+            }
+          } else {
+            toast.error('Adjust your services — check your credit budget and tier limits.');
+          }
+        } else if (s === 3) {
+          toast.error('Please accept the scope policy to continue.');
+        } else if (s === 4) {
+          if (!brief.validateAll()) {
+            toast.error(
+              brief.errorCount === 1
+                ? 'Please fix the highlighted field.'
+                : `Please fix the ${brief.errorCount} highlighted fields.`
+            );
+          } else if (!termsAccepted) {
+            document.getElementById('terms-ack')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            toast.error('Please accept the Terms & Conditions to continue.');
+          }
+        }
+        return;
+      }
+    }
+
+    setCurrentStep(target);
   };
 
   const handleSelectPackage = (packageId: string) => {
@@ -442,6 +505,11 @@ export default function CreatorStudioPage() {
       }
       return next;
     });
+  };
+
+  const handleClearAllSelections = () => {
+    setSelections({});
+    toast.info('Cleared all service selections');
   };
 
   const updateServiceTier = (serviceId: string, level: 0 | 1 | 2) => {
@@ -487,7 +555,7 @@ export default function CreatorStudioPage() {
         formData.append('file', file);
         formData.append('projectId', projectId);
 
-        const res = await fetch('/api/upload', {
+        const res = await fetch('/api/uploads', {
           method: 'POST',
           body: formData,
         });
@@ -571,6 +639,15 @@ export default function CreatorStudioPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit request');
       setSubmittedProject(data.project);
+      registerProject({
+        id: data.project.id,
+        projectCode: data.project.projectCode,
+        packageName: data.project.packageName,
+        clientName: data.project.clientName,
+        status: data.project.status,
+        price: data.project.packagePrice,
+        credits: data.project.packageCredits,
+      });
       toast.success('Project request submitted for studio review!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
@@ -583,9 +660,10 @@ export default function CreatorStudioPage() {
 
   // Determine top right badge on header
   const headerBadge = currentPackage ? (
-    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60 text-xs">
-      <span className="text-amber-800 dark:text-amber-300 font-semibold">{currentPackage.name}</span>
-      <span className="text-muted-foreground font-normal">·</span>
+    <div className="flex items-center gap-2 px-3.5 h-9 rounded-full bg-amber-500/10 border border-amber-500/25 text-xs font-medium shadow-2xs select-none">
+      <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+      <span className="text-foreground font-semibold truncate max-w-[140px]">{currentPackage.name}</span>
+      <span className="text-muted-foreground/60">·</span>
       <span className="font-extrabold text-amber-700 dark:text-amber-400 tabular-nums">
         {remainingCredits} / {totalPackageCredits} CR
       </span>
@@ -611,8 +689,19 @@ export default function CreatorStudioPage() {
               <ArrowLeft className="w-3.5 h-3.5" /> Back
             </Button>
           ) : (
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              Step 1: Choose your creative package to start
+            <span className="text-xs text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
+              {selectedPackageId && currentPackage ? (
+                <>
+                  <Check className="size-3.5 text-emerald-600 inline shrink-0" />
+                  <span className="text-foreground font-semibold">{currentPackage.name}</span>
+                  <span>({currentPackage.credits} CR) selected · Click Next to pick services</span>
+                </>
+              ) : (
+                <>
+                  <Coins className="size-3.5 text-amber-600 inline shrink-0" />
+                  <span>Select a package above to continue</span>
+                </>
+              )}
             </span>
           )}
         </div>
@@ -620,17 +709,25 @@ export default function CreatorStudioPage() {
         {/* Right Side: Primary Next Button matching reference image */}
         <div className="flex items-center gap-3">
           {currentStep === 1 && (
-            <Button
-              type="button"
-              variant="default"
-              size="default"
-              disabled={!isStep1Valid}
-              onClick={() => goToStep(2)}
-              className="font-semibold px-6 gap-2"
-            >
-              <span>Next</span>
-              <ArrowRight className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-2.5">
+              {!isStep1Valid && (
+                <span className="text-xs text-muted-foreground hidden md:inline">
+                  Select a package to continue
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="default"
+                size="default"
+                disabled={!isStep1Valid}
+                onClick={() => goToStep(2)}
+                title={!isStep1Valid ? 'Select a package to continue' : 'Continue to Step 2: Pick your services'}
+                className={cn('font-semibold px-6 gap-2', !isStep1Valid && 'opacity-60 cursor-not-allowed')}
+              >
+                <span>Next</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
           )}
 
           {currentStep === 2 && (
@@ -638,9 +735,9 @@ export default function CreatorStudioPage() {
               type="button"
               variant="default"
               size="default"
-              disabled={!isStep2Valid}
+              aria-disabled={!isStep2Valid}
               onClick={() => goToStep(3)}
-              className="font-semibold px-6 gap-2"
+              className={cn('font-semibold px-6 gap-2', !isStep2Valid && 'opacity-60')}
             >
               <span>Next</span>
               <ArrowRight className="w-4 h-4" />
@@ -652,9 +749,9 @@ export default function CreatorStudioPage() {
               type="button"
               variant="default"
               size="default"
-              disabled={!isStep3Valid}
+              aria-disabled={!isStep3Valid}
               onClick={() => goToStep(4)}
-              className="font-semibold px-6 gap-2"
+              className={cn('font-semibold px-6 gap-2', !isStep3Valid && 'opacity-60')}
             >
               <span>Next</span>
               <ArrowRight className="w-4 h-4" />
@@ -666,9 +763,9 @@ export default function CreatorStudioPage() {
               type="button"
               variant="default"
               size="default"
-              disabled={!isStep4Valid}
+              aria-disabled={!isStep4Valid}
               onClick={() => goToStep(5)}
-              className="font-semibold px-6 gap-2"
+              className={cn('font-semibold px-6 gap-2', !isStep4Valid && 'opacity-60')}
             >
               <span>Review & Pay</span>
               <ArrowRight className="w-4 h-4" />
@@ -685,6 +782,14 @@ export default function CreatorStudioPage() {
       currentStep={currentStep}
       onSelectStep={goToStep}
       isPackageSelected={Boolean(selectedPackageId)}
+      selectedPackageName={currentPackage?.name}
+      selectedPackagePrice={currentPackage?.price}
+      selectedPackageCredits={currentPackage?.credits}
+      selectedServicesCount={selectedEntries.length}
+      usedCredits={usedCredits}
+      remainingCredits={remainingCredits}
+      isPolicyAccepted={policyAccepted}
+      isBriefCompleted={brief.isValid && termsAccepted}
       walletBalance={remainingCredits >= 0 ? remainingCredits : 0}
       userEmail={email || null}
       topRightBadge={headerBadge}
@@ -699,77 +804,25 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                STEP 1/5
+                1 OF 5 · CHOOSE A PACKAGE
               </div>
               <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
-                Package Selection
+                Start with the right credit wallet.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Select your creative package tier below to unlock scope credits, bonuses, and asset slots.
+                Pick a package to get your credits. You&apos;ll see your balance update as you build your project.
               </p>
             </div>
 
-            {/* Fast-Track Toggle */}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <div className="flex items-center gap-2 p-1.5 px-3 bg-secondary/60 border border-border/80 rounded-xl text-xs cursor-pointer select-none">
-                    <Zap className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span className="font-semibold text-foreground text-xs">
-                      Priority Fast-Track (+50 CR)
-                    </span>
-                    <Switch
-                      checked={priorityPassEnabled}
-                      onCheckedChange={setPriorityPassEnabled}
-                    />
-                  </div>
-                }
-              />
-              <TooltipContent side="bottom" className="text-xs max-w-xs">
-                Activate express studio queue processing and earn 50 additional bonus credits.
-              </TooltipContent>
-            </Tooltip>
           </div>
 
-          {/* Slim Full-Width Info & Scope Matrix Banner */}
-          <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/40 border border-border/70 shadow-2xs">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <h3 className="text-sm font-bold text-foreground">
-                    Customised Creator Services
-                  </h3>
-                </div>
-                <p className="text-xs text-muted-foreground leading-normal">
-                  Prepaid studio credits allocated directly to your account. Our directors immediately begin tailoring custom concepts for your channel.
-                </p>
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-0.5 text-xs text-foreground font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>$2.50 base rate per CR</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>Included multi-round revisions</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>Full commercial streaming rights</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="shrink-0 self-start lg:self-center">
-                <ScopeGuideModal />
-              </div>
-            </div>
-          </div>
+          {/* ReUI Standardized Announcement & Status Banner */}
+          <StudioNoticeBanner type="step1-scope" />
 
           {/* Centered 3 Compact Package Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 items-stretch">
             {PACKAGES.map((pkg) => {
-              const pkgCredits = pkg.credits + (priorityPassEnabled ? 50 : 0);
+              const pkgCredits = pkg.credits;
               const effectiveRate = (pkg.price / pkgCredits).toFixed(2);
               const isSelected = selectedPackageId === pkg.id;
               const isPopular = pkg.id === 'studio-momentum';
@@ -789,16 +842,20 @@ export default function CreatorStudioPage() {
                 >
                   {isPopular && (
                     <div className="absolute top-0 right-0">
-                      <div className="bg-amber-500 text-white font-bold text-[10px] uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg">
+                      <div className="bg-amber-500 text-white font-bold text-xs uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg">
                         Most Popular
                       </div>
                     </div>
                   )}
 
                   <CardHeader className="p-4 pb-2">
-                    <Badge variant="secondary" className="w-fit text-[10px] font-bold uppercase tracking-wider mb-1 px-2 py-0.2">
-                      {pkg.group}
-                    </Badge>
+                    {!isPopular ? (
+                      <Badge variant="secondary" className="w-fit text-xs font-semibold uppercase tracking-wider mb-1 px-2.5 py-0.5">
+                        {pkg.group}
+                      </Badge>
+                    ) : (
+                      <div className="h-5 mb-1" />
+                    )}
                     <CardTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-tight">
                       {pkg.name}
                     </CardTitle>
@@ -814,26 +871,60 @@ export default function CreatorStudioPage() {
                         ${effectiveRate}/CR
                       </span>
                     </div>
-                    <CardDescription className="text-xs leading-normal text-muted-foreground line-clamp-1 mt-1">
+                    <CardDescription className="text-xs leading-relaxed text-muted-foreground line-clamp-2 min-h-[2.5rem] mt-1">
                       {pkg.bestFor}
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="p-4 pt-2.5 space-y-1.5 text-xs text-muted-foreground border-t border-border/50 flex-1">
-                    <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span className="truncate">
-                        {pkg.maxLevel === 1
-                          ? 'Basic + up to 2 Standard units'
-                          : pkg.eliteLimit
-                            ? 'Basic, Standard + 2 Elite units'
-                            : 'Full access to all 39 tiers'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span>Priority review queue included</span>
-                    </div>
+                  <CardContent className="p-4 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
+                    {pkg.id === 'creator-forge' && (
+                      <>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>660 Credits · Essential creator starter kit</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Basic + up to 2 Standard units</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Standard studio turnaround & 2 review rounds</span>
+                        </div>
+                      </>
+                    )}
+                    {pkg.id === 'studio-momentum' && (
+                      <>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>1,160 Credits (includes +160 bonus credits)</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Basic, Standard + up to 2 Elite units</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Priority production queue & accelerated review</span>
+                        </div>
+                      </>
+                    )}
+                    {pkg.id === 'signature-collective' && (
+                      <>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>1,920 Credits (maximum +320 bonus credits)</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Full access across all 39 service tiers</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>VIP turnaround & dedicated Lead Producer</span>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
 
                   <div className="p-4 pt-0">
@@ -857,10 +948,14 @@ export default function CreatorStudioPage() {
             })}
           </div>
 
-          {/* Centered Bottom Tip */}
-          <p className="text-center text-xs text-muted-foreground pt-0.5">
-            Tip: Higher packages include volume credit multipliers. You can re-allocate credits anytime before final checkout.
-          </p>
+          {/* Centered Bottom Tip & Newcomer Guide */}
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-muted-foreground pt-1 pb-2">
+            <span className="font-semibold text-foreground/90">💡 1 CR ≈ one basic asset task</span>
+            <span className="hidden sm:inline text-muted-foreground/40">•</span>
+            <span>Higher packages include volume bonus credit multipliers</span>
+            <span className="hidden sm:inline text-muted-foreground/40">•</span>
+            <span>Unused credits roll over for 12 months</span>
+          </div>
         </div>
       )}
 
@@ -873,13 +968,13 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                STEP 2/5
+                2 OF 5 · PICK YOUR SERVICES
               </div>
               <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
-                Multi-Asset Configurator
+                Choose everything you need in one go.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Choose multiple services at once, configure scope tiers and quantities, and watch your credit balance update in real time.
+                Select the services, set the size and quantity, and watch your credits update instantly.
               </p>
             </div>
 
@@ -900,38 +995,6 @@ export default function CreatorStudioPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
             {/* LEFT COLUMN: AVAILABLE SERVICES & ADDITIONS (~65% / 8 cols) */}
             <div className="lg:col-span-8 space-y-6">
-              {/* Active Package Notice */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                <div className="flex items-start sm:items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                    <PackageCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold text-foreground">
-                        {currentPackage.name} Plan Active
-                      </span>
-                      <Badge variant="gold" className="text-[10px] py-0 px-2 font-bold uppercase tracking-wider">
-                        {totalPackageCredits} CR Budget
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Basic, Standard, and Elite tier options available — governed by your package limits and credit allocation.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 sm:self-center flex-wrap">
-                  <Badge variant="secondary" className="text-xs font-semibold">
-                    {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} selected
-                  </Badge>
-                  {additions.length > 0 && (
-                    <Badge variant="gold" className="text-xs font-semibold">
-                      +{additions.length} {additions.length === 1 ? 'extra' : 'extras'}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
               {/* Category & Price Filters */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1046,15 +1109,16 @@ export default function CreatorStudioPage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <ServiceHoverCard service={svc}>
-                                <h3
-                                  onClick={() => setPreviewService(svc)}
-                                  className="text-sm font-bold text-foreground leading-snug truncate hover:underline hover:decoration-dotted hover:underline-offset-4 hover:decoration-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition-all cursor-pointer inline-block"
-                                  title="Hover or click for deliverable preview"
-                                >
-                                  {svc.name}
-                                </h3>
-                              </ServiceHoverCard>
+                              <ServiceImageHoverCard service={svc}>
+                                <span className="inline-flex items-center gap-1.5 cursor-pointer group/title">
+                                  <h3 className="text-sm font-bold text-foreground leading-snug truncate group-hover/title:text-amber-500 transition-colors">
+                                    {svc.name}
+                                  </h3>
+                                  <span className="size-4 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground group-hover/title:bg-amber-500/20 group-hover/title:text-amber-600 transition-colors" title="Hover for deliverable preview">
+                                    <Eye className="size-2.5" />
+                                  </span>
+                                </span>
+                              </ServiceImageHoverCard>
                               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
                                 {svc.description}
                               </p>
@@ -1062,32 +1126,9 @@ export default function CreatorStudioPage() {
                           </div>
 
                           <div className="text-right shrink-0 flex flex-col items-end">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-wider px-2 py-0">
-                                {svc.category}
-                              </Badge>
-                              {/* Quick Preview Eye Icon Button with Tooltip */}
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setPreviewService(svc);
-                                      }}
-                                      className="size-6 rounded-md text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 border-border/70 hover:border-amber-400/60 shadow-none"
-                                      aria-label="Quick preview"
-                                    />
-                                  }
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </TooltipTrigger>
-                                <TooltipContent side="top">Quick preview</TooltipContent>
-                              </Tooltip>
-                            </div>
+                            <Badge variant="secondary" className="text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 mb-1">
+                              {svc.category}
+                            </Badge>
 
                             <div>
                               {isSelected ? (
@@ -1149,13 +1190,13 @@ export default function CreatorStudioPage() {
                             </Select>
                           </div>
 
-                          {/* Quantity — ReUI Number Field */}
+                          {/* Quantity — ReUI Number Field with Clamped 1-20 range */}
                           <NumberField
                             size="sm"
                             min={1}
-                            max={99}
+                            max={20}
                             value={currentQty}
-                            onValueChange={(val) => updateServiceQuantity(svc.id, Math.max(1, val ?? 1))}
+                            onValueChange={(val) => updateServiceQuantity(svc.id, Math.max(1, Math.min(20, val ?? 1)))}
                             className="w-auto shrink-0 gap-0"
                             aria-label={`${svc.name} quantity`}
                           >
@@ -1180,7 +1221,7 @@ export default function CreatorStudioPage() {
                               }
                             >
                               <Trash2 className="w-3.5 h-3.5" />
-                              <span className="text-[11px] font-medium hidden sm:inline">Remove</span>
+                              <span className="text-xs font-semibold hidden sm:inline">Remove</span>
                             </AlertDialogTrigger>
                             <AlertDialogContent size="sm">
                               <AlertDialogHeader>
@@ -1246,7 +1287,7 @@ export default function CreatorStudioPage() {
             </div>
 
             {/* RIGHT COLUMN: REUSABLE CART SIDEBAR (~35% / 4 cols) */}
-            <div className="lg:col-span-4 lg:sticky lg:top-[8.75rem] lg:h-[calc(100vh-14rem)] lg:min-h-[540px]">
+            <div id="studio-cart-sidebar" className="lg:col-span-4 lg:sticky lg:top-[8.75rem] lg:h-[calc(100vh-15.5rem)] lg:min-h-[500px]">
               <CartSidebar
                 pack={currentPackage}
                 entries={selectedEntries}
@@ -1260,29 +1301,43 @@ export default function CreatorStudioPage() {
                 isTierRestricted={isTierRestricted}
                 additions={additions}
                 onToggleAddition={toggleAddition}
+                onClearAll={handleClearAllSelections}
                 className="h-full"
               />
             </div>
           </div>
 
-          {/* Quick Preview Modal for Desktop and Mobile */}
-          <ServiceQuickPreviewModal
-            service={previewService}
-            isOpen={previewService !== null}
-            onClose={() => setPreviewService(null)}
-            isSelected={previewService ? Boolean(selections[previewService.id]) : false}
-            currentLevel={
-              previewService && selections[previewService.id]
-                ? selections[previewService.id].level
-                : 0
-            }
-            onSelectService={(id, level) => {
-              setSelections((prev) => ({
-                ...prev,
-                [id]: { level, quantity: prev[id]?.quantity ?? 1 },
-              }));
-            }}
-          />
+          {/* Mobile Floating Cart Summary Pill (Only visible on < 1024px screens when services are selected) */}
+          {selectedEntries.length > 0 && (
+            <div className="lg:hidden fixed bottom-18 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-none">
+              <div className="flex items-center justify-between p-2.5 pl-3.5 rounded-2xl bg-zinc-950/95 dark:bg-zinc-900/95 text-white border border-amber-500/40 shadow-xl backdrop-blur-md pointer-events-auto">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Coins className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div className="text-xs truncate">
+                    <span className="font-bold text-white">
+                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'}
+                    </span>
+                    <span className="text-zinc-400 mx-1.5">·</span>
+                    <span className="text-amber-400 font-extrabold tabular-nums">
+                      {remainingCredits >= 0 ? `${remainingCredits} CR left` : `${Math.abs(remainingCredits)} CR over`}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="gold"
+                  onClick={() => {
+                    document.getElementById('studio-cart-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="font-bold text-xs h-7 px-3 rounded-xl shrink-0 cursor-pointer shadow-xs gap-1"
+                >
+                  <span>View Scope</span>
+                  <ArrowDown className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1290,18 +1345,18 @@ export default function CreatorStudioPage() {
       {/* STEP 3: CREDIT SCOPE & ELIGIBILITY                           */}
       {/* ============================================================ */}
       {currentStep === 3 && currentPackage && (
-        <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5 animate-in fade-in duration-200">
+        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                STEP 3/5
+                3 OF 5 · WHAT CREDITS COVER
               </div>
               <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
-                Credit Scope & Eligibility Rules
+                Check what your credits can be used for.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Review scope guidelines and eligibility rules to ensure smooth, uninterrupted studio production.
+                Credits work for approved Humantek Art services only, so please check this before you continue.
               </p>
             </div>
 
@@ -1310,45 +1365,13 @@ export default function CreatorStudioPage() {
             </Badge>
           </div>
 
-          {/* Slim Full-Width Scope & Matrix Banner (Matching Step 1 & 2 Design System) */}
-          <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/40 border border-border/70 shadow-2xs">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <h3 className="text-sm font-bold text-foreground">
-                    Clear Scopes, Fast Delivery
-                  </h3>
-                </div>
-                <p className="text-xs text-muted-foreground leading-normal">
-                  Transparent production scopes protect design quality and honor our 3–7 business day turnaround guarantee.
-                </p>
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-0.5 text-xs text-foreground font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>2–3 revision rounds included</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>Stream-ready PNG, WebM & master files</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>12-month credit validity & rollover</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="shrink-0 self-start lg:self-center">
-                <ScopeGuideModal />
-              </div>
-            </div>
-          </div>
+          {/* ReUI Standardized Announcement & Status Banner */}
+          <StudioNoticeBanner type="step3-coverage" />
 
           {/* Two Equal Neutral Cards: Supported Deliverables | Restricted Guidelines (5-to-5 Symmetry) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
             {/* Supported Deliverables Card */}
-            <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs flex flex-col justify-between overflow-hidden">
+            <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
               <CardHeader className="p-5 sm:p-6 pb-3.5 border-b border-border/60">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
@@ -1364,12 +1387,12 @@ export default function CreatorStudioPage() {
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-0">
+                  <Badge variant="secondary" className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-0 px-2.5 py-0.5">
                     Covered
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-5 sm:p-6 pt-4">
+              <CardContent className="p-5 sm:p-6 pt-4 flex flex-col justify-between flex-1">
                 <ul className="text-xs text-foreground/90 space-y-3">
                   <li className="flex items-start gap-2.5">
                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -1392,11 +1415,19 @@ export default function CreatorStudioPage() {
                     <span>Logo marks, typography & master source files (PSD/AI/AE)</span>
                   </li>
                 </ul>
+
+                <div className="pt-3 mt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle className="size-3.5" />
+                    Full commercial rights included
+                  </span>
+                  <span className="font-semibold text-foreground/80">39 catalog services</span>
+                </div>
               </CardContent>
             </Card>
 
             {/* Restricted Content Card (Symmetrical 5-Item Rhythm & Collapsible) */}
-            <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs flex flex-col justify-between overflow-hidden">
+            <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
               <CardHeader className="p-5 sm:p-6 pb-3.5 border-b border-border/60">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
@@ -1412,7 +1443,7 @@ export default function CreatorStudioPage() {
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="text-[11px] font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 border-0">
+                  <Badge variant="secondary" className="text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 border-0 px-2.5 py-0.5">
                     Prohibited
                   </Badge>
                 </div>
@@ -1460,7 +1491,7 @@ export default function CreatorStudioPage() {
                       )}
                     />
                   </Button>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     Non-compliant briefs declined
                   </span>
                 </div>
@@ -1533,7 +1564,7 @@ export default function CreatorStudioPage() {
                               <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Corrections required to meet approved brief</TableCell>
                             </TableRow>
                             <TableRow className="border-b border-border/50">
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Minor text or colour change</TableCell>
+                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Minor text or color change</TableCell>
                               <TableCell className="text-right font-semibold text-foreground py-2.5 px-3.5">5% (min 4 CR)</TableCell>
                               <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Applies to finalized typography or palette tweaks</TableCell>
                             </TableRow>
@@ -1596,7 +1627,7 @@ export default function CreatorStudioPage() {
                           <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                           <span>Credit Valuation</span>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed text-[11px]">
+                        <p className="text-muted-foreground leading-relaxed text-xs">
                           1 CR = $2.50 listed service value. Credits are deducted only after the studio confirms and approves the final brief.
                         </p>
                       </div>
@@ -1606,7 +1637,7 @@ export default function CreatorStudioPage() {
                           <Layers className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                           <span>Scope Tiers</span>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed text-[11px]">
+                        <p className="text-muted-foreground leading-relaxed text-xs">
                           Basic, Standard, and Elite are distinct alternative scopes. Select one tier per service item.
                         </p>
                       </div>
@@ -1616,7 +1647,7 @@ export default function CreatorStudioPage() {
                           <RefreshCw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                           <span>Included Revisions</span>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed text-[11px]">
+                        <p className="text-muted-foreground leading-relaxed text-xs">
                           Multi-round revisions apply within the approved direction. Major concept changes adhere to scope rates.
                         </p>
                       </div>
@@ -1626,7 +1657,7 @@ export default function CreatorStudioPage() {
                           <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                           <span>12-Month Rollover</span>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed text-[11px]">
+                        <p className="text-muted-foreground leading-relaxed text-xs">
                           Credits remain active for 12 months. Package bonuses offer lower effective USD rates per credit.
                         </p>
                       </div>
@@ -1660,20 +1691,20 @@ export default function CreatorStudioPage() {
                         <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
                           <b className="text-foreground text-xs block mb-1">Standard Assets</b>
                           <span className="text-amber-600 font-bold block mb-1">3–5 Business Days</span>
-                          <span className="text-[11px] leading-snug">Logos, emotes, badges, banners, and static screens.</span>
+                          <span className="text-xs leading-snug">Logos, emotes, badges, banners, and static screens.</span>
                         </div>
                         <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
                           <b className="text-foreground text-xs block mb-1">Motion & Video</b>
                           <span className="text-amber-600 font-bold block mb-1">5–7 Business Days</span>
-                          <span className="text-[11px] leading-snug">Animated screens, alerts, video reels, and stingers.</span>
+                          <span className="text-xs leading-snug">Animated screens, alerts, video reels, and stingers.</span>
                         </div>
                         <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
                           <b className="text-foreground text-xs block mb-1">VTuber & 3D Work</b>
                           <span className="text-amber-600 font-bold block mb-1">10–14 Business Days</span>
-                          <span className="text-[11px] leading-snug">Full Live2D model art & rigging with milestone reviews.</span>
+                          <span className="text-xs leading-snug">Full Live2D model art & rigging with milestone reviews.</span>
                         </div>
                       </div>
-                      <p className="pt-1 text-[11px]">
+                      <p className="pt-1 text-xs">
                         • <b>Deliverable Formats:</b> Stream-ready transparent PNGs, 60fps WebM with alpha channels, and full HD/4K MP4s. Standard and Elite scopes include layered master files (PSD, AI, or After Effects project packages).
                       </p>
                     </div>
@@ -1760,18 +1791,18 @@ export default function CreatorStudioPage() {
       {/* STEP 4: PROJECT DETAILS & CREATIVE BRIEF                     */}
       {/* ============================================================ */}
       {currentStep === 4 && currentPackage && (
-        <div className="space-y-4 sm:space-y-5 max-w-4xl mx-auto animate-in fade-in duration-200">
+        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                STEP 4/5
+                4 OF 5 · YOUR PROJECT DETAILS
               </div>
               <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
-                Creative Brief & Production Details
+                Tell us what each item should include.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Provide specifications, reference art, and target platform details for your design team.
+                Add your brief, reference images, and any extras, then confirm the terms.
               </p>
             </div>
 
@@ -1786,110 +1817,146 @@ export default function CreatorStudioPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
               {/* Your Name */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">
+                <Label htmlFor={briefFieldId('clientName')} className="text-xs font-semibold text-foreground">
                   Your Name <span className="text-amber-600">*</span>
                 </Label>
                 <Input
+                  {...brief.fieldProps('clientName')}
+                  autoComplete="name"
+                  maxLength={BRIEF_LIMITS.clientName.max}
                   placeholder="Your full legal or creator name"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
                 />
+                <FieldError id={briefFieldId('clientName')} message={brief.getError('clientName')} />
               </div>
 
               {/* Channel / Brand Name */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">
+                <Label htmlFor={briefFieldId('channelName')} className="text-xs font-semibold text-foreground">
                   Channel / Brand Name
                 </Label>
                 <Input
+                  {...brief.fieldProps('channelName')}
+                  autoComplete="organization"
+                  maxLength={BRIEF_LIMITS.channelName.max}
                   placeholder="e.g. KiraOfficial, PixelGamer"
                   value={channelName}
                   onChange={(e) => setChannelName(e.target.value)}
                   className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
                 />
+                <FieldError id={briefFieldId('channelName')} message={brief.getError('channelName')} />
               </div>
 
               {/* Email */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">
+                <Label htmlFor={briefFieldId('email')} className="text-xs font-semibold text-foreground">
                   Email Address <span className="text-amber-600">*</span>
                 </Label>
                 <Input
+                  {...brief.fieldProps('email')}
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  spellCheck={false}
+                  maxLength={BRIEF_LIMITS.email.max}
                   placeholder="creator@channel.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
                 />
+                <FieldError id={briefFieldId('email')} message={brief.getError('email')} />
               </div>
 
               {/* Primary Platform */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">
+                <Label htmlFor={briefFieldId('platform')} className="text-xs font-semibold text-foreground">
                   Primary Platform
                 </Label>
                 <Select
                   value={platform}
-                  onValueChange={(val) => setPlatform(val as string)}
+                  onValueChange={(val) => {
+                    setPlatform(val as string);
+                    brief.markTouched('platform');
+                  }}
                 >
-                  <SelectTrigger className="w-full h-9 bg-background/50 rounded-lg text-xs sm:text-sm font-medium">
+                  <SelectTrigger
+                    {...brief.fieldProps('platform')}
+                    className="w-full h-9 bg-background/50 rounded-lg text-xs sm:text-sm font-medium"
+                  >
                     <SelectValue placeholder="Select Platform" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Twitch" className="text-xs sm:text-sm">Twitch</SelectItem>
-                    <SelectItem value="YouTube" className="text-xs sm:text-sm">YouTube</SelectItem>
-                    <SelectItem value="Kick" className="text-xs sm:text-sm">Kick</SelectItem>
-                    <SelectItem value="Discord" className="text-xs sm:text-sm">Discord</SelectItem>
-                    <SelectItem value="TikTok / Reels" className="text-xs sm:text-sm">TikTok / Reels</SelectItem>
-                    <SelectItem value="Multi-Platform" className="text-xs sm:text-sm">Multi-Platform</SelectItem>
+                    {PLATFORM_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option} className="text-xs sm:text-sm">
+                        {option}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <FieldError id={briefFieldId('platform')} message={brief.getError('platform')} />
               </div>
 
               {/* Preferred Art Style */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">
+                <Label htmlFor={briefFieldId('style')} className="text-xs font-semibold text-foreground">
                   Preferred Art Style
                 </Label>
                 <Input
+                  {...brief.fieldProps('style')}
+                  maxLength={BRIEF_LIMITS.style.max}
                   placeholder="e.g. Cyberpunk Anime, Chibi, Dark Fantasy, 3D"
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
                   className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
                 />
+                <FieldError id={briefFieldId('style')} message={brief.getError('style')} />
               </div>
 
               {/* Color Palette */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">
+                <Label htmlFor={briefFieldId('colors')} className="text-xs font-semibold text-foreground">
                   Color Palette / Themes
                 </Label>
                 <Input
+                  {...brief.fieldProps('colors')}
+                  maxLength={BRIEF_LIMITS.colors.max}
                   placeholder="e.g. #FF007F Neon Pink, Cyan, Deep Slate"
                   value={colors}
                   onChange={(e) => setColors(e.target.value)}
                   className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
                 />
+                <FieldError id={briefFieldId('colors')} message={brief.getError('colors')} />
               </div>
 
               {/* Instructions Full Width */}
               <div className="space-y-1 sm:col-span-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-foreground">
+                  <Label htmlFor={briefFieldId('instructions')} className="text-xs font-semibold text-foreground">
                     Creative Brief & Asset Instructions <span className="text-amber-600">*</span>
                   </Label>
-                  <span className="text-[11px] text-muted-foreground">
-                    {instructions.length} characters
+                  <span
+                    className={cn(
+                      'text-xs tabular-nums',
+                      instructions.trim().length < BRIEF_LIMITS.instructions.min
+                        ? 'text-muted-foreground'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                    )}
+                  >
+                    {instructions.trim().length.toLocaleString()} / {BRIEF_LIMITS.instructions.max.toLocaleString()}
                   </span>
                 </div>
                 <Textarea
+                  {...brief.fieldProps('instructions')}
+                  maxLength={BRIEF_LIMITS.instructions.max}
                   placeholder="Detail exact text, expressions for emotes, character poses, references, and delivery formats..."
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   rows={3}
                   className="rounded-lg text-xs sm:text-sm leading-relaxed bg-background/50 py-2 resize-y"
                 />
+                <FieldError id={briefFieldId('instructions')} message={brief.getError('instructions')} />
               </div>
             </div>
 
@@ -1931,7 +1998,7 @@ export default function CreatorStudioPage() {
                       Upload
                     </Button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
                     Attach PNG, JPG, or WebP references up to 10MB (optional).
                   </p>
                 </div>
@@ -1956,7 +2023,7 @@ export default function CreatorStudioPage() {
                   onDragLeave={() => setIsDragOver(false)}
                   onDrop={handleFileDrop}
                   data-dragging={isDragOver || undefined}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-[11px] text-muted-foreground cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-50/40 focus-visible:ring-2 focus-visible:ring-amber-500/40 data-[dragging]:border-amber-500 data-[dragging]:bg-amber-50/70 data-[dragging]:text-amber-700 dark:hover:bg-amber-500/5 dark:data-[dragging]:bg-amber-500/10"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-50/40 focus-visible:ring-2 focus-visible:ring-amber-500/40 data-[dragging]:border-amber-500 data-[dragging]:bg-amber-50/70 data-[dragging]:text-amber-700 dark:hover:bg-amber-500/5 dark:data-[dragging]:bg-amber-500/10"
                 >
                   <ImageIcon className="size-3.5 shrink-0 text-amber-600" />
                   <span>
@@ -1978,8 +2045,8 @@ export default function CreatorStudioPage() {
                           <img src={f.url} alt={f.filename} />
                         </AttachmentMedia>
                         <AttachmentContent>
-                          <AttachmentTitle className="text-[11px]">{f.filename}</AttachmentTitle>
-                          <AttachmentDescription className="text-[10px]">
+                          <AttachmentTitle className="text-xs">{f.filename}</AttachmentTitle>
+                          <AttachmentDescription className="text-2xs">
                             {f.size >= 1024 * 1024
                               ? `${(f.size / (1024 * 1024)).toFixed(1)} MB`
                               : `${Math.max(1, Math.round(f.size / 1024))} KB`}
@@ -2007,8 +2074,8 @@ export default function CreatorStudioPage() {
                           <Spinner />
                         </AttachmentMedia>
                         <AttachmentContent>
-                          <AttachmentTitle className="text-[11px]">{name}</AttachmentTitle>
-                          <AttachmentDescription className="text-[10px]">
+                          <AttachmentTitle className="text-xs">{name}</AttachmentTitle>
+                          <AttachmentDescription className="text-2xs">
                             Uploading…
                           </AttachmentDescription>
                         </AttachmentContent>
@@ -2027,13 +2094,18 @@ export default function CreatorStudioPage() {
                       Redeem Promo Voucher
                     </b>
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
                     Have a sponsor or VIP voucher code? Attach it to your order.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 pt-0.5">
                   <Input
+                    id="brief-redeemCode"
+                    aria-label="Promo voucher code"
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={BRIEF_LIMITS.redeemCode.max}
                     placeholder="e.g. HT-VIP-2026"
                     value={redeemCodeInput}
                     onChange={(e) => {
@@ -2047,11 +2119,15 @@ export default function CreatorStudioPage() {
                     variant={redeemCodeAttached ? 'secondary' : 'default'}
                     size="sm"
                     onClick={() => {
-                      if (redeemCodeInput.length >= 4) {
+                      const parsed = redeemCodeSchema.safeParse(redeemCodeInput);
+                      if (parsed.success && parsed.data) {
+                        setRedeemCodeInput(parsed.data);
                         setRedeemCodeAttached(true);
-                        toast.success(`Voucher attached: ${redeemCodeInput}`);
+                        toast.success(`Voucher attached: ${parsed.data}`);
                       } else {
-                        toast.error('Please enter a valid code');
+                        toast.error(
+                          parsed.success ? 'Please enter a voucher code' : parsed.error.issues[0]?.message
+                        );
                       }
                     }}
                     className="text-xs shrink-0 font-semibold h-8 px-3 rounded-lg"
@@ -2079,6 +2155,32 @@ export default function CreatorStudioPage() {
               </div>
             )}
 
+            {/* Collapsible Terms & Conditions */}
+            <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+              <Collapsible open={isTermsExpanded} onOpenChange={setIsTermsExpanded}>
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3.5 sm:p-4 text-left font-bold text-foreground text-xs sm:text-sm hover:bg-secondary/40 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30">
+                  <div className="flex items-center gap-2">
+                    <span className="text-foreground text-xs select-none transition-transform duration-200">
+                      {isTermsExpanded ? '▼' : '▶'}
+                    </span>
+                    <span className="font-bold tracking-tight">Read Terms &amp; Conditions</span>
+                  </div>
+                  <span className="text-2xs font-semibold text-muted-foreground">
+                    {isTermsExpanded ? 'Collapse' : 'Click to read (11 items)'}
+                  </span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t border-border/60 bg-muted/15 px-5 sm:px-6 py-4 space-y-2.5">
+                    {TERMS_AND_CONDITIONS.map((term, idx) => (
+                      <p key={idx} className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed pl-3 border-l-2 border-amber-500/30">
+                        {term}
+                      </p>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
+
             {/* Terms & Conditions Checkbox (Compact and Direct) */}
             <Card
               className={cn(
@@ -2100,7 +2202,7 @@ export default function CreatorStudioPage() {
                   <Label htmlFor="terms-ack" className="text-xs font-bold text-foreground cursor-pointer block">
                     Terms Confirmation *
                   </Label>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     I agree to the Humantek Studio Terms & Conditions, revision policies, and understand
                     that production commences upon scope confirmation and payment verification.
                   </p>
@@ -2126,46 +2228,107 @@ export default function CreatorStudioPage() {
         <div className="space-y-6 animate-in fade-in duration-200">
           {submittedProject ? (
             /* Celebration Screen on Success */
-            <div className="p-8 sm:p-12 text-center rounded-3xl border-2 border-emerald-300 dark:border-emerald-700 bg-gradient-to-b from-card via-card to-emerald-50/40 dark:to-emerald-950/20 shadow-xl max-w-2xl mx-auto space-y-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto mb-2 shadow-sm">
-                <PackageCheck className="w-8 h-8" />
-              </div>
-              <Badge variant="success" className="text-xs font-bold uppercase tracking-wider px-3.5 py-1.5">
-                Order Logged & Confirmed
-              </Badge>
-              <h2 className="text-3xl font-black text-foreground">
-                Your Creative Project is Active!
-              </h2>
-              <p className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-                Project Code: <b className="font-mono text-amber-700 dark:text-amber-400 font-bold">{submittedProject.projectCode}</b>.
-                Your request has been routed to our agency art director for initial concept briefing.
-              </p>
-
-              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
-                <Button
-                  variant="default"
-                  size="default"
-                  className="text-sm font-semibold h-10 px-5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white gap-2 cursor-pointer shadow-md shadow-amber-500/20"
-                  onClick={() => setChatOpen(true)}
+            <Card className="max-w-xl mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+              {/* Header Icon & Status Pill */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="size-16 rounded-2xl bg-gradient-to-br from-amber-500/15 via-amber-500/10 to-amber-600/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs">
+                  <PackageCheck className="size-8" />
+                </div>
+                <Badge
+                  variant="outline"
+                  className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold px-3 py-1 text-xs gap-1.5"
                 >
-                  <MessageSquare className="w-4 h-4" />
-                  Chat with Sarah Miller (Lead Producer)
-                </Button>
-                <Link href="/projects">
-                  <Button variant="outline" size="default" className="text-sm font-semibold h-10 px-5">
-                    View Project Milestones
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Order Confirmed · Active Production
+                </Badge>
+              </div>
+
+              {/* Title & Subtitle */}
+              <div className="space-y-1.5">
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                  Your Creative Project is Active!
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                  Your request has been routed to our agency art director and creative operations pipeline.
+                </p>
+              </div>
+
+              {/* Order Spec Snapshot Card */}
+              <div className="rounded-xl border border-border/70 bg-secondary/30 p-4 text-left grid grid-cols-2 gap-3.5 text-xs">
+                <div>
+                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+                    Project Reference
+                  </span>
+                  <span className="font-mono font-bold text-foreground text-sm">
+                    {submittedProject.projectCode}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+                    Package Tier
+                  </span>
+                  <span className="font-semibold text-foreground text-sm truncate block">
+                    {submittedProject.packageName}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+                    Allocated Credits
+                  </span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400 text-sm">
+                    {submittedProject.packageCredits} CR
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
+                    Production Queue
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    Concept Briefing
+                  </span>
+                </div>
+              </div>
+
+              {/* Clean, Non-overwhelming 2-Button Action Row */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <Link href="/projects" className="w-full sm:w-auto">
+                  <Button
+                    variant="default"
+                    size="default"
+                    className="w-full sm:w-auto font-semibold px-6 gap-2 h-10 cursor-pointer shadow-md shadow-amber-500/20"
+                  >
+                    <FolderKanban className="size-4" />
+                    <span>View Project Milestones</span>
+                    <ArrowRight className="size-4" />
                   </Button>
                 </Link>
+
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="default"
-                  className="text-sm font-semibold h-10 px-4 text-muted-foreground"
+                  className="w-full sm:w-auto font-semibold px-5 h-10 cursor-pointer gap-2 border border-amber-500/30 text-amber-800 dark:text-amber-300"
+                  onClick={() => setChatOpen(true, submittedProject.id)}
+                >
+                  <MessageSquare className="size-4 text-amber-600" />
+                  <span>Project Chat</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="w-full sm:w-auto font-semibold px-5 h-10 cursor-pointer"
                   onClick={() => window.location.reload()}
                 >
-                  Configure Another
+                  Create Another Request
                 </Button>
               </div>
-            </div>
+
+              {/* Subtle helper note linking to producer chat */}
+              <p className="text-xs text-muted-foreground pt-1">
+                Need immediate modifications? Your lead producer is on standby via the floating chat widget.
+              </p>
+            </Card>
           ) : (
             /* Order Review and Payment View */
             <>
@@ -2173,13 +2336,13 @@ export default function CreatorStudioPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                    STEP 5/5
+                    5 OF 5 · REVIEW &amp; PAY
                   </div>
                   <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
-                    Final Review & Payment
+                    Ready to submit?
                   </h1>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                    Verify your package scope breakdown and finalize with verified PayPal checkout.
+                    Check your package, services, brief, and balance, then pay securely with PayPal.
                   </p>
                 </div>
 
@@ -2208,17 +2371,17 @@ export default function CreatorStudioPage() {
 
                     <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-secondary/40 border border-border/60 text-center">
                       <div>
-                        <span className="text-[11px] text-muted-foreground uppercase font-bold block">Selected Plan</span>
+                        <span className="text-xs text-muted-foreground uppercase font-bold block">Selected Plan</span>
                         <b className="text-xs sm:text-sm text-foreground mt-0.5 block truncate">{currentPackage.name}</b>
                       </div>
                       <div>
-                        <span className="text-[11px] text-muted-foreground uppercase font-bold block">Package Value</span>
+                        <span className="text-xs text-muted-foreground uppercase font-bold block">Package Value</span>
                         <b className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 font-black mt-0.5 block tabular-nums">
                           ${currentPackage.price.toLocaleString()} USD
                         </b>
                       </div>
                       <div>
-                        <span className="text-[11px] text-muted-foreground uppercase font-bold block">Total Credits</span>
+                        <span className="text-xs text-muted-foreground uppercase font-bold block">Total Credits</span>
                         <div className="mt-0.5 flex items-center justify-center">
                           <CreditValue value={totalPackageCredits} size="sm" />
                         </div>
@@ -2307,7 +2470,7 @@ export default function CreatorStudioPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[11px] font-medium">
+                        <Badge variant="outline" className="text-xs font-medium">
                           {platform || 'Multi-Platform'}
                         </Badge>
                         <Button
@@ -2316,7 +2479,7 @@ export default function CreatorStudioPage() {
                           variant="link"
                           size="xs"
                           onClick={() => goToStep(4)}
-                          className="h-auto px-0 text-[11px] font-semibold text-amber-600 dark:text-amber-400"
+                          className="h-auto px-0 text-xs font-semibold text-amber-600 dark:text-amber-400"
                         >
                           Edit Brief
                         </Button>
@@ -2325,25 +2488,25 @@ export default function CreatorStudioPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                       <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
-                        <span className="text-[11px] font-medium text-muted-foreground block">Creator / Client</span>
+                        <span className="text-xs font-medium text-muted-foreground block">Creator / Client</span>
                         <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
                           {clientName || 'Not specified'}
                         </p>
                       </div>
                       <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
-                        <span className="text-[11px] font-medium text-muted-foreground block">Email Address</span>
+                        <span className="text-xs font-medium text-muted-foreground block">Email Address</span>
                         <p className="text-xs font-semibold text-foreground mt-0.5 break-all">
                           {email || 'Not specified'}
                         </p>
                       </div>
                       <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
-                        <span className="text-[11px] font-medium text-muted-foreground block">Channel / Brand</span>
+                        <span className="text-xs font-medium text-muted-foreground block">Channel / Brand</span>
                         <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
                           {channelName || 'Not specified'}
                         </p>
                       </div>
                       <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
-                        <span className="text-[11px] font-medium text-muted-foreground block">Art Style & Palette</span>
+                        <span className="text-xs font-medium text-muted-foreground block">Art Style & Palette</span>
                         <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
                           {style || 'Studio Selected'}{colors ? ` · ${colors}` : ''}
                         </p>
@@ -2352,9 +2515,9 @@ export default function CreatorStudioPage() {
 
                     {instructions && (
                       <div className="p-3 rounded-xl bg-secondary/30 border border-border/60 space-y-1 text-xs">
-                        <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-muted-foreground">Production Notes & Direction:</span>
-                          <span className="text-[10px] text-muted-foreground">Attached to brief</span>
+                          <span className="text-xs text-muted-foreground">Attached to brief</span>
                         </div>
                         <div className="max-h-24 overflow-y-auto pr-1">
                           <p className="text-xs text-foreground/90 italic leading-relaxed whitespace-pre-wrap">
@@ -2365,7 +2528,7 @@ export default function CreatorStudioPage() {
                     )}
 
                     {uploadedFiles.length > 0 && (
-                      <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground border-t border-border/40">
+                      <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground border-t border-border/40">
                         <Upload className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                         <span>{uploadedFiles.length} reference file(s) attached to brief</span>
                       </div>
@@ -2391,12 +2554,6 @@ export default function CreatorStudioPage() {
                         <span>{currentPackage.name} Base Package</span>
                         <span className="font-semibold text-foreground">${currentPackage.price.toLocaleString()} USD</span>
                       </div>
-                      {priorityPassEnabled && (
-                        <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
-                          <span>Priority Production Pass (+50 CR Bonus)</span>
-                          <span>Included</span>
-                        </div>
-                      )}
                       {redeemCodeAttached && (
                         <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                           <span>Voucher Applied: {redeemCodeInput}</span>
@@ -2439,6 +2596,15 @@ export default function CreatorStudioPage() {
                         }}
                         onSuccess={(proj) => {
                           setSubmittedProject(proj);
+                          registerProject({
+                            id: proj.id,
+                            projectCode: proj.projectCode,
+                            packageName: proj.packageName,
+                            clientName: proj.clientName,
+                            status: proj.status,
+                            price: proj.packagePrice,
+                            credits: proj.packageCredits,
+                          });
                           toast.success('Payment verified! Project created.');
                         }}
                         onError={(err) => {
@@ -2450,7 +2616,7 @@ export default function CreatorStudioPage() {
 
                     {/* Fallback Review Submission (Alternative Path - Softened Hierarchy) */}
                     <div className="pt-2 border-t border-border/60 text-center space-y-2">
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Need sponsor or agency PO approval before payment?
                       </p>
                       <Button
@@ -2487,7 +2653,7 @@ export default function CreatorStudioPage() {
                     </div>
 
                     {/* Security & SLA Badges */}
-                    <div className="pt-2.5 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <div className="pt-2.5 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Lock className="w-3.5 h-3.5 text-emerald-600" /> 256-Bit SSL
                       </span>

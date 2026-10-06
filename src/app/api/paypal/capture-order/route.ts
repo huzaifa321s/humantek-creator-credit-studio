@@ -1,92 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { capturePayPalOrder } from '@/lib/paypal';
-import { addProject, addLedgerEntry } from '@/lib/store';
-import { PACKAGES } from '@/lib/catalog';
-import { ProjectRecord } from '@/types';
+import { getPendingOrder, getProjectById, markOrderCaptured } from '@/lib/store';
+import { captureOrderSchema, firstIssue } from '@/lib/validation';
+import { buildProjectRecord, recordPaidProject } from '@/lib/orders';
 
+/**
+ * Captures an approved PayPal order. Only the order id is accepted from the
+ * client; everything else comes from the pending order stored at creation
+ * time. The captured amount and status are verified before any project is
+ * recorded, and repeated calls are idempotent.
+ */
 export async function POST(req: NextRequest) {
+  let body: unknown;
   try {
-    const body = await req.json();
-    const { orderId, projectData } = body;
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-    if (!orderId) {
-      return NextResponse.json({ error: 'Missing PayPal Order ID' }, { status: 400 });
+  const parsed = captureOrderSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
+  }
+  const { orderId } = parsed.data;
+
+  const pending = getPendingOrder(orderId);
+  if (!pending) {
+    return NextResponse.json({ error: 'Order not found or expired. Please start checkout again.' }, { status: 404 });
+  }
+
+  // Idempotency: a double-click or retry returns the already-recorded project.
+  if (pending.projectId) {
+    const existing = getProjectById(pending.projectId);
+    if (existing) {
+      return NextResponse.json({ success: true, project: existing, message: 'Payment already confirmed.' });
+    }
+  }
+
+  const expected = pending.quote.priceUSD;
+
+  try {
+    const capture = await capturePayPalOrder(orderId, expected);
+
+    const amountMatches = capture.amountUSD !== null && Math.abs(capture.amountUSD - expected) < 0.005;
+    if (capture.status !== 'COMPLETED' || capture.currency !== 'USD' || !amountMatches) {
+      console.error('[capture-order] Payment verification failed', { orderId, capture, expected });
+      return NextResponse.json({ error: 'Payment could not be verified.' }, { status: 402 });
     }
 
-    // 1. Capture with PayPal API
-    const captureResult = await capturePayPalOrder(orderId);
-
-    // 2. Prepare Project Record
-    const selectedPackage = PACKAGES.find((p) => p.id === projectData.packageId);
-    const packagePrice = selectedPackage?.price ?? 1500;
-    const packageCredits = selectedPackage?.credits ?? 660;
-
-    const usedCredits = (projectData.selections || []).reduce(
-      (sum: number, s: { credits: number }) => sum + s.credits,
-      0
-    );
-
-    const projectRecord: ProjectRecord = {
-      id: projectData.projectId || `proj-${Date.now()}`,
-      projectCode: `HT-${Date.now().toString(36).toUpperCase()}-${selectedPackage?.id.substring(0, 5).toUpperCase()}`,
-      packageId: projectData.packageId,
-      packageName: selectedPackage?.name || 'Creator Forge',
-      packagePrice,
-      packageCredits,
-      usedCredits,
-      remainingCredits: packageCredits - usedCredits,
+    const project = buildProjectRecord(pending.request, pending.quote, {
       status: 'payment_confirmed',
       paymentStatus: 'paid',
-      clientName: projectData.clientName || 'Anonymous Creator',
-      channelName: projectData.channelName || '',
-      email: projectData.email || 'guest@humantek.art',
-      platform: projectData.platform || '',
-      style: projectData.style || '',
-      colors: projectData.colors || '',
-      instructions: projectData.instructions || '',
-      redeemCode: projectData.redeemCode || '',
-      additions: projectData.additions || [],
-      selections: projectData.selections || [],
-      uploadedFiles: projectData.uploadedFiles || [],
-      createdAt: new Date().toISOString(),
-    };
-
-    // 3. Save to store
-    addProject(projectRecord);
-
-    // 4. Record in Credit Ledger
-    addLedgerEntry({
-      id: `led-${Date.now()}`,
-      userEmail: projectRecord.email,
-      type: 'package_purchase',
-      creditsDelta: packageCredits,
-      usdAmount: packagePrice,
-      referenceId: projectRecord.projectCode,
-      description: `PayPal payment verified for ${projectRecord.packageName}`,
-      createdAt: new Date().toISOString(),
     });
-
-    if (usedCredits > 0) {
-      addLedgerEntry({
-        id: `led-${Date.now() + 1}`,
-        userEmail: projectRecord.email,
-        type: 'service_deduction',
-        creditsDelta: -usedCredits,
-        usdAmount: 0,
-        referenceId: projectRecord.projectCode,
-        description: `Credits allocated for order ${projectRecord.projectCode}`,
-        createdAt: new Date().toISOString(),
-      });
-    }
+    recordPaidProject(project, capture.captureId ?? orderId);
+    markOrderCaptured(orderId, project.id);
 
     return NextResponse.json({
       success: true,
-      capture: captureResult,
-      project: projectRecord,
+      project,
       message: 'Payment confirmed & project successfully logged into management queue!',
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Could not capture PayPal order';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

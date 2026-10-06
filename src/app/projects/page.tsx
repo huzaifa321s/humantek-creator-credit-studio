@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ProjectRecord } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FilterTabs } from '@/components/ui/filter-tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { Package, Check, Search } from 'lucide-react';
+import { Package, Check, Search, MessageSquare, Sparkles } from 'lucide-react';
+import { useStudioChat } from '@/lib/chatStore';
 import {
   Timeline,
   TimelineContent,
@@ -29,6 +30,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
+import { useProjectsQuery } from '@/lib/queries/projects';
+
+const EMPTY_PROJECTS: ProjectRecord[] = [];
 
 const STATUS_STAGES = [
   'Request Received',
@@ -57,20 +61,12 @@ function getStageIndex(status: ProjectRecord['status']): number {
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<ProjectRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { setIsOpen, unreadCounts } = useStudioChat();
+  const projectsQuery = useProjectsQuery();
+  const projects = projectsQuery.data ?? EMPTY_PROJECTS;
+  const isLoading = projectsQuery.isPending;
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'delivered'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    fetch('/api/projects')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.projects) setProjects(data.projects);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setIsLoading(false));
-  }, []);
 
   const filteredProjects = projects.filter((p) => {
     const matchesTab =
@@ -88,6 +84,11 @@ export default function ProjectsPage() {
     return matchesTab && matchesSearch;
   });
 
+  const activeCount = projects.filter(
+    (p) => p.status !== 'delivered' && p.status !== 'declined'
+  ).length;
+  const deliveredCount = projects.filter((p) => p.status === 'delivered').length;
+
   return (
     <StudioCardLayout
       mode="standalone"
@@ -95,8 +96,9 @@ export default function ProjectsPage() {
       walletBalance={80}
       topRightBadge={
         <Link href="/">
-          <Button variant="default" size="sm" className="text-xs font-semibold">
-            + New Asset Request
+          <Button variant="default" size="sm" className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>New Asset Request</span>
           </Button>
         </Link>
       }
@@ -108,7 +110,7 @@ export default function ProjectsPage() {
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               PROJECT DASHBOARD
             </div>
-            <h1 className="scroll-m-20 text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground lg:text-4xl">
+            <h1 className="scroll-m-20 text-2xl sm:text-[32px] font-extrabold tracking-tight text-foreground leading-tight">
               Your Projects & Milestones
             </h1>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
@@ -119,40 +121,24 @@ export default function ProjectsPage() {
 
         {/* Filter Bar with Tabs and Search */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <Tabs
+          <FilterTabs
             value={activeTab}
-            onValueChange={(val) => setActiveTab(val as 'all' | 'active' | 'delivered')}
-            className="w-auto"
-          >
-            <TabsList className="bg-secondary/70 p-1 rounded-xl">
-              <TabsTrigger
-                value="all"
-                className="text-sm font-semibold px-3.5 py-1.5 data-active:bg-card data-active:text-amber-700 data-active:shadow-2xs"
-              >
-                All ({projects.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="active"
-                className="text-sm font-semibold px-3.5 py-1.5 data-active:bg-card data-active:text-amber-700 data-active:shadow-2xs"
-              >
-                Active Production
-              </TabsTrigger>
-              <TabsTrigger
-                value="delivered"
-                className="text-sm font-semibold px-3.5 py-1.5 data-active:bg-card data-active:text-amber-700 data-active:shadow-2xs"
-              >
-                Delivered
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+            onValueChange={setActiveTab}
+            size="sm"
+            tabs={[
+              { value: 'all', label: 'All', count: projects.length },
+              { value: 'active', label: 'Active Production', count: activeCount },
+              { value: 'delivered', label: 'Delivered', count: deliveredCount },
+            ]}
+          />
 
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative w-full sm:w-64">
+            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
             <Input
               placeholder="Search by code, brand or client..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 text-sm bg-card rounded-xl"
+              className="pl-8 h-8 text-xs bg-card border-border/80 rounded-md focus-visible:border-amber-500"
             />
           </div>
         </div>
@@ -210,31 +196,54 @@ export default function ProjectsPage() {
                   <CardHeader className="p-5 sm:p-6 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="gold" className="text-xs font-bold px-2.5 py-1">
+                        <Badge variant="gold" size="sm" className="font-bold">
                           {proj.packageName}
                         </Badge>
-                        <span className="font-mono text-sm text-muted-foreground font-medium">
+                        <Badge variant="outline" size="sm" className="font-mono text-muted-foreground font-semibold">
                           {proj.projectCode}
-                        </span>
+                        </Badge>
                       </div>
-                      <CardTitle className="text-2xl font-black text-foreground mt-1.5">
+                      <CardTitle className="text-xl sm:text-2xl font-bold text-foreground mt-1.5 tracking-tight">
                         {proj.channelName || proj.clientName}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                         Client: <b className="text-foreground font-semibold">{proj.clientName}</b> ({proj.email}) · Platform: <span className="font-semibold text-foreground">{proj.platform || 'General'}</span>
                       </p>
                     </div>
 
                     <div className="sm:text-right">
-                      <Badge
-                        variant={proj.paymentStatus === 'paid' ? 'success' : 'secondary'}
-                        className="text-xs font-bold uppercase px-3 py-1"
-                      >
-                        {proj.paymentStatus === 'paid' ? 'Payment Verified' : 'Awaiting Payment'}
-                      </Badge>
-                      <span className="block font-extrabold text-base text-amber-700 dark:text-amber-400 mt-1.5 tabular-nums">
-                        {proj.usedCredits} CR Allocated
+                      <div className="flex items-center sm:justify-end gap-2">
+                        <Badge
+                          variant={proj.paymentStatus === 'paid' ? 'success' : 'secondary'}
+                          className="text-xs font-semibold uppercase px-2.5 py-0.5 rounded-md"
+                        >
+                          {proj.paymentStatus === 'paid' ? 'Payment Verified' : 'Awaiting Payment'}
+                        </Badge>
+                      </div>
+                      <span className="block font-bold text-sm sm:text-base text-foreground mt-1 tabular-nums">
+                        <span className="text-amber-700 dark:text-amber-400 font-extrabold">{proj.usedCredits} CR</span> Allocated
                       </span>
+                      <div className="mt-2 flex items-center sm:justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsOpen(true, proj.id)}
+                          className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
+                        >
+                          <MessageSquare className="size-3.5 text-amber-600" />
+                          <span>Project Chat</span>
+                          {(unreadCounts[proj.id] ?? 0) > 0 && (
+                            <Badge
+                              variant="destructive"
+                              size="xs"
+                              className="size-4 p-0 font-bold text-[10px] rounded-full"
+                            >
+                              {unreadCounts[proj.id]}
+                            </Badge>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -260,15 +269,15 @@ export default function ProjectsPage() {
                                   <TimelineSeparator className="group-data-completed/timeline-item:bg-amber-500" />
                                   <TimelineIndicator
                                     className={cn(
-                                      'flex size-6 items-center justify-center border-2 bg-card border-border',
+                                      'flex size-6 items-center justify-center border-2 bg-card border-border transition-all duration-200',
                                       'group-data-completed/timeline-item:border-emerald-500 group-data-completed/timeline-item:bg-emerald-500 group-data-completed/timeline-item:text-white',
-                                      isCurrent && 'border-amber-500! bg-amber-500! ring-4 ring-amber-500/20'
+                                      isCurrent && 'border-amber-500! bg-amber-500! ring-4 ring-amber-500/30 shadow-md shadow-amber-500/25 animate-pulse'
                                     )}
                                   >
                                     {idx <= activeIndex ? (
                                       <Check className="size-3.5 stroke-[3] text-white" />
                                     ) : (
-                                      <span className="text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
+                                      <span className="text-xs font-bold text-muted-foreground">{idx + 1}</span>
                                     )}
                                   </TimelineIndicator>
                                   <TimelineTitle
@@ -284,8 +293,30 @@ export default function ProjectsPage() {
                                     {stage}
                                   </TimelineTitle>
                                 </TimelineHeader>
-                                <TimelineContent className="text-[11px]">
-                                  {isCurrent ? 'Current stage' : idx < activeIndex ? 'Completed' : 'Upcoming'}
+                                <TimelineContent className="text-xs space-y-0.5 pt-1">
+                                  <div className="font-semibold text-xs leading-none">
+                                    {isCurrent ? (
+                                      <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
+                                        <span className="relative flex h-2 w-2">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                                        </span>
+                                        In Progress
+                                      </span>
+                                    ) : idx < activeIndex ? (
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium inline-flex items-center gap-1">
+                                        <Check className="size-3" />
+                                        Completed
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground font-normal">Upcoming</span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {idx <= activeIndex
+                                      ? new Date(proj.createdAt ? new Date(proj.createdAt).getTime() + idx * 86400000 : Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                      : 'In Queue'}
+                                  </div>
                                 </TimelineContent>
                               </TimelineItem>
                             );
@@ -305,7 +336,7 @@ export default function ProjectsPage() {
                         <b className="text-sm font-semibold text-foreground">{proj.colors || 'Brand Colors'}</b>
                       </div>
                       <div>
-                        <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Remaining Credits</span>
+                        <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Remaining in this package</span>
                         <b className="text-sm font-extrabold text-amber-700 dark:text-amber-400 tabular-nums">{proj.remainingCredits} CR</b>
                       </div>
                       <div>
@@ -317,10 +348,10 @@ export default function ProjectsPage() {
                     </div>
 
                     {/* Service Items Badges */}
-                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex flex-wrap gap-2.5 items-center">
-                      <span className="text-sm text-muted-foreground font-semibold">Assets:</span>
+                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex flex-wrap gap-2 items-center">
+                      <span className="text-xs text-muted-foreground font-semibold">Assets:</span>
                       {proj.selections.map((item, i) => (
-                        <Badge key={i} variant="secondary" className="text-sm py-1.5 px-3 gap-1.5 rounded-xl font-medium">
+                        <Badge key={i} variant="secondary" className="text-xs py-1 px-2.5 gap-1.5 rounded-md font-medium">
                           <span>{item.name}</span>
                           <span className="text-muted-foreground font-normal">({item.quantity}x)</span>
                           <span className="text-amber-700 dark:text-amber-400 font-bold ml-1">{item.credits} CR</span>

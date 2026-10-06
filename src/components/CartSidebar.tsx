@@ -25,12 +25,14 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Alert, AlertTitle, AlertDescription } from '@/components/reui/alert';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import {
   Empty,
   EmptyHeader,
   EmptyMedia,
+  EmptyTitle,
   EmptyDescription,
+  EmptyContent,
 } from '@/components/ui/empty';
 
 const EXTRA_METADATA: Record<
@@ -69,6 +71,7 @@ interface CartSidebarProps {
   className?: string;
   additions?: string[];
   onToggleAddition?: (extra: string) => void;
+  onClearAll?: () => void;
 }
 
 export function CartSidebar({
@@ -85,6 +88,7 @@ export function CartSidebar({
   className,
   additions = [],
   onToggleAddition,
+  onClearAll,
 }: CartSidebarProps) {
   const percentage = Math.min(100, Math.round((usedCredits / pack.credits) * 100));
   const effectiveRate = (pack.price / pack.credits).toFixed(2);
@@ -114,10 +118,22 @@ export function CartSidebar({
             </p>
           </div>
           <div className="text-right">
-            <span className="text-xs font-bold text-foreground block">
-              Selected ({entries.length})
-            </span>
-            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-xs font-bold text-foreground">
+                Selected ({entries.length})
+              </span>
+              {entries.length > 0 && onClearAll && (
+                <button
+                  type="button"
+                  onClick={onClearAll}
+                  className="text-xs text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 underline underline-offset-2 transition-colors cursor-pointer"
+                  title="Clear all selected services"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 block mt-0.5">
               {usedCredits.toLocaleString()} CR used
             </span>
           </div>
@@ -131,9 +147,9 @@ export function CartSidebar({
                 <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
               }
             >
-              <div className="flex items-center justify-between text-muted-foreground text-[11px] font-medium">
+              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
                 <span>Standard Units</span>
-                <Info className="w-3 h-3 text-muted-foreground/70" />
+                <Info className="w-3.5 h-3.5 text-muted-foreground/70" />
               </div>
               <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
                 {standardUnits}
@@ -155,9 +171,9 @@ export function CartSidebar({
                 <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
               }
             >
-              <div className="flex items-center justify-between text-muted-foreground text-[11px] font-medium">
+              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
                 <span>Elite Units</span>
-                <Info className="w-3 h-3 text-muted-foreground/70" />
+                <Info className="w-3.5 h-3.5 text-muted-foreground/70" />
               </div>
               <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
                 {eliteUnits}
@@ -176,7 +192,7 @@ export function CartSidebar({
       </div>
 
       {/* SCROLLABLE MIDDLE AREA: Services list + Extras */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4 pr-3.5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 pb-8 sm:pb-10 space-y-4 pr-3.5">
         {/* Selected Services List */}
         <div className="space-y-2">
           {entries.length ? (
@@ -189,7 +205,7 @@ export function CartSidebar({
                   <b className="font-semibold text-xs sm:text-sm text-foreground truncate block">
                     {service.name}
                   </b>
-                  <span className="text-[11px] sm:text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {service.quoteOnly
                       ? 'Custom Scope'
                       : `${TIER_NAMES[choice.level]} × ${choice.quantity}`}
@@ -216,15 +232,24 @@ export function CartSidebar({
               </div>
             ))
           ) : (
-            <Empty className="p-6 gap-2 rounded-xl border border-dashed border-border bg-secondary/20">
+            <Empty className="p-5 gap-2 rounded-xl border border-dashed border-border bg-secondary/20">
               <EmptyHeader className="gap-1.5">
                 <EmptyMedia variant="icon" className="mb-0 size-9 rounded-lg">
                   <Layers className="w-5 h-5 text-muted-foreground" />
                 </EmptyMedia>
-                <EmptyDescription className="text-xs sm:text-sm">
-                  No services selected yet. Pick creative assets from the catalog.
+                <EmptyTitle className="text-xs font-bold text-foreground">
+                  No Services Selected
+                </EmptyTitle>
+                <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
+                  Pick creative assets from the catalog to build your project scope.
                 </EmptyDescription>
               </EmptyHeader>
+              <EmptyContent className="pt-0.5">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                  <Sparkles className="w-3 h-3 text-amber-600" />
+                  Click &ldquo;Add to Scope&rdquo; on any service
+                </span>
+              </EmptyContent>
             </Empty>
           )}
         </div>
@@ -242,11 +267,11 @@ export function CartSidebar({
                 </h4>
               </div>
               {additions && additions.length > 0 ? (
-                <Badge variant="gold" className="text-[10px] px-2 py-0.5 font-bold tabular-nums">
+                <Badge variant="gold" className="text-xs px-2 py-0.5 font-bold tabular-nums">
                   {additions.length} selected
                 </Badge>
               ) : (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
                   Optional
                 </span>
               )}
@@ -348,7 +373,7 @@ export function CartSidebar({
             indicatorClassName={isOverBudget ? 'bg-rose-500' : undefined}
           />
 
-          <p className="text-[11px] sm:text-xs text-muted-foreground text-center">
+          <p className="text-xs text-muted-foreground text-center">
             {isOverBudget
               ? `Budget exceeded by ${Math.abs(remainingCredits)} CR.`
               : `${percentage}% of package credits allocated.`}
@@ -360,7 +385,7 @@ export function CartSidebar({
           <Alert variant="destructive" className="rounded-xl p-2.5 animate-in fade-in">
             <AlertTriangle className="w-3.5 h-3.5" />
             <AlertTitle className="text-xs font-bold">Tier Unit Limit Reached</AlertTitle>
-            <AlertDescription className="text-[11px] text-muted-foreground leading-normal">
+            <AlertDescription className="text-xs text-muted-foreground leading-normal">
               {pack.name} has reached maximum Standard or Elite units. Upgrade your package or adjust service tiers to continue.
             </AlertDescription>
           </Alert>
@@ -373,7 +398,7 @@ export function CartSidebar({
             <AlertTitle className="text-xs sm:text-sm font-bold text-foreground truncate">
               {recommendedPack ? `Upgrade to ${recommendedPack.name}` : 'Upgrade Required'}
             </AlertTitle>
-            <AlertDescription className="text-[11px] text-muted-foreground leading-snug">
+            <AlertDescription className="text-xs text-muted-foreground leading-snug">
               <span className="block">
                 {recommendedPack
                   ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString()}`

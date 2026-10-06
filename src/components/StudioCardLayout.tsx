@@ -8,7 +8,6 @@ import {
   Coins,
   FolderKanban,
   Ticket,
-  ShieldCheck,
   Sparkles,
   LogOut,
   ChevronDown,
@@ -35,9 +34,29 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
 import { CreditValue } from '@/components/ui/credit-value';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuBadge,
+  SidebarRail,
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 import { HorizontalStepper } from '@/components/HorizontalStepper';
+import { StudioBackground } from '@/components/StudioBackground';
+import { DashboardHeader } from '@/components/header/DashboardHeader';
 import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
+import { useUserStore } from '@/lib/userStore';
 
 interface StudioCardLayoutProps {
   children: React.ReactNode;
@@ -52,6 +71,14 @@ interface StudioCardLayoutProps {
   userEmail?: string | null;
   topRightBadge?: React.ReactNode;
   footerActions?: React.ReactNode;
+  selectedPackageName?: string;
+  selectedPackagePrice?: number;
+  selectedPackageCredits?: number;
+  selectedServicesCount?: number;
+  usedCredits?: number;
+  remainingCredits?: number;
+  isPolicyAccepted?: boolean;
+  isBriefCompleted?: boolean;
 }
 
 export function StudioCardLayout({
@@ -67,10 +94,19 @@ export function StudioCardLayout({
   userEmail = null,
   topRightBadge,
   footerActions,
+  selectedPackageName,
+  selectedPackagePrice,
+  selectedPackageCredits,
+  selectedServicesCount,
+  usedCredits,
+  remainingCredits,
+  isPolicyAccepted,
+  isBriefCompleted,
 }: StudioCardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { setIsOpen: setChatOpen } = useStudioChat();
+  const { setIsOpen: setChatOpen, unreadCounts } = useStudioChat();
+  const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
   const handleBack = () => {
     if (onBack) {
@@ -83,323 +119,248 @@ export function StudioCardLayout({
   };
 
   const isBackDisabled = mode === 'wizard' && currentStep === 1 && !onBack;
+  const { user } = useUserStore();
 
-  return (
-    <div
-      className={cn(
-        'min-h-screen w-full bg-background flex font-sans antialiased',
-        mode === 'standalone' ? 'flex-col lg:flex-row' : 'flex-col'
-      )}
-    >
-      {/* ========================================================= */}
-      {/* LEFT SIDEBAR PANEL (Only rendered in standalone mode)      */}
-      {/* ========================================================= */}
-      {mode === 'standalone' && (
-        <aside className="w-full lg:w-72 xl:w-80 shrink-0 bg-card border-b lg:border-b-0 lg:border-r border-border p-5 sm:p-6 flex flex-col justify-between select-none lg:h-screen lg:sticky lg:top-0 overflow-y-auto z-30">
-          <div className="space-y-6">
-            {/* Brand Logo Header */}
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-white text-sm shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform">
-                ART
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-foreground tracking-tight text-lg">
-                    Humantek Art
-                  </span>
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                </div>
-                <span className="block text-xs tracking-wider uppercase font-bold text-amber-600">
-                  Creator Credits Studio
-                </span>
-              </div>
-            </Link>
+  const effectiveName = user.name;
+  const effectiveEmail = userEmail || user.email;
+  const effectiveBalance =
+    walletBalance !== undefined && walletBalance > 0
+      ? walletBalance
+      : user.walletBalance;
 
-            {/* Standalone App Navigation Links */}
-            <nav className="space-y-1.5">
-              <Link href="/">
-                <Button
-                  variant={pathname === '/' ? 'secondary' : 'ghost'}
-                  className="w-full justify-start text-sm font-semibold gap-2.5 h-10 rounded-xl"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                  <span>Creator Studio Wizard</span>
-                </Button>
-              </Link>
+  // =========================================================================
+  // 1. STANDALONE MODE: Full shadcn & ReUI Collapsible Sidebar Architecture
+  // =========================================================================
+  if (mode === 'standalone') {
+    return (
+      <SidebarProvider defaultOpen={true} style={{ "--sidebar-width": "13.5rem" } as React.CSSProperties} className="min-h-screen w-full bg-background flex flex-col font-sans antialiased">
+        {/* 1. Full-Width Black Dashboard Header (Shadcn Studio Style) */}
+        <DashboardHeader
+          mode="standalone"
+          showBack={showBack}
+          backLabel={backLabel}
+          handleBack={handleBack}
+          isBackDisabled={isBackDisabled}
+          walletBalance={effectiveBalance}
+          userEmail={effectiveEmail}
+          userName={effectiveName}
+          topRightBadge={topRightBadge}
+        />
 
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setChatOpen(true)}
-                className="w-full justify-start text-sm font-semibold gap-2.5 h-10 rounded-xl cursor-pointer hover:bg-secondary/60 text-foreground"
-              >
-                <MessageSquare className="w-4 h-4 text-amber-600" />
-                <span>Chat with Producer</span>
-              </Button>
+        <div className="flex flex-1 w-full min-h-0 relative">
+          {/* 2. Official Ultra-Compact shadcn Sidebar sitting below the top header */}
+          <Sidebar collapsible="icon" className="border-r border-sidebar-border/80 bg-sidebar select-none top-13 sm:top-13.5 h-[calc(100vh-3.25rem)] sm:h-[calc(100vh-3.375rem)]">
+            {/* Sidebar Content with Categorized Groups */}
+            <SidebarContent className="p-1.5 space-y-1.5 flex-1">
+              {/* Main Studio Navigation Group */}
+              <SidebarGroup className="p-0">
+                <SidebarGroupLabel className="text-[9.5px] font-bold tracking-widest text-muted-foreground/70 px-2 py-0.5 h-auto mb-0.5 group-data-[collapsible=icon]:hidden uppercase">
+                  STUDIO WORKSPACE
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu className="gap-0.5">
+                    {/* Creator Studio Wizard */}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={pathname === '/'}
+                        render={<Link href="/" />}
+                        tooltip="Creator Studio Wizard"
+                        className={cn(
+                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          pathname === '/'
+                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                        )}
+                      >
+                        <Sparkles
+                          className={cn(
+                            'size-3.5 shrink-0 transition-colors',
+                            pathname === '/' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                          )}
+                        />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">Creator Studio Wizard</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-              <Link href="/projects">
-                <Button
-                  variant={pathname === '/projects' ? 'secondary' : 'ghost'}
-                  className="w-full justify-start text-sm font-semibold gap-2.5 h-10 rounded-xl"
-                >
-                  <FolderKanban className="w-4 h-4 text-amber-600" />
-                  <span>Your Projects Tracker</span>
-                </Button>
-              </Link>
+                    {/* Chat with Producer */}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        type="button"
+                        onClick={() => setChatOpen(true)}
+                        tooltip="Chat with Producer"
+                        className="h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground"
+                      >
+                        <MessageSquare className="size-3.5 shrink-0 text-amber-600 group-hover/menu-button:scale-105 transition-transform" />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">Chat with Producer</span>
+                        {totalUnreadChat > 0 && (
+                          <SidebarMenuBadge className="bg-rose-500 text-white font-bold text-[9px] px-1 h-3.5 min-w-3.5 rounded-full animate-pulse group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+                            {totalUnreadChat}
+                          </SidebarMenuBadge>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-              <Link href="/redeem-code">
-                <Button
-                  variant={pathname === '/redeem-code' ? 'secondary' : 'ghost'}
-                  className="w-full justify-start text-sm font-semibold gap-2.5 h-10 rounded-xl"
-                >
-                  <Ticket className="w-4 h-4 text-amber-600" />
-                  <span>Redeem Promo Voucher</span>
-                </Button>
-              </Link>
+                    {/* Your Projects Tracker */}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={pathname === '/projects'}
+                        render={<Link href="/projects" />}
+                        tooltip="Your Projects Tracker"
+                        className={cn(
+                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          pathname === '/projects'
+                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                        )}
+                      >
+                        <FolderKanban
+                          className={cn(
+                            'size-3.5 shrink-0 transition-colors',
+                            pathname === '/projects'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                          )}
+                        />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">Your Projects Tracker</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-              <Link href="/management">
-                <Button
-                  variant={pathname === '/management' ? 'secondary' : 'ghost'}
-                  className="w-full justify-start text-sm font-semibold gap-2.5 h-10 rounded-xl"
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-600" />
-                  <span>Agency Console</span>
-                </Button>
-              </Link>
-            </nav>
-          </div>
+                    {/* Redeem Promo Voucher */}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={pathname === '/redeem-code'}
+                        render={<Link href="/redeem-code" />}
+                        tooltip="Redeem Promo Voucher"
+                        className={cn(
+                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          pathname === '/redeem-code'
+                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                        )}
+                      >
+                        <Ticket
+                          className={cn(
+                            'size-3.5 shrink-0 transition-colors',
+                            pathname === '/redeem-code'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                          )}
+                        />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">Redeem Promo Voucher</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
 
-          {/* Sidebar Bottom Status & Shortcuts */}
-          <div className="pt-6 border-t border-border/60 space-y-3 mt-6 lg:mt-0">
-            {/* Wallet Balance Pill */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 border border-border/80 shadow-2xs">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-700">
-                  <Coins className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-semibold text-foreground">Studio Balance</span>
-              </div>
-              <CreditValue value={walletBalance} size="sm" variant="pill" />
-            </div>
-          </div>
-        </aside>
-      )}
-
-      {/* ========================================================= */}
-      {/* MAIN CONTENT AREA (Full Width in Wizard Mode)              */}
-      {/* ========================================================= */}
-      <main className="flex-1 flex flex-col min-w-0 bg-background min-h-screen">
-        {/* Top Header Bar */}
-        <header className="h-16 px-4 sm:px-6 lg:px-8 border-b border-border/80 flex items-center justify-between shrink-0 bg-background/95 backdrop-blur-md sticky top-0 z-30">
-          {/* Left: Brand Logo & Back Action */}
-          <div className="flex items-center gap-3 shrink-0">
-            {mode === 'wizard' ? (
-              <>
-                <Link href="/" className="flex items-center gap-2.5 group select-none">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-white text-xs shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform">
-                    ART
-                  </div>
-                  <div className="hidden sm:block">
-                    <div className="flex items-center gap-1">
-                      <span className="font-extrabold text-foreground tracking-tight text-sm">
-                        Humantek Art
-                      </span>
-                      <Sparkles className="w-3 h-3 text-amber-500" />
+            {/* 3. Refined Ultra-Compact Studio Balance Card */}
+            <SidebarFooter className="p-1.5 border-t border-sidebar-border/60 mt-auto shrink-0 bg-transparent mb-1">
+              <div className="px-2 py-1.5 rounded-md border border-sidebar-border/60 bg-muted/20 hover:bg-muted/30 transition-colors group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:mx-0">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="size-5 rounded-md bg-amber-500/15 text-amber-600 flex items-center justify-center shrink-0">
+                      <Coins className="size-3" />
                     </div>
-                    <span className="block text-[9px] tracking-wider uppercase font-bold text-amber-600 leading-none">
-                      Creator Credits Studio
-                    </span>
+                    <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+                      <span className="block text-xs font-semibold text-sidebar-foreground truncate leading-tight">
+                        Studio Balance
+                      </span>
+                      <span className="block text-xs text-muted-foreground truncate leading-tight">
+                        Active Account
+                      </span>
+                    </div>
                   </div>
-                </Link>
-
-                {showBack && (currentStep > 1 || onBack) && (
-                  <>
-                    <Separator orientation="vertical" className="h-4 hidden sm:block bg-border" />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      disabled={isBackDisabled}
-                      onClick={handleBack}
-                      className="gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground h-7 px-2 rounded-lg"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">{backLabel}</span>
-                    </Button>
-                  </>
-                )}
-
-                <Separator orientation="vertical" className="h-4 hidden sm:block bg-border" />
-
-                <Breadcrumb className="hidden sm:block">
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink href="/" className="text-xs text-muted-foreground hover:text-foreground">
-                        Studio
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="text-xs font-semibold text-foreground">
-                        Step {currentStep} of 5
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </>
-            ) : (
-              /* Standalone Mode: Back Action & Breadcrumb */
-              <>
-                {showBack && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={isBackDisabled}
-                    onClick={handleBack}
-                    className="gap-1.5 text-sm font-semibold text-foreground transition-colors hover:text-amber-700 h-8 px-2"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-                    <span>{backLabel}</span>
-                  </Button>
-                )}
-
-                <Separator orientation="vertical" className="h-4 hidden sm:block bg-border" />
-
-                <Breadcrumb className="hidden sm:block">
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink href="/" className="text-sm text-muted-foreground hover:text-foreground">
-                        Studio
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="text-sm font-semibold text-foreground">
-                        {backLabel.replace(/^Back to\s+/, '')}
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </>
-            )}
-          </div>
-
-          {/* Center: Flexible Spacer */}
-          <div className="flex-1" />
-
-          {/* Right: Balance Pill & User Account Profile */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            {topRightBadge}
-
-            {/* Balance Pill for Wizard Mode */}
-            {mode === 'wizard' && (
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/60 border border-border/80 text-xs font-semibold select-none">
-                <Coins className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-muted-foreground font-medium">Balance:</span>
-                <span className="text-foreground font-bold">{walletBalance} CR</span>
+                  <div className="group-data-[collapsible=icon]:hidden shrink-0">
+                    <CreditValue value={effectiveBalance} size="xs" variant="pill" className="h-5 px-2 text-xs font-bold" />
+                  </div>
+                </div>
               </div>
-            )}
+            </SidebarFooter>
+            <SidebarRail />
+          </Sidebar>
 
-            {/* User Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2 p-1.5 pl-2.5 rounded-full border border-border/80 bg-secondary/40 hover:bg-secondary transition-colors cursor-pointer select-none text-sm font-semibold h-9"
-                  />
-                }
+          {/* 4. Main Page View Inset */}
+          <SidebarInset className="flex-1 flex flex-col min-w-0 bg-background min-h-0 relative isolate">
+            <StudioBackground />
+
+            {/* Main Step / Page Content */}
+            <div className="flex-1 p-3.5 sm:p-4 lg:p-5 w-full mx-auto relative z-10 max-w-[1600px]">
+              {children}
+            </div>
+
+            {/* Bottom Footer Actions Bar (If provided) */}
+            {footerActions && (
+              <footer
+                id="studio-footer-actions"
+                className="border-t border-border/80 px-4 py-3 sm:px-6 sm:py-3.5 bg-background/95 backdrop-blur-md shrink-0 sticky bottom-0 z-20"
               >
-                <Avatar className="w-7 h-7 text-xs bg-amber-100 text-amber-800 font-bold border border-amber-300">
-                  <AvatarFallback>
-                    {userEmail ? userEmail.slice(0, 2).toUpperCase() : <User className="w-4 h-4" />}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="max-w-[140px] truncate text-foreground text-sm font-medium pr-1">
-                  {userEmail || 'Creator Studio'}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground pr-1" />
-              </DropdownMenuTrigger>
+                <div className="w-full mx-auto max-w-[1200px]">
+                  {footerActions}
+                </div>
+              </footer>
+            )}
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    );
+  }
 
-              <DropdownMenuContent align="end" className="w-56 p-1">
-                <DropdownMenuLabel className="font-semibold text-xs text-foreground px-2 py-1.5">
-                  Signed in as
-                  <span className="block font-normal text-muted-foreground truncate">
-                    {userEmail || 'guest@creator.studio'}
-                  </span>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="flex items-center gap-2 cursor-pointer w-full"
-                  onClick={() => setChatOpen(true)}
-                >
-                  <MessageSquare className="w-4 h-4 text-amber-600" />
-                  <span>Chat with Producer</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  render={
-                    <Link href="/projects" className="flex items-center gap-2 cursor-pointer w-full">
-                      <FolderKanban className="w-4 h-4 text-amber-600" />
-                      <span>Your Projects Tracker</span>
-                    </Link>
-                  }
-                />
-                <DropdownMenuItem
-                  render={
-                    <Link href="/redeem-code" className="flex items-center gap-2 cursor-pointer w-full">
-                      <Ticket className="w-4 h-4 text-amber-600" />
-                      <span>Redeem Promo Voucher</span>
-                    </Link>
-                  }
-                />
-                <DropdownMenuItem
-                  render={
-                    <Link href="/management" className="flex items-center gap-2 cursor-pointer w-full">
-                      <ShieldCheck className="w-4 h-4 text-amber-600" />
-                      <span>Agency Console</span>
-                    </Link>
-                  }
-                />
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-rose-600 cursor-pointer flex items-center gap-2"
-                  onClick={() => {
-                    router.push('/login');
-                  }}
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+  // =========================================================================
+  // 2. WIZARD MODE: Dedicated Clean Stepper Brief Flow
+  // =========================================================================
+  return (
+    <div className="min-h-screen w-full bg-background flex flex-col font-sans antialiased">
+      <main className="flex-1 flex flex-col min-w-0 bg-background min-h-screen relative isolate">
+        <StudioBackground />
 
-        {/* Dedicated Horizontal Stepper Bar (Below the Navbar, Centered) */}
-        {mode === 'wizard' && (
-          <div className="w-full border-b border-border/80 bg-card/90 backdrop-blur-md py-3 sm:py-3.5 px-4 sm:px-6 sticky top-16 z-20 shadow-2xs transition-all">
-            <div className="max-w-4xl mx-auto flex items-center justify-center">
+        {/* Top Black Dashboard Header (Shadcn Studio Style) */}
+        <DashboardHeader
+          mode="wizard"
+          currentStep={currentStep}
+          showBack={showBack}
+          backLabel={backLabel}
+          handleBack={handleBack}
+          isBackDisabled={isBackDisabled}
+          walletBalance={effectiveBalance}
+          userEmail={effectiveEmail}
+          userName={effectiveName}
+          topRightBadge={topRightBadge}
+        />
+
+        {/* Dedicated Horizontal Stepper Bar */}
+        <div className="w-full border-b border-border/70 bg-background/95 backdrop-blur-md py-3 sm:py-3.5 px-4 sm:px-6 transition-all">
+          <div className="w-full max-w-[1200px] mx-auto flex items-center justify-center">
+            <div className="w-full max-w-[880px]">
               <HorizontalStepper
                 currentStep={currentStep}
                 onSelectStep={onSelectStep}
                 isPackageSelected={isPackageSelected}
+                selectedPackageName={selectedPackageName}
+                selectedPackagePrice={selectedPackagePrice}
+                selectedPackageCredits={selectedPackageCredits}
+                selectedServicesCount={selectedServicesCount}
+                usedCredits={usedCredits}
+                remainingCredits={remainingCredits}
+                isPolicyAccepted={isPolicyAccepted}
+                isBriefCompleted={isBriefCompleted}
               />
             </div>
           </div>
-        )}
+        </div>
 
         {/* Main Step / Page Content */}
-        <div className="flex-1 p-3.5 sm:p-4 lg:p-5 w-full max-w-[1600px] mx-auto">
+        <div className={cn("flex-1 p-3.5 sm:p-4 lg:p-5 w-full mx-auto relative z-10 max-w-[1200px]", footerActions && "pb-32 sm:pb-36 lg:pb-40")}>
           {children}
         </div>
 
         {/* Bottom Footer Actions Bar (If provided) */}
         {footerActions && (
-          <footer className="border-t border-border/80 px-4 py-3 sm:px-6 sm:py-3.5 bg-background/95 backdrop-blur-md shrink-0 sticky bottom-0 z-20">
-            <div className="w-full max-w-[1600px] mx-auto">
+          <footer
+            id="studio-footer-actions"
+            className="border-t border-border/80 px-4 py-3 sm:px-6 sm:py-3.5 bg-background/95 backdrop-blur-md shrink-0 sticky bottom-0 z-20"
+          >
+            <div className="w-full mx-auto max-w-[1200px]">
               {footerActions}
             </div>
           </footer>

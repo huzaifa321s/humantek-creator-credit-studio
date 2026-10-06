@@ -27,6 +27,7 @@ interface ChatMessageListProps {
   messages: ChatMessage[];
   isTyping?: boolean;
   agentName: string;
+  isGlobal?: boolean;
   renderMessage: (message: ChatMessage) => React.ReactNode;
   contentClassName?: string;
   className?: string;
@@ -41,6 +42,7 @@ export function ChatMessageList({
   messages,
   isTyping = false,
   agentName,
+  isGlobal = false,
   renderMessage,
   contentClassName,
   className,
@@ -54,9 +56,15 @@ export function ChatMessageList({
           <EmptyMedia variant="icon" className="bg-amber-500/10 text-amber-600">
             <MessageSquareDashed />
           </EmptyMedia>
-          <EmptyTitle className="text-sm">No messages yet</EmptyTitle>
-          <EmptyDescription className="text-xs">
-            Say hello to {firstName} — share references, ask about packages or confirm your brief.
+          <EmptyTitle className="text-sm">
+            {isGlobal
+              ? `This is your general conversation with ${firstName}.`
+              : 'This is your dedicated chat for this project.'}
+          </EmptyTitle>
+          <EmptyDescription className="text-xs max-w-sm">
+            {isGlobal
+              ? 'You can ask about packages, credits, pricing, account questions, or new ideas.'
+              : 'Share references, ask about milestones, or discuss revisions with Sarah.'}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -67,7 +75,7 @@ export function ChatMessageList({
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <MessageScroller className={className}>
         <MessageScrollerViewport aria-label="Conversation with studio producer">
-          <MessageScrollerContent className={cn('gap-4', contentClassName)}>
+          <MessageScrollerContent className={cn('gap-3 pb-4', contentClassName)}>
             {messages.map((msg) => (
               <MessageScrollerItem key={msg.id} messageId={msg.id}>
                 {renderMessage(msg)}

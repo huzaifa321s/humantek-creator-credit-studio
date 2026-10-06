@@ -24,30 +24,37 @@ export function PayPalButtonWrapper({
 }: PayPalButtonWrapperProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
+  const showSimulator = process.env.NODE_ENV !== 'production';
+
+  /** Server validates + prices the full order and returns a PayPal order id. */
+  const createOrder = async (): Promise<string> => {
+    const res = await fetch('/api/paypal/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...projectPayload, packageId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create order');
+    return data.orderId as string;
+  };
+
+  /** Only the order id is sent — the server already holds the order details. */
+  const captureOrder = async (orderId: string): Promise<ProjectRecord> => {
+    const res = await fetch('/api/paypal/capture-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to capture payment');
+    return data.project as ProjectRecord;
+  };
 
   const handleSimulatePayment = async () => {
     setIsProcessing(true);
     try {
-      // 1. Create order
-      const createRes = await fetch('/api/paypal/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageId, projectId: projectPayload.projectId }),
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.error || 'Failed to create order');
-
-      // 2. Capture order
-      const captureRes = await fetch('/api/paypal/capture-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: createData.orderId,
-          projectData: projectPayload,
-        }),
-      });
-      const captureData = await captureRes.json();
-      if (!captureRes.ok) throw new Error(captureData.error || 'Failed to capture payment');
+      const orderId = await createOrder();
+      const project = await captureOrder(orderId);
 
       confetti({
         particleCount: 120,
@@ -55,7 +62,7 @@ export function PayPalButtonWrapper({
         origin: { y: 0.6 },
       });
 
-      onSuccess(captureData.project);
+      onSuccess(project);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Payment error';
       onError(msg);
@@ -86,33 +93,16 @@ export function PayPalButtonWrapper({
             disabled={isProcessing}
             createOrder={async () => {
               setIsProcessing(true);
-              const res = await fetch('/api/paypal/create-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  packageId,
-                  projectId: projectPayload.projectId,
-                }),
-              });
-              const data = await res.json();
-              if (!res.ok) {
+              try {
+                return await createOrder();
+              } catch (err) {
                 setIsProcessing(false);
-                throw new Error(data.error);
+                throw err;
               }
-              return data.orderId;
             }}
             onApprove={async (data) => {
               try {
-                const res = await fetch('/api/paypal/capture-order', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    orderId: data.orderID,
-                    projectData: projectPayload,
-                  }),
-                });
-                const resData = await res.json();
-                if (!res.ok) throw new Error(resData.error);
+                const project = await captureOrder(data.orderID);
 
                 confetti({
                   particleCount: 120,
@@ -120,7 +110,7 @@ export function PayPalButtonWrapper({
                   origin: { y: 0.6 },
                 });
 
-                onSuccess(resData.project);
+                onSuccess(project);
               } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : 'Error capturing payment';
                 onError(msg);
@@ -128,6 +118,7 @@ export function PayPalButtonWrapper({
                 setIsProcessing(false);
               }
             }}
+            onCancel={() => setIsProcessing(false)}
             onError={(err) => {
               setIsProcessing(false);
               onError(`PayPal checkout error: ${err}`);
@@ -136,7 +127,8 @@ export function PayPalButtonWrapper({
         </PayPalScriptProvider>
       </div>
 
-      {/* Discrete Sandbox Testing Action (Avoids competing with real checkout) */}
+      {/* Discrete Sandbox Testing Action — dev builds only, never shipped to production */}
+      {showSimulator && (
       <div className="pt-1 text-center">
         <Button
           type="button"
@@ -144,7 +136,7 @@ export function PayPalButtonWrapper({
           size="xs"
           disabled={isProcessing}
           onClick={handleSimulatePayment}
-          className="text-[11px] h-7 text-muted-foreground/70 hover:text-amber-600 dark:hover:text-amber-400 gap-1.5"
+          className="text-xs h-7 text-muted-foreground/70 hover:text-amber-600 dark:hover:text-amber-400 gap-1.5"
         >
           {isProcessing ? (
             <>
@@ -159,6 +151,7 @@ export function PayPalButtonWrapper({
           )}
         </Button>
       </div>
+      )}
     </div>
   );
 }

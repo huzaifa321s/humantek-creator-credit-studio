@@ -4,6 +4,7 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
+import { Providers } from "@/components/Providers";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -33,11 +34,13 @@ export default function RootLayout({
       className={`light ${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-500/20 selection:text-amber-900 font-sans">
-        <TooltipProvider>
-          {children}
-          <ChatFloatingWidget />
-          <Toaster position="bottom-left" />
-        </TooltipProvider>
+        <Providers>
+          <TooltipProvider>
+            {children}
+            <ChatFloatingWidget />
+            <Toaster position="bottom-left" />
+          </TooltipProvider>
+        </Providers>
       </body>
     </html>
   );

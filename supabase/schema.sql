@@ -103,6 +103,23 @@ CREATE TABLE IF NOT EXISTS public.redeem_codes (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. Project Messages Table (Project-isolated communications & history)
+CREATE TABLE IF NOT EXISTS public.project_messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  sender TEXT NOT NULL CHECK (sender IN ('client', 'agent', 'system')),
+  sender_name TEXT NOT NULL,
+  sender_role TEXT,
+  content TEXT NOT NULL,
+  attachments JSONB DEFAULT '[]'::jsonb,
+  order_card JSONB,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_messages_project_id ON public.project_messages(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_messages_created_at ON public.project_messages(created_at);
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================================
@@ -114,6 +131,7 @@ ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_uploads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.redeem_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_messages ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: Users can view & update their own profile; Admins can view all
 CREATE POLICY "Users can view own profile" ON public.profiles
@@ -141,6 +159,26 @@ CREATE POLICY "Users can view own project items" ON public.project_items
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.projects WHERE projects.id = project_items.project_id AND (projects.user_id = auth.uid() OR projects.email = auth.jwt() ->> 'email'))
   );
+
+-- Project Messages: Viewers and senders must belong to the project or be managers/admins
+CREATE POLICY "Users can view own project messages" ON public.project_messages
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.projects
+      WHERE projects.id = project_messages.project_id
+        AND (projects.user_id = auth.uid() OR projects.email = auth.jwt() ->> 'email')
+    )
+  );
+
+CREATE POLICY "Users can send messages to own project" ON public.project_messages
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.projects
+      WHERE projects.id = project_messages.project_id
+        AND (projects.user_id = auth.uid() OR projects.email = auth.jwt() ->> 'email')
+    )
+  );
+
 
 -- Function to handle new user registration automatically
 CREATE OR REPLACE FUNCTION public.handle_new_user()

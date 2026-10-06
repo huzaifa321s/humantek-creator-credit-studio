@@ -8,7 +8,7 @@ import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Alert, AlertTitle, AlertDescription } from '@/components/reui/alert';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Field, FieldLabel, FieldGroup } from '@/components/ui/field';
 import { toast } from 'sonner';

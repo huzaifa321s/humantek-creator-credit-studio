@@ -16,11 +16,31 @@ interface StepProgressProps {
 }
 
 const STEPS = [
-  { name: 'Package', desc: 'Select credit tier and bonus multipliers' },
-  { name: 'Services', desc: 'Pick 39 creative services and scope tiers' },
-  { name: 'Credit Scope', desc: 'Acknowledge revisions, scope rules and eligibility' },
-  { name: 'Project Details', desc: 'Provide instructions, links and reference files' },
-  { name: 'Review & Pay', desc: 'Final review and verified PayPal checkout' },
+  {
+    name: 'Choose a package',
+    headline: 'Start with the right credit wallet.',
+    desc: "Pick a package to get your credits. You'll see your balance update as you build your project.",
+  },
+  {
+    name: 'Pick your services',
+    headline: 'Choose everything you need in one go.',
+    desc: 'Select the services, set the size and quantity, and watch your credits update instantly.',
+  },
+  {
+    name: 'What credits cover',
+    headline: 'Check what your credits can be used for.',
+    desc: 'Credits work for approved Humantek Art services only, so please check this before you continue.',
+  },
+  {
+    name: 'Your project details',
+    headline: 'Tell us what each item should include.',
+    desc: 'Add your brief, reference images, and any extras, then confirm the terms.',
+  },
+  {
+    name: 'Review & pay',
+    headline: 'Ready to submit?',
+    desc: 'Check your package, services, brief, and balance, then pay securely with PayPal.',
+  },
 ];
 
 export function StepProgress({
@@ -92,8 +112,11 @@ export function StepProgress({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-sm max-w-xs p-3 shadow-xl">
-                <span className="font-bold block text-white text-sm mb-1">
-                  Step {stepNum}: {step.name}
+                <span className="font-bold block text-white text-sm mb-0.5">
+                  {stepNum} of 5: {step.name}
+                </span>
+                <span className="text-amber-400 text-xs font-semibold block mb-1">
+                  {step.headline}
                 </span>
                 <span className="text-zinc-300 text-xs leading-relaxed block">{step.desc}</span>
               </TooltipContent>
