@@ -141,7 +141,7 @@ export function ChatProjectSidebar({
                   </span>
                   <span
                     className={cn(
-                      'text-xs font-semibold truncate',
+                      'text-xs font-semibold tracking-tight truncate',
                       isGlobalSelected
                         ? 'text-amber-900 dark:text-amber-200'
                         : 'text-amber-950 dark:text-amber-100'
@@ -149,7 +149,7 @@ export function ChatProjectSidebar({
                   >
                     Global Chat
                   </span>
-                  <span className="text-[11px] text-amber-700/80 dark:text-amber-400/80 font-normal hidden sm:inline">
+                  <span className="text-2xs font-mono text-amber-700/80 dark:text-amber-400/80 hidden sm:inline">
                     · Sarah
                   </span>
                 </div>
@@ -157,12 +157,12 @@ export function ChatProjectSidebar({
                 {globalUnread > 0 ? (
                   <Badge
                     variant="destructive"
-                    className="text-[9px] px-1 py-0 h-3.5 font-bold shrink-0 animate-pulse"
+                    className="text-2xs font-mono font-bold tabular-nums px-1.5 py-0 h-4 shrink-0 animate-pulse"
                   >
                     {globalUnread} new
                   </Badge>
                 ) : (
-                  <span className="text-[11px] font-mono text-muted-foreground/80 shrink-0">
+                  <span className="text-2xs font-mono tabular-nums text-muted-foreground/80 shrink-0">
                     {lastGlobalMsg
                       ? lastGlobalMsg.timestamp.includes('Today at')
                         ? lastGlobalMsg.timestamp.replace('Today at ', '')
@@ -174,7 +174,7 @@ export function ChatProjectSidebar({
 
               <p
                 className={cn(
-                  'text-[11px] truncate leading-tight pl-6 w-full',
+                  'text-2xs truncate leading-normal pl-6 w-full',
                   globalUnread > 0
                     ? 'font-medium text-foreground dark:text-amber-200'
                     : 'text-muted-foreground'
@@ -196,10 +196,10 @@ export function ChatProjectSidebar({
             <span className="flex size-4 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
               <FolderKanban className="size-3" />
             </span>
-            <span className="text-[10.5px] font-bold tracking-wider uppercase text-muted-foreground/80">
+            <span className="text-2xs font-bold tracking-wider uppercase text-muted-foreground/80">
               PROJECT SESSIONS
             </span>
-            <Badge variant="outline" className="text-[10px] h-3.5 px-1 font-semibold text-muted-foreground">
+            <Badge variant="outline" className="text-2xs font-mono tabular-nums h-4 px-1.5 font-semibold text-muted-foreground">
               {projects.length}
             </Badge>
           </div>
@@ -209,7 +209,7 @@ export function ChatProjectSidebar({
               type="button"
               variant="ghost"
               size="xs"
-              className="h-6 px-1.5 text-[11px] font-semibold gap-1 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 rounded-md cursor-pointer"
+              className="h-6 px-1.5 text-2xs font-semibold gap-1 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 rounded-md cursor-pointer"
             >
               <Plus className="size-3" />
               <span>+ New Brief</span>
@@ -224,7 +224,7 @@ export function ChatProjectSidebar({
             placeholder="Search code or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7.5 pl-7 pr-6 text-xs bg-card/90 rounded-md border-border/70 focus-visible:border-amber-500/60"
+            className="h-7.5 pl-7 pr-6 text-xs bg-card/90 rounded-md border-border/70 focus-visible:border-amber-500/60 placeholder:text-muted-foreground/70"
           />
           {searchQuery && (
             <button
@@ -267,12 +267,12 @@ export function ChatProjectSidebar({
               <EmptyMedia variant="icon" className="bg-amber-500/10 text-amber-600 size-8">
                 <FolderKanban className="size-4" />
               </EmptyMedia>
-              <EmptyTitle className="text-xs font-semibold">No project channels yet</EmptyTitle>
-              <EmptyDescription className="text-xs">
+              <EmptyTitle className="text-xs font-semibold tracking-tight">No project channels yet</EmptyTitle>
+              <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
                 Submit a creative brief to start a dedicated workspace.
               </EmptyDescription>
               <Link href="/" onClick={onNewBriefClick} className="mt-1.5">
-                <Button type="button" variant="outline" size="xs" className="h-7 gap-1 text-xs">
+                <Button type="button" variant="outline" size="xs" className="h-7 gap-1 text-2xs font-semibold">
                   <Plus className="size-3" />
                   <span>+ New Brief</span>
                 </Button>
@@ -285,8 +285,8 @@ export function ChatProjectSidebar({
               <EmptyMedia variant="icon" className="bg-amber-500/10 text-amber-600 size-8">
                 <Inbox className="size-4" />
               </EmptyMedia>
-              <EmptyTitle className="text-xs font-semibold">No projects match</EmptyTitle>
-              <EmptyDescription className="text-xs">
+              <EmptyTitle className="text-xs font-semibold tracking-tight">No projects match</EmptyTitle>
+              <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
                 {searchQuery ? `No results for "${searchQuery}"` : 'No projects found in this category'}
               </EmptyDescription>
               {(searchQuery || activeTab !== 'all') && (
@@ -298,7 +298,7 @@ export function ChatProjectSidebar({
                     setSearchQuery('');
                     setActiveTab('all');
                   }}
-                  className="mt-1.5 h-7 text-xs"
+                  className="mt-1.5 h-7 text-2xs font-semibold"
                 >
                   Clear Filters
                 </Button>
@@ -337,7 +337,7 @@ export function ChatProjectSidebar({
                     <div className="flex items-center justify-between gap-1 mb-0.5 w-full">
                       <span
                         className={cn(
-                          'font-mono text-xs font-semibold tracking-tight truncate',
+                          'font-mono text-xs font-bold tracking-tight truncate',
                           isSelected ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'
                         )}
                       >
@@ -348,14 +348,14 @@ export function ChatProjectSidebar({
                         {pUnread > 0 ? (
                           <Badge
                             variant="destructive"
-                            className="text-[9px] px-1 py-0 h-3.5 font-bold shrink-0 animate-pulse"
+                            className="text-2xs font-mono font-bold tabular-nums px-1.5 py-0 h-4 shrink-0 animate-pulse"
                           >
                             {pUnread} new
                           </Badge>
                         ) : (
                           <Badge
                             variant="outline"
-                            className="text-[10px] px-1 py-0 h-4 shrink-0 text-muted-foreground font-medium border-border/70 lowercase rounded-md"
+                            className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
                           >
                             {p.status.replace('_', ' ').toLowerCase()}
                           </Badge>
@@ -363,16 +363,16 @@ export function ChatProjectSidebar({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-0.5 w-full">
-                      <span className="font-medium text-foreground/80 truncate text-xs">{p.packageName}</span>
-                      <span className="text-[11px] shrink-0 font-mono text-muted-foreground/80">
+                    <div className="flex items-center justify-between text-2xs text-muted-foreground mb-0.5 w-full">
+                      <span className="font-medium text-foreground/85 truncate text-2xs">{p.packageName}</span>
+                      <span className="text-2xs shrink-0 font-mono tabular-nums text-muted-foreground/80">
                         {lastMsg ? lastMsg.timestamp.replace('Today at ', '') : ''}
                       </span>
                     </div>
 
                     <p
                       className={cn(
-                        'text-[11px] truncate leading-tight w-full',
+                        'text-2xs truncate leading-normal w-full',
                         pUnread > 0
                           ? 'font-medium text-foreground dark:text-amber-200'
                           : 'text-muted-foreground'

@@ -67,40 +67,50 @@ export default function RedeemCodePage() {
     const code = `HT-${credits}CR-${randomSuffix}`;
     setGeneratedCode(code);
     setCopied(false);
-    toast.success(`Generated voucher code for ${credits} CR!`);
+    toast.success(`Generated promo code for ${credits} CR!`);
   };
 
   const copyToClipboard = () => {
     if (!generatedCode) return;
     navigator.clipboard.writeText(generatedCode);
     setCopied(true);
-    toast.success('Voucher code copied to clipboard!');
+    toast.success('Promo code copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleRedeem = (e: React.FormEvent) => {
+  const handleRedeem = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = (redeemCode || '').trim().toUpperCase();
     if (!cleanCode || cleanCode.length < 4) {
-      toast.error('Please enter a valid voucher or promo pass code');
+      toast.error('Please enter a valid promo code');
       return;
     }
 
     setIsRedeeming(true);
-    setTimeout(() => {
-      setIsRedeeming(false);
-      // Determine credit amount from code (e.g. HT-200CR-ABCD -> 200, LAUNCH150 -> 150, or default 150)
-      const match = cleanCode.match(/(\d+)\s*(?:CR)?/i);
-      const parsedAmount = match ? parseInt(match[1], 10) : 150;
-      const creditAmount = !isNaN(parsedAmount) && parsedAmount > 0 && parsedAmount <= 5000 ? parsedAmount : 150;
+    try {
+      const res = await fetch('/api/wallet/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: cleanCode, email: user.email }),
+      });
 
-      addCredits(creditAmount, `Redeemed promo pass ${cleanCode}`);
-      const newBal = useUserStore.getState().user.walletBalance || 0;
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to redeem promo code');
+      }
 
-      setRedeemedAmount(creditAmount);
+      useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
+      setRedeemedAmount(data.creditsAdded);
       setRedeemCode('');
-      toast.success(`Success! ${creditAmount} CR deposited into your Studio Wallet. New balance: ${newBal} CR.`);
-    }, 600);
+      toast.success(
+        data.message || `Success! ${data.creditsAdded} CR deposited into your Studio Wallet. New balance: ${data.newWalletBalance} CR.`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Redemption failed';
+      toast.error(msg);
+    } finally {
+      setIsRedeeming(false);
+    }
   };
 
   return (
@@ -111,11 +121,12 @@ export default function RedeemCodePage() {
         <Link href="/">
           <Button
             type="button"
-            variant="ghost"
+            variant="default"
             size="sm"
-            className="h-7.5 px-2.5 rounded-md text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 bg-zinc-900/80 shadow-2xs cursor-pointer"
+            className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
           >
-            Open Studio Wizard
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>New Project</span>
           </Button>
         </Link>
       }
@@ -125,13 +136,13 @@ export default function RedeemCodePage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-              PROMOTIONAL TOOLKIT · VOUCHER ENGINE
+              PROMO CODE
             </div>
             <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
-              Credit Vouchers &amp; Promo Passes
+              Promo Code
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-              Redeem promo passes directly into your wallet, or generate single-use passes for partners and creators.
+              Redeem promo codes directly into your wallet, or generate passes for partners and creators.
             </p>
           </div>
         </div>
@@ -145,7 +156,7 @@ export default function RedeemCodePage() {
           listClassName="w-full sm:w-auto"
           tabs={[
             { value: 'redeem', label: 'Redeem Promo Code', icon: Gift },
-            { value: 'generate', label: 'Generate Partner Pass', icon: Ticket },
+            { value: 'generate', label: 'Generate Promo Code', icon: Ticket },
           ]}
         >
 
@@ -229,16 +240,16 @@ export default function RedeemCodePage() {
                       Credits Added to Studio Balance!
                     </AlertTitle>
                     <AlertDescription className="text-xs text-emerald-800/90 dark:text-emerald-300">
-                      Your voucher successfully applied <b className="font-mono">{redeemedAmount} CR</b> to your creator balance. You can allocate them to any video, branding, or 3D package right now in the wizard.
+                      Your promo code successfully added <b className="font-mono tabular-nums">{redeemedAmount} CR</b> to your creator balance. You can use them for any project right now.
                     </AlertDescription>
                   </Alert>
                 )}
 
                 <Alert variant="info" className="rounded-xl">
                   <ShieldCheck className="w-4 h-4" />
-                  <AlertTitle className="text-sm font-bold">Voucher Terms &amp; Security</AlertTitle>
+                  <AlertTitle className="text-sm font-bold">Promo Code Terms &amp; Security</AlertTitle>
                   <AlertDescription className="text-xs leading-relaxed">
-                    Each pass is single-use and valid for creative services at Humantek Creator Credit Studio. Credits do not expire once credited to your account.
+                    Each code is single-use and valid for creative services at Humantek Creator Credit Studio. Credits do not expire once credited to your account.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -277,10 +288,10 @@ export default function RedeemCodePage() {
                 <Card className="rounded-xl border-border bg-card shadow-xs">
                   <CardHeader className="p-6 pb-2">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Ticket className="w-4 h-4 text-amber-600" /> Voucher Parameters
+                      <Ticket className="w-4 h-4 text-amber-600" /> Promo Code Parameters
                     </CardTitle>
                     <CardDescription className="text-sm text-muted-foreground">
-                      Configure credit value and recipient assignment for this voucher.
+                      Configure credit value and recipient assignment for this promo code.
                     </CardDescription>
                   </CardHeader>
 
@@ -312,7 +323,7 @@ export default function RedeemCodePage() {
                             step="10"
                             value={credits}
                             onChange={(e) => setCredits(Number(e.target.value))}
-                            className="h-9 text-sm font-mono rounded-lg"
+                            className="h-9 text-sm font-mono tabular-nums rounded-lg"
                             required
                           />
                         </Field>
@@ -343,7 +354,7 @@ export default function RedeemCodePage() {
                       </FieldGroup>
 
                       <Button type="submit" variant="default" className="w-full h-9 rounded-lg text-sm font-semibold">
-                        Generate Secure Voucher Code
+                        Generate Promo Code
                       </Button>
                     </form>
                   </CardContent>
@@ -351,7 +362,7 @@ export default function RedeemCodePage() {
 
                 <Alert variant="info" className="rounded-xl">
                   <ShieldCheck className="w-4 h-4" />
-                  <AlertTitle className="text-sm font-bold">Single-Use Voucher Security</AlertTitle>
+                  <AlertTitle className="text-sm font-bold">Single-Use Code Security</AlertTitle>
                   <AlertDescription className="text-xs leading-relaxed">
                     Generated codes can be applied once during checkout or redeemed directly on this page. Credits are non-refundable.
                   </AlertDescription>
@@ -378,7 +389,7 @@ export default function RedeemCodePage() {
 
                     {generatedCode ? (
                       <div className="p-4 bg-amber-50/90 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 rounded-xl flex items-center justify-between mt-4 shadow-2xs">
-                        <span className="font-mono text-base font-bold text-amber-900 dark:text-amber-200 tracking-wider">
+                        <span className="font-mono tabular-nums text-base font-bold text-amber-900 dark:text-amber-200 tracking-wider">
                           {generatedCode}
                         </span>
                         <Button

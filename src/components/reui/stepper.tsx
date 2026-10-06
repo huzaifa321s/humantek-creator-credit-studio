@@ -321,7 +321,7 @@ function StepperIndicator({
       data-state={state}
       className={cn(
         "border-background bg-accent text-accent-foreground data-[state=completed]:bg-primary data-[state=completed]:text-primary-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground relative flex size-6 shrink-0 items-center justify-center overflow-hidden",
-        "rounded-full text-xs",
+        "rounded-full text-xs font-mono tabular-nums",
         className
       )}
     >

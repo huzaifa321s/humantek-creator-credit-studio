@@ -131,13 +131,13 @@ export function ChatFloatingWidget() {
               <MessageSquare className="size-3 text-amber-600 dark:text-amber-400" />
             </span>
 
-            {/* Label: Studio Chat · Sarah Miller on wizard / purchase flow, or Project Chat on tracking views */}
+            {/* Label: Chat with Our Team on wizard flow, or Messages on tracking views */}
             <div className="flex items-center gap-1.5 text-xs font-medium">
               <span className="text-foreground font-semibold">
-                {isWizardRoute || isGlobal ? 'Studio Chat' : 'Project Chat'}
+                {isWizardRoute || isGlobal ? 'Chat with Our Team' : 'Messages'}
               </span>
               <span className="text-muted-foreground/60 font-normal">·</span>
-              <span className="text-muted-foreground font-mono text-[11px] font-normal">
+              <span className="text-muted-foreground font-mono text-2xs font-medium">
                 {isWizardRoute || isGlobal ? 'Sarah Miller' : projectMeta.projectCode}
               </span>
             </div>
@@ -146,7 +146,7 @@ export function ChatFloatingWidget() {
             {totalUnreadCount > 0 && (
               <Badge
                 variant="destructive"
-                className="ml-0.5 h-4.5 px-1.5 text-[10px] font-bold rounded-full bg-amber-500 text-white animate-pulse shadow-xs"
+                className="ml-0.5 h-4.5 px-1.5 text-2xs font-mono tabular-nums font-bold rounded-full bg-amber-500 text-white animate-pulse shadow-xs"
               >
                 {totalUnreadCount}
               </Badge>
@@ -273,7 +273,7 @@ export function ChatFloatingWidget() {
                     <ChevronLeft className="size-3.5" />
                     <span>Back to chats</span>
                   </Button>
-                  <span className="text-[11px] font-mono font-medium text-muted-foreground">
+                  <span className="text-2xs font-mono font-medium text-muted-foreground">
                     {isGlobal ? 'Global Chat' : projectMeta.projectCode}
                   </span>
                 </div>
@@ -285,10 +285,10 @@ export function ChatFloatingWidget() {
                   <div className="px-4 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] max-h-[60px] flex flex-col justify-center">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium text-foreground">Global Chat</span>
+                        <span className="text-sm font-semibold tracking-tight text-foreground">Global Chat</span>
                         <span className="flex size-1.5 rounded-full bg-emerald-500 inline-block align-middle" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-2xs text-muted-foreground mt-0.5 leading-normal">
                         Replies in ~2 mins · Packages, credits & studio support
                       </p>
                     </div>
@@ -296,30 +296,30 @@ export function ChatFloatingWidget() {
                 ) : (
                   <div className="px-4 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] max-h-[60px] flex flex-col justify-center gap-1">
                     {/* Line 1: Code · Package · Status */}
-                    <div className="flex items-center gap-2 flex-wrap text-sm font-medium">
-                      <span className="font-mono text-foreground font-medium">
+                    <div className="flex items-center gap-2 flex-wrap text-xs font-medium">
+                      <span className="font-mono text-xs font-bold tracking-tight text-foreground">
                         {projectMeta.projectCode}
                       </span>
                       <span className="text-muted-foreground">·</span>
-                      <span className="text-foreground/90 font-medium">
+                      <span className="text-foreground/90 font-medium text-xs">
                         {projectMeta.packageName}
                       </span>
                       <span className="text-muted-foreground">·</span>
-                      <Badge variant="outline" className="text-[11px] font-normal text-amber-700 dark:text-amber-400 border-amber-500/40 px-1.5 py-0.5 h-auto">
+                      <Badge variant="outline" className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md">
                         {projectMeta.status.replace('_', ' ').toLowerCase()}
                       </Badge>
                     </div>
 
                     {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
-                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mt-0.5">
+                    <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span>Client: <b className="text-foreground font-medium">{projectMeta.clientName}</b></span>
                         <span>·</span>
-                        <span><b className="text-amber-600 dark:text-amber-400 font-semibold">{projectMeta.credits || 660} CR</b></span>
+                        <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-semibold">{projectMeta.credits || 660} CR</b></span>
                         {projectMeta.price && (
                           <>
                             <span>·</span>
-                            <span>${projectMeta.price.toLocaleString()} USD</span>
+                            <span className="font-mono tabular-nums">${projectMeta.price.toLocaleString()} USD</span>
                           </>
                         )}
                       </div>

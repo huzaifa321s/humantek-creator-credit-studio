@@ -107,7 +107,7 @@ export function CartSidebar({
             {isWalletFunding ? 'Studio Wallet' : 'Live Credit Wallet'}
           </Badge>
           <span className="text-xs sm:text-sm text-muted-foreground font-medium">
-            {isWalletFunding ? 'Prepaid Balance' : `$${effectiveRate} USD / CR`}
+            {isWalletFunding ? 'Prepaid Balance' : <span className="font-mono tabular-nums">${effectiveRate} USD / CR</span>}
           </span>
         </div>
 
@@ -115,7 +115,7 @@ export function CartSidebar({
           <div>
             <CreditValue value={pack.credits} size="lg" />
             <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-              {pack.name} · {pack.price > 0 ? `$${pack.price.toLocaleString()} Package` : 'Account Balance ($0 USD Due)'}
+              {pack.name} · {pack.price > 0 ? <span className="font-mono tabular-nums">${pack.price.toLocaleString()} Package</span> : 'Account Balance ($0 USD Due)'}
             </p>
           </div>
           <div className="text-right">
@@ -134,7 +134,7 @@ export function CartSidebar({
                 </button>
               )}
             </div>
-            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 block mt-0.5">
+            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 block mt-0.5 font-mono tabular-nums">
               {usedCredits.toLocaleString()} CR used
             </span>
           </div>
@@ -246,7 +246,7 @@ export function CartSidebar({
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="pt-0.5">
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                <span className="inline-flex items-center gap-1 text-2xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                   <Sparkles className="w-3 h-3 text-amber-600" />
                   Click &ldquo;Add to Scope&rdquo; on any service
                 </span>
@@ -376,8 +376,8 @@ export function CartSidebar({
 
           <p className="text-xs text-muted-foreground text-center">
             {isOverBudget
-              ? `Budget exceeded by ${Math.abs(remainingCredits)} CR.`
-              : `${percentage}% of ${isWalletFunding ? 'wallet' : 'package'} credits allocated.`}
+              ? <>Budget exceeded by <span className="font-mono tabular-nums font-semibold">{Math.abs(remainingCredits)} CR</span>.</>
+              : <><span className="font-mono tabular-nums font-semibold">{percentage}%</span> of {isWalletFunding ? 'wallet' : 'package'} credits allocated.</>}
           </p>
         </div>
 

@@ -10,8 +10,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   devIndicators: false,
-  experimental: {
-    turbopackFileSystemCacheForDev: false,
+  typescript: {
+    ignoreBuildErrors: false,
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

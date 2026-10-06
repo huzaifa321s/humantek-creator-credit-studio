@@ -29,6 +29,7 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
+import { useStudioChat } from '@/lib/chatStore';
 import { cn } from '@/lib/utils';
 
 interface NotificationItem {
@@ -43,15 +44,15 @@ interface NotificationItem {
 
 export function DashboardNotificationDropdown() {
   const router = useRouter();
+  const { setIsOpen: setChatOpen } = useStudioChat();
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: 'notif-1',
-      title: 'Dedicated Producer Active',
-      description: 'Your lead creative director is on standby for realtime brief feedback.',
+      title: 'Creative Team Active',
+      description: 'Our team is on standby for realtime project feedback and updates.',
       time: 'Just now',
       icon: MessageSquare,
       unread: true,
-      link: '/projects',
     },
     {
       id: 'notif-2',
@@ -84,7 +85,9 @@ export function DashboardNotificationDropdown() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
     );
-    if (item.link) {
+    if (item.id === 'notif-1') {
+      setChatOpen(true);
+    } else if (item.link) {
       router.push(item.link);
     }
   };
@@ -124,7 +127,7 @@ export function DashboardNotificationDropdown() {
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-100">Notifications</span>
             {unreadCount > 0 && (
-              <Badge variant="gold" size="xs" className="font-bold border border-amber-500/30">
+              <Badge variant="gold" size="xs" className="font-bold border border-amber-500/30 font-mono tabular-nums">
                 {unreadCount} new
               </Badge>
             )}
@@ -191,7 +194,7 @@ export function DashboardNotificationDropdown() {
                       >
                         {item.title}
                       </span>
-                      <span className="text-3xs text-zinc-400 shrink-0">{item.time}</span>
+                      <span className="text-2xs font-mono tabular-nums text-zinc-400 shrink-0">{item.time}</span>
                     </div>
                     <p className="text-2xs text-zinc-400 line-clamp-1 mt-0.5 leading-relaxed">
                       {item.description}

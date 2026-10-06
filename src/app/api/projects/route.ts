@@ -49,12 +49,13 @@ export async function POST(req: NextRequest) {
   }
 
   const isWalletFunding = parsed.data.fundingSource === 'wallet';
-  const serverBalance = getUserBalance(parsed.data.email);
-  const effectiveWalletBalance = Math.max(serverBalance, parsed.data.walletBalance ?? 0);
+  const normEmail = (parsed.data.email || 'kira@example.com').toLowerCase().trim();
+  const serverBalance = getUserBalance(normEmail);
 
   const quoteInput = {
     ...parsed.data,
-    walletBalance: isWalletFunding ? effectiveWalletBalance : parsed.data.walletBalance,
+    email: normEmail,
+    walletBalance: isWalletFunding ? serverBalance : parsed.data.walletBalance,
   };
 
   const result = computeOrderQuote(quoteInput);
@@ -63,10 +64,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (isWalletFunding) {
-    if (effectiveWalletBalance < result.quote.usedCredits) {
+    if (serverBalance < result.quote.usedCredits) {
       return NextResponse.json(
         {
-          error: `Insufficient wallet balance. You have ${effectiveWalletBalance} CR but this project requires ${result.quote.usedCredits} CR.`,
+          error: `Insufficient wallet balance. You have ${serverBalance} CR but this project requires ${result.quote.usedCredits} CR. Please top up or choose a package.`,
         },
         { status: 400 }
       );
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
       success: true,
       project,
       fundingSource: 'wallet',
-      newWalletBalance: getUserBalance(parsed.data.email),
+      newWalletBalance: getUserBalance(normEmail),
       notificationStatus: 'sent',
       message: 'Project launched successfully using Studio Wallet credits!',
     });

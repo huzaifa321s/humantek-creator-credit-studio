@@ -92,7 +92,7 @@ export function ServiceCategoryTabs({
                 {count !== undefined && (
                   <span
                     className={cn(
-                      'text-xs px-2 py-0.5 rounded-full font-bold tabular-nums shrink-0',
+                      'text-xs px-2 py-0.5 rounded-full font-bold font-mono tabular-nums shrink-0',
                       hasSelectedItems
                         ? 'bg-amber-500 text-white shadow-xs'
                         : 'bg-muted/70 text-muted-foreground'
@@ -118,11 +118,11 @@ export function ServiceCategoryTabs({
               >
                 <span>{isMoreActive ? activeCategory : 'More'}</span>
                 {isMoreActive && categoryCounts?.[activeCategory] !== undefined ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold tabular-nums bg-amber-500 text-white shadow-xs shrink-0">
+                  <span className="text-xs px-2 py-0.5 rounded-full font-bold font-mono tabular-nums bg-amber-500 text-white shadow-xs shrink-0">
                     {categoryCounts[activeCategory]}
                   </span>
                 ) : (
-                  <span className="text-[11px] px-1.5 py-0.2 rounded-full font-semibold tabular-nums bg-muted/70 text-muted-foreground shrink-0">
+                  <span className="text-2xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-muted/70 text-muted-foreground shrink-0">
                     {moreTabs.length}
                   </span>
                 )}

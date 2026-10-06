@@ -50,6 +50,8 @@
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Elevated Accessible Typography Scale for crisp legibility */
+  --text-3xs: 0.65rem;
+  --text-3xs--line-height: 0.95rem;
   --text-2xs: 0.725rem;
   --text-2xs--line-height: 1.05rem;
   --text-xs: 0.8125rem;

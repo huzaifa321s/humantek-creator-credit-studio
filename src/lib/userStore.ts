@@ -11,6 +11,7 @@ export interface StudioUser {
   walletBalance: number;
   channelName?: string;
   platform?: string;
+  role?: string;
 }
 
 export const DEFAULT_CLIENT_USER: StudioUser = {
@@ -52,9 +53,9 @@ export const useUserStore = create<UserStoreState>()(
         set({
           user: {
             id: 'client-guest',
-            name: 'Client',
-            email: 'client@creator.studio',
-            avatarInitials: 'CL',
+            name: '',
+            email: '',
+            avatarInitials: 'GU',
             walletBalance: 0,
           },
         }),

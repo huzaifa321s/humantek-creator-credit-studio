@@ -109,11 +109,11 @@ export function ChatMessageItem({
         <MessageHeader className="gap-1.5 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground/90 truncate">{message.senderName}</span>
           {message.senderRole && !isClient && !compact && (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium truncate hidden sm:inline">
+            <span className="text-2xs font-mono text-amber-700/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
               · {message.senderRole}
             </span>
           )}
-          <span className="text-xs font-normal whitespace-nowrap text-muted-foreground/80 ml-1">
+          <span className="text-2xs font-mono tabular-nums whitespace-nowrap text-muted-foreground/80 ml-1">
             {message.timestamp.replace('Today at ', '')}
           </span>
 
@@ -216,7 +216,7 @@ export function ChatMessageItem({
                     title={`Reacted ${r.count} times`}
                   >
                     <span>{r.emoji}</span>
-                    <span className="text-[10px] font-mono">{r.count}</span>
+                    <span className="text-2xs font-mono tabular-nums">{r.count}</span>
                   </button>
                 ))}
               </BubbleReactions>
@@ -257,11 +257,11 @@ export function ChatMessageItem({
                   />
                 ))}
               </div>
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <div className="flex items-center justify-between text-2xs text-muted-foreground">
                 <span className="flex items-center gap-1 font-mono font-medium">
                   <Volume2 className="size-2.5 text-amber-600" /> Creative Brief Note
                 </span>
-                <span className="font-mono">{message.audioNote.duration}</span>
+                <span className="font-mono tabular-nums">{message.audioNote.duration}</span>
               </div>
             </div>
           </div>
@@ -288,9 +288,9 @@ export function ChatMessageItem({
                   ) : null}
                 </AttachmentMedia>
                 <AttachmentContent>
-                  <AttachmentTitle className="text-[11px]">{att.name}</AttachmentTitle>
+                  <AttachmentTitle className="text-2xs font-medium">{att.name}</AttachmentTitle>
                   {att.size && (
-                    <AttachmentDescription className="text-[10px]">{att.size}</AttachmentDescription>
+                    <AttachmentDescription className="text-2xs font-mono tabular-nums">{att.size}</AttachmentDescription>
                   )}
                 </AttachmentContent>
                 <AttachmentTrigger aria-label={`Preview ${att.name}`} onClick={() => onPreviewAttachment(att)} />
@@ -300,7 +300,7 @@ export function ChatMessageItem({
         )}
 
         {isClient && (
-          <MessageFooter className="gap-1 text-[10px] text-amber-600/90 dark:text-amber-400/90">
+          <MessageFooter className="gap-1 text-2xs text-amber-600/90 dark:text-amber-400/90">
             <CheckCheck className="size-3" />
             <span>Delivered to studio</span>
           </MessageFooter>

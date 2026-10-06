@@ -49,10 +49,10 @@ export function PayPalButtonWrapper({
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to capture payment');
 
-    if (typeof data.surplusCredits === 'number' && data.surplusCredits > 0) {
-      useUserStore.getState().addCredits(data.surplusCredits, 'Package unused credits rollover');
-    } else if (typeof data.newWalletBalance === 'number') {
+    if (typeof data.newWalletBalance === 'number') {
       useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
+    } else if (typeof data.surplusCredits === 'number' && data.surplusCredits > 0) {
+      useUserStore.getState().addCredits(data.surplusCredits, 'Package unused credits rollover');
     }
 
     return data.project as ProjectRecord;

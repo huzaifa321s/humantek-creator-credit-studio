@@ -73,11 +73,8 @@ export function recordPaidProject(project: ProjectRecord, paymentRef: string) {
     });
   }
 
-  // Roll over any surplus credits into client's global wallet
-  const netSurplus = project.packageCredits - project.usedCredits;
-  if (netSurplus > 0) {
-    adjustUserBalance(project.email, netSurplus);
-  }
+  // The net surplus (packageCredits - usedCredits) is naturally and permanently
+  // credited into the user's global wallet through the ledger entries above.
 }
 
 /** Creates and records a project funded 100% from the client's global studio credit wallet ($0 USD checkout). */
@@ -103,8 +100,6 @@ export function recordWalletFundedProject(project: ProjectRecord) {
     });
   }
 
-  // Deduct from client's global wallet
-  adjustUserBalance(project.email, -project.usedCredits);
   return project;
 }
 

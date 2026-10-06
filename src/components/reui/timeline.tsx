@@ -111,7 +111,7 @@ function TimelineDate({
 }: TimelineDateProps) {
   const defaultProps = {
     className: cn(
-      "mb-1 block font-medium text-muted-foreground text-xs group-data-[orientation=vertical]/timeline:max-sm:h-4",
+      "mb-1 block font-medium font-mono tabular-nums text-muted-foreground text-xs group-data-[orientation=vertical]/timeline:max-sm:h-4",
       className
     ),
     "data-slot": "timeline-date",

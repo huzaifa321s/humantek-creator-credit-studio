@@ -74,11 +74,12 @@ export default function LoginPage() {
         <Link href="/">
           <Button
             type="button"
-            variant="ghost"
+            variant="default"
             size="sm"
-            className="h-7.5 px-2.5 rounded-md text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 bg-zinc-900/80 shadow-2xs cursor-pointer"
+            className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
           >
-            Open Studio Wizard
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>New Project</span>
           </Button>
         </Link>
       }
@@ -94,7 +95,7 @@ export default function LoginPage() {
                 {isSignUp ? 'Create Studio Account' : 'Sign in to Creator Studio'}
               </CardTitle>
               <CardDescription className="text-sm text-muted-foreground">
-                Access your project tracker, credit wallets, and agency briefs.
+                Access your projects, credit balance, and messages.
               </CardDescription>
             </CardHeader>
 

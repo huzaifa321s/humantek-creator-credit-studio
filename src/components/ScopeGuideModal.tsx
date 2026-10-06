@@ -263,8 +263,8 @@ export function ScopeGuideModal() {
         <DialogFooter className="mx-0 mb-0 mt-3 pt-3.5 pb-1 border-t border-border/70 flex flex-col sm:flex-row items-center justify-between gap-2.5 w-full bg-transparent">
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">
             <span>
-              Showing <b className="text-foreground">{startIdx}</b>–<b className="text-foreground">{endIdx}</b> of{' '}
-              <b className="text-foreground">{filteredServices.length}</b> services
+              Showing <b className="text-foreground font-mono tabular-nums">{startIdx}</b>–<b className="text-foreground font-mono tabular-nums">{endIdx}</b> of{' '}
+              <b className="text-foreground font-mono tabular-nums">{filteredServices.length}</b> services
             </span>
             {filteredServices.length !== SERVICES.length && (
               <Badge variant="outline" className="text-xs px-2 py-0.5 font-normal">
@@ -297,7 +297,7 @@ export function ScopeGuideModal() {
                     size="sm"
                     onClick={() => setCurrentPage(pageNum)}
                     className={cn(
-                      'h-7 w-7 text-xs font-semibold rounded-md p-0 cursor-pointer',
+                      'h-7 w-7 text-xs font-semibold font-mono tabular-nums rounded-md p-0 cursor-pointer',
                       safeCurrentPage === pageNum
                         ? 'bg-amber-500 text-white hover:bg-amber-600'
                         : 'text-muted-foreground hover:text-foreground'

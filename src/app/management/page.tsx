@@ -45,6 +45,7 @@ import {
   CheckCircle,
   MessageSquare,
   FolderOpen,
+  Sparkles,
 } from 'lucide-react';
 import { ChatFullView } from '@/components/chat/ChatFullView';
 import { useProjectsQuery, useUpdateProjectStatus } from '@/lib/queries/projects';
@@ -93,25 +94,32 @@ export default function ManagementPage() {
   const ledgerTransactions: LedgerTransaction[] = useMemo(() => {
     const list: LedgerTransaction[] = [];
 
-    // For every real project, generate its package purchase and service deduction
+    // For every real project, generate audit transactions matching its funding model
     projects.forEach((p) => {
-      list.push({
-        id: `tx-purchase-${p.id}`,
-        reference: p.projectCode || `HT-${p.id.slice(-6).toUpperCase()}`,
-        clientEmail: p.email,
-        clientName: p.clientName,
-        type: 'package_purchase',
-        creditsDelta: p.usedCredits + (p.remainingCredits || 0) || 660,
-        usdAmount: p.packagePrice,
-        date: new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', {
-          month: 'short',
-          day: '2-digit',
-          year: 'numeric',
-        }),
-        timestamp: new Date(p.createdAt || Date.now()).getTime(),
-        paymentMethod: 'paypal',
-        status: p.paymentStatus === 'paid' ? 'completed' : 'pending',
-      });
+      if (p.id === 'proj-demo-1') return; // Handled by seed-tx-1 / seed-tx-2
+
+      const isWalletFunding = p.fundingSource === 'wallet' || p.packageId === 'studio-wallet' || p.paymentMethod === 'credits';
+
+      // Only package purchases have a PayPal deposit transaction
+      if (!isWalletFunding) {
+        list.push({
+          id: `tx-purchase-${p.id}`,
+          reference: p.projectCode || `HT-${p.id.slice(-6).toUpperCase()}`,
+          clientEmail: p.email,
+          clientName: p.clientName,
+          type: 'package_purchase',
+          creditsDelta: p.packageCredits || (p.usedCredits + (p.remainingCredits || 0)) || 660,
+          usdAmount: p.packagePrice,
+          date: new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+          }),
+          timestamp: new Date(p.createdAt || Date.now()).getTime(),
+          paymentMethod: 'paypal',
+          status: p.paymentStatus === 'paid' ? 'completed' : 'pending',
+        });
+      }
 
       if (p.usedCredits > 0) {
         list.push({
@@ -214,11 +222,12 @@ export default function ManagementPage() {
         <Link href="/">
           <Button
             type="button"
-            variant="ghost"
+            variant="default"
             size="sm"
-            className="h-7.5 px-2.5 rounded-md text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 bg-zinc-900/80 shadow-2xs cursor-pointer"
+            className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
           >
-            Open Studio Wizard
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>New Project</span>
           </Button>
         </Link>
       }
@@ -257,7 +266,7 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Verified Revenue
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block tabular-nums mt-0.5">
+              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">
                 ${totalRevenue.toLocaleString()}
               </b>
               <small className="text-xs text-amber-700 dark:text-amber-400 font-semibold block mt-0.5">PayPal confirmed orders</small>
@@ -272,7 +281,7 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Committed Credits
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block tabular-nums mt-0.5">
+              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">
                 {totalCreditsAllocated.toLocaleString()} CR
               </b>
               <small className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold block mt-0.5">Active work scope value</small>
@@ -287,7 +296,7 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Active Production
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block mt-0.5">{activeOrdersCount}</b>
+              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">{activeOrdersCount}</b>
               <small className="text-xs text-blue-700 dark:text-blue-400 font-semibold block mt-0.5">In review or production</small>
             </div>
             <IconTile variant="soft" size="lg" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
@@ -300,7 +309,7 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Delivered Work
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block mt-0.5">{deliveredCount}</b>
+              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">{deliveredCount}</b>
               <small className="text-xs text-purple-700 dark:text-purple-400 font-semibold block mt-0.5">Completed asset packs</small>
             </div>
             <IconTile variant="soft" size="lg" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
@@ -368,7 +377,7 @@ export default function ManagementPage() {
                           {p.projectCode}
                         </span>
                         <Badge variant="outline" className="text-xs font-medium">
-                          {p.packageName} (${p.packagePrice.toLocaleString()})
+                          {p.packageName} (<span className="font-mono tabular-nums">${p.packagePrice.toLocaleString()}</span>)
                         </Badge>
                       </div>
                       <h3 className="text-lg font-bold text-foreground mt-1">
@@ -465,7 +474,7 @@ export default function ManagementPage() {
                       <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{p.instructions}</p>
                       {p.redeemCode && (
                         <p className="mt-2 text-amber-800 dark:text-amber-300 font-semibold">
-                          Voucher attached: {p.redeemCode}
+                          Promo code attached: <span className="font-mono tabular-nums">{p.redeemCode}</span>
                         </p>
                       )}
                     </CardContent>
@@ -474,14 +483,14 @@ export default function ManagementPage() {
                   <Card className="p-4 rounded-lg bg-secondary/30 border-border/80 shadow-none">
                     <CardHeader className="p-0 pb-1.5">
                       <CardTitle className="text-xs font-bold text-foreground">
-                        Service Items ({p.usedCredits} CR)
+                        Service Items (<span className="font-mono tabular-nums">{p.usedCredits}</span> CR)
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ul className="space-y-1">
                         {p.selections.map((sel, idx) => (
                           <li key={idx} className="flex justify-between items-center text-muted-foreground">
-                            <span>• {sel.name} (Tier {sel.level} × {sel.quantity})</span>
+                            <span>• {sel.name} (Tier <span className="font-mono tabular-nums">{sel.level}</span> × <span className="font-mono tabular-nums">{sel.quantity}</span>)</span>
                             <CreditValue value={sel.credits} size="xs" />
                           </li>
                         ))}

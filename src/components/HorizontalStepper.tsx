@@ -126,7 +126,7 @@ export function HorizontalStepper({
                   >
                     <StepperIndicator
                       className={cn(
-                        'size-8 rounded-full border-2 text-xs font-bold transition-all duration-200 shrink-0',
+                        'size-8 rounded-full border-2 text-xs font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
                         // Inactive / Upcoming step: crisp and legible
                         'border-border/90 bg-card text-foreground/80 font-bold group-hover:border-amber-400/60 group-hover:text-foreground',
                         // Completed step: crisp amber with white checkmark
@@ -156,11 +156,11 @@ export function HorizontalStepper({
                           <Check className="w-3.5 h-3.5 stroke-[3]" />
                           <span>Selected: {selectedPackageName}</span>
                         </p>
-                        <p className="text-zinc-300 text-xs">
+                        <p className="text-zinc-300 text-xs font-mono tabular-nums">
                           {selectedPackageCredits ? `${selectedPackageCredits} CR` : ''}
                           {selectedPackagePrice ? ` · $${selectedPackagePrice.toLocaleString()} USD` : ''}
                         </p>
-                        <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                        <p className="text-amber-400 text-2xs font-semibold pt-0.5">
                           Click step 1 to switch package
                         </p>
                       </div>
@@ -173,11 +173,11 @@ export function HorizontalStepper({
                             {selectedServicesCount} {selectedServicesCount === 1 ? 'Service' : 'Services'} Selected
                           </span>
                         </p>
-                        <p className="text-zinc-300 text-xs">
+                        <p className="text-zinc-300 text-xs font-mono tabular-nums">
                           {usedCredits} CR allocated · {remainingCredits >= 0 ? `${remainingCredits} CR remaining` : `${Math.abs(remainingCredits)} CR over`}
                         </p>
                         {currentStep !== 2 && (
-                          <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                          <p className="text-amber-400 text-2xs font-semibold pt-0.5">
                             Click step 2 to modify services
                           </p>
                         )}
@@ -193,7 +193,7 @@ export function HorizontalStepper({
                           Commercial streaming rights & revision rules confirmed
                         </p>
                         {currentStep !== 3 && (
-                          <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                          <p className="text-amber-400 text-2xs font-semibold pt-0.5">
                             Click step 3 to review policy
                           </p>
                         )}
@@ -209,7 +209,7 @@ export function HorizontalStepper({
                           Channel details, references & requirements locked in
                         </p>
                         {currentStep !== 4 && (
-                          <p className="text-amber-400 text-[11px] font-semibold pt-0.5">
+                          <p className="text-amber-400 text-2xs font-semibold pt-0.5">
                             Click step 4 to edit brief
                           </p>
                         )}
@@ -250,14 +250,14 @@ export function HorizontalStepper({
       <div className="flex sm:hidden flex-col items-center justify-center w-full max-w-xs mx-auto gap-2 py-0.5 select-none">
         <div className="flex items-center justify-between w-full px-0.5">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white text-xs font-bold shadow-xs shadow-amber-500/30">
+            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white text-xs font-bold font-mono tabular-nums shadow-xs shadow-amber-500/30">
               {currentStep}
             </span>
             <span className="text-xs font-bold text-foreground">
               {STUDIO_STEPS[currentStep - 1]?.name}
             </span>
           </div>
-          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+          <span className="text-xs font-semibold text-muted-foreground font-mono tabular-nums">
             {STUDIO_STEPS[currentStep - 1]?.stepText}
           </span>
         </div>

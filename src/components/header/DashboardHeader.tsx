@@ -68,7 +68,14 @@ export function DashboardHeader({
   const { user } = useUserStore();
   const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
-  const effectiveName = userName || (userEmail ? userEmail.split('@')[0] : user.name);
+  const resolveEffectiveName = () => {
+    if (userName && userName.trim().toLowerCase() !== 'client') return userName.trim();
+    if (user.name && user.name.trim().toLowerCase() !== 'client') return user.name.trim();
+    if (userEmail && userEmail.includes('@')) return userEmail.split('@')[0];
+    if (user.email && user.email.includes('@')) return user.email.split('@')[0];
+    return 'Welcome';
+  };
+  const effectiveName = resolveEffectiveName();
   const effectiveEmail = userEmail || user.email;
   const effectiveBalance =
     walletBalance !== undefined && walletBalance !== null
@@ -79,15 +86,15 @@ export function DashboardHeader({
   const activePageTitle =
     breadcrumbPage ||
     (pathname === '/projects'
-      ? 'Your Projects & Milestones'
+      ? 'My Projects'
       : pathname === '/messages'
-      ? 'Producer Messages'
+      ? 'Messages'
       : pathname === '/management'
       ? 'Agency Console'
       : pathname === '/redeem-code'
-      ? 'Redeem Promo Voucher'
+      ? 'Promo Code'
       : mode === 'wizard'
-      ? 'Project Setup'
+      ? 'New Project'
       : backLabel.replace(/^Back to\s+/, ''));
 
   return (
@@ -103,7 +110,7 @@ export function DashboardHeader({
 
           {/* Unified Brand Logo & Title across all modes */}
           <Link href="/" className="flex items-center gap-2 group select-none shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-white text-[11px] shadow-xs group-hover:scale-105 transition-transform shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-white text-2xs tracking-wider shadow-xs group-hover:scale-105 transition-transform shrink-0">
               ART
             </div>
             <div className="hidden sm:block">
@@ -113,7 +120,7 @@ export function DashboardHeader({
                 </span>
                 <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
               </div>
-              <span className="block text-[9px] tracking-wider uppercase font-semibold text-amber-400 leading-tight">
+              <span className="block text-2xs tracking-wider uppercase font-bold text-amber-400 leading-tight">
                 Creator Credits Studio
               </span>
             </div>
@@ -176,7 +183,7 @@ export function DashboardHeader({
               <Search className="size-3.5 text-zinc-400 shrink-0" />
               <span className="truncate text-xs font-medium text-zinc-300">Type to search...</span>
             </div>
-            <Kbd className="bg-zinc-950 border border-zinc-700/80 text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 h-4.5 rounded shadow-2xs">
+            <Kbd className="bg-zinc-950 border border-zinc-700/80 text-2xs font-mono tabular-nums text-zinc-400 px-1.5 py-0.5 h-4.5 rounded shadow-2xs">
               ⌘K
             </Kbd>
           </Button>
@@ -207,7 +214,7 @@ export function DashboardHeader({
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setChatOpen(true)}
-                  aria-label="Chat with Producer"
+                  aria-label="Messages"
                   className="group relative size-8 rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
                 />
               }
@@ -218,8 +225,8 @@ export function DashboardHeader({
               ) : null}
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p className="font-semibold text-white">Producer Desk</p>
-              <p className="text-zinc-400 text-3xs">Instant chat with lead producer</p>
+              <p className="font-semibold text-white">Messages</p>
+              <p className="text-zinc-400 text-2xs">Chat with our team</p>
             </TooltipContent>
           </Tooltip>
 
@@ -237,10 +244,10 @@ export function DashboardHeader({
           >
             <Coins className="size-3.5 text-amber-400 shrink-0" />
             <span className="text-zinc-300 font-medium text-xs">Balance:</span>
-            <span className="text-amber-300 font-bold tracking-tight">{effectiveBalance} CR</span>
+            <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">{effectiveBalance} CR</span>
           </Link>
 
-          {/* Optional Top-Right Action Badge (e.g. New Asset Request or Active Package) */}
+          {/* Optional Top-Right Action Badge (e.g. New Project or Active Package) */}
           {topRightBadge}
 
           {/* User Profile Avatar Dropdown */}

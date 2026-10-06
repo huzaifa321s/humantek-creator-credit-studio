@@ -184,7 +184,7 @@ export function ProjectPipelineStepper({
                           {isCompleted ? (
                             <Check className="size-3.5 stroke-[3] text-white" />
                           ) : (
-                            <span className="text-xs font-bold">{stepNum}</span>
+                            <span className="text-xs font-mono font-bold tabular-nums">{stepNum}</span>
                           )}
                         </StepperIndicator>
                       </TooltipTrigger>
@@ -196,7 +196,7 @@ export function ProjectPipelineStepper({
                         className="dark max-w-xs p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 shadow-xl"
                       >
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="text-3xs font-mono font-semibold uppercase tracking-wider text-amber-400">
+                          <span className="text-3xs font-mono font-semibold uppercase tracking-wider tabular-nums text-amber-400">
                             Stage {stepNum} of 6
                           </span>
                           <span
@@ -220,7 +220,7 @@ export function ProjectPipelineStepper({
 
                         <div className="pt-1.5 border-t border-zinc-800/80 flex items-center justify-between text-3xs text-zinc-400">
                           <span>{stage.signoff}</span>
-                          <span className="font-mono text-zinc-300">{stageDate}</span>
+                          <span className="font-mono tabular-nums text-zinc-300">{stageDate}</span>
                         </div>
                       </TooltipContent>
                     </Tooltip>
@@ -272,7 +272,7 @@ export function ProjectPipelineStepper({
                     </div>
 
                     {/* Stage Timestamp */}
-                    <div className="text-xs text-muted-foreground font-mono">
+                    <div className="text-xs text-muted-foreground font-mono tabular-nums">
                       {stageDate}
                     </div>
                   </div>
@@ -290,19 +290,19 @@ export function ProjectPipelineStepper({
         {/* Active Stage Callout Card */}
         <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border shadow-2xs">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-7 items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold ring-2 ring-amber-500/25">
+            <span className="flex size-7 items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold font-mono tabular-nums ring-2 ring-amber-500/25">
               {activeStep}
             </span>
             <div>
               <p className="text-xs font-bold text-foreground">
                 {PIPELINE_STAGES[activeIndex]?.name}
               </p>
-              <p className="text-2xs text-muted-foreground font-mono">
+              <p className="text-2xs text-muted-foreground font-mono tabular-nums">
                 {getStageDate(activeIndex)} · In Progress
               </p>
             </div>
           </div>
-          <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+          <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-mono tabular-nums">
             {activeStep} of 6
           </span>
         </div>

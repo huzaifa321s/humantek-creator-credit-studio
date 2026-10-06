@@ -64,7 +64,7 @@ export default function ProjectsPage() {
         <Link href="/">
           <Button variant="default" size="sm" className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>New Asset Request</span>
+            <span>New Project</span>
           </Button>
         </Link>
       }
@@ -74,13 +74,13 @@ export default function ProjectsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-              PROJECT DASHBOARD
+              MY PROJECTS
             </div>
             <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
-              Your Projects & Milestones
+              My Projects
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-              Track live production pipelines, milestone stages, and credit scopes for your creative orders.
+              See where each project is and how many credits it uses.
             </p>
           </div>
         </div>
@@ -163,7 +163,7 @@ export default function ProjectsPage() {
                         <Badge variant="gold" size="sm" className="font-bold">
                           {proj.packageName}
                         </Badge>
-                        <Badge variant="outline" size="sm" className="font-mono text-muted-foreground font-semibold">
+                        <Badge variant="outline" size="sm" className="font-mono tabular-nums text-muted-foreground font-semibold">
                           {proj.projectCode}
                         </Badge>
                       </div>
@@ -197,12 +197,12 @@ export default function ProjectsPage() {
                           className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
                         >
                           <MessageSquare className="size-3.5 text-amber-600" />
-                          <span>Project Chat</span>
+                          <span>Messages</span>
                           {(unreadCounts[proj.id] ?? 0) > 0 && (
                             <Badge
                               variant="destructive"
                               size="xs"
-                              className="size-4 p-0 font-bold text-[10px] rounded-full"
+                              className="size-4 p-0 font-bold font-mono tabular-nums text-2xs rounded-full"
                             >
                               {unreadCounts[proj.id]}
                             </Badge>
@@ -213,10 +213,10 @@ export default function ProjectsPage() {
                   </CardHeader>
 
                   <CardContent className="p-0">
-                    {/* 6-Stage Production Pipeline Tracker (Reusable Horizontal Stepper with Interactive Tooltips) */}
+                    {/* 6-Stage Project Progress Stepper */}
                     <div className="p-5 sm:p-6 bg-secondary/25">
                       <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
-                        Production Pipeline Tracker
+                        Project Progress
                       </p>
                       <ProjectPipelineStepper
                         status={proj.status}
@@ -237,11 +237,11 @@ export default function ProjectsPage() {
                       </div>
                       <div>
                         <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Remaining in this package</span>
-                        <b className="text-sm font-extrabold text-amber-700 dark:text-amber-400 tabular-nums">{proj.remainingCredits} CR</b>
+                        <b className="text-sm font-extrabold text-amber-700 dark:text-amber-400 font-mono tabular-nums">{proj.remainingCredits} CR</b>
                       </div>
                       <div>
                         <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Submitted Date</span>
-                        <b className="text-sm font-semibold text-foreground">
+                        <b className="text-sm font-semibold font-mono tabular-nums text-foreground">
                           {new Date(proj.createdAt).toLocaleDateString()}
                         </b>
                       </div>
@@ -253,8 +253,8 @@ export default function ProjectsPage() {
                       {proj.selections.map((item, i) => (
                         <Badge key={i} variant="secondary" className="text-xs py-1 px-2.5 gap-1.5 rounded-md font-medium">
                           <span>{item.name}</span>
-                          <span className="text-muted-foreground font-normal">({item.quantity}x)</span>
-                          <span className="text-amber-700 dark:text-amber-400 font-bold ml-1">{item.credits} CR</span>
+                          <span className="text-muted-foreground font-normal font-mono tabular-nums">({item.quantity}x)</span>
+                          <span className="text-amber-700 dark:text-amber-400 font-mono tabular-nums font-bold ml-1">{item.credits} CR</span>
                         </Badge>
                       ))}
                     </div>

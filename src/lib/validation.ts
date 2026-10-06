@@ -156,7 +156,7 @@ export const redeemCodeSchema = z
       .toUpperCase()
       .regex(
         /^[A-Z0-9][A-Z0-9-]{2,30}[A-Z0-9]$/,
-        `Voucher codes use letters, numbers and dashes (${BRIEF_LIMITS.redeemCode.min}–${BRIEF_LIMITS.redeemCode.max} characters)`
+        `Promo codes use letters, numbers and dashes (${BRIEF_LIMITS.redeemCode.min}–${BRIEF_LIMITS.redeemCode.max} characters)`
       ),
   ])
   .default('');

@@ -293,40 +293,46 @@ export function markProjectMessagesRead(projectIdOrCode: string): void {
 export function getUserBalance(email: string): number {
   const normEmail = (email || '').toLowerCase().trim();
   if (!normEmail) return 0;
-  if (!globalStore.__HUMANTEK_USER_BALANCES__) {
-    globalStore.__HUMANTEK_USER_BALANCES__ = new Map();
-  }
-  if (globalStore.__HUMANTEK_USER_BALANCES__.has(normEmail)) {
-    return globalStore.__HUMANTEK_USER_BALANCES__.get(normEmail)!;
-  }
+
   const ledger = getLedger().filter((e) => (e.userEmail || '').toLowerCase().trim() === normEmail);
   if (ledger.length > 0) {
     const net = ledger.reduce((sum, e) => sum + e.creditsDelta, 0);
-    const balance = Math.max(0, net);
-    globalStore.__HUMANTEK_USER_BALANCES__.set(normEmail, balance);
-    return balance;
+    return Math.max(0, net);
   }
-  if (normEmail === 'kira@example.com') {
-    globalStore.__HUMANTEK_USER_BALANCES__.set(normEmail, 80);
+
+  // Initial demo balance fallback
+  if (normEmail === 'kira@example.com' || normEmail === 'client@creator.studio') {
     return 80;
   }
   return 0;
 }
 
-export function setUserBalance(email: string, balance: number): void {
+export function adjustUserBalance(email: string, delta: number, description?: string): number {
   const normEmail = (email || '').toLowerCase().trim();
-  if (!normEmail) return;
-  if (!globalStore.__HUMANTEK_USER_BALANCES__) {
-    globalStore.__HUMANTEK_USER_BALANCES__ = new Map();
-  }
-  globalStore.__HUMANTEK_USER_BALANCES__.set(normEmail, Math.max(0, balance));
+  if (!normEmail || delta === 0) return getUserBalance(normEmail);
+
+  addLedgerEntry({
+    id: `led-${crypto.randomUUID()}`,
+    userEmail: normEmail,
+    type: delta > 0 ? 'promo_credit' : 'service_deduction',
+    creditsDelta: delta,
+    usdAmount: 0,
+    referenceId: `ADJ-${Date.now().toString(36).toUpperCase()}`,
+    description: description || (delta > 0 ? `Credit deposit (+${delta} CR)` : `Credit deduction (${delta} CR)`),
+    createdAt: new Date().toISOString(),
+  });
+
+  return getUserBalance(normEmail);
 }
 
-export function adjustUserBalance(email: string, delta: number): number {
-  const current = getUserBalance(email);
-  const next = Math.max(0, current + delta);
-  setUserBalance(email, next);
-  return next;
+export function setUserBalance(email: string, targetBalance: number, description?: string): void {
+  const normEmail = (email || '').toLowerCase().trim();
+  if (!normEmail) return;
+  const current = getUserBalance(normEmail);
+  const delta = targetBalance - current;
+  if (delta !== 0) {
+    adjustUserBalance(normEmail, delta, description || `Balance set to ${targetBalance} CR`);
+  }
 }
 
 export { recordPaidProject, recordWalletFundedProject } from '@/lib/orders';

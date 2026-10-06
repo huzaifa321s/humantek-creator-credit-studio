@@ -189,7 +189,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
               <SelectItem value="all" className="text-xs">All Types</SelectItem>
               <SelectItem value="package_purchase" className="text-xs">Package Purchase</SelectItem>
               <SelectItem value="service_deduction" className="text-xs">Service Scope</SelectItem>
-              <SelectItem value="promo_credit" className="text-xs">Promo Voucher</SelectItem>
+              <SelectItem value="promo_credit" className="text-xs">Promo Code</SelectItem>
               <SelectItem value="refund" className="text-xs">Refund</SelectItem>
             </SelectContent>
           </Select>
@@ -333,7 +333,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                       )}
                       {item.type === 'promo_credit' && (
                         <Badge variant="gold" className="text-2xs font-semibold px-2 py-0.5">
-                          promo_voucher
+                          promo_code
                         </Badge>
                       )}
                       {item.type === 'refund' && (
@@ -353,14 +353,14 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                     </TableCell>
 
                     {/* USD Amount */}
-                    <TableCell className="text-right font-bold text-foreground text-xs tabular-nums">
+                    <TableCell className="text-right font-bold text-foreground text-xs font-mono tabular-nums">
                       ${item.usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
 
                     {/* Date & Status */}
                     <TableCell className="pr-5 text-right text-xs">
-                      <div className="font-medium text-foreground text-2xs">{item.date}</div>
-                      <div className="inline-flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                      <div className="font-medium text-foreground text-2xs font-mono tabular-nums">{item.date}</div>
+                      <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground mt-0.5">
                         {item.status === 'completed' ? (
                           <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
                             <CheckCircle2 className="size-3" /> Settled
@@ -379,7 +379,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
               <TableFooter>
                 <TableRow className="hover:bg-transparent bg-muted/20">
                   <TableCell colSpan={3} className="pl-5 font-semibold text-xs text-foreground">
-                    Filtered Totals ({filteredTransactions.length} records)
+                    Filtered Totals (<span className="font-mono tabular-nums">{filteredTransactions.length}</span> records)
                   </TableCell>
                   <TableCell className="text-right font-bold text-xs text-foreground">
                     <CreditValue
@@ -388,7 +388,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                       variant="delta"
                     />
                   </TableCell>
-                  <TableCell className="text-right font-bold text-xs text-foreground tabular-nums">
+                  <TableCell className="text-right font-bold text-xs text-foreground font-mono tabular-nums">
                     ${totalUsdVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="pr-5" />
@@ -418,7 +418,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                 </SelectContent>
               </Select>
               <span>
-                Page <b className="text-foreground">{activePage}</b> of <b className="text-foreground">{totalPages}</b>
+                Page <b className="text-foreground font-mono tabular-nums">{activePage}</b> of <b className="text-foreground font-mono tabular-nums">{totalPages}</b>
               </span>
             </div>
 
@@ -435,7 +435,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                 <ChevronLeft className="size-3.5" />
               </Button>
 
-              <span className="text-2xs px-2 font-mono font-semibold text-muted-foreground">
+              <span className="text-2xs px-2 font-mono font-semibold tabular-nums text-muted-foreground">
                 {startIndex + 1}–{Math.min(startIndex + pageSize, sortedTransactions.length)} of {sortedTransactions.length}
               </span>
 

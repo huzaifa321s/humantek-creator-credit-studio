@@ -106,7 +106,7 @@ export function ChatInputBar({
       {/* Quick prompts — shadcn Button (outline, xs) */}
       {!compact && (
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-          <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground">
+          <span className="flex shrink-0 items-center gap-1 text-2xs font-semibold text-muted-foreground">
             <Sparkles className="size-3 text-amber-500" /> Quick ask:
           </span>
           {quickPrompts.map((prompt) => (
@@ -175,18 +175,18 @@ export function ChatInputBar({
               }
             />
             <DropdownMenuContent align="start" side="top" className="w-64 p-1.5 text-xs">
-              <DropdownMenuLabel className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <DropdownMenuLabel className="px-2 py-1 text-2xs font-bold uppercase tracking-wider text-muted-foreground">
                 Add reference assets
               </DropdownMenuLabel>
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer gap-2 py-2">
                 <ImageIcon className="size-4 text-amber-600" />
                 <div>
                   <span className="block font-semibold">Upload image</span>
-                  <span className="text-[10px] text-muted-foreground">PNG or JPG from your computer</span>
+                  <span className="text-2xs text-muted-foreground">PNG or JPG from your computer</span>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="px-2 py-0.5 text-[10px] text-muted-foreground">
+              <DropdownMenuLabel className="px-2 py-0.5 text-2xs font-medium text-muted-foreground">
                 Sample moodboards
               </DropdownMenuLabel>
               {SAMPLE_REFERENCES.map((sample) => (
@@ -198,7 +198,7 @@ export function ChatInputBar({
                       id: `sample-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                     })
                   }
-                  className="cursor-pointer gap-2 py-1.5 text-[11px]"
+                  className="cursor-pointer gap-2 py-1.5 text-2xs"
                 >
                   <Sparkles className="size-3.5 shrink-0 text-amber-500" />
                   <span className="truncate">{sample.name}</span>
@@ -221,7 +221,7 @@ export function ChatInputBar({
           </InputGroupButton>
 
           {!compact && (
-            <InputGroupText className="hidden sm:flex text-[10px]">
+            <InputGroupText className="hidden sm:flex text-2xs font-mono">
               <KbdGroup>
                 <Kbd>Enter</Kbd>
               </KbdGroup>

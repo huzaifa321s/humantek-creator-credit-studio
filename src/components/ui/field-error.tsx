@@ -17,7 +17,7 @@ export function FieldError({
       id={`${id}-error`}
       role="alert"
       className={cn(
-        'flex items-start gap-1 text-[11px] leading-snug font-medium text-destructive animate-in fade-in slide-in-from-top-0.5 duration-150',
+        'flex items-start gap-1 text-2xs leading-normal font-medium text-destructive animate-in fade-in slide-in-from-top-0.5 duration-150',
         className
       )}
     >

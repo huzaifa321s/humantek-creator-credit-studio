@@ -105,7 +105,7 @@ export function StudioCardLayout({
 }: StudioCardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { setIsOpen: setChatOpen, unreadCounts } = useStudioChat();
+  const { setIsOpen: setChatOpen, unreadCounts, isOpen } = useStudioChat();
   const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
   const handleBack = () => {
@@ -154,58 +154,14 @@ export function StudioCardLayout({
             <SidebarContent className="p-1.5 space-y-1.5 flex-1">
               {/* Main Studio Navigation Group */}
               <SidebarGroup className="p-0">
-                <SidebarGroupLabel className="text-[9.5px] font-bold tracking-widest text-muted-foreground/70 px-2 py-0.5 h-auto mb-0.5 group-data-[collapsible=icon]:hidden uppercase">
-                  STUDIO WORKSPACE
-                </SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu className="gap-0.5">
-                    {/* Creator Studio Wizard */}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={pathname === '/'}
-                        render={<Link href="/" />}
-                        tooltip="Creator Studio Wizard"
-                        className={cn(
-                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
-                          pathname === '/'
-                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
-                        )}
-                      >
-                        <Sparkles
-                          className={cn(
-                            'size-3.5 shrink-0 transition-colors',
-                            pathname === '/' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                          )}
-                        />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">Creator Studio Wizard</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    {/* Chat with Producer */}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        type="button"
-                        onClick={() => setChatOpen(true)}
-                        tooltip="Chat with Producer"
-                        className="h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground"
-                      >
-                        <MessageSquare className="size-3.5 shrink-0 text-amber-600 group-hover/menu-button:scale-105 transition-transform" />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">Chat with Producer</span>
-                        {totalUnreadChat > 0 && (
-                          <SidebarMenuBadge className="bg-rose-500 text-white font-bold text-[9px] px-1 h-3.5 min-w-3.5 rounded-full animate-pulse group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
-                            {totalUnreadChat}
-                          </SidebarMenuBadge>
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    {/* Your Projects Tracker */}
+                    {/* 1. My Projects */}
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={pathname === '/projects'}
                         render={<Link href="/projects" />}
-                        tooltip="Your Projects Tracker"
+                        tooltip="My Projects"
                         className={cn(
                           'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
                           pathname === '/projects'
@@ -221,16 +177,67 @@ export function StudioCardLayout({
                               : 'text-muted-foreground group-hover/menu-button:text-foreground'
                           )}
                         />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">Your Projects Tracker</span>
+                        <span className="truncate group-data-[collapsible=icon]:hidden">My Projects</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
-                    {/* Redeem Promo Voucher */}
+                    {/* 2. New Project */}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={pathname === '/'}
+                        render={<Link href="/" />}
+                        tooltip="New Project"
+                        className={cn(
+                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          pathname === '/'
+                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                        )}
+                      >
+                        <Sparkles
+                          className={cn(
+                            'size-3.5 shrink-0 transition-colors',
+                            pathname === '/' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                          )}
+                        />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">New Project</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    {/* 3. Messages */}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={isOpen}
+                        onClick={() => setChatOpen(!isOpen)}
+                        tooltip="Messages"
+                        className={cn(
+                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          isOpen
+                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                        )}
+                      >
+                        <MessageSquare
+                          className={cn(
+                            'size-3.5 shrink-0 transition-colors',
+                            isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                          )}
+                        />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
+                        {totalUnreadChat > 0 && (
+                          <SidebarMenuBadge className="bg-rose-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full animate-pulse group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+                            {totalUnreadChat}
+                          </SidebarMenuBadge>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    {/* 4. Promo Code */}
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={pathname === '/redeem-code'}
                         render={<Link href="/redeem-code" />}
-                        tooltip="Redeem Promo Voucher"
+                        tooltip="Promo Code"
                         className={cn(
                           'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
                           pathname === '/redeem-code'
@@ -246,7 +253,7 @@ export function StudioCardLayout({
                               : 'text-muted-foreground group-hover/menu-button:text-foreground'
                           )}
                         />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">Redeem Promo Voucher</span>
+                        <span className="truncate group-data-[collapsible=icon]:hidden">Promo Code</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
@@ -266,7 +273,7 @@ export function StudioCardLayout({
                       <span className="block text-xs font-semibold text-sidebar-foreground truncate leading-tight">
                         Studio Balance
                       </span>
-                      <span className="block text-xs text-muted-foreground truncate leading-tight">
+                      <span className="block text-2xs text-muted-foreground truncate leading-tight">
                         Active Account
                       </span>
                     </div>

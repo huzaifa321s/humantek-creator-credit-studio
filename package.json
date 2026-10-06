@@ -6,9 +6,13 @@
     "dev": "next dev",
     "dev:webpack": "next dev --webpack",
     "build": "next build",
+    "build:turbo": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "clean": "powershell -Command \"Remove-Item -Recurse -Force .next, node_modules/.cache -ErrorAction SilentlyContinue\""
+    "clean": "node -e \"try{fs.rmSync('.next',{recursive:true,force:true});fs.rmSync('node_modules/.cache',{recursive:true,force:true})}catch(e){}\""
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

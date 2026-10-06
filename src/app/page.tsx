@@ -782,13 +782,12 @@ export default function CreatorStudioPage() {
     }
   };
 
-  // Determine top right badge on header
+  // Determine top right badge on header while in wizard: "Scope: 608 / 660 CR"
   const headerBadge = currentPackage ? (
-    <div className="flex items-center gap-2 px-3 h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-xs font-medium shadow-2xs select-none">
+    <div className="flex items-center gap-1.5 px-3 h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-xs font-medium shadow-2xs select-none">
       <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-      <span className="text-zinc-100 font-semibold truncate max-w-[140px]">{currentPackage.name}</span>
-      <span className="text-zinc-500">·</span>
-      <span className="font-extrabold text-amber-300 tabular-nums">
+      <span className="text-zinc-300 font-medium">Scope:</span>
+      <span className="font-bold text-amber-300 tabular-nums font-mono">
         {remainingCredits} / {totalPackageCredits} CR
       </span>
     </div>
@@ -968,7 +967,7 @@ export default function CreatorStudioPage() {
                     <Badge
                       variant={selectedPackageId === 'studio-wallet' ? 'default' : 'secondary'}
                       className={cn(
-                        'text-[10px] py-0 px-2 font-bold uppercase tracking-wider',
+                        'text-2xs font-bold uppercase tracking-wider py-0 px-2',
                         selectedPackageId === 'studio-wallet' && 'bg-emerald-600 hover:bg-emerald-600 text-white'
                       )}
                     >
@@ -1060,7 +1059,7 @@ export default function CreatorStudioPage() {
                     <div className="absolute top-0 right-0">
                       <div
                         className={cn(
-                          'font-bold text-[10px] uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg transition-colors',
+                          'font-bold text-2xs uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg transition-colors',
                           isSelected
                             ? 'bg-amber-500 text-white'
                             : 'bg-secondary text-muted-foreground border-b border-l border-border/70'
@@ -1083,14 +1082,14 @@ export default function CreatorStudioPage() {
                       {pkg.name}
                     </CardTitle>
                     <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                      <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
                         ${pkg.price.toLocaleString()}
                       </span>
                       <span className="text-xs text-muted-foreground font-semibold">USD</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <CreditValue value={pkgCredits} size="sm" variant="pill" />
-                      <span className="text-xs text-muted-foreground font-medium">
+                      <span className="text-xs text-muted-foreground font-medium font-mono tabular-nums">
                         ${effectiveRate}/CR
                       </span>
                     </div>
@@ -1218,16 +1217,6 @@ export default function CreatorStudioPage() {
               </Button>
             </div>
           </div>
-
-          {/* Dynamic Budget Gauge Banner */}
-          <StudioNoticeBanner
-            type="step2-package"
-            packageName={currentPackage.name}
-            totalCredits={currentPackage.credits}
-            usedCredits={usedCredits}
-            selectedCount={selectedEntries.length}
-            extrasCount={additions.length}
-          />
 
           {isWalletFunding && remainingCredits < 0 && (
             <Alert variant="warning" className="rounded-xl border-amber-500/30 bg-amber-500/10">
@@ -1579,7 +1568,7 @@ export default function CreatorStudioPage() {
                       {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'}
                     </span>
                     <span className="text-zinc-400 mx-1.5">·</span>
-                    <span className="text-amber-400 font-extrabold tabular-nums">
+                    <span className="text-amber-400 font-extrabold font-mono tabular-nums">
                       {remainingCredits >= 0 ? `${remainingCredits} CR left` : `${Math.abs(remainingCredits)} CR over`}
                     </span>
                   </div>
@@ -2199,7 +2188,7 @@ export default function CreatorStudioPage() {
                   </Label>
                   <span
                     className={cn(
-                      'text-xs tabular-nums',
+                      'text-xs font-mono tabular-nums',
                       instructions.trim().length < BRIEF_LIMITS.instructions.min
                         ? 'text-muted-foreground'
                         : 'text-emerald-600 dark:text-emerald-400'
@@ -2346,24 +2335,24 @@ export default function CreatorStudioPage() {
                 )}
               </div>
 
-              {/* Promo Voucher Panel */}
+              {/* Promo Code Panel */}
               <div className="p-3 sm:p-3.5 rounded-xl bg-secondary/30 border border-border/70 flex flex-col justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-1.5">
                     <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <b className="text-xs font-bold text-foreground">
-                      Redeem Promo Voucher
+                      Promo Code
                     </b>
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug mt-0.5">
-                    Have a sponsor or VIP voucher code? Attach it to your order.
+                    Have a sponsor or promo code? Apply it to your project.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 pt-0.5">
                   <Input
                     id="brief-redeemCode"
-                    aria-label="Promo voucher code"
+                    aria-label="Promo code"
                     autoComplete="off"
                     spellCheck={false}
                     maxLength={BRIEF_LIMITS.redeemCode.max}
@@ -2382,7 +2371,7 @@ export default function CreatorStudioPage() {
                     onClick={async () => {
                       const parsed = redeemCodeSchema.safeParse(redeemCodeInput);
                       if (!parsed.success || !parsed.data) {
-                        toast.error(parsed.success ? 'Please enter a voucher code' : parsed.error.issues[0]?.message);
+                        toast.error(parsed.success ? 'Please enter a promo code' : parsed.error.issues[0]?.message);
                         return;
                       }
                       const clean = parsed.data;
@@ -2397,16 +2386,16 @@ export default function CreatorStudioPage() {
                         if (res.ok) {
                           useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
                           setRedeemCodeAttached(true);
-                          toast.success(`Voucher redeemed! +${data.creditsAdded} CR deposited into your Studio Wallet.`);
+                          toast.success(`Promo code redeemed! +${data.creditsAdded} CR added to your balance.`);
                         } else if (res.status === 409) {
                           setRedeemCodeAttached(true);
-                          toast.info(`Voucher attached: ${clean}`);
+                          toast.info(`Promo code attached: ${clean}`);
                         } else {
-                          toast.error(data.error || 'Failed to redeem voucher');
+                          toast.error(data.error || 'Failed to redeem promo code');
                         }
                       } catch {
                         setRedeemCodeAttached(true);
-                        toast.success(`Voucher attached: ${clean}`);
+                        toast.success(`Promo code attached: ${clean}`);
                       }
                     }}
                     className="text-xs shrink-0 font-semibold h-9 px-3.5 rounded-lg cursor-pointer"
@@ -2451,7 +2440,7 @@ export default function CreatorStudioPage() {
                 <CollapsibleContent>
                   <div className="border-t border-border/60 bg-muted/15 px-5 sm:px-6 py-4 space-y-2.5">
                     {TERMS_AND_CONDITIONS.map((term, idx) => (
-                      <p key={idx} className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed pl-3 border-l-2 border-amber-500/30">
+                      <p key={idx} className="text-xs text-muted-foreground leading-relaxed pl-3 border-l-2 border-amber-500/30">
                         {term}
                       </p>
                     ))}
@@ -2586,7 +2575,7 @@ export default function CreatorStudioPage() {
                     className="w-full h-11 font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md shadow-amber-500/25 gap-2 cursor-pointer transition-all hover:scale-[1.01]"
                   >
                     <FolderKanban className="size-4" />
-                    <span>View Project Milestones</span>
+                    <span>Go to My Projects</span>
                     <ArrowRight className="size-4" />
                   </Button>
                 </Link>
@@ -2599,7 +2588,7 @@ export default function CreatorStudioPage() {
                     onClick={() => setChatOpen(true, submittedProject.id)}
                   >
                     <MessageSquare className="size-4 text-amber-600 dark:text-amber-400" />
-                    <span>Project Chat</span>
+                    <span>Messages</span>
                   </Button>
 
                   <Button
@@ -2609,7 +2598,7 @@ export default function CreatorStudioPage() {
                     onClick={() => window.location.reload()}
                   >
                     <Plus className="size-4 text-muted-foreground" />
-                    <span>Create Another Request</span>
+                    <span>Start New Project</span>
                   </Button>
                 </div>
               </div>
@@ -2617,7 +2606,7 @@ export default function CreatorStudioPage() {
               {/* Subtle helper note linking to producer chat */}
               <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground pt-1">
                 <Sparkles className="size-3.5 text-amber-500 shrink-0" />
-                <span>Need immediate modifications? Your lead producer is on standby via the floating chat widget.</span>
+                <span>Need immediate modifications? Our team is on standby in Messages.</span>
               </div>
             </Card>
           ) : (
@@ -2667,7 +2656,7 @@ export default function CreatorStudioPage() {
                       </div>
                       <div>
                         <span className="text-xs text-muted-foreground uppercase font-bold block">Package Value</span>
-                        <b className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 font-black mt-0.5 block tabular-nums">
+                        <b className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 font-black mt-0.5 block font-mono tabular-nums">
                           ${currentPackage.price.toLocaleString()} USD
                         </b>
                       </div>
@@ -2700,7 +2689,7 @@ export default function CreatorStudioPage() {
                             No specific services pre-allocated
                           </b>
                           <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                            Your full balance of <b>{totalPackageCredits} Credits</b> will remain active in your studio wallet for 12 months, ready to deploy on any creative request on-demand.
+                            Your full balance of <b className="font-mono tabular-nums">{totalPackageCredits} Credits</b> will remain active in your studio wallet for 12 months, ready to deploy on any creative request on-demand.
                           </p>
                           <div className="pt-1">
                             <Button
@@ -2861,15 +2850,15 @@ export default function CreatorStudioPage() {
                           </div>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>Wallet Deduction</span>
-                            <span className="font-semibold text-foreground">-{usedCredits} CR</span>
+                            <span className="font-semibold text-foreground font-mono tabular-nums">-{usedCredits} CR</span>
                           </div>
                           <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                             <span>Remaining Balance After Launch</span>
-                            <span>{Math.max(0, user.walletBalance - usedCredits)} CR</span>
+                            <span className="font-mono tabular-nums">{Math.max(0, user.walletBalance - usedCredits)} CR</span>
                           </div>
                           <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                             <span>Total Due Today</span>
-                            <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                            <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
                               $0.00 USD
                             </span>
                           </div>
@@ -2878,31 +2867,31 @@ export default function CreatorStudioPage() {
                         <>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>{currentPackage.name} Base Package</span>
-                            <span className="font-semibold text-foreground">${currentPackage.price.toLocaleString()} USD</span>
+                            <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString()} USD</span>
                           </div>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>Package Allocation</span>
-                            <span className="font-semibold text-foreground">{currentPackage.credits} CR</span>
+                            <span className="font-semibold text-foreground font-mono tabular-nums">{currentPackage.credits} CR</span>
                           </div>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>Service Scope Used</span>
-                            <span className="font-semibold text-foreground">{usedCredits} CR</span>
+                            <span className="font-semibold text-foreground font-mono tabular-nums">{usedCredits} CR</span>
                           </div>
                           {currentPackage.credits > usedCredits && (
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                               <span>Rollover to Global Wallet</span>
-                              <span>+{currentPackage.credits - usedCredits} CR</span>
+                              <span className="font-mono tabular-nums">+{currentPackage.credits - usedCredits} CR</span>
                             </div>
                           )}
                           {redeemCodeAttached && (
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                              <span>Voucher Applied: {redeemCodeInput}</span>
-                              <span>Active</span>
+                              <span>Promo Code: {redeemCodeInput}</span>
+                              <span>Applied</span>
                             </div>
                           )}
                           <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                             <span>Total Due</span>
-                            <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                            <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums">
                               ${currentPackage.price.toLocaleString()} USD
                             </span>
                           </div>
@@ -2931,7 +2920,7 @@ export default function CreatorStudioPage() {
                               </>
                             )}
                           </Button>
-                          <p className="text-[11px] text-center text-muted-foreground">
+                          <p className="text-2xs text-center text-muted-foreground leading-normal">
                             Instantly debits {usedCredits} CR from your Studio Wallet. Project moves directly to active production.
                           </p>
                         </div>
@@ -2982,7 +2971,7 @@ export default function CreatorStudioPage() {
                             }}
                           />
                           {currentPackage.credits > usedCredits && (
-                            <p className="text-[11px] text-center text-emerald-600 dark:text-emerald-400 font-medium">
+                            <p className="text-2xs text-center text-emerald-600 dark:text-emerald-400 font-medium leading-normal">
                               ★ Any unused credits ({currentPackage.credits - usedCredits} CR) automatically roll over into your Global Studio Wallet!
                             </p>
                           )}
@@ -3024,7 +3013,7 @@ export default function CreatorStudioPage() {
                         className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Have questions about this brief? Chat with Studio Producer →</span>
+                        <span>Have questions about this brief? Chat with our team →</span>
                       </Button>
                     </div>
 

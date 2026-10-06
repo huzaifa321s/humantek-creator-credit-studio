@@ -22,11 +22,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
 
+  if (parsed.data.fundingSource === 'wallet' || parsed.data.packageId === 'studio-wallet') {
+    return NextResponse.json(
+      { error: 'Wallet-funded projects have $0 USD due and should be launched directly with credits without PayPal.' },
+      { status: 400 }
+    );
+  }
+
   const result = computeOrderQuote(parsed.data);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 422 });
   }
   const { quote } = result;
+
+  if (quote.fundingSource === 'wallet' || quote.priceUSD <= 0) {
+    return NextResponse.json(
+      { error: 'Wallet-funded projects have $0 USD due and should be launched directly with credits without PayPal.' },
+      { status: 400 }
+    );
+  }
 
   try {
     const order = await createPayPalOrder(quote.priceUSD, parsed.data.projectId);

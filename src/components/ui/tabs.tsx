@@ -119,7 +119,7 @@ function TabsBadge({
       size="xs"
       data-slot="tabs-badge"
       className={cn(
-        "tabular-nums transition-colors ml-1 border-0 text-[10.5px] font-bold px-1.5 py-0",
+        "tabular-nums font-mono transition-colors ml-1 border-0 text-2xs font-bold px-1.5 py-0",
         "bg-muted/80 text-muted-foreground group-data-active/tabs-trigger:bg-amber-500/15 group-data-active/tabs-trigger:text-amber-800 dark:group-data-active/tabs-trigger:text-amber-300 group-data-active/tabs-trigger:ring-1 group-data-active/tabs-trigger:ring-amber-500/30",
         className
       )}

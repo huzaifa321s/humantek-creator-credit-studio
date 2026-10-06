@@ -103,10 +103,10 @@ export function ChatFullView() {
             <span>Project-Based Creative Studio Communications</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-            Project Chat & Creative Lead
+            Messages &amp; Project Discussion
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-            Direct, isolated project discussion threads, moodboards, asset approvals, and milestone updates.
+            Direct project discussion threads, moodboards, asset approvals, and milestone updates.
           </p>
         </div>
 
@@ -114,13 +114,13 @@ export function ChatFullView() {
           <Link href="/">
             <Button variant="outline" size="sm" className="h-9 text-xs font-semibold gap-1.5 rounded-xl cursor-pointer">
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>Configure Package</span>
+              <span>New Project</span>
             </Button>
           </Link>
           <Link href="/projects">
             <Button variant="secondary" size="sm" className="h-9 text-xs font-semibold gap-1.5 rounded-xl cursor-pointer">
               <FolderKanban className="w-3.5 h-3.5 text-amber-600" />
-              <span>All Projects</span>
+              <span>My Projects</span>
             </Button>
           </Link>
         </div>
@@ -147,12 +147,12 @@ export function ChatFullView() {
               <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-sm font-bold text-foreground truncate">{agent.name}</h3>
-                  <Badge variant="gold" className="text-[10px] font-bold py-0 px-1.5 h-4">
+                  <Badge variant="gold" className="text-2xs font-mono font-bold uppercase tracking-wider py-0 px-1.5 h-4">
                     Lead
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground truncate">{agent.role}</p>
-                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                <span className="inline-flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-medium">
                   <CheckCircle2 className="w-3 h-3" /> Online & Dedicated
                 </span>
               </div>
@@ -205,7 +205,7 @@ export function ChatFullView() {
                 <p>
                   This is your primary channel with Sarah Miller for custom creative quotes, credit inquiries, package advisory, and account support.
                 </p>
-                <div className="pt-2 border-t border-border/70 space-y-2 font-medium text-[11px] text-foreground/90">
+                <div className="pt-2 border-t border-border/70 space-y-2 font-medium text-2xs text-foreground/90">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
                     <span>Dedicated Senior Lead Producer</span>
@@ -226,11 +226,11 @@ export function ChatFullView() {
               <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
                 <div className="flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  <span className="text-2xs font-bold text-foreground uppercase tracking-wider">
                     Project Moodboards ({displayAttachments.length})
                   </span>
                 </div>
-                <span className="text-[11px] text-muted-foreground font-mono">{projectMeta.projectCode}</span>
+                <span className="text-2xs text-muted-foreground font-mono tabular-nums">{projectMeta.projectCode}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -248,13 +248,13 @@ export function ChatFullView() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     )}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-medium backdrop-blur-xs">
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-2xs font-medium backdrop-blur-xs">
                       <Eye className="w-3.5 h-3.5 mr-1" /> View
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-muted-foreground/80 leading-normal">
+              <p className="text-2xs text-muted-foreground/80 leading-normal">
                 Visual moodboards uploaded for {projectMeta.projectCode}. Click any frame to zoom in.
               </p>
             </Card>
@@ -271,10 +271,10 @@ export function ChatFullView() {
               <div className="px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm sm:text-base font-medium text-foreground">Global Chat</span>
+                    <span className="text-sm sm:text-base font-semibold tracking-tight text-foreground">Global Chat</span>
                     <span className="flex size-2 rounded-full bg-emerald-500 inline-block align-middle" />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-2xs text-muted-foreground mt-0.5 leading-normal">
                     Replies in ~2 mins · Packages, credits & studio support
                   </p>
                 </div>
@@ -283,29 +283,29 @@ export function ChatFullView() {
               <div className="px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center gap-1">
                 {/* Line 1: Code · Package · Status */}
                 <div className="flex items-center gap-2 flex-wrap text-sm font-medium">
-                  <span className="font-mono text-foreground">
+                  <span className="font-mono text-xs font-bold tracking-tight text-foreground">
                     {projectMeta.projectCode}
                   </span>
                   <span className="text-muted-foreground">·</span>
-                  <span className="text-foreground/90">
+                  <span className="text-foreground/90 font-medium text-xs">
                     {projectMeta.packageName}
                   </span>
                   <span className="text-muted-foreground">·</span>
-                  <Badge variant="outline" className="text-[11px] font-normal text-amber-700 dark:text-amber-400 border-amber-500/40 px-1.5 py-0.5 h-auto">
+                  <Badge variant="outline" className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md">
                     {projectMeta.status.replace('_', ' ').toLowerCase()}
                   </Badge>
                 </div>
 
                 {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mt-0.5">
+                <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span>Client: <b className="text-foreground font-medium">{projectMeta.clientName}</b></span>
                     <span>·</span>
-                    <span><b className="text-amber-600 dark:text-amber-400 font-bold">{projectMeta.credits || 660} CR</b></span>
+                    <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-bold">{projectMeta.credits || 660} CR</b></span>
                     {projectMeta.price && (
                       <>
                         <span>·</span>
-                        <span>${projectMeta.price.toLocaleString()} USD</span>
+                        <span className="font-mono tabular-nums">${projectMeta.price.toLocaleString()} USD</span>
                       </>
                     )}
                   </div>

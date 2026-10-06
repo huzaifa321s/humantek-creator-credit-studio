@@ -78,7 +78,7 @@ export function ServiceImageHoverCard({
             </h4>
             <div className="shrink-0">
               {service.quoteOnly ? (
-                <Badge variant="outline" size="xs" className="text-[10px] font-bold">
+                <Badge variant="outline" size="xs" className="text-2xs font-bold uppercase tracking-wider">
                   Quote
                 </Badge>
               ) : (
@@ -92,7 +92,7 @@ export function ServiceImageHoverCard({
             {meta.deliverables.slice(0, 3).map((item, idx) => (
               <div
                 key={idx}
-                className="flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug"
+                className="flex items-start gap-1.5 text-2xs text-muted-foreground leading-normal"
               >
                 <Check className="size-3 text-emerald-500 shrink-0 stroke-[2.5] mt-0.5" />
                 <span className="line-clamp-1">{item}</span>
@@ -101,7 +101,7 @@ export function ServiceImageHoverCard({
           </div>
 
           {/* Turnaround & Revisions Info Bar */}
-          <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-[10px] text-muted-foreground font-medium">
+          <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-2xs text-muted-foreground font-medium">
             <span className="inline-flex items-center gap-1">
               <Clock className="size-3 text-amber-500 shrink-0" />
               <span>{meta.turnaround}</span>
