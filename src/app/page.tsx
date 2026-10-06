@@ -128,6 +128,7 @@ import {
   ShieldAlert,
   Loader2,
   Check,
+  Copy,
   X,
   ImageIcon,
   ChevronDown,
@@ -914,7 +915,9 @@ export default function CreatorStudioPage() {
       isPolicyAccepted={policyAccepted}
       isBriefCompleted={brief.isValid && termsAccepted}
       userEmail={email || null}
-      topRightBadge={headerBadge}
+      topRightBadge={submittedProject ? null : headerBadge}
+      hideStepper={Boolean(submittedProject)}
+      showBack={!submittedProject}
       footerActions={renderFooterActions()}
     >
       {/* ============================================================ */}
@@ -2495,118 +2498,110 @@ export default function CreatorStudioPage() {
       {currentStep === 5 && currentPackage && (
         <div className="space-y-6 animate-in fade-in duration-200">
           {submittedProject ? (
-            /* Celebration Screen on Success - Fully Responsive & Reusable Components */
-            <Card className="max-w-xl w-full mx-auto rounded-2xl border border-border/80 bg-card/95 backdrop-blur-sm p-6 sm:p-8 md:p-9 shadow-xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
-              {/* Header Icon & Status Pill */}
-              <div className="flex flex-col items-center gap-3">
-                <IconTile
-                  variant="soft"
-                  size="xl"
-                  radius="default"
-                  className="size-16 text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 shadow-xs mx-auto"
-                >
-                  <PackageCheck className="size-8" />
-                </IconTile>
-                <Badge
-                  variant="success"
-                  size="default"
-                  className="font-semibold px-3 py-1 text-xs gap-1.5 shadow-2xs"
-                >
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Order Confirmed · Active Production
-                </Badge>
+            /* Order Confirmed Screen */
+            <Card className="max-w-lg w-full mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-sm text-center animate-in fade-in zoom-in-95 duration-200">
+              {/* Green Check Icon */}
+              <div className="size-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto ring-8 ring-emerald-500/10">
+                <Check className="size-6 stroke-[2.5]" />
               </div>
 
               {/* Title & Subtitle */}
               <div className="space-y-1.5">
                 <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                  Your Creative Project is Active!
+                  Order confirmed
                 </h2>
-                <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                  Your request has been routed to our agency art director and creative operations pipeline.
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  We&apos;ve received your order. Our team will review your details and message you if they need anything.
                 </p>
               </div>
 
               {/* Order Spec Snapshot Card */}
-              <div className="rounded-xl border border-border/80 bg-muted/40 dark:bg-zinc-900/60 p-4 sm:p-5 text-left grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs shadow-2xs">
-                <div className="space-y-1">
-                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
-                    Project Reference
-                  </span>
-                  <span className="font-mono font-bold text-foreground text-sm tracking-wide bg-background border border-border/70 px-2 py-0.5 rounded-md inline-block shadow-2xs">
-                    {submittedProject.projectCode}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
-                    Package Tier
-                  </span>
+              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5 text-left text-xs divide-y divide-border/60 shadow-2xs space-y-3">
+                {/* 1. Project Code with Copy */}
+                <div className="flex items-center justify-between pt-0 first:pt-0">
+                  <span className="text-muted-foreground font-medium">Project code</span>
                   <div className="flex items-center gap-1.5">
-                    <Badge variant="gold" size="sm" className="font-bold text-xs">
-                      {submittedProject.packageName}
-                    </Badge>
+                    <span className="font-mono font-bold text-foreground text-xs sm:text-sm tracking-wide">
+                      {submittedProject.projectCode}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => {
+                        navigator.clipboard.writeText(submittedProject.projectCode);
+                        toast.success('Project code copied to clipboard');
+                      }}
+                      className="size-6 text-muted-foreground hover:text-foreground rounded cursor-pointer"
+                      title="Copy project code"
+                    >
+                      <Copy className="size-3" />
+                    </Button>
                   </div>
                 </div>
-                <div className="space-y-1 border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
-                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
-                    Allocated Credits
+
+                {/* 2. Package */}
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-muted-foreground font-medium">Package</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                    {submittedProject.packageName}
                   </span>
-                  <div className="mt-0.5">
-                    <CreditValue value={submittedProject.packageCredits} size="sm" />
-                  </div>
                 </div>
-                <div className="space-y-1 border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
-                  <span className="text-muted-foreground block text-3xs sm:text-2xs font-bold uppercase tracking-wider">
-                    Production Queue
+
+                {/* 3. Credits */}
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-muted-foreground font-medium">Credits</span>
+                  <span className="font-semibold text-foreground text-xs sm:text-sm">
+                    {submittedProject.fundingSource === 'wallet'
+                      ? `${submittedProject.usedCredits} credits used`
+                      : `${submittedProject.usedCredits} of ${submittedProject.packageCredits} used`}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
-                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Concept Briefing
+                </div>
+
+                {/* 4. Status */}
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-muted-foreground font-medium">Status</span>
+                  <span className="inline-flex items-center gap-1.5 font-medium text-xs sm:text-sm text-foreground">
+                    <span className="size-2 rounded-full bg-emerald-500" />
+                    Brief review
                   </span>
                 </div>
               </div>
 
-              {/* Responsive Action Buttons with Clear Visual Hierarchy */}
-              <div className="space-y-3 pt-2 w-full max-w-md mx-auto">
+              {/* Payment & Receipt Note */}
+              <p className="text-xs text-muted-foreground leading-normal">
+                {submittedProject.fundingSource === 'wallet'
+                  ? `Funded with ${submittedProject.usedCredits} credits`
+                  : `Paid $${submittedProject.packagePrice.toLocaleString()} USD`}
+                {submittedProject.email ? ` · Receipt sent to ${submittedProject.email}` : ''}
+              </p>
+
+              {/* Actions: Flat Primary Button & Text Link */}
+              <div className="space-y-2 pt-1 w-full">
                 <Link href="/projects" className="block w-full">
                   <Button
+                    type="button"
                     variant="default"
                     size="lg"
-                    className="w-full h-11 font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md shadow-amber-500/25 gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                    className="w-full h-10 font-semibold text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-xs cursor-pointer transition-colors"
                   >
-                    <FolderKanban className="size-4" />
-                    <span>Go to My Projects</span>
-                    <ArrowRight className="size-4" />
+                    <span>View my project</span>
+                    <ArrowRight className="size-4 ml-1" />
                   </Button>
                 </Link>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                <div>
                   <Button
-                    variant="secondary"
-                    size="default"
-                    className="w-full h-10 font-semibold gap-2 border border-amber-500/30 text-amber-900 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+                    type="button"
+                    variant="link"
+                    size="sm"
                     onClick={() => setChatOpen(true, submittedProject.id)}
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
                   >
-                    <MessageSquare className="size-4 text-amber-600 dark:text-amber-400" />
-                    <span>Messages</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="default"
-                    className="w-full h-10 font-semibold gap-2 hover:bg-muted cursor-pointer"
-                    onClick={() => window.location.reload()}
-                  >
-                    <Plus className="size-4 text-muted-foreground" />
-                    <span>Start New Project</span>
+                    <MessageSquare className="size-3.5" />
+                    <span>Message our team</span>
                   </Button>
                 </div>
-              </div>
-
-              {/* Subtle helper note linking to producer chat */}
-              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground pt-1">
-                <Sparkles className="size-3.5 text-amber-500 shrink-0" />
-                <span>Need immediate modifications? Our team is on standby in Messages.</span>
               </div>
             </Card>
           ) : (

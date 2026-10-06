@@ -129,8 +129,8 @@ export function HorizontalStepper({
                         'size-8 rounded-full border-2 text-xs font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
                         // Inactive / Upcoming step: crisp and legible
                         'border-border/90 bg-card text-foreground/80 font-bold group-hover:border-amber-400/60 group-hover:text-foreground',
-                        // Completed step: crisp amber with white checkmark
-                        'data-[state=completed]:border-amber-500 data-[state=completed]:bg-amber-500 data-[state=completed]:text-white data-[state=completed]:shadow-xs data-[state=completed]:shadow-amber-500/20',
+                        // Completed step: clean emerald green with white checkmark
+                        'data-[state=completed]:border-emerald-500 data-[state=completed]:bg-emerald-500 data-[state=completed]:text-white data-[state=completed]:shadow-xs data-[state=completed]:shadow-emerald-500/20',
                         // Active step: slightly larger size, rich gradient, elevated shadow & vibrant amber ring
                         'data-[state=active]:size-9 data-[state=active]:scale-105 data-[state=active]:border-amber-500 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-500/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-500/25'
                       )}
@@ -238,7 +238,7 @@ export function HorizontalStepper({
 
                 {/* Substantial, high-contrast connecting line (3px height with rounded caps) */}
                 {stepNum < STUDIO_STEPS.length && (
-                  <StepperSeparator className="mx-2 min-w-8 sm:min-w-10 h-[3px] rounded-full bg-border transition-colors duration-300 group-data-[state=completed]/step:bg-amber-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-amber-500/20" />
+                  <StepperSeparator className="mx-2 min-w-8 sm:min-w-10 h-[3px] rounded-full bg-border transition-colors duration-300 group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-emerald-500/20" />
                 )}
               </StepperItem>
             );
@@ -278,7 +278,7 @@ export function HorizontalStepper({
                 className={cn(
                   'h-1.5 rounded-full transition-all duration-300',
                   isDone
-                    ? 'bg-amber-500 shadow-2xs'
+                    ? 'bg-emerald-500 shadow-2xs'
                     : isCurr
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 ring-2 ring-amber-500/25 shadow-xs'
                     : 'bg-border dark:bg-border/80'

@@ -79,6 +79,7 @@ interface StudioCardLayoutProps {
   remainingCredits?: number;
   isPolicyAccepted?: boolean;
   isBriefCompleted?: boolean;
+  hideStepper?: boolean;
 }
 
 export function StudioCardLayout({
@@ -102,6 +103,7 @@ export function StudioCardLayout({
   remainingCredits,
   isPolicyAccepted,
   isBriefCompleted,
+  hideStepper = false,
 }: StudioCardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -336,25 +338,27 @@ export function StudioCardLayout({
         />
 
         {/* Dedicated Horizontal Stepper Bar */}
-        <div className="w-full border-b border-border/70 bg-background/95 backdrop-blur-md py-3 sm:py-3.5 px-4 sm:px-6 transition-all">
-          <div className="w-full max-w-[1200px] mx-auto flex items-center justify-center">
-            <div className="w-full max-w-[880px]">
-              <HorizontalStepper
-                currentStep={currentStep}
-                onSelectStep={onSelectStep}
-                isPackageSelected={isPackageSelected}
-                selectedPackageName={selectedPackageName}
-                selectedPackagePrice={selectedPackagePrice}
-                selectedPackageCredits={selectedPackageCredits}
-                selectedServicesCount={selectedServicesCount}
-                usedCredits={usedCredits}
-                remainingCredits={remainingCredits}
-                isPolicyAccepted={isPolicyAccepted}
-                isBriefCompleted={isBriefCompleted}
-              />
+        {!hideStepper && (
+          <div className="w-full border-b border-border/70 bg-background/95 backdrop-blur-md py-3 sm:py-3.5 px-4 sm:px-6 transition-all">
+            <div className="w-full max-w-[1200px] mx-auto flex items-center justify-center">
+              <div className="w-full max-w-[880px]">
+                <HorizontalStepper
+                  currentStep={currentStep}
+                  onSelectStep={onSelectStep}
+                  isPackageSelected={isPackageSelected}
+                  selectedPackageName={selectedPackageName}
+                  selectedPackagePrice={selectedPackagePrice}
+                  selectedPackageCredits={selectedPackageCredits}
+                  selectedServicesCount={selectedServicesCount}
+                  usedCredits={usedCredits}
+                  remainingCredits={remainingCredits}
+                  isPolicyAccepted={isPolicyAccepted}
+                  isBriefCompleted={isBriefCompleted}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Main Step / Page Content */}
         <div className={cn("flex-1 p-3.5 sm:p-4 lg:p-5 w-full mx-auto relative z-10 max-w-[1200px]", footerActions && "pb-32 sm:pb-36 lg:pb-40")}>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
   FolderKanban,
+  MessageSquare,
   Ticket,
   LogOut,
   Sun,
@@ -204,6 +205,19 @@ export function DashboardProfileDropdown({
             >
               <FolderKanban className="size-4 shrink-0 text-zinc-400 group-hover:text-amber-400 transition-colors" />
               <span>My Projects</span>
+            </Link>
+          }
+        />
+
+        {/* Action 2: Messages */}
+        <DropdownMenuItem
+          render={
+            <Link
+              href="/messages"
+              className="group flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
+            >
+              <MessageSquare className="size-4 shrink-0 text-zinc-400 group-hover:text-amber-400 transition-colors" />
+              <span>Messages</span>
             </Link>
           }
         />

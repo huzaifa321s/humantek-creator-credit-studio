@@ -13,9 +13,18 @@ export function buildProjectRecord(
   opts: { status: ProjectRecord['status']; paymentStatus: ProjectRecord['paymentStatus'] }
 ): ProjectRecord {
   const pkg = quote.package;
+  const pkgCodeMap: Record<string, string> = {
+    'creator-forge': 'FORGE',
+    'studio-momentum': 'MOMENTUM',
+    'signature-collective': 'SIGNATURE',
+    'studio-wallet': 'WALLET',
+  };
+  const pkgCode = pkgCodeMap[pkg.id] || pkg.id.split('-').pop()?.toUpperCase() || 'STUDIO';
+  const randomDigits = Math.floor(1000 + Math.random() * 9000);
+
   return {
     id: request.projectId,
-    projectCode: `HT-${Date.now().toString(36).toUpperCase()}-${pkg.id.substring(0, 5).toUpperCase()}`,
+    projectCode: `HT-${randomDigits}-${pkgCode}`,
     packageId: pkg.id,
     packageName: pkg.name,
     packagePrice: quote.priceUSD,
