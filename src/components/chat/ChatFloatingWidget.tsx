@@ -239,7 +239,7 @@ export function ChatFloatingWidget() {
                 className={cn(
                   'border-r border-border/80 flex flex-col transition-all duration-200 z-10',
                   isSidebarOpen
-                    ? 'w-full sm:w-[265px] md:w-[275px] shrink-0 flex'
+                    ? 'w-full sm:w-[235px] md:w-[245px] shrink-0 flex'
                     : 'hidden sm:hidden'
                 )}
               >

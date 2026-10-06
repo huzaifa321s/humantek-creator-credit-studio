@@ -129,9 +129,9 @@ export function ChatFullView() {
       {/* Main 2-Column Chat Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ========================================================= */}
-        {/* LEFT COLUMN: PROJECT DIRECTORY & ASSETS (lg:col-span-4)   */}
+        {/* LEFT COLUMN: PROJECT DIRECTORY & ASSETS                   */}
         {/* ========================================================= */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 xl:col-span-3 space-y-4">
           {/* Producer Profile Card */}
           <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
             <div className="flex items-start gap-3.5">
@@ -262,9 +262,9 @@ export function ChatFullView() {
         </div>
 
         {/* ========================================================= */}
-        {/* RIGHT COLUMN: CHAT STREAM (lg:col-span-8)                 */}
+        {/* RIGHT COLUMN: CHAT STREAM                                 */}
         {/* ========================================================= */}
-        <div className="lg:col-span-8">
+        <div className="lg:col-span-8 xl:col-span-9">
           <Card className="rounded-xl border border-border/80 bg-card shadow-sm flex flex-col gap-0 py-0 h-[740px] max-h-[85vh] overflow-hidden">
             {/* Chat Pane Header */}
             {isGlobal ? (

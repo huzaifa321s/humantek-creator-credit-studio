@@ -67,6 +67,7 @@ export const useUserStore = create<UserStoreState>()(
           },
         }),
       addCredits: (amount: number, _description?: string) => {
+        void _description;
         if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) return;
         set((state) => ({
           user: {
@@ -76,6 +77,7 @@ export const useUserStore = create<UserStoreState>()(
         }));
       },
       deductCredits: (amount: number, _description?: string) => {
+        void _description;
         if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) return true;
         const currentBalance = get().user.walletBalance || 0;
         if (currentBalance < amount) return false;

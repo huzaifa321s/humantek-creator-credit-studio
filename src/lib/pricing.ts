@@ -67,7 +67,6 @@ export function computeOrderQuote(input: OrderInput): QuoteResult {
     input.fundingSource === 'wallet' ||
     input.packageId === 'studio-wallet' ||
     input.packageId === 'wallet';
-  const fundingSource: 'wallet' | 'package' = isWallet ? 'wallet' : 'package';
 
   let pkg: PackageDefinition;
 
