@@ -43,7 +43,10 @@ import {
   Wallet,
 } from 'lucide-react';
 
+import { useUserStore } from '@/lib/userStore';
+
 export default function RedeemCodePage() {
+  const { user, addCredits } = useUserStore();
   const [tab, setTab] = useState('redeem');
 
   // Generator State
@@ -77,18 +80,27 @@ export default function RedeemCodePage() {
 
   const handleRedeem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!redeemCode || redeemCode.length < 6) {
-      toast.error('Please enter a valid 6-character voucher code');
+    const cleanCode = (redeemCode || '').trim().toUpperCase();
+    if (!cleanCode || cleanCode.length < 4) {
+      toast.error('Please enter a valid voucher or promo pass code');
       return;
     }
 
     setIsRedeeming(true);
     setTimeout(() => {
       setIsRedeeming(false);
-      const simulatedCredits = 150;
-      setRedeemedAmount(simulatedCredits);
-      toast.success(`Success! Voucher redeemed for ${simulatedCredits} CR added to your wallet.`);
-    }, 700);
+      // Determine credit amount from code (e.g. HT-200CR-ABCD -> 200, LAUNCH150 -> 150, or default 150)
+      const match = cleanCode.match(/(\d+)\s*(?:CR)?/i);
+      const parsedAmount = match ? parseInt(match[1], 10) : 150;
+      const creditAmount = !isNaN(parsedAmount) && parsedAmount > 0 && parsedAmount <= 5000 ? parsedAmount : 150;
+
+      addCredits(creditAmount, `Redeemed promo pass ${cleanCode}`);
+      const newBal = useUserStore.getState().user.walletBalance || 0;
+
+      setRedeemedAmount(creditAmount);
+      setRedeemCode('');
+      toast.success(`Success! ${creditAmount} CR deposited into your Studio Wallet. New balance: ${newBal} CR.`);
+    }, 600);
   };
 
   return (

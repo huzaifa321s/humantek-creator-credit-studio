@@ -22,6 +22,13 @@ import {
 } from '@/components/ui/breadcrumb';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Kbd } from '@/components/ui/kbd';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
+import { badgeVariants } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
 import { DashboardSearchDialog } from './DashboardSearchDialog';
@@ -158,48 +165,63 @@ export function DashboardHeader({
         {/* =================================================================== */}
         <div className="flex items-center justify-center flex-1 px-2 sm:px-4 max-w-sm mx-auto">
           {/* Desktop & Tablet Search Bar Pill */}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setSearchOpen(true)}
-            className="hidden sm:flex items-center justify-between gap-2 px-3 py-1.5 rounded-md border border-zinc-700/70 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-600 text-zinc-300 hover:text-white transition-all cursor-pointer w-full max-w-64 shadow-2xs text-xs select-none"
+            className="hidden sm:flex items-center justify-between gap-2.5 h-8 px-3 rounded-lg border-zinc-700/70 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-600 text-zinc-300 hover:text-white transition-all cursor-pointer w-full max-w-64 shadow-2xs text-xs select-none font-normal"
           >
             <div className="flex items-center gap-2 truncate">
-              <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <Search className="size-3.5 text-zinc-400 shrink-0" />
               <span className="truncate text-xs font-medium text-zinc-300">Type to search...</span>
             </div>
-            <span className="inline-flex items-center justify-center font-mono rounded bg-zinc-950 border border-zinc-700/80 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400 shrink-0">
+            <Kbd className="bg-zinc-950 border border-zinc-700/80 text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 h-4.5 rounded shadow-2xs">
               ⌘K
-            </span>
-          </button>
+            </Kbd>
+          </Button>
 
           {/* Mobile Search Icon Button */}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => setSearchOpen(true)}
             aria-label="Search"
-            className="sm:hidden p-1.5 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
+            className="sm:hidden size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
           >
-            <Search className="w-4 h-4" />
-          </button>
+            <Search className="size-4" />
+          </Button>
         </div>
 
         {/* =================================================================== */}
         {/* Right Section: Producer Chat, Notifications, Balance & User Profile */}
         {/* =================================================================== */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Quick Producer Chat Trigger Button */}
-          <button
-            type="button"
-            onClick={() => setChatOpen(true)}
-            title="Chat with Producer"
-            aria-label="Chat with Producer"
-            className="relative inline-flex items-center justify-center size-8 rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
-          >
-            <MessageSquare className="w-4 h-4 fill-amber-500/20 text-amber-400" />
-            {totalUnreadChat > 0 ? (
-              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-400 ring-2 ring-zinc-950 animate-pulse" />
-            ) : null}
-          </button>
+          {/* Quick Producer Chat Trigger with Reusable Tooltip */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setChatOpen(true)}
+                  aria-label="Chat with Producer"
+                  className="group relative size-8 rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
+                />
+              }
+            >
+              <MessageSquare className="size-4 fill-amber-500/20 text-amber-400 group-hover:scale-105 transition-transform" />
+              {totalUnreadChat > 0 ? (
+                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-400 ring-2 ring-zinc-950 animate-pulse" />
+              ) : null}
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="font-semibold text-white">Producer Desk</p>
+              <p className="text-zinc-400 text-3xs">Instant chat with lead producer</p>
+            </TooltipContent>
+          </Tooltip>
 
           {/* Notification Popover Dropdown */}
           <DashboardNotificationDropdown />
@@ -208,11 +230,14 @@ export function DashboardHeader({
           <Link
             href="/redeem-code"
             title="View balance and redeem credits"
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 transition-colors text-xs font-semibold select-none shadow-2xs cursor-pointer"
+            className={cn(
+              badgeVariants({ variant: 'gold', size: 'default' }),
+              'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
+            )}
           >
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <Coins className="size-3.5 text-amber-400 shrink-0" />
             <span className="text-zinc-300 font-medium text-xs">Balance:</span>
-            <span className="text-amber-300 font-bold">{effectiveBalance} CR</span>
+            <span className="text-amber-300 font-bold tracking-tight">{effectiveBalance} CR</span>
           </Link>
 
           {/* Optional Top-Right Action Badge (e.g. New Asset Request or Active Package) */}

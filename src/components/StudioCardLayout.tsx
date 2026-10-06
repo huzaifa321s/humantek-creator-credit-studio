@@ -90,7 +90,7 @@ export function StudioCardLayout({
   onBack,
   backLabel = 'Back',
   showBack = true,
-  walletBalance = 0,
+  walletBalance,
   userEmail = null,
   topRightBadge,
   footerActions,
@@ -124,7 +124,7 @@ export function StudioCardLayout({
   const effectiveName = user.name;
   const effectiveEmail = userEmail || user.email;
   const effectiveBalance =
-    walletBalance !== undefined && walletBalance > 0
+    walletBalance !== undefined
       ? walletBalance
       : user.walletBalance;
 

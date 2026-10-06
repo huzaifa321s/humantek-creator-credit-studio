@@ -12,6 +12,8 @@ import {
   Sun,
   Moon,
   Laptop,
+  Coins,
+  ChevronRight,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -20,8 +22,18 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AvatarBadge,
+} from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { IconTile } from '@/components/reui/icon-tile';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
+import { cn } from '@/lib/utils';
 
 interface DashboardProfileDropdownProps {
   userEmail?: string | null;
@@ -68,6 +80,7 @@ function CharacterAvatar({ className }: { className?: string }) {
 export function DashboardProfileDropdown({
   userEmail,
   userName,
+  walletBalance,
 }: DashboardProfileDropdownProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -83,6 +96,10 @@ export function DashboardProfileDropdown({
 
   const effectiveName = userName || user.name;
   const effectiveEmail = userEmail || user.email;
+  const effectiveBalance =
+    walletBalance !== undefined && walletBalance !== null
+      ? walletBalance
+      : user.walletBalance;
 
   const handleSignOut = () => {
     signOut();
@@ -92,33 +109,71 @@ export function DashboardProfileDropdown({
   return (
     <DropdownMenu>
       {/* =================================================================== */}
-      {/* 1. Circular Avatar Trigger Button (Shadcn Studio Avatar)            */}
+      {/* 1. Reusable Avatar Trigger with Online Status Badge                 */}
       {/* =================================================================== */}
       <DropdownMenuTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             aria-label="User Account Menu"
-            className="group relative size-8.5 rounded-full overflow-hidden border border-white/15 bg-zinc-900 hover:border-white/30 hover:ring-2 hover:ring-amber-500/30 transition-all cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 shrink-0"
+            className="relative size-8.5 rounded-full p-0 border border-white/15 bg-zinc-900 hover:border-white/30 hover:ring-2 hover:ring-amber-500/30 focus-visible:ring-2 focus-visible:ring-amber-500/50 cursor-pointer select-none transition-all shrink-0"
           />
         }
       >
-        <CharacterAvatar className="size-full object-cover" />
+        <Avatar size="default" className="size-8.5 ring-1 ring-white/10 hover:ring-amber-500/40 transition-all">
+          <AvatarFallback className="bg-zinc-800 text-zinc-100 font-bold text-xs p-0 overflow-hidden">
+            <CharacterAvatar className="size-full object-cover" />
+          </AvatarFallback>
+          <AvatarBadge className="bg-emerald-500 ring-2 ring-zinc-950 size-2.5" />
+        </Avatar>
       </DropdownMenuTrigger>
 
       {/* =================================================================== */}
-      {/* 2. Dropdown Menu Content (240px, rounded-xl, 36px rows, p-1)        */}
+      {/* 2. Dropdown Menu Content (256px, rounded-xl, design system styled)  */}
       {/* =================================================================== */}
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="dark w-60 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1 shadow-xl ring-1 ring-white/10"
+        className="dark w-64 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1.5 shadow-2xl ring-1 ring-white/10"
       >
-        {/* Identity Block: 14px semibold name, 12px muted email */}
-        <div className="px-2.5 py-2 select-none">
-          <p className="text-sm font-semibold leading-none text-zinc-100 truncate">{effectiveName}</p>
-          <p className="mt-1 text-xs text-zinc-400 truncate">{effectiveEmail}</p>
+        {/* Identity Block: Reusable Avatar, Client Badge, Name & Email */}
+        <div className="flex items-center gap-2.5 p-2 select-none rounded-lg bg-white/3 border border-white/5 mb-1">
+          <Avatar size="default" className="size-9 shrink-0 ring-1 ring-white/15">
+            <AvatarFallback className="bg-zinc-800 text-zinc-100 font-semibold text-xs p-0 overflow-hidden">
+              <CharacterAvatar className="size-full object-cover" />
+            </AvatarFallback>
+            <AvatarBadge className="bg-emerald-500 ring-2 ring-zinc-950 size-2" />
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-xs font-semibold text-zinc-100 truncate">{effectiveName}</span>
+              <Badge variant="gold" size="xs" className="font-bold text-[9px] uppercase px-1.5 py-0 border-amber-500/30">
+                CLIENT
+              </Badge>
+            </div>
+            <p className="text-2xs text-zinc-400 truncate mt-0.5">{effectiveEmail}</p>
+          </div>
         </div>
+
+        {/* Studio Credit Balance Quick View */}
+        <DropdownMenuItem
+          render={
+            <Link
+              href="/redeem-code"
+              className="group flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-xs my-0.5 transition-colors cursor-pointer w-full outline-none"
+            >
+              <div className="flex items-center gap-1.5 text-amber-300 font-medium">
+                <Coins className="size-3.5 text-amber-400" />
+                <span className="text-2xs">Studio Credits</span>
+              </div>
+              <Badge variant="gold-solid" size="xs" className="font-bold tracking-tight">
+                {effectiveBalance} CR
+              </Badge>
+            </Link>
+          }
+        />
 
         {/* Separator 1 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
@@ -128,27 +183,44 @@ export function DashboardProfileDropdown({
           render={
             <Link
               href="/projects"
-              className="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-zinc-200 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
+              className="group flex h-9 items-center justify-between rounded-lg px-2 text-xs font-medium text-zinc-200 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
             >
-              <FolderKanban className="size-4 text-zinc-400 group-hover:text-zinc-200 transition-colors shrink-0" />
-              <span>Your Projects</span>
+              <div className="flex items-center gap-2.5">
+                <IconTile
+                  variant="outline"
+                  size="xs"
+                  className="size-6 text-zinc-400 group-hover:text-amber-400 group-hover:border-amber-500/30 border-white/10 bg-white/5 transition-colors"
+                >
+                  <FolderKanban className="size-3.5" />
+                </IconTile>
+                <span>Your Projects</span>
+              </div>
+              <ChevronRight className="size-3 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
             </Link>
           }
         />
 
         {/* Action 2: Chat with Producer */}
         <DropdownMenuItem
-          className="group flex h-9 items-center justify-between rounded-lg px-2.5 text-sm font-medium text-zinc-200 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
+          className="group flex h-9 items-center justify-between rounded-lg px-2 text-xs font-medium text-zinc-200 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
           onClick={() => setChatOpen(true)}
         >
           <div className="flex items-center gap-2.5">
-            <MessageSquare className="size-4 text-zinc-400 group-hover:text-zinc-200 transition-colors shrink-0" />
+            <IconTile
+              variant="outline"
+              size="xs"
+              className="size-6 text-zinc-400 group-hover:text-amber-400 group-hover:border-amber-500/30 border-white/10 bg-white/5 transition-colors"
+            >
+              <MessageSquare className="size-3.5" />
+            </IconTile>
             <span>Chat with Producer</span>
           </div>
-          {totalUnreadChat > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-zinc-950 text-3xs font-bold">
+          {totalUnreadChat > 0 ? (
+            <Badge variant="gold" size="xs" className="font-bold border-amber-500/40">
               {totalUnreadChat}
-            </span>
+            </Badge>
+          ) : (
+            <ChevronRight className="size-3 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
           )}
         </DropdownMenuItem>
 
@@ -157,10 +229,19 @@ export function DashboardProfileDropdown({
           render={
             <Link
               href="/redeem-code"
-              className="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-zinc-200 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
+              className="group flex h-9 items-center justify-between rounded-lg px-2 text-xs font-medium text-zinc-200 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
             >
-              <Ticket className="size-4 text-zinc-400 group-hover:text-zinc-200 transition-colors shrink-0" />
-              <span>Credits & Promo</span>
+              <div className="flex items-center gap-2.5">
+                <IconTile
+                  variant="outline"
+                  size="xs"
+                  className="size-6 text-zinc-400 group-hover:text-amber-400 group-hover:border-amber-500/30 border-white/10 bg-white/5 transition-colors"
+                >
+                  <Ticket className="size-3.5" />
+                </IconTile>
+                <span>Credits & Promo</span>
+              </div>
+              <ChevronRight className="size-3 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
             </Link>
           }
         />
@@ -168,61 +249,76 @@ export function DashboardProfileDropdown({
         {/* Separator 2 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
-        {/* Action 4: Compact Inline Theme Switcher (28px buttons, 16px icons) */}
-        <div className="flex h-9 items-center justify-between px-2.5 text-sm font-medium text-zinc-200 select-none">
-          <span>Theme</span>
-          <div className="flex items-center gap-0.5 bg-white/5 p-0.5 rounded-lg border border-white/10">
-            <button
+        {/* Action 4: Compact Theme Switcher with Reusable Buttons */}
+        <div className="flex h-9 items-center justify-between px-2 text-xs font-medium text-zinc-200 select-none">
+          <span className="text-zinc-300">Theme</span>
+          <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10">
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={() => setTheme('light')}
-              className={`size-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+              className={cn(
+                'size-6 rounded-md transition-all cursor-pointer',
                 mounted && theme === 'light'
-                  ? 'bg-white/10 text-amber-400 font-semibold shadow-2xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
+                  ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+              )}
               title="Light theme"
               aria-label="Light theme"
             >
-              <Sun className="size-4 shrink-0" />
-            </button>
-            <button
+              <Sun className="size-3.5 shrink-0" />
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={() => setTheme('dark')}
-              className={`size-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+              className={cn(
+                'size-6 rounded-md transition-all cursor-pointer',
                 mounted && theme === 'dark'
-                  ? 'bg-white/10 text-amber-400 font-semibold shadow-2xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
+                  ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+              )}
               title="Dark theme"
               aria-label="Dark theme"
             >
-              <Moon className="size-4 shrink-0" />
-            </button>
-            <button
+              <Moon className="size-3.5 shrink-0" />
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={() => setTheme('system')}
-              className={`size-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+              className={cn(
+                'size-6 rounded-md transition-all cursor-pointer',
                 mounted && theme === 'system'
-                  ? 'bg-white/10 text-amber-400 font-semibold shadow-2xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
+                  ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+              )}
               title="System theme"
               aria-label="System theme"
             >
-              <Laptop className="size-4 shrink-0" />
-            </button>
+              <Laptop className="size-3.5 shrink-0" />
+            </Button>
           </div>
         </div>
 
         {/* Separator 3 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
-        {/* Action 5: Sign out (Neutral idle, destructive red only on hover) */}
+        {/* Action 5: Sign out with Destructive Reusable Hover */}
         <DropdownMenuItem
-          className="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-zinc-300 hover:text-red-400 hover:bg-red-500/10 focus-visible:bg-red-500/10 focus-visible:text-red-400 cursor-pointer transition-colors outline-none w-full"
+          className="group flex h-9 items-center gap-2.5 rounded-lg px-2 text-xs font-medium text-zinc-300 hover:text-red-400 hover:bg-red-500/10 focus-visible:bg-red-500/10 focus-visible:text-red-400 cursor-pointer transition-colors outline-none w-full"
           onClick={handleSignOut}
         >
-          <LogOut className="size-4 text-zinc-400 group-hover:text-red-400 transition-colors shrink-0" />
+          <IconTile
+            variant="outline"
+            size="xs"
+            className="size-6 text-zinc-400 group-hover:text-red-400 group-hover:border-red-500/30 border-white/10 bg-white/5 transition-colors"
+          >
+            <LogOut className="size-3.5" />
+          </IconTile>
           <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

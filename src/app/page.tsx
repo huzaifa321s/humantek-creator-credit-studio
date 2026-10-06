@@ -169,8 +169,12 @@ import {
   Wand2,
   Tv,
   MessageSquare,
+  Wallet,
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { useStudioChat } from '@/lib/chatStore';
+import { useUserStore } from '@/lib/userStore';
+import { STUDIO_WALLET_PACKAGE } from '@/lib/pricing';
 
 function getServiceIcon(serviceId: string, category: string) {
   switch (serviceId) {
@@ -281,6 +285,10 @@ const CORE_RESTRICTED_ITEMS = [
 type PriceFilterType = (typeof PRICE_FILTER_OPTIONS)[number]['id'];
 
 export default function CreatorStudioPage() {
+  // User store & global credit wallet
+  const { user, addCredits, deductCredits } = useUserStore();
+  const [fundingSource, setFundingSource] = useState<'wallet' | 'package'>('package');
+
   // Navigation & Step state
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPackageId, setSelectedPackageId] = useState('');
@@ -324,7 +332,17 @@ export default function CreatorStudioPage() {
   const [submittedProject, setSubmittedProject] = useState<ProjectRecord | null>(null);
 
   // Derived package & credit calculations
-  const currentPackage = PACKAGES.find((p) => p.id === selectedPackageId);
+  const isWalletFunding = fundingSource === 'wallet' || selectedPackageId === 'studio-wallet';
+
+  const currentPackage = useMemo(() => {
+    if (isWalletFunding) {
+      return {
+        ...STUDIO_WALLET_PACKAGE,
+        credits: user.walletBalance,
+      };
+    }
+    return PACKAGES.find((p) => p.id === selectedPackageId);
+  }, [isWalletFunding, selectedPackageId, user.walletBalance]);
 
   const selectedEntries: SelectedServiceEntry[] = Object.entries(selections).flatMap(
     ([serviceId, choice]) => {
@@ -354,6 +372,7 @@ export default function CreatorStudioPage() {
 
   // Tier limit violations
   const isTierRestricted = Boolean(
+    !isWalletFunding &&
     currentPackage &&
     ((currentPackage.standardLimit !== undefined && standardUnits > currentPackage.standardLimit) ||
       (currentPackage.eliteLimit !== undefined && eliteUnits > currentPackage.eliteLimit))
@@ -374,7 +393,7 @@ export default function CreatorStudioPage() {
   });
 
   // Form validity for steps
-  const isStep1Valid = Boolean(selectedPackageId);
+  const isStep1Valid = isWalletFunding ? user.walletBalance > 0 : Boolean(selectedPackageId);
   const isStep2Valid = selectedEntries.length > 0 && remainingCredits >= 0 && !isTierRestricted;
   const isStep3Valid = policyAccepted;
   const isStep4Valid = brief.isValid && termsAccepted;
@@ -425,8 +444,9 @@ export default function CreatorStudioPage() {
   }, [activeCategory, selections, priceFilter]);
 
   const handleUpgradePackage = (packageId: string) => {
+    setFundingSource('package');
     setSelectedPackageId(packageId);
-    toast.success('Package updated to support your credit scope');
+    toast.success('Switched to package to support your credit scope');
   };
 
   // Navigation handlers
@@ -440,13 +460,15 @@ export default function CreatorStudioPage() {
         if (validity[s - 1]) continue;
 
         if (s === 1) {
-          toast.error('Please choose a package to continue.');
+          toast.error('Please choose a package or use your Studio Wallet balance to continue.');
         } else if (s === 2) {
           if (selectedEntries.length === 0) {
             toast.error('Please select at least one creative service to continue.');
           } else if (remainingCredits < 0) {
             toast.error(
-              `Credit budget exceeded by ${Math.abs(remainingCredits)} CR. Adjust your scope or upgrade package.`
+              isWalletFunding
+                ? `Studio Wallet balance exceeded by ${Math.abs(remainingCredits)} CR. Adjust your scope or select a package.`
+                : `Credit budget exceeded by ${Math.abs(remainingCredits)} CR. Adjust your scope or upgrade package.`
             );
           } else if (isTierRestricted) {
             if (currentPackage?.standardLimit !== undefined && standardUnits > currentPackage.standardLimit) {
@@ -484,7 +506,20 @@ export default function CreatorStudioPage() {
     setCurrentStep(target);
   };
 
+  const handleSelectWallet = () => {
+    setFundingSource('wallet');
+    setSelectedPackageId('studio-wallet');
+    setSelections({});
+    setAdditions([]);
+    setPriceFilter('all');
+    setPolicyAccepted(false);
+    setOpenPolicyAccordion(['revisions']);
+    setShowAllRestricted(false);
+    setTermsAccepted(false);
+  };
+
   const handleSelectPackage = (packageId: string) => {
+    setFundingSource('package');
     setSelectedPackageId(packageId);
     setSelections({});
     setAdditions([]);
@@ -613,7 +648,9 @@ export default function CreatorStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
-          packageId: currentPackage.id,
+          packageId: isWalletFunding ? 'studio-wallet' : currentPackage.id,
+          fundingSource: isWalletFunding ? 'wallet' : 'package',
+          walletBalance: user.walletBalance,
           selections: selectedEntries.map((e) => ({
             id: e.service.id,
             name: e.service.name,
@@ -658,6 +695,76 @@ export default function CreatorStudioPage() {
     }
   };
 
+  const handleLaunchWithWallet = async () => {
+    if (!currentPackage) return;
+    if (user.walletBalance < usedCredits) {
+      toast.error(`Insufficient credits. You need ${usedCredits} CR but only have ${user.walletBalance} CR.`);
+      return;
+    }
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          packageId: 'studio-wallet',
+          fundingSource: 'wallet',
+          walletBalance: user.walletBalance,
+          selections: selectedEntries.map((e) => ({
+            id: e.service.id,
+            name: e.service.name,
+            level: e.choice.level,
+            quantity: e.choice.quantity,
+            credits: e.credits,
+          })),
+          additions,
+          clientName,
+          channelName,
+          email,
+          platform,
+          style,
+          colors,
+          instructions,
+          redeemCode: redeemCodeAttached ? redeemCodeInput : '',
+          uploadedFiles,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit request');
+
+      deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
+
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+      });
+
+      setSubmittedProject(data.project);
+      registerProject({
+        id: data.project.id,
+        projectCode: data.project.projectCode,
+        packageName: data.project.packageName,
+        clientName: data.project.clientName,
+        status: data.project.status,
+        price: data.project.packagePrice,
+        credits: data.project.packageCredits,
+      });
+
+      toast.success(`Success! Project launched instantly with ${usedCredits} Studio Wallet credits.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Submission failed';
+      setErrorMessage(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Determine top right badge on header
   const headerBadge = currentPackage ? (
     <div className="flex items-center gap-2 px-3 h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-xs font-medium shadow-2xs select-none">
@@ -690,7 +797,7 @@ export default function CreatorStudioPage() {
             </Button>
           ) : (
             <span className="text-xs text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
-              {selectedPackageId && currentPackage ? (
+              {currentPackage && isStep1Valid ? (
                 <>
                   <Check className="size-3.5 text-emerald-600 inline shrink-0" />
                   <span className="text-foreground font-semibold">{currentPackage.name}</span>
@@ -699,7 +806,7 @@ export default function CreatorStudioPage() {
               ) : (
                 <>
                   <Coins className="size-3.5 text-amber-600 inline shrink-0" />
-                  <span>Select a package above to continue</span>
+                  <span>Choose your Studio Wallet or a package to continue</span>
                 </>
               )}
             </span>
@@ -712,7 +819,7 @@ export default function CreatorStudioPage() {
             <div className="flex items-center gap-2.5">
               {!isStep1Valid && (
                 <span className="text-xs text-muted-foreground hidden md:inline">
-                  Select a package to continue
+                  Select wallet or package to continue
                 </span>
               )}
               <Button
@@ -721,7 +828,7 @@ export default function CreatorStudioPage() {
                 size="default"
                 disabled={!isStep1Valid}
                 onClick={() => goToStep(2)}
-                title={!isStep1Valid ? 'Select a package to continue' : 'Continue to Step 2: Pick your services'}
+                title={!isStep1Valid ? 'Select wallet or package to continue' : 'Continue to Step 2: Pick your services'}
                 className={cn('font-semibold px-6 gap-2', !isStep1Valid && 'opacity-60 cursor-not-allowed')}
               >
                 <span>Next</span>
@@ -781,7 +888,7 @@ export default function CreatorStudioPage() {
       mode="wizard"
       currentStep={currentStep}
       onSelectStep={goToStep}
-      isPackageSelected={Boolean(selectedPackageId)}
+      isPackageSelected={isStep1Valid}
       selectedPackageName={currentPackage?.name}
       selectedPackagePrice={currentPackage?.price}
       selectedPackageCredits={currentPackage?.credits}
@@ -790,13 +897,12 @@ export default function CreatorStudioPage() {
       remainingCredits={remainingCredits}
       isPolicyAccepted={policyAccepted}
       isBriefCompleted={brief.isValid && termsAccepted}
-      walletBalance={remainingCredits >= 0 ? remainingCredits : 0}
       userEmail={email || null}
       topRightBadge={headerBadge}
       footerActions={renderFooterActions()}
     >
       {/* ============================================================ */}
-      {/* STEP 1: CHOOSE A PACKAGE                                     */}
+      {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}
       {/* ============================================================ */}
       {currentStep === 1 && (
         <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
@@ -804,20 +910,115 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                1 OF 5 · CHOOSE A PACKAGE
+                1 OF 5 · FUNDING SOURCE &amp; PACKAGE SELECTION
               </div>
               <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
-                Start with the right credit wallet.
+                Choose how to fund your creative project.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Pick a package to get your credits. You&apos;ll see your balance update as you build your project.
+                Fund instantly with your Studio Wallet balance ($0 USD checkout) or purchase a new package with permanent credit rollover.
               </p>
             </div>
-
           </div>
 
           {/* ReUI Standardized Announcement & Status Banner */}
           <StudioNoticeBanner type="step1-scope" />
+
+          {/* Dedicated Option: Use Global Studio Wallet Balance */}
+          {user.walletBalance > 0 && (
+            <Card
+              onClick={handleSelectWallet}
+              className={cn(
+                'relative flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 rounded-xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs gap-4',
+                selectedPackageId === 'studio-wallet'
+                  ? 'border-2 border-emerald-500 bg-emerald-500/[0.06] dark:bg-emerald-950/20 shadow-md ring-2 ring-emerald-500/20'
+                  : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
+              )}
+            >
+              <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                <div
+                  className={cn(
+                    'size-11 sm:size-12 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors',
+                    selectedPackageId === 'studio-wallet'
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                  )}
+                >
+                  <Wallet className="size-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      variant={selectedPackageId === 'studio-wallet' ? 'default' : 'secondary'}
+                      className={cn(
+                        'text-[10px] py-0 px-2 font-bold uppercase tracking-wider',
+                        selectedPackageId === 'studio-wallet' && 'bg-emerald-600 hover:bg-emerald-600 text-white'
+                      )}
+                    >
+                      Studio Account Wallet
+                    </Badge>
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                      0 USD Checkout
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-foreground leading-tight">
+                    Use Existing Studio Wallet Balance
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Your Available Balance: <strong className="text-foreground">{user.walletBalance} CR</strong> · Ready to deploy your project with $0.00 USD checkout. Leftover balance rolls over automatically.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0 self-stretch sm:self-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-border/60">
+                <div className="text-left sm:text-right">
+                  <div className="flex items-baseline sm:justify-end gap-1">
+                    <span className="text-xl sm:text-2xl font-black text-foreground">
+                      {user.walletBalance}
+                    </span>
+                    <span className="text-xs font-bold text-muted-foreground">CR Available</span>
+                  </div>
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block">
+                    $0.00 USD Due
+                  </span>
+                </div>
+
+                <Button
+                  type="button"
+                  variant={selectedPackageId === 'studio-wallet' ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn(
+                    'text-xs font-semibold gap-1.5 h-9 px-4 rounded-lg cursor-pointer transition-colors',
+                    selectedPackageId === 'studio-wallet'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                      : 'border-border hover:bg-secondary text-foreground'
+                  )}
+                >
+                  {selectedPackageId === 'studio-wallet' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Selected
+                    </>
+                  ) : (
+                    'Use Wallet Balance'
+                  )}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {user.walletBalance > 0 && (
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/80" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-3 font-bold tracking-wider text-muted-foreground">
+                  Or purchase a package to top up credits
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Centered 3 Compact Package Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 items-stretch">
@@ -996,10 +1197,43 @@ export default function CreatorStudioPage() {
                 onClick={() => goToStep(1)}
                 className="text-xs font-semibold rounded-xl h-9 cursor-pointer"
               >
-                Change Package
+                {isWalletFunding ? 'Switch Funding Mode' : 'Change Package'}
               </Button>
             </div>
           </div>
+
+          {/* Dynamic Budget Gauge Banner */}
+          <StudioNoticeBanner
+            type="step2-package"
+            packageName={currentPackage.name}
+            totalCredits={currentPackage.credits}
+            usedCredits={usedCredits}
+            selectedCount={selectedEntries.length}
+            extrasCount={additions.length}
+          />
+
+          {isWalletFunding && remainingCredits < 0 && (
+            <Alert variant="warning" className="rounded-xl border-amber-500/30 bg-amber-500/10">
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <AlertTitle className="text-xs sm:text-sm font-bold text-foreground">
+                Wallet Budget Exceeded by {Math.abs(remainingCredits)} CR
+              </AlertTitle>
+              <AlertDescription className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
+                <span>
+                  Your active Studio Wallet balance is <strong>{user.walletBalance} CR</strong>, but your selected scope requires <strong>{usedCredits} CR</strong>. Adjust your services or choose a package to fund the difference.
+                </span>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleUpgradePackage('creator-forge')}
+                  className="shrink-0 text-xs font-semibold h-8 rounded-lg cursor-pointer"
+                >
+                  Top Up with Creator Forge (660 CR)
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* 2-Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
@@ -2551,77 +2785,162 @@ export default function CreatorStudioPage() {
                   <Card className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-5">
                     <div>
                       <h3 className="text-base sm:text-lg font-bold text-foreground">
-                        Secure Studio Checkout
+                        {isWalletFunding ? 'Wallet Credit Settlement' : 'Secure Studio Checkout'}
                       </h3>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                        Pay with PayPal, credit/debit card, or submit for agency invoice.
+                        {isWalletFunding
+                          ? 'Settle project scope instantly using your active Studio Credit balance ($0.00 USD).'
+                          : 'Pay with PayPal, credit/debit card, or submit for agency invoice.'}
                       </p>
                     </div>
 
                     {/* Order Line-Item Breakdown */}
                     <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/60 space-y-2 text-xs">
-                      <div className="flex items-center justify-between text-muted-foreground">
-                        <span>{currentPackage.name} Base Package</span>
-                        <span className="font-semibold text-foreground">${currentPackage.price.toLocaleString()} USD</span>
-                      </div>
-                      {redeemCodeAttached && (
-                        <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                          <span>Voucher Applied: {redeemCodeInput}</span>
-                          <span>Active</span>
-                        </div>
+                      {isWalletFunding ? (
+                        <>
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>Funding Source</span>
+                            <span className="font-semibold text-foreground flex items-center gap-1.5">
+                              <Wallet className="w-3.5 h-3.5 text-amber-500" /> Global Studio Wallet
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>Current Available Balance</span>
+                            <span className="font-semibold text-foreground">{user.walletBalance} CR</span>
+                          </div>
+                          <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
+                            <span>Service Scope Total</span>
+                            <span>{usedCredits} CR</span>
+                          </div>
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>Wallet Deduction</span>
+                            <span className="font-semibold text-foreground">-{usedCredits} CR</span>
+                          </div>
+                          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span>Remaining Balance After Launch</span>
+                            <span>{Math.max(0, user.walletBalance - usedCredits)} CR</span>
+                          </div>
+                          <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
+                            <span>Total Due Today</span>
+                            <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              $0.00 USD
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>{currentPackage.name} Base Package</span>
+                            <span className="font-semibold text-foreground">${currentPackage.price.toLocaleString()} USD</span>
+                          </div>
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>Package Allocation</span>
+                            <span className="font-semibold text-foreground">{currentPackage.credits} CR</span>
+                          </div>
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>Service Scope Used</span>
+                            <span className="font-semibold text-foreground">{usedCredits} CR</span>
+                          </div>
+                          {currentPackage.credits > usedCredits && (
+                            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span>Rollover to Global Wallet</span>
+                              <span>+{currentPackage.credits - usedCredits} CR</span>
+                            </div>
+                          )}
+                          {redeemCodeAttached && (
+                            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span>Voucher Applied: {redeemCodeInput}</span>
+                              <span>Active</span>
+                            </div>
+                          )}
+                          <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
+                            <span>Total Due</span>
+                            <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                              ${currentPackage.price.toLocaleString()} USD
+                            </span>
+                          </div>
+                        </>
                       )}
-                      <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
-                        <span>Total Due</span>
-                        <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
-                          ${currentPackage.price.toLocaleString()} USD
-                        </span>
-                      </div>
                     </div>
 
-                    {/* PayPal Payment Action */}
+                    {/* Payment / Wallet Settlement Action */}
                     <div className="space-y-3">
-                      <PayPalButtonWrapper
-                        packageId={currentPackage.id}
-                        packagePrice={currentPackage.price}
-                        projectPayload={{
-                          projectId,
-                          packageId: currentPackage.id,
-                          selections: selectedEntries.map((e) => ({
-                            id: e.service.id,
-                            name: e.service.name,
-                            level: e.choice.level,
-                            quantity: e.choice.quantity,
-                            credits: e.credits,
-                          })),
-                          additions,
-                          clientName,
-                          channelName,
-                          email,
-                          platform,
-                          style,
-                          colors,
-                          instructions,
-                          redeemCode: redeemCodeAttached ? redeemCodeInput : '',
-                          uploadedFiles,
-                        }}
-                        onSuccess={(proj) => {
-                          setSubmittedProject(proj);
-                          registerProject({
-                            id: proj.id,
-                            projectCode: proj.projectCode,
-                            packageName: proj.packageName,
-                            clientName: proj.clientName,
-                            status: proj.status,
-                            price: proj.packagePrice,
-                            credits: proj.packageCredits,
-                          });
-                          toast.success('Payment verified! Project created.');
-                        }}
-                        onError={(err) => {
-                          setErrorMessage(err);
-                          toast.error(err);
-                        }}
-                      />
+                      {isWalletFunding ? (
+                        <div className="space-y-2">
+                          <Button
+                            type="button"
+                            size="lg"
+                            disabled={isSubmitting || user.walletBalance < usedCredits}
+                            onClick={handleLaunchWithWallet}
+                            className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" /> Launching Project...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4" /> Confirm & Launch with {usedCredits} Credits ($0.00 USD)
+                              </>
+                            )}
+                          </Button>
+                          <p className="text-[11px] text-center text-muted-foreground">
+                            Instantly debits {usedCredits} CR from your Studio Wallet. Project moves directly to active production.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <PayPalButtonWrapper
+                            packageId={currentPackage.id}
+                            packagePrice={currentPackage.price}
+                            projectPayload={{
+                              projectId,
+                              packageId: currentPackage.id,
+                              fundingSource: 'package',
+                              walletBalance: user.walletBalance,
+                              selections: selectedEntries.map((e) => ({
+                                id: e.service.id,
+                                name: e.service.name,
+                                level: e.choice.level,
+                                quantity: e.choice.quantity,
+                                credits: e.credits,
+                              })),
+                              additions,
+                              clientName,
+                              channelName,
+                              email,
+                              platform,
+                              style,
+                              colors,
+                              instructions,
+                              redeemCode: redeemCodeAttached ? redeemCodeInput : '',
+                              uploadedFiles,
+                            }}
+                            onSuccess={(proj) => {
+                              setSubmittedProject(proj);
+                              registerProject({
+                                id: proj.id,
+                                projectCode: proj.projectCode,
+                                packageName: proj.packageName,
+                                clientName: proj.clientName,
+                                status: proj.status,
+                                price: proj.packagePrice,
+                                credits: proj.packageCredits,
+                              });
+                              toast.success('Payment verified! Project created.');
+                            }}
+                            onError={(err) => {
+                              setErrorMessage(err);
+                              toast.error(err);
+                            }}
+                          />
+                          {currentPackage.credits > usedCredits && (
+                            <p className="text-[11px] text-center text-emerald-600 dark:text-emerald-400 font-medium">
+                              ★ Any unused credits ({currentPackage.credits - usedCredits} CR) automatically roll over into your Global Studio Wallet!
+                            </p>
+                          )}
+                        </>
+                      )}
                     </div>
 
                     {/* Fallback Review Submission (Alternative Path - Softened Hierarchy) */}

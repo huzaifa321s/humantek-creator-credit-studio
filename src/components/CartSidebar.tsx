@@ -90,8 +90,9 @@ export function CartSidebar({
   onToggleAddition,
   onClearAll,
 }: CartSidebarProps) {
-  const percentage = Math.min(100, Math.round((usedCredits / pack.credits) * 100));
-  const effectiveRate = (pack.price / pack.credits).toFixed(2);
+  const percentage = pack.credits > 0 ? Math.min(100, Math.round((usedCredits / pack.credits) * 100)) : 0;
+  const isWalletFunding = pack.id === 'studio-wallet' || pack.price === 0;
+  const effectiveRate = pack.credits > 0 && pack.price > 0 ? (pack.price / pack.credits).toFixed(2) : '0.00';
   const isOverBudget = remainingCredits < 0;
 
   return (
@@ -103,10 +104,10 @@ export function CartSidebar({
       <div className="p-4 sm:p-5 pb-3 border-b border-border/60 bg-card shrink-0 space-y-3">
         <div className="flex items-center justify-between">
           <Badge variant="gold" className="text-xs tracking-wider uppercase font-bold px-2.5 py-1">
-            Live Credit Wallet
+            {isWalletFunding ? 'Studio Wallet' : 'Live Credit Wallet'}
           </Badge>
           <span className="text-xs sm:text-sm text-muted-foreground font-medium">
-            ${effectiveRate} USD / CR
+            {isWalletFunding ? 'Prepaid Balance' : `$${effectiveRate} USD / CR`}
           </span>
         </div>
 
@@ -114,7 +115,7 @@ export function CartSidebar({
           <div>
             <CreditValue value={pack.credits} size="lg" />
             <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-              {pack.name} · ${pack.price.toLocaleString()} Package
+              {pack.name} · {pack.price > 0 ? `$${pack.price.toLocaleString()} Package` : 'Account Balance ($0 USD Due)'}
             </p>
           </div>
           <div className="text-right">
@@ -376,7 +377,7 @@ export function CartSidebar({
           <p className="text-xs text-muted-foreground text-center">
             {isOverBudget
               ? `Budget exceeded by ${Math.abs(remainingCredits)} CR.`
-              : `${percentage}% of package credits allocated.`}
+              : `${percentage}% of ${isWalletFunding ? 'wallet' : 'package'} credits allocated.`}
           </p>
         </div>
 

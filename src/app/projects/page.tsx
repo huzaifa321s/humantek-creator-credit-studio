@@ -60,7 +60,6 @@ export default function ProjectsPage() {
     <StudioCardLayout
       mode="standalone"
       backLabel="Back to Studio"
-      walletBalance={80}
       topRightBadge={
         <Link href="/">
           <Button variant="default" size="sm" className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer">
@@ -214,81 +213,16 @@ export default function ProjectsPage() {
                   </CardHeader>
 
                   <CardContent className="p-0">
-                    {/* 6-Stage Timeline Tracker */}
+                    {/* 6-Stage Production Pipeline Tracker (Reusable Horizontal Stepper with Interactive Tooltips) */}
                     <div className="p-5 sm:p-6 bg-secondary/25">
-                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
                         Production Pipeline Tracker
                       </p>
-                      {/* ReUI Timeline — horizontal on sm+, vertical on mobile */}
-                      {(['horizontal', 'vertical'] as const).map((orientation) => (
-                        <Timeline
-                          key={orientation}
-                          value={activeIndex + 1}
-                          orientation={orientation}
-                          className={orientation === 'horizontal' ? 'hidden sm:flex' : 'flex sm:hidden'}
-                        >
-                          {STATUS_STAGES.map((stage, idx) => {
-                            const isCurrent = idx === activeIndex;
-                            return (
-                              <TimelineItem key={stage} step={idx + 1}>
-                                <TimelineHeader>
-                                  <TimelineSeparator className="group-data-completed/timeline-item:bg-amber-500" />
-                                  <TimelineIndicator
-                                    className={cn(
-                                      'flex size-6 items-center justify-center border-2 bg-card border-border transition-all duration-200',
-                                      'group-data-completed/timeline-item:border-emerald-500 group-data-completed/timeline-item:bg-emerald-500 group-data-completed/timeline-item:text-white',
-                                      isCurrent && 'border-amber-500! bg-amber-500! ring-4 ring-amber-500/30 shadow-md shadow-amber-500/25 animate-pulse'
-                                    )}
-                                  >
-                                    {idx <= activeIndex ? (
-                                      <Check className="size-3.5 stroke-[3] text-white" />
-                                    ) : (
-                                      <span className="text-xs font-bold text-muted-foreground">{idx + 1}</span>
-                                    )}
-                                  </TimelineIndicator>
-                                  <TimelineTitle
-                                    className={cn(
-                                      'text-xs leading-tight',
-                                      isCurrent
-                                        ? 'font-bold text-amber-700 dark:text-amber-400'
-                                        : idx < activeIndex
-                                          ? 'font-semibold text-foreground'
-                                          : 'font-medium text-muted-foreground'
-                                    )}
-                                  >
-                                    {stage}
-                                  </TimelineTitle>
-                                </TimelineHeader>
-                                <TimelineContent className="text-xs space-y-0.5 pt-1">
-                                  <div className="font-semibold text-xs leading-none">
-                                    {isCurrent ? (
-                                      <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
-                                        <span className="relative flex h-2 w-2">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                                        </span>
-                                        In Progress
-                                      </span>
-                                    ) : idx < activeIndex ? (
-                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium inline-flex items-center gap-1">
-                                        <Check className="size-3" />
-                                        Completed
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground font-normal">Upcoming</span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground font-mono">
-                                    {idx <= activeIndex
-                                      ? new Date(proj.createdAt ? new Date(proj.createdAt).getTime() + idx * 86400000 : Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                      : 'In Queue'}
-                                  </div>
-                                </TimelineContent>
-                              </TimelineItem>
-                            );
-                          })}
-                        </Timeline>
-                      ))}
+                      <ProjectPipelineStepper
+                        status={proj.status}
+                        createdAt={proj.createdAt}
+                        projectCode={proj.projectCode}
+                      />
                     </div>
 
                     {/* Summary Details */}

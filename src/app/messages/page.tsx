@@ -11,7 +11,6 @@ export default function MessagesPage() {
     <StudioCardLayout
       mode="standalone"
       backLabel="Back to Studio"
-      walletBalance={80}
       topRightBadge={
         <Link href="/">
           <Button
