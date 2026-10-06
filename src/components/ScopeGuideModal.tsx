@@ -89,7 +89,7 @@ export function ScopeGuideModal() {
         }
       />
 
-      <DialogContent className="sm:max-w-4xl w-[90vw] max-h-[78vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl gap-0 shadow-xl border border-border/80">
+      <DialogContent className="sm:max-w-4xl w-[90vw] max-h-[78vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-xl gap-0 shadow-xl border border-border/80">
         {/* Header */}
         <DialogHeader className="pb-2 border-b border-border/70 space-y-2">
           <div className="flex items-center gap-2.5">

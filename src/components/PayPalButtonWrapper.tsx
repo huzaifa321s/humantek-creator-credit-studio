@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti';
 import { Loader2, Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProjectRecord } from '@/types';
+import { useUserStore } from '@/lib/userStore';
 
 interface PayPalButtonWrapperProps {
   packageId: string;
@@ -47,6 +48,13 @@ export function PayPalButtonWrapper({
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to capture payment');
+
+    if (typeof data.surplusCredits === 'number' && data.surplusCredits > 0) {
+      useUserStore.getState().addCredits(data.surplusCredits, 'Package unused credits rollover');
+    } else if (typeof data.newWalletBalance === 'number') {
+      useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
+    }
+
     return data.project as ProjectRecord;
   };
 

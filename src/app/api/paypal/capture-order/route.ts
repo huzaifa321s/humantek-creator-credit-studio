@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { capturePayPalOrder } from '@/lib/paypal';
-import { getPendingOrder, getProjectById, markOrderCaptured } from '@/lib/store';
+import { getPendingOrder, getProjectById, markOrderCaptured, getUserBalance } from '@/lib/store';
 import { captureOrderSchema, firstIssue } from '@/lib/validation';
 import { buildProjectRecord, recordPaidProject } from '@/lib/orders';
 
@@ -33,7 +33,13 @@ export async function POST(req: NextRequest) {
   if (pending.projectId) {
     const existing = getProjectById(pending.projectId);
     if (existing) {
-      return NextResponse.json({ success: true, project: existing, message: 'Payment already confirmed.' });
+      return NextResponse.json({
+        success: true,
+        project: existing,
+        surplusCredits: pending.quote.remainingCredits,
+        newWalletBalance: getUserBalance(existing.email),
+        message: 'Payment already confirmed.',
+      });
     }
   }
 
@@ -55,9 +61,14 @@ export async function POST(req: NextRequest) {
     recordPaidProject(project, capture.captureId ?? orderId);
     markOrderCaptured(orderId, project.id);
 
+    const surplus = pending.quote.remainingCredits;
+    const newWalletBalance = getUserBalance(project.email);
+
     return NextResponse.json({
       success: true,
       project,
+      surplusCredits: surplus,
+      newWalletBalance,
       message: 'Payment confirmed & project successfully logged into management queue!',
     });
   } catch (err: unknown) {

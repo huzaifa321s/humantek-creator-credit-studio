@@ -660,11 +660,11 @@ export default function CreatorStudioPage() {
 
   // Determine top right badge on header
   const headerBadge = currentPackage ? (
-    <div className="flex items-center gap-2 px-3.5 h-9 rounded-full bg-amber-500/10 border border-amber-500/25 text-xs font-medium shadow-2xs select-none">
-      <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-      <span className="text-foreground font-semibold truncate max-w-[140px]">{currentPackage.name}</span>
-      <span className="text-muted-foreground/60">·</span>
-      <span className="font-extrabold text-amber-700 dark:text-amber-400 tabular-nums">
+    <div className="flex items-center gap-2 px-3 h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-xs font-medium shadow-2xs select-none">
+      <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+      <span className="text-zinc-100 font-semibold truncate max-w-[140px]">{currentPackage.name}</span>
+      <span className="text-zinc-500">·</span>
+      <span className="font-extrabold text-amber-300 tabular-nums">
         {remainingCredits} / {totalPackageCredits} CR
       </span>
     </div>
@@ -834,15 +834,20 @@ export default function CreatorStudioPage() {
                   className={cn(
                     'relative flex flex-col justify-between rounded-xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0',
                     isSelected
-                      ? 'border-2 border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 shadow-md ring-2 ring-amber-500/20'
-                      : isPopular
-                        ? 'border-2 border-amber-400/80 bg-card hover:border-amber-500 shadow-sm'
-                        : 'border border-border/80 bg-card hover:border-zinc-400'
+                      ? 'border-2 border-amber-500 bg-amber-500/[0.04] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-500/20'
+                      : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
                   )}
                 >
                   {isPopular && (
                     <div className="absolute top-0 right-0">
-                      <div className="bg-amber-500 text-white font-bold text-xs uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg">
+                      <div
+                        className={cn(
+                          'font-bold text-[10px] uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg transition-colors',
+                          isSelected
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-secondary text-muted-foreground border-b border-l border-border/70'
+                        )}
+                      >
                         Most Popular
                       </div>
                     </div>
@@ -930,13 +935,18 @@ export default function CreatorStudioPage() {
                   <div className="p-4 pt-0">
                     <Button
                       type="button"
-                      variant={isSelected ? 'default' : isPopular ? 'default' : 'secondary'}
+                      variant={isSelected ? 'default' : 'secondary'}
                       size="sm"
-                      className="w-full text-xs font-semibold gap-1.5 h-9 rounded-xl cursor-pointer"
+                      className={cn(
+                        'w-full text-xs font-semibold gap-1.5 h-9 rounded-lg cursor-pointer transition-colors',
+                        isSelected
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                          : 'hover:bg-secondary/80 text-foreground'
+                      )}
                     >
                       {isSelected ? (
                         <>
-                          <Check className="w-3.5 h-3.5" /> Selected
+                          <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Selected
                         </>
                       ) : (
                         'Select Package'
@@ -1078,7 +1088,7 @@ export default function CreatorStudioPage() {
                     <Card
                       key={svc.id}
                       className={cn(
-                        'group rounded-2xl transition-all duration-200 overflow-hidden flex flex-col justify-between py-0 gap-0 shadow-2xs',
+                        'group rounded-xl transition-all duration-200 overflow-hidden flex flex-col justify-between py-0 gap-0 shadow-2xs',
                         isSelected
                           ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
                           : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-xs'
@@ -1094,7 +1104,7 @@ export default function CreatorStudioPage() {
                                 variant={isSelected ? 'solid' : 'outline'}
                                 size="default"
                                 className={cn(
-                                  'rounded-xl transition-all duration-200',
+                                  'rounded-lg transition-all duration-200',
                                   isSelected
                                     ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs shadow-amber-500/20'
                                     : 'bg-secondary/80 border-border/80 text-muted-foreground group-hover:border-amber-500/40 group-hover:text-amber-600 dark:group-hover:text-amber-400'
@@ -1171,7 +1181,7 @@ export default function CreatorStudioPage() {
                                 }
                               }}
                             >
-                              <SelectTrigger className="w-full h-7 text-xs font-semibold bg-card rounded-lg border-border py-0 px-2.5 shadow-2xs">
+                              <SelectTrigger className="w-full h-8 text-xs font-semibold bg-card rounded-lg border-border py-0 px-2.5 shadow-2xs">
                                 <SelectValue placeholder="Tier">
                                   {TIER_NAMES[choice.level]} ({svc.prices[choice.level]} CR)
                                 </SelectValue>
@@ -1249,7 +1259,7 @@ export default function CreatorStudioPage() {
               </div>
 
               {filteredServices.length === 0 && (
-                <Empty className="rounded-2xl border border-dashed border-border/80 bg-secondary/20 py-12">
+                <Empty className="rounded-xl border border-dashed border-border/80 bg-secondary/20 py-12">
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
                       <Layers />
@@ -1310,7 +1320,7 @@ export default function CreatorStudioPage() {
           {/* Mobile Floating Cart Summary Pill (Only visible on < 1024px screens when services are selected) */}
           {selectedEntries.length > 0 && (
             <div className="lg:hidden fixed bottom-18 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-none">
-              <div className="flex items-center justify-between p-2.5 pl-3.5 rounded-2xl bg-zinc-950/95 dark:bg-zinc-900/95 text-white border border-amber-500/40 shadow-xl backdrop-blur-md pointer-events-auto">
+              <div className="flex items-center justify-between p-2.5 pl-3.5 rounded-xl bg-zinc-950/95 dark:bg-zinc-900/95 text-white border border-amber-500/40 shadow-xl backdrop-blur-md pointer-events-auto">
                 <div className="flex items-center gap-2 min-w-0">
                   <Coins className="w-4 h-4 text-amber-400 shrink-0" />
                   <div className="text-xs truncate">
@@ -1371,11 +1381,11 @@ export default function CreatorStudioPage() {
           {/* Two Equal Neutral Cards: Supported Deliverables | Restricted Guidelines (5-to-5 Symmetry) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
             {/* Supported Deliverables Card */}
-            <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
-              <CardHeader className="p-5 sm:p-6 pb-3.5 border-b border-border/60">
+            <Card className="rounded-xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
+              <CardHeader className="p-4 sm:p-5 pb-3 border-b border-border/60">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                       <CheckCircle className="w-4 h-4" />
                     </div>
                     <div>
@@ -1392,7 +1402,7 @@ export default function CreatorStudioPage() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-5 sm:p-6 pt-4 flex flex-col justify-between flex-1">
+              <CardContent className="p-4 sm:p-5 pt-3.5 flex flex-col justify-between flex-1">
                 <ul className="text-xs text-foreground/90 space-y-3">
                   <li className="flex items-start gap-2.5">
                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -1427,11 +1437,11 @@ export default function CreatorStudioPage() {
             </Card>
 
             {/* Restricted Content Card (Symmetrical 5-Item Rhythm & Collapsible) */}
-            <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
-              <CardHeader className="p-5 sm:p-6 pb-3.5 border-b border-border/60">
+            <Card className="rounded-xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
+              <CardHeader className="p-4 sm:p-5 pb-3 border-b border-border/60">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                       <ShieldAlert className="w-4 h-4" />
                     </div>
                     <div>
@@ -1448,7 +1458,7 @@ export default function CreatorStudioPage() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-5 sm:p-6 pt-4 flex flex-col justify-between flex-1">
+              <CardContent className="p-4 sm:p-5 pt-3.5 flex flex-col justify-between flex-1">
                 {showAllRestricted ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-xs text-foreground/90">
                     {RESTRICTED_GUIDELINES.map((item) => (
@@ -1500,7 +1510,7 @@ export default function CreatorStudioPage() {
           </div>
 
           {/* Studio Policies & Service Framework (Clean Neutral Accordion) */}
-          <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+          <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
             <CardHeader className="p-5 sm:p-6 pb-3.5 border-b border-border/60">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
@@ -1734,19 +1744,19 @@ export default function CreatorStudioPage() {
                   <AccordionContent className="px-5 sm:px-6 pb-6 pt-1">
                     <ul className="space-y-2.5 text-xs text-foreground/90 leading-relaxed">
                       <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                         <span>Full commercial streaming & broadcasting license across all monetized creator channels.</span>
                       </li>
                       <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                         <span>100% intellectual property ownership of delivered master art, 3D, and video assets upon delivery.</span>
                       </li>
                       <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                         <span>Strict human-crafted production guarantee with zero unauthorized generative AI replication.</span>
                       </li>
                       <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                         <span>Encrypted agency cloud project vaults with lifetime asset backup and re-download capability.</span>
                       </li>
                     </ul>
@@ -1759,14 +1769,14 @@ export default function CreatorStudioPage() {
           {/* Required Acknowledgement Checkbox Card */}
           <Card
             className={cn(
-              'rounded-2xl border transition-all cursor-pointer select-none',
+              'rounded-xl border transition-all cursor-pointer select-none',
               policyAccepted
                 ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
                 : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-2xs'
             )}
             onClick={() => setPolicyAccepted(!policyAccepted)}
           >
-            <CardContent className="p-5 sm:p-6 flex items-start gap-4">
+            <CardContent className="p-4 sm:p-4.5 flex items-start gap-3">
               <Checkbox
                 id="policy-ack"
                 checked={policyAccepted}
@@ -1812,13 +1822,13 @@ export default function CreatorStudioPage() {
           </div>
 
           {/* Centered Main Form Card (Compact Layout Skeleton to Minimize Scrolling) */}
-          <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs p-4 sm:p-5 space-y-3.5 sm:space-y-4">
+          <Card className="rounded-xl border border-border/80 bg-card shadow-2xs p-4 sm:p-5 space-y-3.5 sm:space-y-4">
             {/* Form Fields Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
               {/* Your Name */}
               <div className="space-y-1">
                 <Label htmlFor={briefFieldId('clientName')} className="text-xs font-semibold text-foreground">
-                  Your Name <span className="text-amber-600">*</span>
+                  Your Name <span className="text-destructive font-semibold">*</span>
                 </Label>
                 <Input
                   {...brief.fieldProps('clientName')}
@@ -1852,7 +1862,7 @@ export default function CreatorStudioPage() {
               {/* Email */}
               <div className="space-y-1">
                 <Label htmlFor={briefFieldId('email')} className="text-xs font-semibold text-foreground">
-                  Email Address <span className="text-amber-600">*</span>
+                  Email Address <span className="text-destructive font-semibold">*</span>
                 </Label>
                 <Input
                   {...brief.fieldProps('email')}
@@ -1934,7 +1944,7 @@ export default function CreatorStudioPage() {
               <div className="space-y-1 sm:col-span-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor={briefFieldId('instructions')} className="text-xs font-semibold text-foreground">
-                    Creative Brief & Asset Instructions <span className="text-amber-600">*</span>
+                    Creative Brief & Asset Instructions <span className="text-destructive font-semibold">*</span>
                   </Label>
                   <span
                     className={cn(
@@ -2112,7 +2122,7 @@ export default function CreatorStudioPage() {
                       setRedeemCodeInput(e.target.value.toUpperCase());
                       setRedeemCodeAttached(false);
                     }}
-                    className="h-8 text-xs font-mono rounded-lg bg-card"
+                    className="h-9 text-xs font-mono rounded-lg bg-card"
                   />
                   <Button
                     type="button"
@@ -2130,7 +2140,7 @@ export default function CreatorStudioPage() {
                         );
                       }
                     }}
-                    className="text-xs shrink-0 font-semibold h-8 px-3 rounded-lg"
+                    className="text-xs shrink-0 font-semibold h-9 px-3.5 rounded-lg cursor-pointer"
                   >
                     {redeemCodeAttached ? 'Attached ✓' : 'Attach'}
                   </Button>
@@ -2191,7 +2201,7 @@ export default function CreatorStudioPage() {
               )}
               onClick={() => setTermsAccepted(!termsAccepted)}
             >
-              <CardContent className="p-3 sm:p-3.5 flex items-start gap-3">
+              <CardContent className="p-4 sm:p-4.5 flex items-start gap-3">
                 <Checkbox
                   id="terms-ack"
                   checked={termsAccepted}
@@ -2200,7 +2210,7 @@ export default function CreatorStudioPage() {
                 />
                 <div className="space-y-0.5">
                   <Label htmlFor="terms-ack" className="text-xs font-bold text-foreground cursor-pointer block">
-                    Terms Confirmation *
+                    Terms Confirmation <span className="text-destructive font-semibold">*</span>
                   </Label>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     I agree to the Humantek Studio Terms & Conditions, revision policies, and understand
@@ -2228,10 +2238,10 @@ export default function CreatorStudioPage() {
         <div className="space-y-6 animate-in fade-in duration-200">
           {submittedProject ? (
             /* Celebration Screen on Success */
-            <Card className="max-w-xl mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            <Card className="max-w-xl mx-auto rounded-xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
               {/* Header Icon & Status Pill */}
               <div className="flex flex-col items-center gap-3">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-amber-500/15 via-amber-500/10 to-amber-600/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs">
+                <div className="size-16 rounded-xl bg-gradient-to-br from-amber-500/15 via-amber-500/10 to-amber-600/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs">
                   <PackageCheck className="size-8" />
                 </div>
                 <Badge
@@ -2275,9 +2285,9 @@ export default function CreatorStudioPage() {
                   <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
                     Allocated Credits
                   </span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400 text-sm">
-                    {submittedProject.packageCredits} CR
-                  </span>
+                  <div className="mt-0.5">
+                    <CreditValue value={submittedProject.packageCredits} size="sm" />
+                  </div>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider mb-0.5">
@@ -2356,7 +2366,7 @@ export default function CreatorStudioPage() {
                 {/* Left Column: Complete Order & Scope Summary */}
                 <div className="lg:col-span-6 space-y-4">
                   {/* Package Summary Card */}
-                  <Card className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 space-y-3 shadow-2xs">
+                  <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
                       <div className="flex items-center gap-2">
                         <Box className="w-4 h-4 text-amber-600 shrink-0" />
@@ -2369,7 +2379,7 @@ export default function CreatorStudioPage() {
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-secondary/40 border border-border/60 text-center">
+                    <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-secondary/40 border border-border/60 text-center">
                       <div>
                         <span className="text-xs text-muted-foreground uppercase font-bold block">Selected Plan</span>
                         <b className="text-xs sm:text-sm text-foreground mt-0.5 block truncate">{currentPackage.name}</b>
@@ -2390,7 +2400,7 @@ export default function CreatorStudioPage() {
                   </Card>
 
                   {/* Configured Assets / Deliverables List */}
-                  <Card className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+                  <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
                     <CardHeader className="p-4 sm:p-5 pb-2.5 border-b border-border/60 flex flex-row items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Layers className="w-4 h-4 text-amber-600 shrink-0" />
@@ -2461,7 +2471,7 @@ export default function CreatorStudioPage() {
                   </Card>
 
                   {/* Client & Production Brief Details (Clean Structured Unclipped Display) */}
-                  <Card className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 space-y-3.5 shadow-2xs">
+                  <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 space-y-3.5 shadow-2xs">
                     <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-amber-600 shrink-0" />
@@ -2538,7 +2548,7 @@ export default function CreatorStudioPage() {
 
                 {/* Right Column: Checkout & Actions */}
                 <div className="lg:col-span-6 space-y-4">
-                  <Card className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-5">
+                  <Card className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-5">
                     <div>
                       <h3 className="text-base sm:text-lg font-bold text-foreground">
                         Secure Studio Checkout

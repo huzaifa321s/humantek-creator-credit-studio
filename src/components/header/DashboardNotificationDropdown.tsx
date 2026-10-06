@@ -19,6 +19,17 @@ import {
   DropdownMenuGroup,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { IconTile } from '@/components/reui/icon-tile';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
+import { cn } from '@/lib/utils';
 
 interface NotificationItem {
   id: string;
@@ -81,14 +92,16 @@ export function DashboardNotificationDropdown() {
   return (
     <DropdownMenu>
       {/* =================================================================== */}
-      {/* Trigger: Compact Bell Button with Pulse Dot                         */}
+      {/* Trigger: Reusable Button with Pulse Indicator Dot                   */}
       {/* =================================================================== */}
       <DropdownMenuTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Notifications"
-            className="group relative inline-flex items-center justify-center size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 shrink-0"
+            className="group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors select-none"
           />
         }
       >
@@ -104,73 +117,94 @@ export function DashboardNotificationDropdown() {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-72 sm:w-80 rounded-xl border border-white/10 bg-zinc-950/95 text-zinc-100 p-1 shadow-lg backdrop-blur-md ring-1 ring-white/10"
+        className="dark w-72 sm:w-80 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1 shadow-xl ring-1 ring-white/10"
       >
         {/* Header Row: Title & Mark All Read */}
         <div className="flex items-center justify-between px-2.5 py-1.5 select-none">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-100">Notifications</span>
             {unreadCount > 0 && (
-              <span className="text-3xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              <Badge variant="gold" size="xs" className="font-bold border border-amber-500/30">
                 {unreadCount} new
-              </span>
+              </Badge>
             )}
           </div>
           {unreadCount > 0 && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={markAllAsRead}
-              className="text-2xs font-medium text-zinc-400 hover:text-amber-400 transition-colors flex items-center gap-1 cursor-pointer outline-none"
+              className="h-6 px-1.5 text-2xs font-medium text-zinc-400 hover:text-amber-400 hover:bg-white/5 transition-colors gap-1"
             >
               <CheckCircle2 className="size-3" />
               <span>Mark all read</span>
-            </button>
+            </Button>
           )}
         </div>
 
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
-        {/* List of Notification Items */}
-        <DropdownMenuGroup className="space-y-0.5">
-          {notifications.map((item) => {
-            const Icon = item.icon;
-            return (
-              <DropdownMenuItem
-                key={item.id}
-                onClick={() => handleItemClick(item)}
-                className="group flex items-start gap-2.5 rounded-lg p-2 text-xs cursor-pointer transition-colors hover:bg-white/5 focus-visible:bg-white/5 outline-none w-full"
-              >
-                <div
-                  className={`size-7 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${
-                    item.unread
-                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                      : 'bg-white/5 text-zinc-400 border border-white/10'
-                  }`}
+        {/* List of Notification Items or Empty State */}
+        {notifications.length === 0 ? (
+          <Empty className="py-6 px-4">
+            <EmptyMedia>
+              <Bell className="size-6 text-zinc-500" />
+            </EmptyMedia>
+            <EmptyHeader>
+              <EmptyTitle className="text-xs text-zinc-200">No notifications</EmptyTitle>
+              <EmptyDescription className="text-2xs text-zinc-400">
+                You are all caught up with your studio activities.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <DropdownMenuGroup className="space-y-0.5">
+            {notifications.map((item) => {
+              const Icon = item.icon;
+              return (
+                <DropdownMenuItem
+                  key={item.id}
+                  onClick={() => handleItemClick(item)}
+                  className="group flex items-start gap-2.5 rounded-lg p-2 text-xs cursor-pointer transition-colors hover:bg-white/5 focus-visible:bg-white/5 outline-none w-full"
                 >
-                  <Icon className="size-3.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span
-                      className={`text-xs truncate ${
-                        item.unread ? 'font-semibold text-zinc-100' : 'font-medium text-zinc-300'
-                      }`}
-                    >
-                      {item.title}
-                    </span>
-                    <span className="text-3xs text-zinc-400 shrink-0">{item.time}</span>
+                  <IconTile
+                    variant={item.unread ? 'soft' : 'outline'}
+                    size="xs"
+                    radius="default"
+                    className={cn(
+                      'shrink-0 mt-0.5',
+                      item.unread
+                        ? 'text-amber-400 bg-amber-500/10'
+                        : 'text-zinc-400 border-white/10 bg-white/5'
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                  </IconTile>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span
+                        className={cn(
+                          'text-xs truncate',
+                          item.unread ? 'font-semibold text-zinc-100' : 'font-medium text-zinc-300'
+                        )}
+                      >
+                        {item.title}
+                      </span>
+                      <span className="text-3xs text-zinc-400 shrink-0">{item.time}</span>
+                    </div>
+                    <p className="text-2xs text-zinc-400 line-clamp-1 mt-0.5 leading-relaxed">
+                      {item.description}
+                    </p>
                   </div>
-                  <p className="text-2xs text-zinc-400 line-clamp-1 mt-0.5 leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
-                {item.unread && (
-                  <span className="size-1.5 rounded-full bg-amber-500 shrink-0 mt-2" />
-                )}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuGroup>
+                  {item.unread && (
+                    <span className="size-1.5 rounded-full bg-amber-500 shrink-0 mt-2" />
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuGroup>
+        )}
 
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 

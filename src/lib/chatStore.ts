@@ -343,7 +343,6 @@ export const useChatStore = create<ChatState>()(
         const currentTargetId = targetProjectId || get().activeProjectId;
         const isGlobal = currentTargetId === GLOBAL_CHAT_ID;
         const meta = isGlobal ? GLOBAL_META : (get().projectMeta[currentTargetId] || DEFAULT_DEMO_PROJECT);
-        const currentMsgs = get().projectMessages[currentTargetId] || [];
 
         const newMsg: ChatMessage = {
           id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

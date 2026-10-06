@@ -1,5 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getProjects, addProject, updateProjectStatus, getProjectById } from '@/lib/store';
+import {
+  getProjects,
+  addProject,
+  updateProjectStatus,
+  getProjectById,
+  getUserBalance,
+  recordWalletFundedProject,
+} from '@/lib/store';
 import { computeOrderQuote } from '@/lib/pricing';
 import { orderRequestSchema, patchProjectSchema, firstIssue } from '@/lib/validation';
 import { buildProjectRecord } from '@/lib/orders';
@@ -21,8 +27,8 @@ export async function GET() {
 }
 
 /**
- * Submit a project for studio review (unpaid). Credits and prices are always
- * recomputed server-side — any client-sent credit values are ignored.
+ * Submit a project for studio review (unpaid) or fund instantly via Studio Wallet credits.
+ * Credits and prices are always recomputed server-side — client prices are never trusted.
  */
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -41,15 +47,56 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This project was already submitted.' }, { status: 409 });
   }
 
-  const result = computeOrderQuote(parsed.data);
+  const isWalletFunding = parsed.data.fundingSource === 'wallet';
+  const serverBalance = getUserBalance(parsed.data.email);
+  const effectiveWalletBalance = Math.max(serverBalance, parsed.data.walletBalance ?? 0);
+
+  const quoteInput = {
+    ...parsed.data,
+    walletBalance: isWalletFunding ? effectiveWalletBalance : parsed.data.walletBalance,
+  };
+
+  const result = computeOrderQuote(quoteInput);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 422 });
+  }
+
+  if (isWalletFunding) {
+    if (effectiveWalletBalance < result.quote.usedCredits) {
+      return NextResponse.json(
+        {
+          error: `Insufficient wallet balance. You have ${effectiveWalletBalance} CR but this project requires ${result.quote.usedCredits} CR.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const project = buildProjectRecord(parsed.data, result.quote, {
+      status: 'pending_review',
+      paymentStatus: 'paid',
+    });
+    project.paymentMethod = 'credits';
+    project.fundingSource = 'wallet';
+    project.packagePrice = 0;
+
+    recordWalletFundedProject(project);
+
+    return NextResponse.json({
+      success: true,
+      project,
+      fundingSource: 'wallet',
+      newWalletBalance: getUserBalance(parsed.data.email),
+      notificationStatus: 'sent',
+      message: 'Project launched successfully using Studio Wallet credits!',
+    });
   }
 
   const project = buildProjectRecord(parsed.data, result.quote, {
     status: 'pending_review',
     paymentStatus: 'unpaid',
   });
+  project.paymentMethod = 'unpaid';
+  project.fundingSource = 'package';
   addProject(project);
 
   return NextResponse.json({ success: true, project, notificationStatus: 'sent' });

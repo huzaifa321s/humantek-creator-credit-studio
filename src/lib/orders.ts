@@ -1,7 +1,7 @@
 import type { ProjectRecord } from '@/types';
 import type { OrderQuote } from '@/lib/pricing';
 import type { OrderRequest } from '@/lib/validation';
-import { addLedgerEntry, addProject } from '@/lib/store';
+import { addLedgerEntry, addProject, adjustUserBalance } from '@/lib/store';
 
 /**
  * Builds a ProjectRecord exclusively from server-validated input and the
@@ -24,6 +24,8 @@ export function buildProjectRecord(
     remainingCredits: quote.remainingCredits,
     status: opts.status,
     paymentStatus: opts.paymentStatus,
+    paymentMethod: opts.paymentStatus === 'paid' ? (request.fundingSource === 'wallet' ? 'credits' : 'paypal') : 'unpaid',
+    fundingSource: request.fundingSource || (quote.fundingSource ?? 'package'),
     clientName: request.clientName,
     channelName: request.channelName,
     email: request.email || 'guest@humantek.art',
@@ -39,8 +41,11 @@ export function buildProjectRecord(
   };
 }
 
-/** Persists a paid project and writes the matching credit-ledger entries. */
+/** Persists a paid project, records matching credit-ledger entries, and rolls over surplus credits to the global wallet. */
 export function recordPaidProject(project: ProjectRecord, paymentRef: string) {
+  project.paymentStatus = 'paid';
+  project.paymentMethod = 'paypal';
+  project.fundingSource = 'package';
   addProject(project);
   const now = new Date().toISOString();
 
@@ -67,4 +72,39 @@ export function recordPaidProject(project: ProjectRecord, paymentRef: string) {
       createdAt: now,
     });
   }
+
+  // Roll over any surplus credits into client's global wallet
+  const netSurplus = project.packageCredits - project.usedCredits;
+  if (netSurplus > 0) {
+    adjustUserBalance(project.email, netSurplus);
+  }
 }
+
+/** Creates and records a project funded 100% from the client's global studio credit wallet ($0 USD checkout). */
+export function recordWalletFundedProject(project: ProjectRecord) {
+  project.paymentStatus = 'paid';
+  project.paymentMethod = 'credits';
+  project.fundingSource = 'wallet';
+  project.packagePrice = 0;
+  addProject(project);
+
+  const now = new Date().toISOString();
+
+  if (project.usedCredits > 0) {
+    addLedgerEntry({
+      id: `led-${crypto.randomUUID()}`,
+      userEmail: project.email,
+      type: 'service_deduction',
+      creditsDelta: -project.usedCredits,
+      usdAmount: 0,
+      referenceId: project.projectCode,
+      description: `Studio wallet credits deployed for order ${project.projectCode}`,
+      createdAt: now,
+    });
+  }
+
+  // Deduct from client's global wallet
+  adjustUserBalance(project.email, -project.usedCredits);
+  return project;
+}
+

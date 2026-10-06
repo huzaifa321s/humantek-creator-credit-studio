@@ -188,8 +188,8 @@ export function ChatMessageItem({
               className={cn(
                 'px-3.5 py-2.5 text-sm leading-relaxed',
                 isClient
-                  ? 'rounded-2xl rounded-br-md bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs'
-                  : 'rounded-2xl rounded-bl-md border-border/80 bg-muted/50 dark:bg-card shadow-2xs text-foreground'
+                  ? 'rounded-xl rounded-br-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs'
+                  : 'rounded-xl rounded-bl-sm border-border/80 bg-muted/50 dark:bg-card shadow-2xs text-foreground'
               )}
             >
               <p className="whitespace-pre-wrap">{message.content}</p>
@@ -228,7 +228,7 @@ export function ChatMessageItem({
         {message.audioNote && (
           <div
             className={cn(
-              'flex items-center gap-2.5 px-3 py-2 rounded-xl bg-secondary/50 border border-border/70 max-w-xs text-xs',
+              'flex items-center gap-2.5 px-3 py-2 rounded-lg bg-secondary/50 border border-border/70 max-w-xs text-xs',
               isClient ? 'self-end' : 'self-start'
             )}
           >
@@ -274,9 +274,9 @@ export function ChatMessageItem({
               <Attachment
                 key={`${message.id}-${att.id || 'att'}-${idx}`}
                 orientation="vertical"
-                className="w-40 has-data-[slot=attachment-content]:w-40 rounded-2xl border-border/80 shadow-2xs hover:border-amber-500/50"
+                className="w-40 has-data-[slot=attachment-content]:w-40 rounded-xl border-border/80 shadow-2xs hover:border-amber-500/50"
               >
-                <AttachmentMedia variant="image" className="rounded-xl group/media">
+                <AttachmentMedia variant="image" className="rounded-lg group/media">
                   {att.previewUrl ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}

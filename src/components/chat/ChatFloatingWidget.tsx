@@ -45,7 +45,8 @@ export function ChatFloatingWidget() {
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const pathname = usePathname();
-  const isWizardRoute = pathname === '/' || pathname === '/configure';
+  const isMessagesRoute = pathname === '/messages';
+  const isWizardRoute = pathname === '/';
   const [hasFooter, setHasFooter] = useState(isWizardRoute);
 
   const projectsQuery = useProjectsQuery();
@@ -100,6 +101,8 @@ export function ChatFloatingWidget() {
       setIsSidebarOpen(false);
     }
   };
+
+  if (isMessagesRoute) return null;
 
   return (
     <>

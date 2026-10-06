@@ -72,7 +72,12 @@ export default function LoginPage() {
       backLabel="Back to Studio"
       topRightBadge={
         <Link href="/">
-          <Button variant="outline" size="sm" className="text-xs rounded-xl cursor-pointer">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7.5 px-2.5 rounded-md text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 bg-zinc-900/80 shadow-2xs cursor-pointer"
+          >
             Open Studio Wizard
           </Button>
         </Link>
@@ -80,12 +85,12 @@ export default function LoginPage() {
     >
       <div className="flex items-center justify-center py-6 animate-in fade-in duration-200">
         <div className="w-full max-w-md space-y-4">
-          <Card className="rounded-3xl border-border bg-card shadow-lg p-6 sm:p-8">
+          <Card className="rounded-xl border-border bg-card shadow-xs p-6 sm:p-8">
             <CardHeader className="p-0 text-center space-y-2 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-base flex items-center justify-center mx-auto shadow-md shadow-amber-500/20">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-sm flex items-center justify-center mx-auto shadow-sm shadow-amber-500/20">
                 ART
               </div>
-              <CardTitle className="text-2xl font-black text-foreground">
+              <CardTitle className="text-xl sm:text-2xl font-black text-foreground">
                 {isSignUp ? 'Create Studio Account' : 'Sign in to Creator Studio'}
               </CardTitle>
               <CardDescription className="text-sm text-muted-foreground">
@@ -94,7 +99,7 @@ export default function LoginPage() {
             </CardHeader>
 
             {message && (
-              <Alert variant={message.type === 'success' ? 'info' : 'destructive'} className="mb-4 rounded-xl">
+              <Alert variant={message.type === 'success' ? 'info' : 'destructive'} className="mb-4 rounded-lg">
                 {message.type === 'success' ? (
                   <CheckCircle2 className="w-4 h-4" />
                 ) : (
@@ -118,7 +123,7 @@ export default function LoginPage() {
                       placeholder="creator@channel.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="rounded-xl h-10 text-sm"
+                      className="rounded-lg h-9 text-sm"
                     />
                   </Field>
 
@@ -132,7 +137,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="rounded-xl h-10 text-sm"
+                      className="rounded-lg h-9 text-sm"
                     />
                   </Field>
                 </FieldGroup>
@@ -141,7 +146,7 @@ export default function LoginPage() {
                   type="submit"
                   variant="default"
                   disabled={isLoading}
-                  className="w-full text-sm font-semibold gap-2 mt-2 h-10"
+                  className="w-full text-sm font-semibold gap-2 mt-2 h-9 rounded-lg"
                 >
                   {isLoading ? (
                     <>
@@ -168,7 +173,7 @@ export default function LoginPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleDemoSignIn}
-                className="w-full text-sm gap-2 font-medium rounded-xl h-10 cursor-pointer"
+                className="w-full text-sm gap-2 font-medium rounded-lg h-9 cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-amber-600" />
                 Fill Demo Creator Credentials

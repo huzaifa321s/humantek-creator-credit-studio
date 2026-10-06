@@ -18,6 +18,7 @@ const globalStore = globalThis as unknown as {
   __HUMANTEK_LEDGER__?: CreditLedgerEntry[];
   __HUMANTEK_PENDING_ORDERS__?: Map<string, PendingOrder>;
   __HUMANTEK_PROJECT_MESSAGES__?: Map<string, ChatMessage[]>;
+  __HUMANTEK_USER_BALANCES__?: Map<string, number>;
 };
 
 if (!globalStore.__HUMANTEK_PROJECTS__) {
@@ -287,4 +288,46 @@ export function markProjectMessagesRead(projectIdOrCode: string): void {
     }
   }
 }
+
+// ─── Global Studio Credit System Balance Resolver ─────────────────────────
+export function getUserBalance(email: string): number {
+  const normEmail = (email || '').toLowerCase().trim();
+  if (!normEmail) return 0;
+  if (!globalStore.__HUMANTEK_USER_BALANCES__) {
+    globalStore.__HUMANTEK_USER_BALANCES__ = new Map();
+  }
+  if (globalStore.__HUMANTEK_USER_BALANCES__.has(normEmail)) {
+    return globalStore.__HUMANTEK_USER_BALANCES__.get(normEmail)!;
+  }
+  const ledger = getLedger().filter((e) => (e.userEmail || '').toLowerCase().trim() === normEmail);
+  if (ledger.length > 0) {
+    const net = ledger.reduce((sum, e) => sum + e.creditsDelta, 0);
+    const balance = Math.max(0, net);
+    globalStore.__HUMANTEK_USER_BALANCES__.set(normEmail, balance);
+    return balance;
+  }
+  if (normEmail === 'kira@example.com') {
+    globalStore.__HUMANTEK_USER_BALANCES__.set(normEmail, 80);
+    return 80;
+  }
+  return 0;
+}
+
+export function setUserBalance(email: string, balance: number): void {
+  const normEmail = (email || '').toLowerCase().trim();
+  if (!normEmail) return;
+  if (!globalStore.__HUMANTEK_USER_BALANCES__) {
+    globalStore.__HUMANTEK_USER_BALANCES__ = new Map();
+  }
+  globalStore.__HUMANTEK_USER_BALANCES__.set(normEmail, Math.max(0, balance));
+}
+
+export function adjustUserBalance(email: string, delta: number): number {
+  const current = getUserBalance(email);
+  const next = Math.max(0, current + delta);
+  setUserBalance(email, next);
+  return next;
+}
+
+export { recordPaidProject, recordWalletFundedProject } from '@/lib/orders';
 

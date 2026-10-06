@@ -23,7 +23,7 @@ export function ChatAttachmentModal({ attachment, onClose }: ChatAttachmentModal
 
   return (
     <Dialog open={!!attachment} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl p-4 sm:p-6 bg-card border border-border/80 shadow-2xl rounded-2xl">
+      <DialogContent className="max-w-3xl p-4 sm:p-6 bg-card border border-border/80 shadow-2xl rounded-xl">
         <DialogHeader className="pb-3 border-b border-border/60">
           <div className="flex items-center justify-between gap-4">
             <div>

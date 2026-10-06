@@ -10,18 +10,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { FilterTabs } from '@/components/ui/filter-tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CreditValue } from '@/components/ui/credit-value';
 import { cn } from '@/lib/utils';
-import { Package, Check, Search, MessageSquare, Sparkles } from 'lucide-react';
+import { Package, Search, MessageSquare, Sparkles } from 'lucide-react';
 import { useStudioChat } from '@/lib/chatStore';
-import {
-  Timeline,
-  TimelineContent,
-  TimelineHeader,
-  TimelineIndicator,
-  TimelineItem,
-  TimelineSeparator,
-  TimelineTitle,
-} from '@/components/reui/timeline';
+import { ProjectPipelineStepper } from '@/components/ProjectPipelineStepper';
 import {
   Empty,
   EmptyContent,
@@ -33,32 +26,6 @@ import {
 import { useProjectsQuery } from '@/lib/queries/projects';
 
 const EMPTY_PROJECTS: ProjectRecord[] = [];
-
-const STATUS_STAGES = [
-  'Request Received',
-  'Payment Confirmed',
-  'Brief Approved',
-  'In Production',
-  'Review Round',
-  'Delivered',
-];
-
-function getStageIndex(status: ProjectRecord['status']): number {
-  switch (status) {
-    case 'pending_review':
-      return 0;
-    case 'payment_confirmed':
-      return 1;
-    case 'in_production':
-      return 3;
-    case 'review_round':
-      return 4;
-    case 'delivered':
-      return 5;
-    default:
-      return 0;
-  }
-}
 
 export default function ProjectsPage() {
   const { setIsOpen, unreadCounts } = useStudioChat();
@@ -110,10 +77,10 @@ export default function ProjectsPage() {
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               PROJECT DASHBOARD
             </div>
-            <h1 className="scroll-m-20 text-2xl sm:text-[32px] font-extrabold tracking-tight text-foreground leading-tight">
+            <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
               Your Projects & Milestones
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
               Track live production pipelines, milestone stages, and credit scopes for your creative orders.
             </p>
           </div>
@@ -138,7 +105,7 @@ export default function ProjectsPage() {
               placeholder="Search by code, brand or client..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-xs bg-card border-border/80 rounded-md focus-visible:border-amber-500"
+              className="pl-8 h-8 text-xs bg-card border-border/80 rounded-lg focus-visible:border-amber-500"
             />
           </div>
         </div>
@@ -146,7 +113,7 @@ export default function ProjectsPage() {
         {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="p-6 rounded-2xl border-border bg-card space-y-4">
+              <Card key={i} className="p-5 sm:p-6 rounded-xl border border-border/80 bg-card space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Skeleton className="h-5 w-24 rounded-full" />
@@ -161,7 +128,7 @@ export default function ProjectsPage() {
             ))}
           </div>
         ) : filteredProjects.length === 0 ? (
-          <Empty className="rounded-2xl border border-dashed border-border bg-card/60 p-14">
+          <Empty className="rounded-xl border border-dashed border-border/80 bg-card/60 p-12 sm:p-14">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <Package />
@@ -185,15 +152,13 @@ export default function ProjectsPage() {
         ) : (
           <div className="space-y-4">
             {filteredProjects.map((proj) => {
-              const activeIndex = getStageIndex(proj.status);
-
               return (
                 <Card
                   key={proj.id}
-                  className="rounded-2xl border-border bg-card shadow-sm hover:border-amber-300 transition-all overflow-hidden"
+                  className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-500/40 transition-all overflow-hidden"
                 >
                   {/* Top Header */}
-                  <CardHeader className="p-5 sm:p-6 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <CardHeader className="p-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
                         <Badge variant="gold" size="sm" className="font-bold">
@@ -220,9 +185,10 @@ export default function ProjectsPage() {
                           {proj.paymentStatus === 'paid' ? 'Payment Verified' : 'Awaiting Payment'}
                         </Badge>
                       </div>
-                      <span className="block font-bold text-sm sm:text-base text-foreground mt-1 tabular-nums">
-                        <span className="text-amber-700 dark:text-amber-400 font-extrabold">{proj.usedCredits} CR</span> Allocated
-                      </span>
+                      <div className="flex items-center sm:justify-end gap-1.5 mt-1.5">
+                        <CreditValue value={proj.usedCredits} size="sm" variant="pill" />
+                        <span className="text-xs text-muted-foreground font-semibold">Allocated</span>
+                      </div>
                       <div className="mt-2 flex items-center sm:justify-end gap-2">
                         <Button
                           type="button"

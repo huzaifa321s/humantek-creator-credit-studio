@@ -28,11 +28,14 @@ interface UserStoreState {
   updateUser: (patch: Partial<StudioUser>) => void;
   signOut: () => void;
   signInAsClient: (name?: string, email?: string) => void;
+  addCredits: (amount: number, description?: string) => void;
+  deductCredits: (amount: number, description?: string) => boolean;
+  hasSufficientBalance: (amount: number) => boolean;
 }
 
 export const useUserStore = create<UserStoreState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: DEFAULT_CLIENT_USER,
       updateUser: (patch) =>
         set((state) => {
@@ -63,6 +66,30 @@ export const useUserStore = create<UserStoreState>()(
             email,
           },
         }),
+      addCredits: (amount: number, _description?: string) => {
+        if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) return;
+        set((state) => ({
+          user: {
+            ...state.user,
+            walletBalance: (state.user.walletBalance || 0) + amount,
+          },
+        }));
+      },
+      deductCredits: (amount: number, _description?: string) => {
+        if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) return true;
+        const currentBalance = get().user.walletBalance || 0;
+        if (currentBalance < amount) return false;
+        set((state) => ({
+          user: {
+            ...state.user,
+            walletBalance: Math.max(0, (state.user.walletBalance || 0) - amount),
+          },
+        }));
+        return true;
+      },
+      hasSufficientBalance: (amount: number) => {
+        return (get().user.walletBalance || 0) >= amount;
+      },
     }),
     {
       name: 'humantek_studio_user',
@@ -70,3 +97,19 @@ export const useUserStore = create<UserStoreState>()(
     }
   )
 );
+
+// Cross-tab broadcast synchronization
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'humantek_studio_user' && event.newValue) {
+      try {
+        const parsed = JSON.parse(event.newValue);
+        if (parsed?.state?.user) {
+          useUserStore.setState({ user: parsed.state.user });
+        }
+      } catch {
+        // Ignore parse errors from other storage events
+      }
+    }
+  });
+}

@@ -74,6 +74,8 @@ export interface ProjectRecord {
   remainingCredits: number;
   status: 'pending_review' | 'payment_confirmed' | 'in_production' | 'review_round' | 'delivered' | 'declined';
   paymentStatus: 'unpaid' | 'paid' | 'refunded';
+  paymentMethod?: 'credits' | 'paypal' | 'unpaid' | 'manual' | string;
+  fundingSource?: 'wallet' | 'package';
   clientName: string;
   channelName: string;
   email: string;
@@ -98,7 +100,7 @@ export interface CreditLedgerEntry {
   id: string;
   userId?: string;
   userEmail: string;
-  type: 'package_purchase' | 'service_deduction' | 'manual_topup' | 'redeem_code';
+  type: 'package_purchase' | 'service_deduction' | 'manual_topup' | 'redeem_code' | 'promo_credit';
   creditsDelta: number;
   usdAmount: number;
   referenceId: string;

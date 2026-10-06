@@ -58,17 +58,18 @@ export function DashboardSearchDialog({
         title: 'Creator Studio Wizard',
         description: 'Configure and brief your next creative media project',
         icon: Sparkles,
-        keywords: ['wizard', 'brief', 'create', 'order', 'package', 'new', 'home'],
+        keywords: ['wizard', 'brief', 'create', 'order', 'package', 'new', 'home', 'services', 'configure', 'scope'],
         action: () => router.push('/'),
       },
       {
-        id: 'nav-configure',
+        id: 'nav-messages',
         category: 'Navigation',
-        title: 'Service Configuration',
-        description: 'Customize video, graphics, and production deliverables',
-        icon: Sliders,
-        keywords: ['service', 'configure', 'custom', 'options', 'addons'],
-        action: () => router.push('/configure'),
+        title: 'Producer Chat & Messages',
+        description: 'Direct communication thread with your Lead Studio Producer',
+        icon: MessageSquare,
+        keywords: ['chat', 'producer', 'messages', 'feedback', 'support', 'talk'],
+        action: () => router.push('/messages'),
+        badge: 'Chat',
       },
       {
         id: 'nav-projects',
@@ -133,9 +134,6 @@ export function DashboardSearchDialog({
     );
   }, [query, searchItems]);
 
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
 
   // Handle global shortcut Cmd+K / Ctrl+K
   useEffect(() => {
@@ -174,7 +172,7 @@ export function DashboardSearchDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="p-0 max-w-xl overflow-hidden bg-zinc-950 text-zinc-100 border border-zinc-800 shadow-2xl rounded-2xl ring-1 ring-white/10"
+        className="dark p-0 max-w-xl overflow-hidden bg-zinc-950 text-zinc-100 border border-zinc-800 shadow-2xl rounded-xl ring-1 ring-white/10"
         showCloseButton={false}
       >
         <DialogHeader className="sr-only">
@@ -187,14 +185,20 @@ export function DashboardSearchDialog({
           <input
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Type to search pages, actions, or tools..."
             className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-hidden"
           />
           {query ? (
             <button
-              onClick={() => setQuery('')}
+              onClick={() => {
+                setQuery('');
+                setSelectedIndex(0);
+              }}
               className="p-1 text-zinc-500 hover:text-zinc-300 rounded-md transition-colors"
             >
               <X className="w-3.5 h-3.5" />

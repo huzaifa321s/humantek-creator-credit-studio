@@ -133,10 +133,10 @@ export function ChatFullView() {
         {/* ========================================================= */}
         <div className="lg:col-span-4 space-y-4">
           {/* Producer Profile Card */}
-          <Card className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
+          <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
             <div className="flex items-start gap-3.5">
               <div className="relative">
-                <Avatar className="w-12 h-12 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/20 to-amber-600/30 text-amber-800 dark:text-amber-300 font-extrabold text-sm shadow-md">
+                <Avatar className="w-12 h-12 rounded-xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/20 to-amber-600/30 text-amber-800 dark:text-amber-300 font-extrabold text-sm shadow-md">
                   <AvatarFallback>{agent.avatarInitials}</AvatarFallback>
                 </Avatar>
                 <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-background flex items-center justify-center">
@@ -158,7 +158,7 @@ export function ChatFullView() {
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-secondary/30 border border-border/60 space-y-2 text-xs">
+            <div className="p-3 rounded-lg bg-secondary/30 border border-border/60 space-y-2 text-xs">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" /> Studio Hours
@@ -181,7 +181,7 @@ export function ChatFullView() {
           </Card>
 
           {/* Project Conversation Threads Directory using ChatProjectSidebar */}
-          <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden h-[380px]">
+          <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden h-[380px]">
             <ChatProjectSidebar
               projects={projects}
               activeProjectId={projectId}
@@ -194,7 +194,7 @@ export function ChatFullView() {
 
           {/* Reference Moodboards or Studio Overview */}
           {isGlobal ? (
-            <Card className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-3">
+            <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-3">
               <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
                 <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
                 <span className="text-xs font-bold text-foreground uppercase tracking-wider">
@@ -222,7 +222,7 @@ export function ChatFullView() {
               </div>
             </Card>
           ) : (
-            <Card className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-3">
+            <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
                 <div className="flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-amber-600 shrink-0" />
@@ -238,7 +238,7 @@ export function ChatFullView() {
                   <div
                     key={`${att.id || 'att'}-${idx}`}
                     onClick={() => setPreviewAttachment(att)}
-                    className="group relative rounded-xl overflow-hidden border border-border/70 bg-black/20 cursor-pointer aspect-video hover:border-amber-500/60 transition-all"
+                    className="group relative rounded-lg overflow-hidden border border-border/70 bg-black/20 cursor-pointer aspect-video hover:border-amber-500/60 transition-all"
                   >
                     {att.previewUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -265,7 +265,7 @@ export function ChatFullView() {
         {/* RIGHT COLUMN: CHAT STREAM (lg:col-span-8)                 */}
         {/* ========================================================= */}
         <div className="lg:col-span-8">
-          <Card className="rounded-2xl border border-border/80 bg-card shadow-sm flex flex-col gap-0 py-0 h-[740px] max-h-[85vh] overflow-hidden">
+          <Card className="rounded-xl border border-border/80 bg-card shadow-sm flex flex-col gap-0 py-0 h-[740px] max-h-[85vh] overflow-hidden">
             {/* Chat Pane Header */}
             {isGlobal ? (
               <div className="px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center">

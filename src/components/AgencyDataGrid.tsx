@@ -158,7 +158,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
   return (
     <div className={cn('space-y-4', className)}>
       {/* Control Bar: Search, Type Filter, Status Filter, Reset */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-2xl bg-secondary/35 border border-border/80">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
         <div className="flex flex-1 items-center gap-2 min-w-0">
           <div className="relative flex-1 max-w-sm">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -170,7 +170,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 h-9 text-xs bg-card rounded-xl border-border/80"
+              className="pl-9 h-9 text-xs bg-card rounded-lg border-border/80"
             />
           </div>
 
@@ -182,7 +182,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="h-9 text-xs bg-card min-w-[140px] rounded-xl">
+            <SelectTrigger className="h-9 text-xs bg-card min-w-[140px] rounded-lg">
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent>
@@ -202,7 +202,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="h-9 text-xs bg-card min-w-[130px] rounded-xl">
+            <SelectTrigger className="h-9 text-xs bg-card min-w-[130px] rounded-lg">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -236,9 +236,9 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
 
       {/* Main Table View */}
       {sortedTransactions.length === 0 ? (
-        <Empty className="p-10 border border-dashed rounded-2xl bg-secondary/20">
+        <Empty className="p-10 border border-dashed rounded-xl bg-secondary/20">
           <EmptyHeader>
-            <EmptyMedia variant="icon" className="size-12 rounded-xl">
+            <EmptyMedia variant="icon" className="size-12 rounded-lg">
               <FileSpreadsheet className="w-6 h-6 text-muted-foreground" />
             </EmptyMedia>
             <EmptyTitle className="text-base font-bold">No Ledger Records Found</EmptyTitle>
@@ -251,14 +251,14 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
               variant="outline"
               size="sm"
               onClick={resetFilters}
-              className="text-xs font-semibold rounded-xl"
+              className="text-xs font-semibold rounded-lg"
             >
               Clear All Filters
             </Button>
           </EmptyContent>
         </Empty>
       ) : (
-        <div className="rounded-2xl border border-border/80 overflow-hidden bg-card shadow-2xs">
+        <div className="rounded-xl border border-border/80 overflow-hidden bg-card shadow-2xs">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/40">

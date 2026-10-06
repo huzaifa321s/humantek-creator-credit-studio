@@ -76,13 +76,13 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
       <Alert
         variant="warning"
         className={cn(
-          'relative rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-4 sm:p-5 shadow-2xs space-y-3 transition-all',
+          'relative rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-4 sm:p-5 shadow-2xs space-y-3 transition-all',
           props.className
         )}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 w-full">
           <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
               <PackageCheck className="w-5 h-5" />
             </div>
             <div className="space-y-0.5">
@@ -135,13 +135,13 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
     <Alert
       variant="warning"
       className={cn(
-        'relative rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-4 sm:p-5 shadow-2xs transition-all',
+        'relative rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-4 sm:p-5 shadow-2xs transition-all',
         props.className
       )}
     >
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 w-full">
         <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div className="space-y-1">

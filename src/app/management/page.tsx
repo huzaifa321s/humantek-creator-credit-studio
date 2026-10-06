@@ -212,7 +212,12 @@ export default function ManagementPage() {
       backLabel="Back to Studio"
       topRightBadge={
         <Link href="/">
-          <Button variant="outline" size="sm" className="text-xs rounded-xl cursor-pointer">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7.5 px-2.5 rounded-md text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 bg-zinc-900/80 shadow-2xs cursor-pointer"
+          >
             Open Studio Wizard
           </Button>
         </Link>
@@ -247,7 +252,7 @@ export default function ManagementPage() {
 
         {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+          <Card className="p-4 sm:p-5 rounded-xl border-border bg-card shadow-2xs flex items-center justify-between">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Verified Revenue
@@ -262,7 +267,7 @@ export default function ManagementPage() {
             </IconTile>
           </Card>
 
-          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+          <Card className="p-4 sm:p-5 rounded-xl border-border bg-card shadow-2xs flex items-center justify-between">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Committed Credits
@@ -277,7 +282,7 @@ export default function ManagementPage() {
             </IconTile>
           </Card>
 
-          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+          <Card className="p-4 sm:p-5 rounded-xl border-border bg-card shadow-2xs flex items-center justify-between">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Active Production
@@ -290,7 +295,7 @@ export default function ManagementPage() {
             </IconTile>
           </Card>
 
-          <Card className="p-4 sm:p-5 rounded-2xl border-border bg-card shadow-2xs flex items-center justify-between">
+          <Card className="p-4 sm:p-5 rounded-xl border-border bg-card shadow-2xs flex items-center justify-between">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Delivered Work
@@ -307,7 +312,7 @@ export default function ManagementPage() {
         {/* Tab 1: Projects Pipeline */}
         {activeTab === 'projects' && (
           <div className="space-y-4">
-            <Card className="p-3 bg-secondary/35 border-border/80 rounded-2xl shadow-none flex items-center justify-between">
+            <Card className="p-3 bg-secondary/35 border-border/80 rounded-xl shadow-none flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground flex items-center gap-1.5">
                   <Filter className="w-4 h-4 text-amber-600" /> Filter Status:
@@ -316,7 +321,7 @@ export default function ManagementPage() {
                   value={statusFilter}
                   onValueChange={(val) => setStatusFilter(val as string)}
                 >
-                  <SelectTrigger className="h-9 text-sm bg-card min-w-[180px] rounded-xl">
+                  <SelectTrigger className="h-9 text-sm bg-card min-w-[180px] rounded-lg">
                     <SelectValue placeholder="All Projects" />
                   </SelectTrigger>
                   <SelectContent>
@@ -333,9 +338,9 @@ export default function ManagementPage() {
             </Card>
 
             {filteredProjects.length === 0 ? (
-              <Empty className="p-10 border border-dashed rounded-2xl bg-secondary/20">
+              <Empty className="p-10 border border-dashed rounded-xl bg-secondary/20">
                 <EmptyHeader>
-                  <EmptyMedia variant="icon" className="size-12 rounded-xl">
+                  <EmptyMedia variant="icon" className="size-12 rounded-lg">
                     <FolderOpen className="w-6 h-6 text-muted-foreground" />
                   </EmptyMedia>
                   <EmptyTitle className="text-base font-bold">No Projects Found</EmptyTitle>
@@ -348,7 +353,7 @@ export default function ManagementPage() {
               filteredProjects.map((p) => (
               <Card
                 key={p.id}
-                className="p-5 sm:p-6 rounded-2xl border-border bg-card space-y-4 shadow-sm hover:border-amber-300 transition-all"
+                className="p-5 sm:p-6 rounded-xl border-border bg-card space-y-4 shadow-xs hover:border-amber-300 transition-all"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
                   <div className="flex items-start gap-3">
@@ -388,7 +393,7 @@ export default function ManagementPage() {
                           handleUpdateStatus(p.id, val as ProjectRecord['status'])
                         }
                       >
-                        <SelectTrigger className="h-9 text-sm bg-card min-w-[150px] rounded-xl">
+                        <SelectTrigger className="h-9 text-sm bg-card min-w-[150px] rounded-lg">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -417,7 +422,7 @@ export default function ManagementPage() {
                           )
                         }
                       >
-                        <SelectTrigger className="h-9 text-sm bg-card min-w-[120px] rounded-xl">
+                        <SelectTrigger className="h-9 text-sm bg-card min-w-[120px] rounded-lg">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -440,7 +445,7 @@ export default function ManagementPage() {
                           setActiveProjectId(p.id);
                           setActiveTab('messages');
                         }}
-                        className="h-9 text-xs font-semibold gap-1.5 rounded-xl border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+                        className="h-9 text-xs font-semibold gap-1.5 rounded-lg border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer"
                       >
                         <MessageSquare className="size-3.5 text-amber-600" />
                         <span>Open Chat</span>
@@ -450,7 +455,7 @@ export default function ManagementPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <Card className="p-4 rounded-xl bg-secondary/30 border-border/80 shadow-none">
+                  <Card className="p-4 rounded-lg bg-secondary/30 border-border/80 shadow-none">
                     <CardHeader className="p-0 pb-1.5">
                       <CardTitle className="text-xs font-bold text-foreground">
                         Creative Instructions
@@ -466,7 +471,7 @@ export default function ManagementPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="p-4 rounded-xl bg-secondary/30 border-border/80 shadow-none">
+                  <Card className="p-4 rounded-lg bg-secondary/30 border-border/80 shadow-none">
                     <CardHeader className="p-0 pb-1.5">
                       <CardTitle className="text-xs font-bold text-foreground">
                         Service Items ({p.usedCredits} CR)

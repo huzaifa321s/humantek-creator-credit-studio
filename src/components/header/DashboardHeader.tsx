@@ -73,19 +73,19 @@ export function DashboardHeader({
     breadcrumbPage ||
     (pathname === '/projects'
       ? 'Your Projects & Milestones'
+      : pathname === '/messages'
+      ? 'Producer Messages'
       : pathname === '/management'
       ? 'Agency Console'
       : pathname === '/redeem-code'
       ? 'Redeem Promo Voucher'
-      : pathname === '/configure'
-      ? 'Service Configuration'
       : mode === 'wizard'
       ? 'Project Setup'
       : backLabel.replace(/^Back to\s+/, ''));
 
   return (
     <>
-      <header className="h-13 sm:h-13.5 px-3.5 sm:px-5 lg:px-6 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/95 text-zinc-100 backdrop-blur-md sticky top-0 z-40 shadow-xs">
+      <header className="dark h-13 sm:h-13.5 px-3.5 sm:px-5 lg:px-6 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/95 text-zinc-100 backdrop-blur-md sticky top-0 z-40 shadow-xs">
         {/* =================================================================== */}
         {/* Left Section: Sidebar Toggle, Brand Identity & Breadcrumbs           */}
         {/* =================================================================== */}
@@ -101,10 +101,10 @@ export function DashboardHeader({
             </div>
             <div className="hidden sm:block">
               <div className="flex items-center gap-1">
-                <span className="font-bold text-zinc-100 tracking-tight text-xs">
+                <span className="font-bold text-white tracking-tight text-xs">
                   Humantek Art
                 </span>
-                <Sparkles className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
               </div>
               <span className="block text-[9px] tracking-wider uppercase font-semibold text-amber-400 leading-tight">
                 Creator Credits Studio
@@ -115,37 +115,37 @@ export function DashboardHeader({
           {/* Optional Back Navigation Button (only in wizard mode when step > 1 to avoid duplicate "Studio") */}
           {mode === 'wizard' && currentStep > 1 && handleBack && (
             <>
-              <Separator orientation="vertical" className="h-3.5 hidden sm:block bg-zinc-800" />
+              <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80" />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={isBackDisabled}
                 onClick={handleBack}
-                className="gap-1 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors h-7.5 px-2 rounded-md cursor-pointer"
+                className="gap-1 text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800/80 transition-colors h-7.5 px-2 rounded-md cursor-pointer"
               >
-                <ChevronLeft className="w-3.5 h-3.5 text-zinc-400" />
+                <ChevronLeft className="w-3.5 h-3.5 text-zinc-300" />
                 <span className="hidden md:inline">Back</span>
               </Button>
             </>
           )}
 
-          <Separator orientation="vertical" className="h-3.5 hidden sm:block bg-zinc-800" />
+          <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80" />
 
           {/* Breadcrumb Navigation Trail */}
           <Breadcrumb className="hidden sm:block">
-            <BreadcrumbList>
+            <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
               <BreadcrumbItem>
                 <BreadcrumbLink
                   href="/"
-                  className="text-xs text-zinc-400 hover:text-zinc-100 transition-colors"
+                  className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
                 >
                   Studio
                 </BreadcrumbLink>
               </BreadcrumbItem>
-              <BreadcrumbSeparator className="text-zinc-600 [&>svg]:size-3" />
+              <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
               <BreadcrumbItem>
-                <BreadcrumbPage className="text-xs font-semibold text-zinc-200">
+                <BreadcrumbPage className="text-xs font-semibold text-white">
                   {activePageTitle}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -161,15 +161,15 @@ export function DashboardHeader({
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="hidden sm:flex items-center justify-between gap-2 px-3 py-1.2 rounded-md border border-zinc-800 bg-zinc-900/85 hover:bg-zinc-800/90 text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer w-full max-w-64 shadow-2xs text-xs select-none"
+            className="hidden sm:flex items-center justify-between gap-2 px-3 py-1.5 rounded-md border border-zinc-700/70 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-600 text-zinc-300 hover:text-white transition-all cursor-pointer w-full max-w-64 shadow-2xs text-xs select-none"
           >
             <div className="flex items-center gap-2 truncate">
               <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <span className="truncate text-xs">Type to search...</span>
+              <span className="truncate text-xs font-medium text-zinc-300">Type to search...</span>
             </div>
-            <Kbd className="bg-zinc-950 border-zinc-800 text-zinc-400 text-3xs px-1.5 py-0.2 shrink-0">
+            <span className="inline-flex items-center justify-center font-mono rounded bg-zinc-950 border border-zinc-700/80 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400 shrink-0">
               ⌘K
-            </Kbd>
+            </span>
           </button>
 
           {/* Mobile Search Icon Button */}
@@ -177,7 +177,7 @@ export function DashboardHeader({
             type="button"
             onClick={() => setSearchOpen(true)}
             aria-label="Search"
-            className="sm:hidden p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
+            className="sm:hidden p-1.5 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
           >
             <Search className="w-4 h-4" />
           </button>
@@ -193,11 +193,11 @@ export function DashboardHeader({
             onClick={() => setChatOpen(true)}
             title="Chat with Producer"
             aria-label="Chat with Producer"
-            className="relative inline-flex items-center justify-center size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
+            className="relative inline-flex items-center justify-center size-8 rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
           >
-            <MessageSquare className="w-4 h-4 text-amber-500/90" />
+            <MessageSquare className="w-4 h-4 fill-amber-500/20 text-amber-400" />
             {totalUnreadChat > 0 ? (
-              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950 animate-pulse" />
+              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-400 ring-2 ring-zinc-950 animate-pulse" />
             ) : null}
           </button>
 
@@ -208,10 +208,10 @@ export function DashboardHeader({
           <Link
             href="/redeem-code"
             title="View balance and redeem credits"
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 hover:bg-amber-500/25 transition-colors text-xs font-semibold select-none shadow-2xs cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 transition-colors text-xs font-semibold select-none shadow-2xs cursor-pointer"
           >
             <Coins className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-zinc-400 font-medium text-xs">Balance:</span>
+            <span className="text-zinc-300 font-medium text-xs">Balance:</span>
             <span className="text-amber-300 font-bold">{effectiveBalance} CR</span>
           </Link>
 

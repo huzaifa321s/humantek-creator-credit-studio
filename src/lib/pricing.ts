@@ -12,6 +12,16 @@ import type { PackageDefinition, ServiceTierLevel } from '@/types';
 
 export const MAX_QUANTITY_PER_SERVICE = 20;
 
+export const STUDIO_WALLET_PACKAGE: PackageDefinition = {
+  id: 'studio-wallet',
+  name: 'Studio Wallet Balance',
+  price: 0,
+  credits: 0,
+  group: 'Studio Wallet',
+  bestFor: 'Funded directly from your available global studio credit balance with $0 USD checkout.',
+  maxLevel: 2,
+};
+
 export interface OrderLineInput {
   id: string;
   level: number;
@@ -19,7 +29,9 @@ export interface OrderLineInput {
 }
 
 export interface OrderInput {
-  packageId: string;
+  packageId?: string;
+  fundingSource?: 'wallet' | 'package';
+  walletBalance?: number;
   selections: OrderLineInput[];
   additions: string[];
 }
@@ -33,6 +45,7 @@ export interface PricedLine {
 }
 
 export interface OrderQuote {
+  fundingSource: 'wallet' | 'package';
   package: PackageDefinition;
   selections: PricedLine[];
   additions: string[];
@@ -41,6 +54,7 @@ export interface OrderQuote {
   usedCredits: number;
   totalCredits: number;
   remainingCredits: number;
+  remainingWalletCredits?: number;
   priceUSD: number;
 }
 
@@ -49,8 +63,25 @@ export type QuoteResult =
   | { ok: false; error: string };
 
 export function computeOrderQuote(input: OrderInput): QuoteResult {
-  const pkg = PACKAGES.find((p) => p.id === input.packageId);
-  if (!pkg) return { ok: false, error: 'Unknown package selected.' };
+  const isWallet =
+    input.fundingSource === 'wallet' ||
+    input.packageId === 'studio-wallet' ||
+    input.packageId === 'wallet';
+  const fundingSource: 'wallet' | 'package' = isWallet ? 'wallet' : 'package';
+
+  let pkg: PackageDefinition;
+
+  if (isWallet) {
+    const balance = typeof input.walletBalance === 'number' ? input.walletBalance : 0;
+    pkg = {
+      ...STUDIO_WALLET_PACKAGE,
+      credits: balance,
+    };
+  } else {
+    const found = PACKAGES.find((p) => p.id === input.packageId);
+    if (!found) return { ok: false, error: 'Unknown package selected.' };
+    pkg = found;
+  }
 
   if (!Array.isArray(input.selections) || input.selections.length === 0) {
     return { ok: false, error: 'Select at least one service.' };
@@ -93,11 +124,13 @@ export function computeOrderQuote(input: OrderInput): QuoteResult {
     lines.push({ id: service.id, name: service.name, level, quantity: raw.quantity, credits });
   }
 
-  if (pkg.standardLimit !== undefined && standardUnits > pkg.standardLimit) {
-    return { ok: false, error: `${pkg.name} allows at most ${pkg.standardLimit} Standard units.` };
-  }
-  if (pkg.eliteLimit !== undefined && eliteUnits > pkg.eliteLimit) {
-    return { ok: false, error: `${pkg.name} allows at most ${pkg.eliteLimit} Elite units.` };
+  if (!isWallet) {
+    if (pkg.standardLimit !== undefined && standardUnits > pkg.standardLimit) {
+      return { ok: false, error: `${pkg.name} allows at most ${pkg.standardLimit} Standard units.` };
+    }
+    if (pkg.eliteLimit !== undefined && eliteUnits > pkg.eliteLimit) {
+      return { ok: false, error: `${pkg.name} allows at most ${pkg.eliteLimit} Elite units.` };
+    }
   }
 
   const additions = Array.from(new Set(input.additions ?? []));
@@ -108,8 +141,38 @@ export function computeOrderQuote(input: OrderInput): QuoteResult {
   }
 
   const servicesCredits = lines.reduce((sum, l) => sum + l.credits, 0);
-  const additionsCredits = additions.reduce((sum, a) => sum + ADDITIONS_PRICING[a], 0);
+  const additionsCredits = additions.reduce((sum, a) => sum + (ADDITIONS_PRICING[a] || 0), 0);
   const usedCredits = servicesCredits + additionsCredits;
+
+  if (isWallet) {
+    const walletBalance = typeof input.walletBalance === 'number' ? input.walletBalance : 0;
+    const remainingWalletCredits = walletBalance - usedCredits;
+
+    if (remainingWalletCredits < 0) {
+      return {
+        ok: false,
+        error: `Selected services need ${usedCredits} CR but your Studio Wallet only has ${walletBalance} CR. Please top up or choose a package.`,
+      };
+    }
+
+    return {
+      ok: true,
+      quote: {
+        fundingSource: 'wallet',
+        package: { ...pkg, credits: walletBalance },
+        selections: lines,
+        additions,
+        servicesCredits,
+        additionsCredits,
+        usedCredits,
+        totalCredits: walletBalance,
+        remainingCredits: remainingWalletCredits,
+        remainingWalletCredits,
+        priceUSD: 0,
+      },
+    };
+  }
+
   const totalCredits = pkg.credits;
   const remainingCredits = totalCredits - usedCredits;
 
@@ -123,6 +186,7 @@ export function computeOrderQuote(input: OrderInput): QuoteResult {
   return {
     ok: true,
     quote: {
+      fundingSource: 'package',
       package: pkg,
       selections: lines,
       additions,

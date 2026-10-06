@@ -97,7 +97,12 @@ export default function RedeemCodePage() {
       backLabel="Back to Studio"
       topRightBadge={
         <Link href="/">
-          <Button variant="outline" size="sm" className="text-xs rounded-xl cursor-pointer">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7.5 px-2.5 rounded-md text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 bg-zinc-900/80 shadow-2xs cursor-pointer"
+          >
             Open Studio Wizard
           </Button>
         </Link>
@@ -107,18 +112,13 @@ export default function RedeemCodePage() {
         {/* Step Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="warning-light" size="xs">
-                PROMOTIONAL TOOLKIT
-              </Badge>
-              <Badge variant="outline" size="xs">
-                Voucher Engine
-              </Badge>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+              PROMOTIONAL TOOLKIT · VOUCHER ENGINE
             </div>
-            <h1 className="scroll-m-20 text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground lg:text-4xl">
+            <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
               Credit Vouchers &amp; Promo Passes
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
               Redeem promo passes directly into your wallet, or generate single-use passes for partners and creators.
             </p>
           </div>
@@ -141,17 +141,17 @@ export default function RedeemCodePage() {
           <TabsContent value="redeem" className="pt-4">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               <div className="lg:col-span-7 space-y-4">
-                <Card className="rounded-2xl border-border bg-card shadow-sm">
-                  <CardHeader className="p-6 pb-3">
+                <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
+                  <CardHeader className="p-5 sm:p-6 pb-3">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                       <Gift className="w-4 h-4 text-amber-600" /> Claim Creator Credits
                     </CardTitle>
-                    <CardDescription className="text-sm text-muted-foreground">
+                    <CardDescription className="text-xs sm:text-sm text-muted-foreground">
                       Enter the 6-character promotional code received from your sponsorship manager, event, or partner grant.
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="p-6 pt-2">
+                  <CardContent className="p-5 sm:p-6 pt-2">
                     <form onSubmit={handleRedeem} className="space-y-5">
                       <Field>
                         <FieldLabel className="text-sm font-bold text-foreground">
@@ -211,7 +211,7 @@ export default function RedeemCodePage() {
                 </Card>
 
                 {redeemedAmount && (
-                  <Alert variant="success" className="rounded-2xl border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/20">
+                  <Alert variant="success" className="rounded-xl border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/20">
                     <Check className="w-4 h-4 text-emerald-600" />
                     <AlertTitle className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
                       Credits Added to Studio Balance!
@@ -222,7 +222,7 @@ export default function RedeemCodePage() {
                   </Alert>
                 )}
 
-                <Alert variant="info" className="rounded-2xl">
+                <Alert variant="info" className="rounded-xl">
                   <ShieldCheck className="w-4 h-4" />
                   <AlertTitle className="text-sm font-bold">Voucher Terms &amp; Security</AlertTitle>
                   <AlertDescription className="text-xs leading-relaxed">
@@ -233,9 +233,9 @@ export default function RedeemCodePage() {
 
               {/* Sidebar Quick Card */}
               <div className="lg:col-span-5">
-                <Card className="p-6 rounded-2xl border border-border bg-card shadow-sm space-y-4">
+                <Card className="p-5 sm:p-6 rounded-xl border border-border/80 bg-card shadow-xs space-y-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center">
                       <Wallet className="w-4 h-4" />
                     </div>
                     <div>
@@ -262,7 +262,7 @@ export default function RedeemCodePage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Form */}
               <div className="lg:col-span-6 space-y-4">
-                <Card className="rounded-2xl border-border bg-card shadow-sm">
+                <Card className="rounded-xl border-border bg-card shadow-xs">
                   <CardHeader className="p-6 pb-2">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                       <Ticket className="w-4 h-4 text-amber-600" /> Voucher Parameters
@@ -300,7 +300,7 @@ export default function RedeemCodePage() {
                             step="10"
                             value={credits}
                             onChange={(e) => setCredits(Number(e.target.value))}
-                            className="h-10 text-sm font-mono rounded-xl"
+                            className="h-9 text-sm font-mono rounded-lg"
                             required
                           />
                         </Field>
@@ -314,7 +314,7 @@ export default function RedeemCodePage() {
                             placeholder="e.g. Creator Twitch Partner"
                             value={recipient}
                             onChange={(e) => setRecipient(e.target.value)}
-                            className="rounded-xl text-sm h-10"
+                            className="h-9 rounded-lg text-sm"
                           />
                         </Field>
 
@@ -325,19 +325,19 @@ export default function RedeemCodePage() {
                             placeholder="e.g. Q4 Sponsorship Grant"
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
-                            className="rounded-xl text-sm h-10"
+                            className="h-9 rounded-lg text-sm"
                           />
                         </Field>
                       </FieldGroup>
 
-                      <Button type="submit" variant="default" size="default" className="w-full text-sm font-semibold h-10">
+                      <Button type="submit" variant="default" className="w-full h-9 rounded-lg text-sm font-semibold">
                         Generate Secure Voucher Code
                       </Button>
                     </form>
                   </CardContent>
                 </Card>
 
-                <Alert variant="info" className="rounded-2xl">
+                <Alert variant="info" className="rounded-xl">
                   <ShieldCheck className="w-4 h-4" />
                   <AlertTitle className="text-sm font-bold">Single-Use Voucher Security</AlertTitle>
                   <AlertDescription className="text-xs leading-relaxed">
@@ -348,7 +348,7 @@ export default function RedeemCodePage() {
 
               {/* Luxury Card Preview */}
               <div className="lg:col-span-6">
-                <Card className="p-8 rounded-2xl border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50/70 via-card to-amber-100/30 dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-md flex flex-col justify-between min-h-[340px]">
+                <Card className="p-8 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-gradient-to-br from-amber-50/70 via-card to-amber-100/30 dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-xs flex flex-col justify-between min-h-[340px]">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm uppercase tracking-wider text-amber-800 dark:text-amber-300 font-extrabold">

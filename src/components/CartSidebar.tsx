@@ -95,7 +95,7 @@ export function CartSidebar({
   const isOverBudget = remainingCredits < 0;
 
   return (
-    <Card className={cn('border-border bg-card shadow-md flex flex-col h-full overflow-hidden rounded-2xl', className)}>
+    <Card className={cn('border-border bg-card shadow-xs flex flex-col h-full overflow-hidden rounded-xl', className)}>
       {/* Amber glowing header strip */}
       <div className="h-1.5 w-full bg-gradient-to-r from-amber-500 to-amber-600 shrink-0" />
 
