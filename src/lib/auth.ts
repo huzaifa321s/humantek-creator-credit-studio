@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 
+import { isRealSupabaseConfigured } from '@/lib/supabase/config';
+
 export interface RequestUser {
   email: string;
   isAdmin: boolean;
@@ -17,10 +19,7 @@ function adminEmails(): string[] {
 }
 
 export function isSupabaseConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  if (!url.startsWith('https://') || key.length < 20) return false;
-  return !/mock|placeholder|your[-_]|example/i.test(`${url} ${key}`);
+  return isRealSupabaseConfigured();
 }
 
 const DEV_USER: RequestUser = { email: 'dev@localhost', isAdmin: true, isDevFallback: true };

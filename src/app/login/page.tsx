@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,8 @@ import { Field, FieldLabel, FieldGroup } from '@/components/ui/field';
 import { toast } from 'sonner';
 import { Lock, Mail, Loader2, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -21,8 +24,7 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-
-  const supabase = createClient();
+  const isConfigured = isRealSupabaseConfigured();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +32,15 @@ export default function LoginPage() {
     setMessage(null);
 
     try {
+      if (!isConfigured) {
+        // Fallback demo authentication when Supabase is not configured
+        toast.success(`Signed in as ${email || 'creator@humantek.art'} (Demo Mode)`);
+        router.push('/');
+        router.refresh();
+        return;
+      }
+
+      const supabase = createClient();
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email,
@@ -98,6 +109,13 @@ export default function LoginPage() {
                 Access your projects, credit balance, and messages.
               </CardDescription>
             </CardHeader>
+
+            {!isConfigured && (
+              <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2">
+                <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+                <span>Demo mode active. You can enter any email or use the Demo button below to sign in immediately.</span>
+              </div>
+            )}
 
             {message && (
               <Alert variant={message.type === 'success' ? 'info' : 'destructive'} className="mb-4 rounded-lg">
