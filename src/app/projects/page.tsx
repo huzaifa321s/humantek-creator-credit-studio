@@ -11,7 +11,7 @@ import { FilterTabs } from '@/components/ui/filter-tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditValue } from '@/components/ui/credit-value';
-import { cn } from '@/lib/utils';
+import { cn, formatStudioDate } from '@/lib/utils';
 import { Package, Search, MessageSquare, Sparkles } from 'lucide-react';
 import { useStudioChat } from '@/lib/chatStore';
 import { ProjectPipelineStepper } from '@/components/ProjectPipelineStepper';
@@ -69,13 +69,10 @@ export default function ProjectsPage() {
         </Link>
       }
     >
-      <div className="space-y-6 animate-in fade-in duration-200">
+      <div className="space-y-6 pb-24 sm:pb-32 animate-in fade-in duration-200">
         {/* Step Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-              MY PROJECTS
-            </div>
             <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
               My Projects
             </h1>
@@ -85,29 +82,31 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {/* Filter Bar with Tabs and Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <FilterTabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            size="sm"
-            tabs={[
-              { value: 'all', label: 'All', count: projects.length },
-              { value: 'active', label: 'Active Production', count: activeCount },
-              { value: 'delivered', label: 'Delivered', count: deliveredCount },
-            ]}
-          />
-
-          <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Search by code, brand, or package..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-xs bg-card border-border/80 rounded-lg focus-visible:border-amber-500"
+        {/* Filter Bar with Tabs and Search — only shown when client has more than 3 projects */}
+        {projects.length > 3 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <FilterTabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              size="sm"
+              tabs={[
+                { value: 'all', label: 'All', count: projects.length },
+                { value: 'active', label: 'Active Production', count: activeCount },
+                { value: 'delivered', label: 'Delivered', count: deliveredCount },
+              ]}
             />
+
+            <div className="relative w-full sm:w-64">
+              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Search by code, brand, or package..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-8 text-xs bg-card border-border/80 rounded-lg focus-visible:border-amber-500"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {isLoading ? (
           <div className="space-y-4">
@@ -242,21 +241,28 @@ export default function ProjectsPage() {
                       <div>
                         <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Submitted Date</span>
                         <b className="text-sm font-semibold font-mono tabular-nums text-foreground">
-                          {new Date(proj.createdAt).toLocaleDateString()}
+                          {formatStudioDate(proj.createdAt)}
                         </b>
                       </div>
                     </div>
 
-                    {/* Service Items Badges */}
-                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex flex-wrap gap-2 items-center">
-                      <span className="text-xs text-muted-foreground font-semibold">Assets:</span>
-                      {proj.selections.map((item, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs py-1 px-2.5 gap-1.5 rounded-md font-medium">
-                          <span>{item.name}</span>
-                          <span className="text-muted-foreground font-normal font-mono tabular-nums">({item.quantity}x)</span>
-                          <span className="text-amber-700 dark:text-amber-400 font-mono tabular-nums font-bold ml-1">{item.credits} CR</span>
-                        </Badge>
-                      ))}
+                    {/* Deliverable Assets List */}
+                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 border-t border-border/60 pt-4">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Deliverable Assets</span>
+                        <span className="text-xs text-muted-foreground font-mono tabular-nums">{proj.selections.length} items</span>
+                      </div>
+                      <div className="divide-y divide-border/50 rounded-lg border border-border/60 bg-muted/20 text-xs overflow-hidden">
+                        {proj.selections.map((item, i) => (
+                          <div key={i} className="flex items-center justify-between px-3.5 py-2 hover:bg-muted/40 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-foreground">{item.name}</span>
+                              <span className="text-muted-foreground font-mono tabular-nums">× {item.quantity}</span>
+                            </div>
+                            <span className="font-semibold text-amber-700 dark:text-amber-400 font-mono tabular-nums">{item.credits} CR</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

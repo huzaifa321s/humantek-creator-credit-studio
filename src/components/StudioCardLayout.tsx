@@ -13,7 +13,6 @@ import {
   ChevronDown,
   User,
   MessageSquare,
-  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -131,29 +130,14 @@ export function StudioCardLayout({
     }
   }, [isHydrated, user?.email, user?.id, router]);
 
-  // Prevent UI flashing during auth verification
-  if (!isHydrated || !user?.email || user.id === 'client-guest') {
-    return (
-      <div className="min-h-screen w-full bg-background flex items-center justify-center font-sans">
-        <div className="flex flex-col items-center gap-3 text-center animate-in fade-in duration-150">
-          <div className="size-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-black text-xs shadow-xs">
-            ART
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin text-amber-500" />
-            <span>Verifying studio credentials...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const effectiveName = user.name;
-  const effectiveEmail = userEmail || user.email;
+  const effectiveName = user?.name || '';
+  const effectiveEmail = userEmail || user?.email || '';
   const effectiveBalance =
     walletBalance !== undefined
       ? walletBalance
-      : user.walletBalance;
+      : isHydrated
+      ? user?.walletBalance
+      : undefined;
 
   // =========================================================================
   // 1. STANDALONE MODE: Full shadcn & ReUI Collapsible Sidebar Architecture
@@ -273,7 +257,17 @@ export function StudioCardLayout({
 
             {/* Main Step / Page Content */}
             <div className="flex-1 p-3.5 sm:p-4 lg:p-5 w-full mx-auto relative z-10 max-w-[1600px]">
-              {children}
+              {!isHydrated ? (
+                <div className="space-y-6 max-w-5xl mx-auto" aria-busy="true">
+                  <div className="space-y-2 border-b border-border/60 pb-5">
+                    <div className="h-8 w-48 bg-muted/60 rounded-lg animate-pulse" />
+                    <div className="h-4 w-72 bg-muted/40 rounded-md animate-pulse" />
+                  </div>
+                  <div className="h-96 w-full bg-muted/30 rounded-xl border border-border/60 animate-pulse" />
+                </div>
+              ) : (
+                children
+              )}
             </div>
 
             {/* Bottom Footer Actions Bar (If provided) */}

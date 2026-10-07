@@ -153,10 +153,10 @@ export function DashboardHeader({
               {/* Breadcrumb Navigation Trail */}
               <Breadcrumb className="hidden sm:block">
                 <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
-                  {pathname === '/' || activePageTitle === 'Studio' ? (
+                  {pathname === '/' || activePageTitle === 'Dashboard' ? (
                     <BreadcrumbItem>
                       <BreadcrumbPage className="text-xs font-semibold text-white">
-                        Studio
+                        Dashboard
                       </BreadcrumbPage>
                     </BreadcrumbItem>
                   ) : (
@@ -166,7 +166,7 @@ export function DashboardHeader({
                           href="/"
                           className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
                         >
-                          Studio
+                          Dashboard
                         </BreadcrumbLink>
                       </BreadcrumbItem>
                       <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
@@ -275,7 +275,9 @@ export function DashboardHeader({
               >
                 <Coins className="size-3.5 text-amber-400 shrink-0" />
                 <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
-                <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">{effectiveBalance} CR</span>
+                <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">
+                  {effectiveBalance !== undefined ? `${effectiveBalance} CR` : '— CR'}
+                </span>
               </Link>
 
               {/* Optional Top-Right Action Badge (e.g. New Project or Active Package) */}
