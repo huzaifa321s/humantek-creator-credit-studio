@@ -293,8 +293,12 @@ type PriceFilterType = (typeof PRICE_FILTER_OPTIONS)[number]['id'];
 
 export default function CreatorStudioPage() {
   // User store & TanStack Query synchronized server state
-  const { user, addCredits, deductCredits } = useUserStore();
-  const walletQuery = useWalletQuery(user.email);
+  const { user, isHydrated, addCredits, deductCredits } = useUserStore();
+  const userBalance = user?.walletBalance ?? 0;
+  const userEmail = user?.email || '';
+  const userName = user?.name || '';
+  const walletQuery = useWalletQuery(userEmail);
+  const isWalletLoading = !isHydrated || walletQuery.isPending;
   const createProjectMutation = useCreateProject();
   const redeemPromoMutation = useRedeemPromoCode();
 
@@ -409,18 +413,18 @@ export default function CreatorStudioPage() {
   // Derived package & credit calculations
   const isWalletFunding = selectedPackageId === 'studio-wallet' || fundingSource === 'wallet';
   const isPackageSelected = Boolean(selectedPackageId && selectedPackageId !== 'studio-wallet');
-  const effectiveApplyWallet = applyWalletCredits && user.walletBalance > 0 && isPackageSelected;
-  const appliedWalletCredits = isWalletFunding ? user.walletBalance : (effectiveApplyWallet ? user.walletBalance : 0);
+  const effectiveApplyWallet = applyWalletCredits && userBalance > 0 && isPackageSelected;
+  const appliedWalletCredits = isWalletFunding ? userBalance : (effectiveApplyWallet ? userBalance : 0);
 
   const currentPackage = useMemo(() => {
     if (isWalletFunding) {
       return {
         ...STUDIO_WALLET_PACKAGE,
-        credits: user.walletBalance,
+        credits: userBalance,
       };
     }
     return PACKAGES.find((p) => p.id === selectedPackageId);
-  }, [isWalletFunding, selectedPackageId, user.walletBalance]);
+  }, [isWalletFunding, selectedPackageId, userBalance]);
 
   const selectedEntries: SelectedServiceEntry[] = Object.entries(selections).flatMap(
     ([serviceId, choice]) => {
@@ -440,9 +444,9 @@ export default function CreatorStudioPage() {
 
   const totalUsableCredits = useMemo(() => {
     if (!currentPackage) return 0;
-    if (isWalletFunding) return user.walletBalance;
-    return currentPackage.credits + (effectiveApplyWallet ? user.walletBalance : 0);
-  }, [currentPackage, isWalletFunding, user.walletBalance, effectiveApplyWallet]);
+    if (isWalletFunding) return userBalance;
+    return currentPackage.credits + (effectiveApplyWallet ? userBalance : 0);
+  }, [currentPackage, isWalletFunding, userBalance, effectiveApplyWallet]);
 
   const totalPackageCredits = totalUsableCredits;
   const remainingCredits = totalUsableCredits - usedCredits;
@@ -478,7 +482,7 @@ export default function CreatorStudioPage() {
   });
 
   // Form validity for steps
-  const isStep1Valid = isWalletFunding ? user.walletBalance > 0 : Boolean(selectedPackageId);
+  const isStep1Valid = isWalletFunding ? userBalance > 0 : Boolean(selectedPackageId);
   const isStep2Valid = selectedEntries.length > 0 && remainingCredits >= 0 && !isTierRestricted;
   const isStep3Valid = policyAccepted;
   const isStep4Valid = brief.isValid && termsAccepted;
@@ -530,7 +534,7 @@ export default function CreatorStudioPage() {
 
   const handleUpgradePackage = (packageId: string) => {
     setSelectedPackageId(packageId);
-    setFundingSource(user.walletBalance > 0 && applyWalletCredits ? 'hybrid' : 'package');
+    setFundingSource(userBalance > 0 && applyWalletCredits ? 'hybrid' : 'package');
     toast.success('Selected package to expand your credit budget');
   };
 
@@ -611,7 +615,7 @@ export default function CreatorStudioPage() {
 
   const handleSelectPackage = (packageId: string) => {
     setSelectedPackageId(packageId);
-    setFundingSource(user.walletBalance > 0 && applyWalletCredits ? 'hybrid' : 'package');
+    setFundingSource(userBalance > 0 && applyWalletCredits ? 'hybrid' : 'package');
     setPriceFilter('all');
   };
 
@@ -732,7 +736,7 @@ export default function CreatorStudioPage() {
         projectId,
         packageId: isWalletFunding ? 'studio-wallet' : currentPackage.id,
         fundingSource: isWalletFunding ? 'wallet' : (appliedWalletCredits > 0 ? 'hybrid' : 'package'),
-        walletBalance: user.walletBalance,
+        walletBalance: userBalance,
         applyWalletCredits: effectiveApplyWallet,
         appliedWalletCredits,
         selections: selectedEntries.map((e) => ({
@@ -767,8 +771,8 @@ export default function CreatorStudioPage() {
         credits: data.project.packageCredits,
       });
       useUserStore.getState().updateUser({
-        email: email.trim() || user.email,
-        name: clientName.trim() || user.name,
+        email: email.trim() || userEmail,
+        name: clientName.trim() || userName,
       });
       useNotificationStore.getState().addNotification({
         title: 'Project Submitted for Review',
@@ -788,8 +792,8 @@ export default function CreatorStudioPage() {
 
   const handleLaunchWithWallet = async () => {
     if (!currentPackage) return;
-    if (user.walletBalance < usedCredits) {
-      toast.error(`Insufficient credits. You need ${usedCredits} CR but only have ${user.walletBalance} CR.`);
+    if (userBalance < usedCredits) {
+      toast.error(`Insufficient credits. You need ${usedCredits} CR but only have ${userBalance} CR.`);
       return;
     }
     setIsSubmitting(true);
@@ -800,7 +804,7 @@ export default function CreatorStudioPage() {
         projectId,
         packageId: 'studio-wallet',
         fundingSource: 'wallet',
-        walletBalance: user.walletBalance,
+        walletBalance: userBalance,
         selections: selectedEntries.map((e) => ({
           id: e.service.id,
           name: e.service.name,
@@ -823,14 +827,14 @@ export default function CreatorStudioPage() {
       if (typeof data.newWalletBalance === 'number') {
         useUserStore.getState().updateUser({
           walletBalance: data.newWalletBalance,
-          email: email.trim() || user.email,
-          name: clientName.trim() || user.name,
+          email: email.trim() || userEmail,
+          name: clientName.trim() || userName,
         });
       } else {
         deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
         useUserStore.getState().updateUser({
-          email: email.trim() || user.email,
-          name: clientName.trim() || user.name,
+          email: email.trim() || userEmail,
+          name: clientName.trim() || userName,
         });
       }
 
@@ -1037,7 +1041,7 @@ export default function CreatorStudioPage() {
           <StudioNoticeBanner type="step1-scope" />
 
           {/* Dedicated Studio Wallet Balance Status & Hybrid Management Card */}
-          {user.walletBalance > 0 ? (
+          {userBalance > 0 ? (
             <Card
               className={cn(
                 'relative flex flex-col p-4 sm:p-5 rounded-xl transition-all duration-200 select-none overflow-hidden shadow-2xs gap-3',
@@ -1071,10 +1075,10 @@ export default function CreatorStudioPage() {
                       </Badge>
                       <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-mono">
                         <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                        {walletQuery.isPending ? (
+                        {isWalletLoading ? (
                           <Skeleton className="h-4 w-12 rounded-xs" />
                         ) : (
-                          `${user.walletBalance} CR Active Balance`
+                          `${userBalance} CR Active Balance`
                         )}
                       </span>
                     </div>
@@ -1085,8 +1089,8 @@ export default function CreatorStudioPage() {
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {isWalletFunding
-                        ? `Deploy your project with $0.00 USD checkout using your current ${user.walletBalance} CR. Any unused credits remain preserved in your wallet.`
-                        : `You have ${user.walletBalance} CR available. You can apply these credits alongside a package below to increase your total project purchasing power.`}
+                        ? `Deploy your project with $0.00 USD checkout using your current ${userBalance} CR. Any unused credits remain preserved in your wallet.`
+                        : `You have ${userBalance} CR available. You can apply these credits alongside a package below to increase your total project purchasing power.`}
                     </p>
                   </div>
                 </div>
@@ -1094,11 +1098,11 @@ export default function CreatorStudioPage() {
                 <div className="flex items-center gap-3 shrink-0 self-stretch sm:self-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-border/60">
                   <div className="text-left sm:text-right">
                     <div className="flex items-baseline sm:justify-end gap-1">
-                      {walletQuery.isPending ? (
+                      {isWalletLoading ? (
                         <Skeleton className="h-7 sm:h-8 w-14 rounded-xs inline-block" />
                       ) : (
                         <span className="text-xl sm:text-2xl font-black text-foreground font-mono tabular-nums">
-                          {user.walletBalance}
+                          {userBalance}
                         </span>
                       )}
                       <span className="text-xs font-bold text-muted-foreground">CR Available</span>
@@ -1145,12 +1149,12 @@ export default function CreatorStudioPage() {
                       htmlFor="apply-wallet-toggle"
                       className="text-xs font-medium text-foreground cursor-pointer select-none"
                     >
-                      Apply my <strong className="font-mono">{user.walletBalance} CR</strong> wallet balance to this project ({currentPackage?.name} + Wallet)
+                      Apply my <strong className="font-mono">{userBalance} CR</strong> wallet balance to this project ({currentPackage?.name} + Wallet)
                     </label>
                   </div>
                   <Badge variant="gold" className="text-2xs font-mono font-bold self-start sm:self-auto py-0 px-2 shrink-0">
                     {applyWalletCredits
-                      ? `Total Budget: ${(currentPackage?.credits ?? 0) + user.walletBalance} CR`
+                      ? `Total Budget: ${(currentPackage?.credits ?? 0) + userBalance} CR`
                       : `Using Package Only: ${currentPackage?.credits ?? 0} CR`}
                   </Badge>
                 </div>
@@ -1175,7 +1179,7 @@ export default function CreatorStudioPage() {
             </Card>
           )}
 
-          {user.walletBalance > 0 && (
+          {userBalance > 0 && (
             <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-border/80" />
@@ -1197,7 +1201,7 @@ export default function CreatorStudioPage() {
               const effectiveRate = (pkg.price / pkgCredits).toFixed(2);
               const isSelected = selectedPackageId === pkg.id;
               const isPopular = pkg.id === 'studio-momentum';
-              const combinedBudget = effectiveApplyWallet && isSelected ? pkgCredits + user.walletBalance : pkgCredits;
+              const combinedBudget = effectiveApplyWallet && isSelected ? pkgCredits + userBalance : pkgCredits;
 
               return (
                 <Card
@@ -1246,7 +1250,7 @@ export default function CreatorStudioPage() {
                       <CreditValue value={combinedBudget} size="sm" variant="pill" />
                       {effectiveApplyWallet && isSelected ? (
                         <span className="text-2xs text-emerald-600 dark:text-emerald-400 font-bold font-mono">
-                          +{user.walletBalance} CR Wallet
+                          +{userBalance} CR Wallet
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground font-medium font-mono tabular-nums">
@@ -1391,7 +1395,7 @@ export default function CreatorStudioPage() {
               </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
                 <span>
-                  Your active Studio Wallet balance is <strong>{user.walletBalance} CR</strong>, but your selected scope requires <strong>{usedCredits} CR</strong>. Adjust your services or choose a package to fund the difference.
+                  Your active Studio Wallet balance is <strong>{userBalance} CR</strong>, but your selected scope requires <strong>{usedCredits} CR</strong>. Adjust your services or choose a package to fund the difference.
                 </span>
                 <Button
                   type="button"
@@ -2555,7 +2559,7 @@ export default function CreatorStudioPage() {
                       try {
                         const data = await redeemPromoMutation.mutateAsync({
                           code: clean,
-                          email: email || user.email,
+                          email: email || userEmail,
                         });
                         setRedeemCodeAttached(true);
                         useNotificationStore.getState().addNotification({
@@ -3030,7 +3034,7 @@ export default function CreatorStudioPage() {
                           </div>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>Current Available Balance</span>
-                            <span className="font-semibold text-foreground">{user.walletBalance} CR</span>
+                            <span className="font-semibold text-foreground">{userBalance} CR</span>
                           </div>
                           <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
                             <span>Service Scope Total</span>
@@ -3042,7 +3046,7 @@ export default function CreatorStudioPage() {
                           </div>
                           <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                             <span>Remaining Balance After Launch</span>
-                            <span className="font-mono tabular-nums">{Math.max(0, user.walletBalance - usedCredits)} CR</span>
+                            <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} CR</span>
                           </div>
                           <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                             <span>Total Due Today</span>
@@ -3106,7 +3110,7 @@ export default function CreatorStudioPage() {
                             size="lg"
                             loading={isSubmitting}
                             loadingText="Launching Project..."
-                            disabled={user.walletBalance < usedCredits}
+                            disabled={userBalance < usedCredits}
                             onClick={handleLaunchWithWallet}
                             className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-2"
                           >
@@ -3125,7 +3129,7 @@ export default function CreatorStudioPage() {
                               projectId,
                               packageId: currentPackage.id,
                               fundingSource: appliedWalletCredits > 0 ? 'hybrid' : 'package',
-                              walletBalance: user.walletBalance,
+                              walletBalance: userBalance,
                               applyWalletCredits: effectiveApplyWallet,
                               appliedWalletCredits,
                               selections: selectedEntries.map((e) => ({

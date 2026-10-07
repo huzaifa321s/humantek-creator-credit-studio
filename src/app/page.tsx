@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/session';
+import { getRequestUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Root Gateway Page (`/`)
  *
- * Recommended Architecture:
+ * Architecture:
  * - Contains NO client UI and renders NO heavy components.
  * - Redirect-only gateway:
  *     - Signed-in users   -> `/projects`
@@ -14,9 +14,9 @@ export const dynamic = 'force-dynamic';
  * - Guarantees zero flash of unauthenticated wizard content (FOUC).
  */
 export default async function RootGatewayPage() {
-  const session = await getSession();
+  const user = await getRequestUser();
 
-  if (session?.email) {
+  if (user?.email && !user.isDevFallback) {
     redirect('/projects');
   } else {
     redirect('/login');

@@ -375,6 +375,9 @@ input:-webkit-autofill:active {
   border-radius: var(--radius-lg, 0.75rem);
   background: oklch(0.92 0.008 260);          /* clearly darker than 0.985 page and 1.0 cards */
 }
+.skeleton:not([class*="bg-"]) {
+  background: oklch(0.92 0.008 260);
+}
 .skeleton::after {
   content: "";
   position: absolute;
@@ -383,7 +386,7 @@ input:-webkit-autofill:active {
   background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.6), transparent);
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
-.dark .skeleton {
+.dark .skeleton:not([class*="bg-"]) {
   background: oklch(0.26 0.02 260);
 }
 .dark .skeleton::after {

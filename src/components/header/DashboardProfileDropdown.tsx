@@ -90,12 +90,12 @@ export function DashboardProfileDropdown({
     setMounted(true);
   }, []);
 
-  const effectiveName = userName || user.name;
-  const effectiveEmail = userEmail || user.email;
+  const effectiveName = userName || user?.name;
+  const effectiveEmail = userEmail || user?.email;
   const effectiveBalance =
     walletBalance !== undefined && walletBalance !== null
       ? walletBalance
-      : user.walletBalance;
+      : user?.walletBalance ?? 0;
 
   // Resolve person's name or email username if not set ("Welcome" as last resort)
   const displayName = useMemo(() => {
@@ -110,7 +110,7 @@ export function DashboardProfileDropdown({
 
   // Only show role badge for staff/admin roles; clients don't need a role badge
   const isStaff = Boolean(
-    user.role &&
+    user?.role &&
     user.role.toLowerCase() !== 'client' &&
     user.role.toLowerCase() !== 'user'
   );
@@ -174,7 +174,7 @@ export function DashboardProfileDropdown({
               <p className="text-sm font-semibold text-zinc-100 truncate leading-none">{displayName}</p>
               {isStaff && (
                 <Badge variant="outline" size="xs" className="font-bold text-2xs uppercase tracking-wider px-1.5 py-0 border-zinc-700 text-zinc-300">
-                  {user.role}
+                  {user?.role}
                 </Badge>
               )}
             </div>
@@ -223,13 +223,17 @@ export function DashboardProfileDropdown({
                   <Coins className="size-4 shrink-0 text-amber-400" />
                   <span>Credit balance</span>
                 </div>
-                <Badge
-                  variant="gold"
-                  size="xs"
-                  className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-xs border-amber-500/30 bg-amber-500/15 text-amber-300 group-hover:bg-amber-500/25 transition-colors"
-                >
-                  {effectiveBalance} {effectiveBalance === 1 ? 'credit' : 'credits'}
-                </Badge>
+                {!mounted || effectiveBalance === undefined ? (
+                  <div className="skeleton h-5 w-16 rounded-full bg-amber-400/20" />
+                ) : (
+                  <Badge
+                    variant="gold"
+                    size="xs"
+                    className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-xs border-amber-500/30 bg-amber-500/15 text-amber-300 group-hover:bg-amber-500/25 transition-colors"
+                  >
+                    {effectiveBalance} {effectiveBalance === 1 ? 'credit' : 'credits'}
+                  </Badge>
+                )}
               </Link>
             }
           />

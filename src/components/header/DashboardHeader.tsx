@@ -75,22 +75,25 @@ export function DashboardHeader({
 
   const resolveEffectiveName = () => {
     if (userName && userName.trim().toLowerCase() !== 'client') return userName.trim();
-    if (user.name && user.name.trim().toLowerCase() !== 'client') return user.name.trim();
+    if (user?.name && user.name.trim().toLowerCase() !== 'client') return user.name.trim();
     if (userEmail && userEmail.includes('@')) return userEmail.split('@')[0];
-    if (user.email && user.email.includes('@')) return user.email.split('@')[0];
+    if (user?.email && user.email.includes('@')) return user.email.split('@')[0];
     return 'Welcome';
   };
   const effectiveName = resolveEffectiveName();
-  const effectiveEmail = userEmail || user.email;
-  const { data: walletData, isSuccess: isWalletSuccess } = useWalletQuery(effectiveEmail);
+  const effectiveEmail = userEmail || user?.email;
+  const { data: walletData, isSuccess: isWalletSuccess, isPending: isWalletPending } = useWalletQuery(effectiveEmail);
   const hasServerBalance = isWalletSuccess && typeof walletData?.walletBalance === 'number';
   const effectiveBalance =
     hasServerBalance
       ? walletData.walletBalance
       : walletBalance !== undefined && walletBalance !== null
       ? walletBalance
-      : user.walletBalance;
-  const isBalanceLoaded = isHydrated && (hasServerBalance || walletBalance !== undefined || user.id !== 'client-guest');
+      : user?.walletBalance ?? 0;
+  const isBalanceLoaded =
+    isHydrated &&
+    typeof effectiveBalance === 'number' &&
+    !(Boolean(effectiveEmail) && isWalletPending && !hasServerBalance);
 
   // Compute default breadcrumb title if not explicitly passed
   const activePageTitle =
@@ -309,7 +312,14 @@ export function DashboardHeader({
                   <span className="font-semibold text-xs tracking-tight">Studio Admin</span>
                 </div>
               ) : !isBalanceLoaded ? (
-                <Skeleton className="hidden md:block h-8 w-36 rounded-full" />
+                <div
+                  className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-xs font-semibold select-none shadow-2xs shrink-0"
+                  aria-label="Loading credit balance"
+                >
+                  <Coins className="size-3.5 text-amber-400/60 animate-pulse shrink-0" />
+                  <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
+                  <div className="skeleton h-3.5 w-11 rounded-xs bg-amber-400/25" />
+                </div>
               ) : (
                 <Link
                   href="/redeem-code"

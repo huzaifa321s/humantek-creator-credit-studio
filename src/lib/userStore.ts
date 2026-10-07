@@ -14,90 +14,106 @@ export interface StudioUser {
   role?: string;
 }
 
-export const GUEST_USER: StudioUser = {
-  id: 'client-guest',
-  name: '',
-  email: '',
-  avatarInitials: 'GU',
-  walletBalance: 0,
-};
-
-export const DEFAULT_CLIENT_USER: StudioUser = {
-  id: 'user-client-kira',
-  name: 'Kira Streams',
-  email: 'kira@example.com',
-  avatarInitials: 'KS',
-  walletBalance: 80,
-  channelName: 'KiraOfficial',
-  platform: 'Twitch',
-};
-
 interface UserStoreState {
-  user: StudioUser;
+  user: StudioUser | null;
   isHydrated: boolean;
   setHydrated: (hydrated: boolean) => void;
   updateUser: (patch: Partial<StudioUser>) => void;
   signOut: () => void;
-  signInAsClient: (name?: string, email?: string) => void;
+  signInAsClient: (
+    name?: string,
+    email?: string,
+    walletBalance?: number,
+    id?: string,
+    role?: string
+  ) => void;
   addCredits: (amount: number, description?: string) => void;
   deductCredits: (amount: number, description?: string) => boolean;
   hasSufficientBalance: (amount: number) => boolean;
 }
 
+function computeInitials(name?: string, email?: string): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length > 1) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
+  if (email && email.includes('@')) {
+    return email.slice(0, 2).toUpperCase();
+  }
+  return 'CR';
+}
+
 export const useUserStore = create<UserStoreState>()(
   persist(
     (set, get) => ({
-      user: GUEST_USER,
+      user: null,
       isHydrated: false,
       setHydrated: (hydrated) => set({ isHydrated: hydrated }),
       updateUser: (patch) =>
         set((state) => {
-          const updated = { ...state.user, ...patch };
+          if (!state.user) return state;
+          const updated: StudioUser = { ...state.user, ...patch };
           if (patch.name && !patch.avatarInitials) {
-            const parts = patch.name.trim().split(/\s+/);
-            updated.avatarInitials = parts.length > 1
-              ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-              : patch.name.slice(0, 2).toUpperCase();
+            updated.avatarInitials = computeInitials(patch.name, updated.email);
           }
           return { user: updated };
         }),
       signOut: () =>
         set({
-          user: GUEST_USER,
+          user: null,
         }),
-      signInAsClient: (name = 'Kira Streams', email = 'kira@example.com') =>
+      signInAsClient: (
+        name = 'Creator',
+        email = '',
+        walletBalance = 0,
+        id = `user-${Date.now()}`,
+        role = 'client'
+      ) =>
         set({
           user: {
-            ...DEFAULT_CLIENT_USER,
+            id,
             name,
             email,
+            avatarInitials: computeInitials(name, email),
+            walletBalance: typeof walletBalance === 'number' ? walletBalance : 0,
+            role,
           },
         }),
       addCredits: (amount: number, _description?: string) => {
         void _description;
         if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) return;
-        set((state) => ({
-          user: {
-            ...state.user,
-            walletBalance: (state.user.walletBalance || 0) + amount,
-          },
-        }));
+        set((state) => {
+          if (!state.user) return state;
+          return {
+            user: {
+              ...state.user,
+              walletBalance: (state.user.walletBalance || 0) + amount,
+            },
+          };
+        });
       },
       deductCredits: (amount: number, _description?: string) => {
         void _description;
         if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) return true;
-        const currentBalance = get().user.walletBalance || 0;
-        if (currentBalance < amount) return false;
+        const currentUser = get().user;
+        if (!currentUser) return false;
+        if ((currentUser.walletBalance || 0) < amount) return false;
         set((state) => ({
-          user: {
-            ...state.user,
-            walletBalance: Math.max(0, (state.user.walletBalance || 0) - amount),
-          },
+          user: state.user
+            ? {
+                ...state.user,
+                walletBalance: Math.max(0, (state.user.walletBalance || 0) - amount),
+              }
+            : null,
         }));
         return true;
       },
       hasSufficientBalance: (amount: number) => {
-        return (get().user.walletBalance || 0) >= amount;
+        const currentUser = get().user;
+        return Boolean(currentUser && (currentUser.walletBalance || 0) >= amount);
       },
     }),
     {
@@ -105,6 +121,10 @@ export const useUserStore = create<UserStoreState>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          // Purge any stale client-guest from previous dev sessions
+          if (state.user && (state.user.id === 'client-guest' || !state.user.email)) {
+            state.user = null;
+          }
           state.setHydrated(true);
         }
       },
@@ -119,7 +139,13 @@ if (typeof window !== 'undefined') {
       try {
         const parsed = JSON.parse(event.newValue);
         if (parsed?.state?.user) {
-          useUserStore.setState({ user: parsed.state.user });
+          if (parsed.state.user.id === 'client-guest' || !parsed.state.user.email) {
+            useUserStore.setState({ user: null });
+          } else {
+            useUserStore.setState({ user: parsed.state.user });
+          }
+        } else {
+          useUserStore.setState({ user: null });
         }
       } catch {
         // Ignore parse errors from other storage events

@@ -49,7 +49,7 @@ import { useNotificationStore } from '@/lib/notificationStore';
 
 export default function RedeemCodePage() {
   const { user } = useUserStore();
-  const walletQuery = useWalletQuery(user.email);
+  const walletQuery = useWalletQuery(user?.email);
   const redeemMutation = useRedeemPromoCode();
   const [tab, setTab] = useState('redeem');
 
@@ -93,7 +93,7 @@ export default function RedeemCodePage() {
     try {
       const data = await redeemMutation.mutateAsync({
         code: cleanCode,
-        email: user.email,
+        email: user?.email,
       });
 
       setRedeemedAmount(data.creditsAdded);

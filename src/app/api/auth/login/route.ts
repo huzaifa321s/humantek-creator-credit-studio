@@ -2,62 +2,70 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { signSession, SESSION_COOKIE_NAME } from '@/lib/session';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
-import { createClient } from '@/lib/supabase/server';
-import { getUserBalance } from '@/lib/store';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { email, password, isDemo, name } = body;
+    const { email, password } = body;
 
-    let userEmail = (email || '').trim().toLowerCase();
-    let userName = (name || '').trim();
-    let userId = `user-${Date.now()}`;
-    const ADMIN_LIST = ['dev@localhost', 'admin@humantek.art', 'huzaifa14321furqan@gmail.com'];
-    const isAdminUser = ADMIN_LIST.includes(userEmail) || (process.env.ADMIN_EMAILS || '').includes(userEmail);
-    let userRole = isAdminUser ? 'admin' : 'client';
+    const userEmail = (email || '').trim().toLowerCase();
+    const userPass = (password || '').trim();
 
-    if (isDemo) {
-      userEmail = userEmail || 'creator@humantek.art';
-      userName = userName || 'Kira Streams';
-      userId = 'user-client-kira';
+    if (!userEmail || !userPass) {
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
+      );
     }
 
-    if (!userEmail) {
-      userEmail = 'creator@humantek.art';
-    }
-    if (!userName) {
-      userName = userEmail.includes('@') ? userEmail.split('@')[0] : 'Creator';
-    }
-
-    // If Supabase is real and configured and not demo, verify via Supabase
-    if (isRealSupabaseConfigured() && !isDemo) {
-      const supabase = await createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: userEmail,
-        password: password || '',
-      });
-
-      if (error || !data.user) {
-        return NextResponse.json(
-          { error: error?.message || 'Invalid email or password' },
-          { status: 401 }
-        );
-      }
-
-      userId = data.user.id;
-      userEmail = data.user.email?.toLowerCase() || userEmail;
-      userName =
-        data.user.user_metadata?.name ||
-        data.user.user_metadata?.full_name ||
-        userName;
-      userRole = data.user.user_metadata?.role || 'client';
+    if (!isRealSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: 'Database service is not configured' },
+        { status: 500 }
+      );
     }
 
-    // Ensure wallet exists in server ledger with starter credits (80 CR)
-    const walletBalance = getUserBalance(userEmail);
+    // 1. Authenticate with Supabase
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: userPass,
+    });
 
-    // Generate signed session token
+    if (error || !data.user) {
+      return NextResponse.json(
+        { error: error?.message || 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    const userId = data.user.id;
+    const admin = createAdminClient();
+
+    // 2. Fetch authoritative profile (role, full name)
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    const userRole = profile?.role || 'client';
+    const userName =
+      data.user.user_metadata?.name ||
+      data.user.user_metadata?.full_name ||
+      (userEmail.includes('@') ? userEmail.split('@')[0] : 'Creator');
+
+    // 3. Fetch authoritative wallet balance from wallets table
+    const { data: wallet } = await admin
+      .from('wallets')
+      .select('balance_credits, balance_purchased, balance_promo')
+      .eq('user_id', userId)
+      .single();
+
+    const walletBalance = wallet?.balance_credits ?? 0;
+
+    // 4. Generate signed HMAC session token
     const token = await signSession({
       sub: userId,
       email: userEmail,
@@ -66,7 +74,7 @@ export async function POST(req: NextRequest) {
       walletBalance,
     });
 
-    // Set httpOnly session cookie
+    // 5. Set httpOnly session cookie
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,

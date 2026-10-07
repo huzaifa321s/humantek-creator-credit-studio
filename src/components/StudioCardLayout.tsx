@@ -127,11 +127,11 @@ export function StudioCardLayout({
 
   // Fallback client check for expired sessions (Server proxy handles primary optimistic redirect)
   useEffect(() => {
-    if (isHydrated && (!user?.email || user.id === 'client-guest')) {
+    if (isHydrated && !user?.email) {
       const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/projects';
       router.replace(`/login?next=${encodeURIComponent(currentUrl)}`);
     }
-  }, [isHydrated, user?.email, user?.id, router]);
+  }, [isHydrated, user?.email, router]);
 
   const effectiveName = user?.name || '';
   const effectiveEmail = userEmail || user?.email || '';

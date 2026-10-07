@@ -70,5 +70,10 @@ export async function getRequestUser(): Promise<RequestUser | null> {
     // Fall through
   }
 
-  return isProduction ? null : DEV_USER;
+  // Fail closed when Supabase is configured or in production
+  if (isSupabaseConfigured() || isProduction) {
+    return null;
+  }
+
+  return DEV_USER;
 }

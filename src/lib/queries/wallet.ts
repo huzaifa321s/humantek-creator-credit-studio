@@ -55,8 +55,8 @@ export function useWalletQuery(email?: string | null) {
   // Keep local userStore seamlessly synchronized with fresh authoritative server balance
   useEffect(() => {
     if (query.data && typeof query.data.walletBalance === 'number') {
-      const currentBalance = useUserStore.getState().user.walletBalance;
-      if (currentBalance !== query.data.walletBalance) {
+      const currentUser = useUserStore.getState().user;
+      if (currentUser && currentUser.walletBalance !== query.data.walletBalance) {
         useUserStore.getState().updateUser({ walletBalance: query.data.walletBalance });
       }
     }
