@@ -31,7 +31,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`light ${outfit.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-500/20 selection:text-amber-900 font-sans">
         <Providers>
