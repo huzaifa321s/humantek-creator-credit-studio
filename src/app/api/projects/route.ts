@@ -20,9 +20,15 @@ export async function GET() {
   }
 
   const all = getProjects();
+  const DEMO_EMAILS = ['creator@humantek.art', 'kira@example.com'];
   const projects = user.isAdmin
     ? all
-    : all.filter((p) => p.email.toLowerCase() === user.email);
+    : all.filter((p) => {
+        const pEmail = (p.email || '').toLowerCase().trim();
+        if (pEmail === user.email) return true;
+        if (DEMO_EMAILS.includes(user.email) && DEMO_EMAILS.includes(pEmail)) return true;
+        return false;
+      });
 
   return NextResponse.json({ projects });
 }

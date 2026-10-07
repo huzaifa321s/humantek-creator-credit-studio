@@ -61,7 +61,7 @@ export default function ProjectsPage() {
       mode="standalone"
       backLabel="Back to Studio"
       topRightBadge={
-        <Link href="/">
+        <Link href="/new-project">
           <Button variant="default" size="sm" className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer">
             <Sparkles className="w-3.5 h-3.5" />
             <span>New Project</span>
@@ -125,25 +125,52 @@ export default function ProjectsPage() {
               </Card>
             ))}
           </div>
-        ) : filteredProjects.length === 0 ? (
-          <Empty className="rounded-xl border border-dashed border-border/80 bg-card/60 p-12 sm:p-14">
+        ) : projects.length === 0 ? (
+          <Empty className="rounded-xl border border-dashed border-border bg-card/80 p-12 sm:p-14 shadow-xs">
             <EmptyHeader>
               <EmptyMedia variant="icon">
-                <Package />
+                <Package className="size-6 text-muted-foreground" />
               </EmptyMedia>
-              <EmptyTitle className="text-xl font-bold">No matching creative projects found</EmptyTitle>
-              <EmptyDescription>
-                Start building your first custom branding or streaming pack in the studio.
+              <EmptyTitle className="text-xl font-bold text-foreground">No projects yet</EmptyTitle>
+              <EmptyDescription className="text-muted-foreground text-sm">
+                Start your first project to see its progress here.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button
                 variant="default"
-                className="text-sm font-semibold h-10 px-5"
-                render={<Link href="/" />}
+                className="text-sm font-semibold h-10 px-5 gap-2 bg-amber-500 hover:bg-amber-600 text-white cursor-pointer shadow-xs"
+                render={<Link href="/new-project" />}
                 nativeButton={false}
               >
-                Open Creator Studio
+                <Sparkles className="size-4" />
+                Start a project
+              </Button>
+            </EmptyContent>
+          </Empty>
+        ) : filteredProjects.length === 0 ? (
+          <Empty className="rounded-xl border border-dashed border-border bg-card/80 p-12 sm:p-14 shadow-xs">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Search className="size-6 text-muted-foreground" />
+              </EmptyMedia>
+              <EmptyTitle className="text-xl font-bold text-foreground">No matching creative projects found</EmptyTitle>
+              <EmptyDescription className="text-muted-foreground text-sm">
+                {searchQuery
+                  ? `No projects matched "${searchQuery}". Try adjusting your search query or filters.`
+                  : 'No projects match the selected filter.'}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button
+                variant="outline"
+                className="text-sm font-semibold h-9 px-4 cursor-pointer"
+                onClick={() => {
+                  setSearchQuery('');
+                  setActiveTab('all');
+                }}
+              >
+                Clear filters
               </Button>
             </EmptyContent>
           </Empty>

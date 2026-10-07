@@ -151,20 +151,21 @@
   --destructive: oklch(0.58 0.22 25);
   --destructive-foreground: oklch(1 0 0);
 
-  /* Crisp subtle borders */
-  --border: oklch(0.91 0.005 260);
-  --input: oklch(0.91 0.005 260);
+  /* Crisp standard borders - slightly stronger contrast for cards & empty states */
+  --border: oklch(0.89 0.005 260);
+  --input: oklch(0.89 0.005 260);
   --ring: oklch(0.68 0.18 55);
 
   --radius: 0.85rem;
 
-  --sidebar: oklch(0.98 0.002 260);
+  /* Sidebar tinted one step below page background: sidebar (0.965) < page (0.985) < card (1.0) */
+  --sidebar: oklch(0.965 0.005 260);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.68 0.18 55);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.035 70);
+  --sidebar-accent: oklch(0.94 0.035 70);
   --sidebar-accent-foreground: oklch(0.35 0.12 55);
-  --sidebar-border: oklch(0.91 0.005 260);
+  --sidebar-border: oklch(0.89 0.005 260);
   --sidebar-ring: oklch(0.68 0.18 55);
 
   /* ReUI semantic palette (harmonised with Humantek amber) */
@@ -199,7 +200,7 @@
   --border: oklch(0.25 0.02 260);
   --input: oklch(0.25 0.02 260);
   --ring: oklch(0.80 0.17 76);
-  --sidebar: oklch(0.14 0.02 260);
+  --sidebar: oklch(0.14 0.022 260);
   --sidebar-foreground: oklch(0.98 0.01 260);
   --sidebar-primary: oklch(0.80 0.17 76);
   --sidebar-primary-foreground: oklch(0.12 0.04 76);

@@ -1,1 +1,7 @@
-export { default, dynamic } from '../sign-in/page';
+import SignInPage from '../sign-in/page';
+
+export const dynamic = 'force-dynamic';
+
+export default function LoginPage() {
+  return <SignInPage />;
+}

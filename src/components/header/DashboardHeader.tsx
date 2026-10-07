@@ -21,7 +21,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Kbd } from '@/components/ui/kbd';
 import {
   Tooltip,
@@ -69,6 +69,7 @@ export function DashboardHeader({
   const { isSearchOpen, setSearchOpen, toggleSearch } = useUIStore();
   const { setIsOpen: setChatOpen, unreadCounts } = useStudioChat();
   const { user, isHydrated } = useUserStore();
+  const isManagementRoute = Boolean(pathname?.startsWith('/management'));
   const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
   const resolveEffectiveName = () => {
@@ -101,34 +102,67 @@ export function DashboardHeader({
       ? 'New Project'
       : backLabel.replace(/^Back to\s+/, ''));
 
+  const { state: sidebarState } = useSidebar();
+  const isSidebarCollapsed = mode === 'standalone' && sidebarState === 'collapsed';
+
   return (
     <>
-      <header className="dark h-13 sm:h-13.5 px-3.5 sm:px-5 lg:px-6 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/95 text-zinc-100 backdrop-blur-md sticky top-0 z-40 shadow-xs">
+      <header
+        className={cn(
+          'dark h-13 sm:h-13.5 border-b border-zinc-800/80 flex items-center shrink-0 bg-zinc-950/95 text-zinc-100 backdrop-blur-md sticky top-0 z-40 shadow-xs',
+          mode === 'standalone' ? 'px-0' : 'px-3.5 sm:px-5 lg:px-6 justify-between'
+        )}
+      >
         {/* =================================================================== */}
-        {/* Left Section: Sidebar Toggle, Brand Identity & Breadcrumbs           */}
+        {/* Left Section: Sidebar Toggle & Brand Identity (Aligned with Sidebar) */}
         {/* =================================================================== */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 min-w-0">
-          {mode === 'standalone' && (
-            <SidebarTrigger className="-ml-1 mr-0.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 size-8 rounded-md transition-colors cursor-pointer" />
+        <div
+          className={cn(
+            'h-full flex items-center shrink-0 min-w-0 transition-[width] duration-200 ease-linear select-none',
+            mode === 'standalone'
+              ? cn(
+                  'border-r border-zinc-800/80 bg-zinc-950',
+                  isSidebarCollapsed
+                    ? 'w-(--sidebar-width-icon) justify-center px-1.5'
+                    : 'w-(--sidebar-width) px-3 sm:px-3.5'
+                )
+              : 'gap-2 sm:gap-2.5'
           )}
+        >
+          <div
+            className={cn(
+              'flex items-center min-w-0 w-full',
+              isSidebarCollapsed ? 'justify-center' : 'gap-2 sm:gap-2.5'
+            )}
+          >
+            {mode === 'standalone' && (
+              <SidebarTrigger className="-ml-0.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 size-8 rounded-md transition-colors cursor-pointer shrink-0" />
+            )}
 
-          {/* Unified Brand Logo & Title across all modes */}
-          <Link href="/" className="flex items-center gap-2 group select-none shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-white text-2xs tracking-wider shadow-xs group-hover:scale-105 transition-transform shrink-0">
-              ART
-            </div>
-            <div className="hidden sm:block">
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-white tracking-tight text-xs">
-                  Humantek Art
-                </span>
-                <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+            {/* Unified Brand Logo & Title across all modes */}
+            <Link
+              href="/projects"
+              className={cn(
+                'flex items-center gap-2 group select-none shrink-0 min-w-0',
+                isSidebarCollapsed && 'hidden'
+              )}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-white text-2xs tracking-wider shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                ART
               </div>
-              <span className="block text-2xs tracking-wider uppercase font-bold text-amber-400 leading-tight">
-                Creator Credits Studio
-              </span>
-            </div>
-          </Link>
+              <div className="hidden sm:block min-w-0 truncate">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-white tracking-tight text-xs truncate">
+                    Humantek Art
+                  </span>
+                  <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                </div>
+                <span className="block text-2xs tracking-wider uppercase font-bold text-amber-400 leading-tight truncate">
+                  Creator Credits Studio
+                </span>
+              </div>
+            </Link>
+          </div>
 
           {/* Optional Back Navigation Button (only in wizard mode when step > 1 to avoid duplicate "Studio") */}
           {mode === 'wizard' && currentStep > 1 && handleBack && (
@@ -147,17 +181,25 @@ export function DashboardHeader({
               </Button>
             </>
           )}
+        </div>
 
-          {mode !== 'auth' && breadcrumbPage && (
-            <>
-              <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80" />
-
-              {/* Breadcrumb Navigation Trail for Deeper Sub-Pages */}
+        {/* =================================================================== */}
+        {/* Main Content Header Bar (Breadcrumbs, Search & Profile Actions)     */}
+        {/* =================================================================== */}
+        <div
+          className={cn(
+            'flex-1 flex items-center justify-between min-w-0 h-full',
+            mode === 'standalone' ? 'px-3.5 sm:px-5 lg:px-6' : ''
+          )}
+        >
+          {/* Left: Breadcrumbs Trail */}
+          <div className="flex items-center gap-2 shrink-0 min-w-0">
+            {mode !== 'auth' && breadcrumbPage && (
               <Breadcrumb className="hidden sm:block">
                 <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
                   <BreadcrumbItem>
                     <BreadcrumbLink
-                      href="/"
+                      href="/projects"
                       className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
                     >
                       Home
@@ -171,9 +213,8 @@ export function DashboardHeader({
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
-            </>
-          )}
-        </div>
+            )}
+          </div>
 
         {/* =================================================================== */}
         {/* Center Section: Interactive Command Search Pill (hidden in auth)    */}
@@ -256,8 +297,13 @@ export function DashboardHeader({
               {/* Notification Popover Dropdown */}
               <DashboardNotificationDropdown />
 
-              {/* Credit Balance Pill (Standardized naming, consistent across all screens) */}
-              {!isBalanceLoaded ? (
+              {/* Credit Balance Pill or Admin Badge */}
+              {isManagementRoute ? (
+                <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-300 text-xs font-semibold select-none shadow-2xs">
+                  <ShieldCheck className="size-3.5 text-amber-400 shrink-0" />
+                  <span className="font-semibold text-xs tracking-tight">Studio Admin</span>
+                </div>
+              ) : !isBalanceLoaded ? (
                 <Skeleton className="hidden md:block h-8 w-36 rounded-full" />
               ) : (
                 <Link
@@ -276,8 +322,8 @@ export function DashboardHeader({
                 </Link>
               )}
 
-              {/* Optional Top-Right Action Badge (e.g. New Project or Active Package) */}
-              {topRightBadge}
+              {/* Optional Top-Right Action Badge (hidden on management console) */}
+              {!isManagementRoute && topRightBadge}
 
               {/* User Profile Avatar Dropdown */}
               <DashboardProfileDropdown
@@ -288,7 +334,8 @@ export function DashboardHeader({
             </>
           )}
         </div>
-      </header>
+      </div>
+    </header>
 
       {/* Global Command / Quick Search Dialog (only in app modes) */}
       {mode !== 'auth' && (

@@ -117,10 +117,16 @@ export function DashboardProfileDropdown({
 
   const queryClient = useQueryClient();
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore network errors on logout
+    }
     signOut();
     queryClient.clear();
     router.push('/login');
+    router.refresh();
   };
 
   return (

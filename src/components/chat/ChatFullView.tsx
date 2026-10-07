@@ -113,7 +113,7 @@ export function ChatFullView() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link href="/">
+          <Link href="/new-project">
             <Button variant="outline" size="sm" className="h-9 text-xs font-semibold gap-1.5 rounded-xl cursor-pointer">
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
               <span>New Project</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -43,13 +43,18 @@ export function ChatFloatingWidget() {
   } = useStudioChat();
 
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
+  const [hasOpened, setHasOpened] = useState(false);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const prevIsOpenRef = useRef(isOpen);
+
   const isMobile = useIsMobile();
   const [userToggledSidebar, setUserToggledSidebar] = useState<boolean | null>(null);
   const isSidebarOpen = userToggledSidebar ?? !isMobile;
 
   const pathname = usePathname();
   const isMessagesRoute = pathname === '/messages';
-  const isWizardRoute = pathname === '/';
+  const isWizardRoute = pathname === '/' || pathname === '/new-project';
   const [hasFooter, setHasFooter] = useState(isWizardRoute);
 
   const projectsQuery = useProjectsQuery();
@@ -74,6 +79,40 @@ export function ChatFloatingWidget() {
         credits: activeProject.packageCredits,
       }
     : projectMeta;
+
+  // Mount drawer contents when opened
+  useEffect(() => {
+    if (isOpen) {
+      setHasOpened(true);
+    }
+  }, [isOpen]);
+
+  // Focus management: move focus into drawer on open, restore to launcher on close
+  useEffect(() => {
+    if (isOpen && !prevIsOpenRef.current) {
+      requestAnimationFrame(() => {
+        closeButtonRef.current?.focus();
+      });
+    } else if (!isOpen && prevIsOpenRef.current) {
+      launcherRef.current?.focus();
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  // Keyboard accessibility: Escape to close
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, setIsOpen]);
 
   // Adjust bottom clearance when wizard sticky navigation footer is mounted
   useEffect(() => {
@@ -101,78 +140,90 @@ export function ChatFloatingWidget() {
   };
 
   const isAuthRoute = Boolean(pathname?.startsWith('/login') || pathname?.startsWith('/sign-in'));
-  if (isMessagesRoute || isAuthRoute) return null;
+  const isManagementRoute = Boolean(pathname?.startsWith('/management'));
+  if (isMessagesRoute || isAuthRoute || isManagementRoute) return null;
 
   return (
     <>
       {/* 1. Floating Launcher (Single Compact Chat Trigger Button) */}
-      {!isOpen && (
-        <div
-          className={cn(
-            'fixed right-5 sm:right-6 md:right-7 z-50 transition-all duration-300 ease-in-out',
-            hasFooter ? 'bottom-20 sm:bottom-22' : 'bottom-5 sm:bottom-6'
-          )}
+      <div
+        className={cn(
+          'fixed right-5 sm:right-6 md:right-7 z-50 transition-all duration-300 ease-in-out motion-reduce:transition-none',
+          hasFooter ? 'bottom-20 sm:bottom-22' : 'bottom-5 sm:bottom-6',
+          isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        )}
+      >
+        <Button
+          ref={launcherRef}
+          type="button"
+          variant="outline"
+          onPointerEnter={() => setHasOpened(true)}
+          onFocus={() => setHasOpened(true)}
+          onClick={() => {
+            setHasOpened(true);
+            setIsOpen(true, isWizardRoute ? GLOBAL_CHAT_ID : undefined);
+          }}
+          aria-label="Open studio chat"
+          className="group/chat-trigger h-9 sm:h-9.5 px-3 sm:px-3.5 py-1.5 rounded-lg bg-card hover:bg-amber-500/5 dark:bg-card border-border hover:border-amber-500/40 text-foreground shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none flex items-center gap-2"
         >
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (isWizardRoute) {
-                setActiveProjectId(GLOBAL_CHAT_ID);
-              }
-              setIsOpen(true);
-            }}
-            aria-label="Open studio chat"
-            className="group/chat-trigger h-9 sm:h-9.5 px-3 sm:px-3.5 py-1.5 rounded-lg bg-card hover:bg-amber-500/5 dark:bg-card border-border hover:border-amber-500/40 text-foreground shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none flex items-center gap-2"
-          >
-            {/* Brand Orange Chat Icon */}
-            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover/chat-trigger:bg-amber-500/25 transition-colors">
-              <MessageSquare className="size-3 text-amber-600 dark:text-amber-400" />
+          {/* Brand Orange Chat Icon */}
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover/chat-trigger:bg-amber-500/25 transition-colors">
+            <MessageSquare className="size-3 text-amber-600 dark:text-amber-400" />
+          </span>
+
+          {/* Label: Chat with Our Team on wizard flow, or Messages on tracking views */}
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <span className="text-foreground font-semibold">
+              {isWizardRoute || isGlobal ? 'Chat with Our Team' : 'Messages'}
             </span>
+            <span className="text-muted-foreground/60 font-normal">·</span>
+            <span
+              className={cn(
+                'text-muted-foreground text-2xs font-medium',
+                isWizardRoute || isGlobal ? 'font-sans' : 'font-mono'
+              )}
+            >
+              {isWizardRoute || isGlobal ? 'Sarah Miller' : displayMeta.projectCode}
+            </span>
+          </div>
 
-            {/* Label: Chat with Our Team on wizard flow, or Messages on tracking views */}
-            <div className="flex items-center gap-1.5 text-xs font-medium">
-              <span className="text-foreground font-semibold">
-                {isWizardRoute || isGlobal ? 'Chat with Our Team' : 'Messages'}
-              </span>
-              <span className="text-muted-foreground/60 font-normal">·</span>
-              <span
-                className={cn(
-                  'text-muted-foreground text-2xs font-medium',
-                  isWizardRoute || isGlobal ? 'font-sans' : 'font-mono'
-                )}
-              >
-                {isWizardRoute || isGlobal ? 'Sarah Miller' : displayMeta.projectCode}
-              </span>
-            </div>
-
-            {/* Unread Message Count Badge */}
-            {totalUnreadCount > 0 && (
-              <Badge
-                variant="destructive"
-                className="ml-0.5 h-4.5 px-1.5 text-2xs font-mono tabular-nums font-bold rounded-full bg-amber-500 text-white animate-pulse shadow-xs"
-              >
-                {totalUnreadCount}
-              </Badge>
-            )}
-          </Button>
-        </div>
-      )}
+          {/* Unread Message Count Badge */}
+          {totalUnreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="ml-0.5 h-4.5 px-1.5 text-2xs font-mono tabular-nums font-bold rounded-full bg-amber-500 text-white animate-pulse shadow-xs"
+            >
+              {totalUnreadCount}
+            </Badge>
+          )}
+        </Button>
+      </div>
 
       {/* 2. Slide-over Panel Workspace (Hybrid Two-Column Drawer) */}
-      {isOpen && (
-        <>
-          {/* Backdrop overlay */}
-          <div
-            onClick={() => setIsOpen(false)}
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
-          />
+      {/* Backdrop overlay (plain opacity fade, zero blur-filter shader penalty during animation) */}
+      <div
+        onClick={() => setIsOpen(false)}
+        aria-hidden="true"
+        className={cn(
+          'fixed inset-0 z-50 bg-black/40 transition-opacity duration-300 ease-out motion-reduce:transition-none',
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
+      />
 
-          <div
-            className={cn(
-              'fixed right-0 top-0 bottom-0 z-50 h-full w-full sm:w-[680px] md:w-[780px] lg:w-[860px] max-w-full bg-card border-l border-border shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300'
-            )}
-          >
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Studio Messages & Project Discussion"
+        inert={!isOpen}
+        className={cn(
+          'fixed inset-y-0 right-0 z-50 h-full w-full sm:w-[680px] md:w-[780px] lg:w-[860px] max-w-full',
+          'bg-card border-l border-border flex flex-col overflow-hidden',
+          'transition-transform duration-300 ease-out motion-reduce:transition-none',
+          isOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'
+        )}
+      >
+        {hasOpened && (
+          <>
             {/* ========================================================= */}
             {/* 1. TOP AGENT BAR (Lightweight & Reassuring, px-4 py-2.5)   */}
             {/* ========================================================= */}
@@ -221,6 +272,7 @@ export function ChatFloatingWidget() {
                   {projects.length} Active
                 </span>
                 <Button
+                  ref={closeButtonRef}
                   type="button"
                   variant="ghost"
                   size="icon-sm"
@@ -243,7 +295,7 @@ export function ChatFloatingWidget() {
                 className={cn(
                   'border-r border-border/80 flex flex-col transition-all duration-200 z-10',
                   isSidebarOpen
-                    ? 'w-full sm:w-[235px] md:w-[245px] shrink-0 flex'
+                    ? 'w-full sm:w-[245px] md:w-[255px] shrink-0 flex'
                     : 'hidden sm:hidden'
                 )}
               >
@@ -373,9 +425,9 @@ export function ChatFloatingWidget() {
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </aside>
 
       {/* Lightbox Preview Modal */}
       <ChatAttachmentModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />

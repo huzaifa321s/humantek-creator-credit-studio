@@ -29,6 +29,12 @@ export function StudioBackground({
         'pointer-events-none absolute inset-0 z-0 overflow-hidden select-none',
         className
       )}
+      style={{
+        maskImage:
+          'linear-gradient(to right, transparent 0%, black 2.5rem, black calc(100% - 2rem), transparent 100%)',
+        WebkitMaskImage:
+          'linear-gradient(to right, transparent 0%, black 2.5rem, black calc(100% - 2rem), transparent 100%)',
+      }}
     >
       {/* 1. Primary Top Studio Spotlight (Amber/Gold aura) */}
       <div

@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
 
 /**
- * The wizard has been unified into the root route `/` (`src/app/page.tsx`).
- * Any direct navigation to `/configure` is immediately redirected to `/`.
+ * The wizard has been relocated to `/new-project`.
+ * Any direct navigation to `/configure` is immediately redirected to `/new-project`.
  */
 export default function ConfigurePage() {
-  redirect('/');
+  redirect('/new-project');
 }

@@ -118,7 +118,7 @@ export default function RedeemCodePage() {
       mode="standalone"
       backLabel="Back to Studio"
       topRightBadge={
-        <Link href="/">
+        <Link href="/new-project">
           <Button
             type="button"
             variant="default"

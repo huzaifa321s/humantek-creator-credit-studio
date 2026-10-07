@@ -12,7 +12,7 @@ export default function MessagesPage() {
       mode="standalone"
       backLabel="Back to Studio"
       topRightBadge={
-        <Link href="/">
+        <Link href="/new-project">
           <Button
             variant="default"
             size="sm"

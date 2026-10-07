@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { useUserStore } from '@/lib/userStore';
@@ -17,21 +17,33 @@ import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next');
+
+  // Verify safe relative URL to avoid open-redirect vulnerability
+  const getSafeRedirectUrl = () => {
+    if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
+      return nextParam;
+    }
+    return '/projects';
+  };
+
   const { user, isHydrated, signInAsClient } = useUserStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const isConfigured = isRealSupabaseConfigured();
 
-  // If user is already authenticated, redirect immediately to My Projects
+  // If user is already authenticated in the client store, redirect to target
   useEffect(() => {
     if (isHydrated && user && user.email && user.id !== 'client-guest') {
-      router.replace('/projects');
+      router.replace(getSafeRedirectUrl());
     }
   }, [user, isHydrated, router]);
 
@@ -44,17 +56,8 @@ export default function SignInPage() {
     setMessage(null);
 
     try {
-      if (!isConfigured) {
-        // Fallback authentication when Supabase is not configured
-        signInAsClient(email ? email.split('@')[0] : 'Kira Streams', email || 'creator@humantek.art');
-        toast.success(`Signed in as ${email || 'creator@humantek.art'}`);
-        router.push('/projects');
-        router.refresh();
-        return;
-      }
-
-      const supabase = createClient();
-      if (isSignUp) {
+      if (isSignUp && isConfigured) {
+        const supabase = createClient();
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -65,16 +68,39 @@ export default function SignInPage() {
           type: 'success',
         });
         toast.success('Account created! Verification link sent.');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast.success('Signed in successfully!');
-        router.push('/projects');
-        router.refresh();
+        return;
       }
+
+      // Call server login endpoint to establish real httpOnly session cookie
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email || 'creator@humantek.art',
+          password,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      // Sync Zustand store for instant client-side rendering
+      const authUser = data.user;
+      signInAsClient(authUser.name, authUser.email);
+      if (typeof authUser.walletBalance === 'number') {
+        useUserStore.getState().updateUser({
+          id: authUser.id,
+          role: authUser.role,
+          walletBalance: authUser.walletBalance,
+        });
+      }
+
+      toast.success(`Signed in as ${authUser.email}`);
+      const targetUrl = getSafeRedirectUrl();
+      router.push(targetUrl);
+      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
       setMessage({ text: msg, type: 'error' });
@@ -84,10 +110,48 @@ export default function SignInPage() {
     }
   };
 
-  const handleDemoSignIn = () => {
-    setEmail('creator@humantek.art');
-    setPassword('DemoPass2026!');
-    toast.info('Loaded demo creator credentials. Click Sign in.');
+  const handleDemoSignIn = async () => {
+    setIsDemoLoading(true);
+    setMessage(null);
+
+    try {
+      // Call server login endpoint to establish real httpOnly session cookie for demo mode
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'creator@humantek.art',
+          password: 'DemoPass2026!',
+          isDemo: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Demo login failed');
+      }
+
+      const authUser = data.user;
+      signInAsClient(authUser.name, authUser.email);
+      if (typeof authUser.walletBalance === 'number') {
+        useUserStore.getState().updateUser({
+          id: authUser.id,
+          role: authUser.role,
+          walletBalance: authUser.walletBalance,
+        });
+      }
+
+      toast.success('Signed in as demo creator (80 CR)');
+      const targetUrl = getSafeRedirectUrl();
+      router.push(targetUrl);
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Demo sign-in failed';
+      setMessage({ text: msg, type: 'error' });
+      toast.error(msg);
+    } finally {
+      setIsDemoLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -98,7 +162,6 @@ export default function SignInPage() {
     <div className="w-full max-w-md animate-in fade-in duration-200">
       <Card className="rounded-xl border-border bg-card shadow-xs p-6 sm:p-8">
         <CardHeader className="p-0 text-center space-y-1.5 mb-6">
-          {/* Loosened tracking so words don't look squeezed; duplicate logo tile removed */}
           <CardTitle className="text-xl sm:text-2xl font-bold tracking-normal text-foreground leading-snug">
             {isSignUp ? 'Create studio account' : 'Sign in to Creator Studio'}
           </CardTitle>
@@ -191,7 +254,6 @@ export default function SignInPage() {
               </Field>
             </FieldGroup>
 
-            {/* Clear sentence case action button with reusable loading state */}
             <Button
               type="submit"
               variant="default"
@@ -218,17 +280,18 @@ export default function SignInPage() {
                 type="button"
                 variant="outline"
                 size="sm"
+                loading={isDemoLoading}
+                loadingText="Signing in as demo..."
                 onClick={handleDemoSignIn}
                 className="w-full text-sm gap-2 font-medium rounded-lg h-11 min-h-[44px] cursor-pointer"
               >
-                Fill demo creator credentials
+                Sign in with demo credentials
               </Button>
             </>
           )}
         </CardContent>
 
         <CardFooter className="p-0 mt-6 pt-4 border-t border-border flex justify-center text-sm">
-          {/* Subtle muted prompt with only the action link highlighted */}
           <p className="text-xs text-muted-foreground text-center">
             {isSignUp ? (
               <>
@@ -263,5 +326,13 @@ export default function SignInPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md h-96 rounded-xl bg-card border border-border animate-pulse" />}>
+      <SignInContent />
+    </Suspense>
   );
 }

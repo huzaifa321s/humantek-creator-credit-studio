@@ -130,8 +130,8 @@ export function ChatProjectSidebar({
                 <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-500 rounded-r-xs" />
               )}
 
-              <div className="flex items-center justify-between gap-1.5 mb-0.5 w-full">
-                <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-0.5 w-full">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span
                     className={cn(
                       'flex size-4.5 shrink-0 items-center justify-center rounded-md transition-colors',
@@ -144,16 +144,13 @@ export function ChatProjectSidebar({
                   </span>
                   <span
                     className={cn(
-                      'text-xs font-semibold tracking-tight truncate',
+                      'text-xs font-semibold tracking-tight whitespace-nowrap',
                       isGlobalSelected
                         ? 'text-amber-900 dark:text-amber-200'
                         : 'text-amber-950 dark:text-amber-100'
                     )}
                   >
                     Global Chat
-                  </span>
-                  <span className="text-2xs font-mono text-amber-700/80 dark:text-amber-400/80 hidden sm:inline">
-                    · Sarah
                   </span>
                 </div>
 
@@ -165,7 +162,7 @@ export function ChatProjectSidebar({
                     {globalUnread} new
                   </Badge>
                 ) : (
-                  <span className="text-2xs font-mono tabular-nums text-muted-foreground/80 shrink-0">
+                  <span className="text-2xs font-mono tabular-nums text-muted-foreground/80 shrink-0 whitespace-nowrap">
                     {lastGlobalMsg
                       ? lastGlobalMsg.timestamp.includes('Today at')
                         ? lastGlobalMsg.timestamp.replace('Today at ', '')

@@ -13,6 +13,7 @@ import {
   ChevronDown,
   User,
   MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -116,18 +117,19 @@ export function StudioCardLayout({
       onBack();
     } else if (currentStep > 1 && mode === 'wizard') {
       onSelectStep(currentStep - 1);
-    } else if (pathname !== '/') {
-      router.push('/');
+    } else if (pathname !== '/projects') {
+      router.push('/projects');
     }
   };
 
   const isBackDisabled = mode === 'wizard' && currentStep === 1 && !onBack;
   const { user, isHydrated } = useUserStore();
 
-  // Route protection: Unauthenticated users are redirected to /login
+  // Fallback client check for expired sessions (Server proxy handles primary optimistic redirect)
   useEffect(() => {
     if (isHydrated && (!user?.email || user.id === 'client-guest')) {
-      router.replace('/login');
+      const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/projects';
+      router.replace(`/login?next=${encodeURIComponent(currentUrl)}`);
     }
   }, [isHydrated, user?.email, user?.id, router]);
 
@@ -145,7 +147,7 @@ export function StudioCardLayout({
   // =========================================================================
   if (mode === 'standalone') {
     return (
-      <SidebarProvider defaultOpen={true} style={{ "--sidebar-width": "13.5rem" } as React.CSSProperties} className="min-h-screen w-full bg-background flex flex-col font-sans antialiased">
+      <SidebarProvider defaultOpen={true} style={{ "--sidebar-width": "15rem" } as React.CSSProperties} className="min-h-screen w-full bg-background flex flex-col font-sans antialiased">
         {/* 1. Full-Width Black Dashboard Header (Shadcn Studio Style) */}
         <DashboardHeader
           mode="standalone"
@@ -161,7 +163,7 @@ export function StudioCardLayout({
 
         <div className="flex flex-1 w-full min-h-0 relative">
           {/* 2. Official Ultra-Compact shadcn Sidebar sitting below the top header */}
-          <Sidebar collapsible="icon" className="border-r border-sidebar-border/80 bg-sidebar select-none top-13 sm:top-13.5 h-[calc(100vh-3.25rem)] sm:h-[calc(100vh-3.375rem)]">
+          <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar select-none top-13 sm:top-13.5 h-[calc(100vh-3.25rem)] sm:h-[calc(100vh-3.375rem)]">
             {/* Sidebar Content with Categorized Groups */}
             <SidebarContent className="p-1.5 space-y-1.5 flex-1">
               {/* Main Studio Navigation Group */}
@@ -175,10 +177,10 @@ export function StudioCardLayout({
                         render={<Link href="/projects" />}
                         tooltip="My Projects"
                         className={cn(
-                          'h-9 min-h-[44px] sm:min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                           pathname === '/projects'
-                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                         )}
                       >
                         <FolderKanban
@@ -200,10 +202,10 @@ export function StudioCardLayout({
                         onClick={() => setChatOpen(!isOpen)}
                         tooltip="Messages"
                         className={cn(
-                          'h-9 min-h-[44px] sm:min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                           isOpen
-                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                         )}
                       >
                         <MessageSquare
@@ -228,10 +230,10 @@ export function StudioCardLayout({
                         render={<Link href="/redeem-code" />}
                         tooltip="Promo Code"
                         className={cn(
-                          'h-9 min-h-[44px] sm:min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                           pathname === '/redeem-code'
-                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
+                            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                         )}
                       >
                         <Ticket
@@ -245,6 +247,39 @@ export function StudioCardLayout({
                         <span className="truncate group-data-[collapsible=icon]:hidden">Promo Code</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+
+                    {/* 4. Management Console (Role-Aware for Admins & Staff) */}
+                    {(user?.role === 'admin' ||
+                      user?.role === 'producer' ||
+                      user?.role === 'staff' ||
+                      user?.email === 'dev@localhost' ||
+                      user?.email === 'admin@humantek.art' ||
+                      user?.email === 'huzaifa14321furqan@gmail.com' ||
+                      pathname.startsWith('/management')) && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          isActive={pathname.startsWith('/management')}
+                          render={<Link href="/management" />}
+                          tooltip="Management"
+                          className={cn(
+                            'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                            pathname.startsWith('/management')
+                              ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                              : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                          )}
+                        >
+                          <ShieldCheck
+                            className={cn(
+                              'size-4 shrink-0 transition-colors',
+                              pathname.startsWith('/management')
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                            )}
+                          />
+                          <span className="truncate group-data-[collapsible=icon]:hidden">Management</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>

@@ -62,17 +62,18 @@ function SystemMarker({ content }: { content: string }) {
   );
 }
 
-export function ChatMessageItem({
-  message,
-  onPreviewAttachment,
-  onToggleReaction,
-  compact = false,
-}: ChatMessageItemProps) {
-  const [copied, setCopied] = useState(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+export const ChatMessageItem = React.memo(
+  function ChatMessageItem({
+    message,
+    onPreviewAttachment,
+    onToggleReaction,
+    compact = false,
+  }: ChatMessageItemProps) {
+    const [copied, setCopied] = useState(false);
+    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  if (message.sender === 'system') {
+    if (message.sender === 'system') {
     return <SystemMarker content={message.content} />;
   }
 
@@ -195,12 +196,13 @@ export function ChatMessageItem({
               <p className="whitespace-pre-wrap">{message.content}</p>
             </BubbleContent>
 
-            {/* ReUI Bubble Reactions */}
+            {/* Reactions rendered in clean normal flow to avoid any overflow clipping */}
             {hasReactions && (
-              <BubbleReactions
-                side="bottom"
-                align={isClient ? 'end' : 'start'}
-                className="gap-1 mt-1 z-10"
+              <div
+                className={cn(
+                  'flex flex-wrap items-center gap-1 mt-1.5 px-0.5',
+                  isClient ? 'justify-end' : 'justify-start'
+                )}
               >
                 {message.reactions!.map((r) => (
                   <button
@@ -208,7 +210,7 @@ export function ChatMessageItem({
                     type="button"
                     onClick={() => onToggleReaction?.(r.emoji)}
                     className={cn(
-                      'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border transition-all cursor-pointer shadow-2xs',
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border transition-all cursor-pointer shadow-2xs',
                       r.reacted
                         ? 'bg-amber-500/20 border-amber-500/50 text-amber-800 dark:text-amber-300'
                         : 'bg-background hover:bg-muted border-border/70 text-muted-foreground'
@@ -219,7 +221,7 @@ export function ChatMessageItem({
                     <span className="text-2xs font-mono tabular-nums">{r.count}</span>
                   </button>
                 ))}
-              </BubbleReactions>
+              </div>
             )}
           </Bubble>
         )}
@@ -308,4 +310,10 @@ export function ChatMessageItem({
       </MessageContent>
     </Message>
   );
-}
+},
+(prev, next) =>
+  prev.message === next.message &&
+  prev.compact === next.compact &&
+  prev.onPreviewAttachment === next.onPreviewAttachment
+);
+

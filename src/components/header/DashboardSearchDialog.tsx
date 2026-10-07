@@ -68,7 +68,7 @@ export function DashboardSearchDialog({
         description: 'Configure and start your next creative media project',
         icon: Sparkles,
         keywords: ['new', 'project', 'brief', 'create', 'order', 'package', 'home', 'services', 'wizard'],
-        action: () => router.push('/'),
+        action: () => router.push('/new-project'),
       },
       {
         id: 'nav-messages',

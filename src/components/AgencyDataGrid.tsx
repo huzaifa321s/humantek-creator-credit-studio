@@ -319,26 +319,26 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                       <div className="text-muted-foreground text-2xs">{item.clientEmail}</div>
                     </TableCell>
 
-                    {/* Type Badge */}
+                    {/* Type Badge with Human Labels */}
                     <TableCell>
                       {item.type === 'package_purchase' && (
                         <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5">
-                          package_purchase
+                          Package Purchase
                         </Badge>
                       )}
                       {item.type === 'service_deduction' && (
                         <Badge variant="outline" className="text-2xs font-semibold text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 px-2 py-0.5">
-                          service_deduction
+                          Service Scope
                         </Badge>
                       )}
                       {item.type === 'promo_credit' && (
                         <Badge variant="gold" className="text-2xs font-semibold px-2 py-0.5">
-                          promo_code
+                          Promo Code
                         </Badge>
                       )}
                       {item.type === 'refund' && (
                         <Badge variant="destructive" className="text-2xs font-semibold px-2 py-0.5">
-                          refund
+                          Refund
                         </Badge>
                       )}
                     </TableCell>
