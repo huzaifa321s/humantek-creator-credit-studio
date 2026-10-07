@@ -226,11 +226,13 @@ export function DashboardHeader({
         {/* =================================================================== */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {mode === 'auth' ? (
-            <div className="flex items-center gap-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-300 text-xs font-medium select-none shadow-2xs">
-                <ShieldCheck className="size-3.5 text-amber-500" />
-                <span className="text-2xs font-semibold uppercase tracking-wider text-zinc-300">Secure Access</span>
-              </div>
+            <div className="flex items-center gap-3">
+              <a
+                href="mailto:support@humantek.art"
+                className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer select-none"
+              >
+                Need help?
+              </a>
             </div>
           ) : (
             <>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -11,8 +11,9 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META } from '@/lib/chatStore';
 import { useProjectsQuery } from '@/lib/queries/projects';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInputBar } from './ChatInputBar';
@@ -39,11 +40,13 @@ export function ChatFloatingWidget() {
     setActiveProjectId,
     sendMessage,
     toggleReaction,
-    registerProject,
   } = useStudioChat();
 
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [userToggledSidebar, setUserToggledSidebar] = useState<boolean | null>(null);
+  const isSidebarOpen = userToggledSidebar ?? !isMobile;
+
   const pathname = usePathname();
   const isMessagesRoute = pathname === '/messages';
   const isWizardRoute = pathname === '/';
@@ -52,53 +55,48 @@ export function ChatFloatingWidget() {
   const projectsQuery = useProjectsQuery();
   const projects = projectsQuery.data ?? [];
 
-  // Adaptive Sidebar: Auto-collapse on mobile screens (<640px)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (window.innerWidth < 640) {
-        setIsSidebarOpen(false);
-      } else {
-        setIsSidebarOpen(true);
+  // Derive active project metadata directly from TanStack Query without duplicating state into Zustand
+  const activeProject = useMemo(
+    () => projects.find((p) => p.id === projectId),
+    [projects, projectId]
+  );
+
+  const displayMeta = isGlobal
+    ? GLOBAL_META
+    : activeProject
+    ? {
+        id: activeProject.id,
+        projectCode: activeProject.projectCode,
+        packageName: activeProject.packageName,
+        clientName: activeProject.clientName,
+        status: activeProject.status,
+        price: activeProject.packagePrice,
+        credits: activeProject.packageCredits,
       }
-    }
-  }, []);
+    : projectMeta;
 
-  // Sync projects dynamically into project-based chat store
+  // Adjust bottom clearance when wizard sticky navigation footer is mounted
   useEffect(() => {
-    if (projects.length > 0) {
-      projects.forEach((p) => {
-        registerProject({
-          id: p.id,
-          projectCode: p.projectCode,
-          packageName: p.packageName,
-          clientName: p.clientName,
-          status: p.status,
-          price: p.packagePrice,
-          credits: p.packageCredits,
-        });
-      });
+    if (!isWizardRoute) {
+      setHasFooter(false);
+      return;
     }
-  }, [projects, registerProject]);
 
-  // Adjust bottom distance if wizard footer is present
-  useEffect(() => {
     const checkFooter = () => {
       const footerEl = document.getElementById('studio-footer-actions');
-      const exists = Boolean(footerEl);
-      setHasFooter((prev) => (prev !== exists ? exists : prev));
+      setHasFooter(Boolean(footerEl));
     };
 
     checkFooter();
-
     const observer = new MutationObserver(checkFooter);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [pathname]);
+  }, [isWizardRoute]);
 
   const handleSelectProject = (id: string) => {
     setActiveProjectId(id);
-    if (typeof window !== 'undefined' && window.innerWidth < 640) {
-      setIsSidebarOpen(false);
+    if (isMobile) {
+      setUserToggledSidebar(false);
     }
   };
 
@@ -139,7 +137,7 @@ export function ChatFloatingWidget() {
               </span>
               <span className="text-muted-foreground/60 font-normal">·</span>
               <span className="text-muted-foreground font-mono text-2xs font-medium">
-                {isWizardRoute || isGlobal ? 'Sarah Miller' : projectMeta.projectCode}
+                {isWizardRoute || isGlobal ? 'Sarah Miller' : displayMeta.projectCode}
               </span>
             </div>
 
@@ -181,7 +179,7 @@ export function ChatFloatingWidget() {
                     type="button"
                     variant="outline"
                     size="icon-sm"
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    onClick={() => setUserToggledSidebar(!isSidebarOpen)}
                     title={isSidebarOpen ? 'Collapse Project Sessions' : 'Show Project Sessions'}
                     className={cn(
                       'h-8 w-8 rounded-lg cursor-pointer transition-colors',
@@ -269,14 +267,14 @@ export function ChatFloatingWidget() {
                     type="button"
                     variant="ghost"
                     size="xs"
-                    onClick={() => setIsSidebarOpen(true)}
+                    onClick={() => setUserToggledSidebar(true)}
                     className="h-7 text-xs font-medium gap-1 text-amber-700 dark:text-amber-400 cursor-pointer"
                   >
                     <ChevronLeft className="size-3.5" />
                     <span>Back to chats</span>
                   </Button>
                   <span className="text-2xs font-mono font-medium text-muted-foreground">
-                    {isGlobal ? 'Global Chat' : projectMeta.projectCode}
+                    {isGlobal ? 'Global Chat' : displayMeta.projectCode}
                   </span>
                 </div>
 
@@ -300,28 +298,28 @@ export function ChatFloatingWidget() {
                     {/* Line 1: Code · Package · Status */}
                     <div className="flex items-center gap-2 flex-wrap text-xs font-medium">
                       <span className="font-mono text-xs font-bold tracking-tight text-foreground">
-                        {projectMeta.projectCode}
+                        {displayMeta.projectCode}
                       </span>
                       <span className="text-muted-foreground">·</span>
                       <span className="text-foreground/90 font-medium text-xs">
-                        {projectMeta.packageName}
+                        {displayMeta.packageName}
                       </span>
                       <span className="text-muted-foreground">·</span>
                       <Badge variant="outline" className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md">
-                        {projectMeta.status.replace('_', ' ').toLowerCase()}
+                        {displayMeta.status.replace('_', ' ').toLowerCase()}
                       </Badge>
                     </div>
 
                     {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
                     <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span>Client: <b className="text-foreground font-medium">{projectMeta.clientName}</b></span>
+                        <span>Client: <b className="text-foreground font-medium">{displayMeta.clientName}</b></span>
                         <span>·</span>
-                        <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-semibold">{projectMeta.credits || 660} CR</b></span>
-                        {projectMeta.price && (
+                        <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-semibold">{displayMeta.credits || 660} CR</b></span>
+                        {displayMeta.price && (
                           <>
                             <span>·</span>
-                            <span className="font-mono tabular-nums">${projectMeta.price.toLocaleString()} USD</span>
+                            <span className="font-mono tabular-nums">${displayMeta.price.toLocaleString()} USD</span>
                           </>
                         )}
                       </div>
@@ -364,8 +362,8 @@ export function ChatFloatingWidget() {
                     isTyping={isTyping}
                     compact
                     isGlobal={isGlobal}
-                    activeProjectCode={isGlobal ? undefined : projectMeta.projectCode}
-                    activeProjectName={isGlobal ? undefined : projectMeta.packageName}
+                    activeProjectCode={isGlobal ? undefined : displayMeta.projectCode}
+                    activeProjectName={isGlobal ? undefined : displayMeta.packageName}
                   />
                 </div>
               </div>

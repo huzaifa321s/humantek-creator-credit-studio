@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 interface StudioBackgroundProps {
   className?: string;
   variant?: 'default' | 'subtle' | 'spotlight';
+  showDots?: boolean;
 }
 
 /**
@@ -19,6 +20,7 @@ interface StudioBackgroundProps {
 export function StudioBackground({
   className,
   variant = 'default',
+  showDots = true,
 }: StudioBackgroundProps) {
   return (
     <div
@@ -51,19 +53,21 @@ export function StudioBackground({
         }}
       />
 
-      {/* 3. Precision Micro Dot Grid with Radial Vignette Fade */}
-      <div
-        className="absolute inset-0 text-foreground opacity-[0.055] dark:opacity-[0.08]"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle, currentColor 1.2px, transparent 1.2px)',
-          backgroundSize: '24px 24px',
-          maskImage:
-            'radial-gradient(ellipse 90% 75% at 50% 25%, black 35%, transparent 85%)',
-          WebkitMaskImage:
-            'radial-gradient(ellipse 90% 75% at 50% 25%, black 35%, transparent 85%)',
-        }}
-      />
+      {/* 3. Precision Micro Dot Grid with Radial Vignette Fade (Optional) */}
+      {showDots && (
+        <div
+          className="absolute inset-0 text-foreground opacity-[0.055] dark:opacity-[0.08]"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle, currentColor 1.2px, transparent 1.2px)',
+            backgroundSize: '24px 24px',
+            maskImage:
+              'radial-gradient(ellipse 90% 75% at 50% 25%, black 35%, transparent 85%)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 90% 75% at 50% 25%, black 35%, transparent 85%)',
+          }}
+        />
+      )}
 
       {/* 4. Fine Linear Horizon Top Glow Line */}
       <div

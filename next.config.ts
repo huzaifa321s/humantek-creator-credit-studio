@@ -9,7 +9,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  devIndicators: false,
+  devIndicators: {
+    position: "bottom-left",
+  },
   typescript: {
     ignoreBuildErrors: false,
   },

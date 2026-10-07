@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useStudioChat, ChatAttachment, SAMPLE_REFERENCES } from '@/lib/chatStore';
+import { useStudioChat, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META } from '@/lib/chatStore';
 import { useProjectsQuery } from '@/lib/queries/projects';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInputBar } from './ChatInputBar';
@@ -46,7 +46,6 @@ export function ChatFullView() {
     sendMessage,
     toggleReaction,
     markAllAsRead,
-    registerProject,
   } = useStudioChat();
 
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
@@ -54,22 +53,25 @@ export function ChatFullView() {
   const projectsQuery = useProjectsQuery();
   const projects = projectsQuery.data ?? [];
 
-  // Register real projects dynamically into store
-  useEffect(() => {
-    if (projects.length > 0) {
-      projects.forEach((p) => {
-        registerProject({
-          id: p.id,
-          projectCode: p.projectCode,
-          packageName: p.packageName,
-          clientName: p.clientName,
-          status: p.status,
-          price: p.packagePrice,
-          credits: p.packageCredits,
-        });
-      });
-    }
-  }, [projects, registerProject]);
+  // Derive active project metadata directly from TanStack Query without duplicating state into Zustand
+  const activeProject = useMemo(
+    () => projects.find((p) => p.id === projectId),
+    [projects, projectId]
+  );
+
+  const displayMeta = isGlobal
+    ? GLOBAL_META
+    : activeProject
+    ? {
+        id: activeProject.id,
+        projectCode: activeProject.projectCode,
+        packageName: activeProject.packageName,
+        clientName: activeProject.clientName,
+        status: activeProject.status,
+        price: activeProject.packagePrice,
+        credits: activeProject.packageCredits,
+      }
+    : projectMeta;
 
   // Mark active project as read
   useEffect(() => {
@@ -231,7 +233,7 @@ export function ChatFullView() {
                     Project Moodboards ({displayAttachments.length})
                   </span>
                 </div>
-                <span className="text-2xs text-muted-foreground font-mono tabular-nums">{projectMeta.projectCode}</span>
+                <span className="text-2xs text-muted-foreground font-mono tabular-nums">{displayMeta.projectCode}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -256,7 +258,7 @@ export function ChatFullView() {
                 ))}
               </div>
               <p className="text-2xs text-muted-foreground/80 leading-normal">
-                Visual moodboards uploaded for {projectMeta.projectCode}. Click any frame to zoom in.
+                Visual moodboards uploaded for {displayMeta.projectCode}. Click any frame to zoom in.
               </p>
             </Card>
           )}
@@ -285,28 +287,28 @@ export function ChatFullView() {
                 {/* Line 1: Code · Package · Status */}
                 <div className="flex items-center gap-2 flex-wrap text-sm font-medium">
                   <span className="font-mono text-xs font-bold tracking-tight text-foreground">
-                    {projectMeta.projectCode}
+                    {displayMeta.projectCode}
                   </span>
                   <span className="text-muted-foreground">·</span>
                   <span className="text-foreground/90 font-medium text-xs">
-                    {projectMeta.packageName}
+                    {displayMeta.packageName}
                   </span>
                   <span className="text-muted-foreground">·</span>
                   <Badge variant="outline" className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md">
-                    {projectMeta.status.replace('_', ' ').toLowerCase()}
+                    {displayMeta.status?.replace('_', ' ').toLowerCase() || 'in progress'}
                   </Badge>
                 </div>
 
                 {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
                 <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span>Client: <b className="text-foreground font-medium">{projectMeta.clientName}</b></span>
+                    <span>Client: <b className="text-foreground font-medium">{displayMeta.clientName}</b></span>
                     <span>·</span>
-                    <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-bold">{projectMeta.credits || 660} CR</b></span>
-                    {projectMeta.price && (
+                    <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-bold">{displayMeta.credits || 660} CR</b></span>
+                    {displayMeta.price && (
                       <>
                         <span>·</span>
-                        <span className="font-mono tabular-nums">${projectMeta.price.toLocaleString()} USD</span>
+                        <span className="font-mono tabular-nums">${displayMeta.price.toLocaleString()} USD</span>
                       </>
                     )}
                   </div>
@@ -346,8 +348,8 @@ export function ChatFullView() {
                 onSendMessage={sendMessage}
                 isTyping={isTyping}
                 isGlobal={isGlobal}
-                activeProjectCode={isGlobal ? undefined : projectMeta.projectCode}
-                activeProjectName={isGlobal ? undefined : projectMeta.packageName}
+                activeProjectCode={isGlobal ? undefined : displayMeta.projectCode}
+                activeProjectName={isGlobal ? undefined : displayMeta.packageName}
               />
             </div>
           </Card>

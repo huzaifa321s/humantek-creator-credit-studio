@@ -101,7 +101,7 @@ export default function ProjectsPage() {
           <div className="relative w-full sm:w-64">
             <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search by code, brand or client..."
+              placeholder="Search by code, brand, or package..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 h-8 text-xs bg-card border-border/80 rounded-lg focus-visible:border-amber-500"

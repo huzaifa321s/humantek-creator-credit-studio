@@ -13,20 +13,28 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-background flex flex-col justify-between relative isolate selection:bg-amber-500/20 selection:text-amber-900 font-sans">
-      <StudioBackground />
+    <div className="flex min-h-dvh flex-col bg-background relative isolate selection:bg-amber-500/20 selection:text-amber-900 font-sans">
+      {/* Ambient studio spotlight without distracting dot grid */}
+      <StudioBackground showDots={false} />
 
       {/* Unified Professional Reusable Brand Header in Auth Mode */}
       <DashboardHeader mode="auth" />
 
       {/* Main Centered Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-8 z-20">
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:py-10 z-20">
         {children}
       </main>
 
-      {/* Minimal Studio Footer */}
-      <footer className="w-full px-4 sm:px-6 py-4 text-center text-xs text-muted-foreground z-20 shrink-0 border-t border-border/40 bg-background/50 backdrop-blur-xs">
-        <p>© {new Date().getFullYear()} Humantek Art. All rights reserved.</p>
+      {/* Quiet, refined footer matching card border and muted typography */}
+      <footer className="border-t border-border/60 py-4 text-center text-xs text-muted-foreground z-20 shrink-0 bg-background/50">
+        © 2026 Humantek Art ·{' '}
+        <a href="#terms" className="hover:underline hover:text-foreground transition-colors">
+          Terms
+        </a>{' '}
+        ·{' '}
+        <a href="#privacy" className="hover:underline hover:text-foreground transition-colors">
+          Privacy
+        </a>
       </footer>
     </div>
   );

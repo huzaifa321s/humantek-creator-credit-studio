@@ -12,7 +12,8 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Field, FieldLabel, FieldGroup } from '@/components/ui/field';
 import { toast } from 'sonner';
-import { Lock, Mail, Loader2, CheckCircle2, AlertTriangle, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,8 +35,8 @@ export default function SignInPage() {
     }
   }, [user, isHydrated, router]);
 
-  // Gate demo helpers behind environment flag so they never ship to production
-  const showDemoHelpers = process.env.NODE_ENV !== 'production' && !isConfigured;
+  // Demo elements are strictly behind explicit environment flag (hidden by default)
+  const showDemoHelpers = process.env.NEXT_PUBLIC_SHOW_DEMO_AUTH === 'true';
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +45,7 @@ export default function SignInPage() {
 
     try {
       if (!isConfigured) {
-        // Fallback demo authentication when Supabase is not configured
+        // Fallback authentication when Supabase is not configured
         signInAsClient(email ? email.split('@')[0] : 'Kira Streams', email || 'creator@humantek.art');
         toast.success(`Signed in as ${email || 'creator@humantek.art'}`);
         router.push('/projects');
@@ -94,13 +95,10 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-4 animate-in fade-in duration-200">
+    <div className="w-full max-w-md animate-in fade-in duration-200">
       <Card className="rounded-xl border-border bg-card shadow-xs p-6 sm:p-8">
-        <CardHeader className="p-0 text-center space-y-2 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white font-black text-sm flex items-center justify-center mx-auto shadow-xs">
-            ART
-          </div>
-          {/* Loosened tracking so words don't look squeezed */}
+        <CardHeader className="p-0 text-center space-y-1.5 mb-6">
+          {/* Loosened tracking so words don't look squeezed; duplicate logo tile removed */}
           <CardTitle className="text-xl sm:text-2xl font-bold tracking-normal text-foreground leading-snug">
             {isSignUp ? 'Create studio account' : 'Sign in to Creator Studio'}
           </CardTitle>
@@ -109,10 +107,9 @@ export default function SignInPage() {
           </CardDescription>
         </CardHeader>
 
-        {/* Demo banner — hidden in production */}
+        {/* Demo banner — hidden by default, only shown if explicit flag enabled */}
         {showDemoHelpers && (
-          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2">
-            <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
             <span>Demo mode active. You can enter any email or use the button below to sign in.</span>
           </div>
         )}
@@ -133,26 +130,29 @@ export default function SignInPage() {
 
         <CardContent className="p-0">
           <form onSubmit={handleAuth} className="space-y-4">
-            <FieldGroup className="space-y-3.5">
+            <FieldGroup className="space-y-4">
               <Field>
-                <FieldLabel className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-muted-foreground" /> Email address
+                <FieldLabel htmlFor="email" className="text-xs font-semibold text-foreground cursor-pointer">
+                  Email address
                 </FieldLabel>
                 <Input
+                  id="email"
+                  name="email"
                   type="email"
                   required
+                  autoFocus
                   autoComplete="email"
                   placeholder="creator@humantek.art"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-lg h-9 text-sm"
+                  className="rounded-lg h-11 min-h-[44px] text-sm px-3.5"
                 />
               </Field>
 
               <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-muted-foreground" /> Password
+                <div className="flex items-center justify-between mb-1">
+                  <FieldLabel htmlFor="password" className="text-xs font-semibold text-foreground cursor-pointer">
+                    Password
                   </FieldLabel>
                   {!isSignUp && (
                     <button
@@ -166,18 +166,23 @@ export default function SignInPage() {
                 </div>
                 <div className="relative">
                   <Input
+                    id="password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     autoComplete={isSignUp ? 'new-password' : 'current-password'}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="rounded-lg h-9 text-sm pr-9"
+                    className={cn(
+                      'rounded-lg h-11 min-h-[44px] text-sm px-3.5 pr-10',
+                      !showPassword && password.length > 0 && 'tracking-widest text-base font-mono'
+                    )}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md cursor-pointer"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -186,12 +191,12 @@ export default function SignInPage() {
               </Field>
             </FieldGroup>
 
-            {/* Clear sentence case action button */}
+            {/* Clear sentence case action button in rounded rectangle shape */}
             <Button
               type="submit"
               variant="default"
               disabled={isLoading}
-              className="w-full text-sm font-semibold gap-2 mt-2 h-9 rounded-lg cursor-pointer"
+              className="w-full text-sm font-semibold gap-2 mt-2 h-11 min-h-[44px] rounded-lg cursor-pointer shadow-xs bg-amber-500 hover:bg-amber-600 text-white"
             >
               {isLoading ? (
                 <>
@@ -205,7 +210,7 @@ export default function SignInPage() {
             </Button>
           </form>
 
-          {/* Demo elements — gated behind environment flag, hidden in production */}
+          {/* Demo elements — gated behind NEXT_PUBLIC_SHOW_DEMO_AUTH flag */}
           {showDemoHelpers && (
             <>
               <div className="my-5 flex items-center gap-3">
@@ -221,9 +226,8 @@ export default function SignInPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleDemoSignIn}
-                className="w-full text-sm gap-2 font-medium rounded-lg h-9 cursor-pointer"
+                className="w-full text-sm gap-2 font-medium rounded-lg h-11 min-h-[44px] cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-amber-600" />
                 Fill demo creator credentials
               </Button>
             </>
