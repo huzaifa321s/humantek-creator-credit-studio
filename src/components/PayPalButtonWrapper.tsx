@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { PayPalScriptProvider, PayPalButtons, FUNDING } from '@paypal/react-paypal-js';
 import { useQueryClient } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
 import { Sparkles, ShieldCheck } from 'lucide-react';
@@ -86,11 +86,49 @@ export function PayPalButtonWrapper({
     }
   };
 
+  const createCommonButtonProps = (fundingSource: (typeof FUNDING)[keyof typeof FUNDING]) => ({
+    fundingSource,
+    disabled: isProcessing,
+    createOrder: async () => {
+      setIsProcessing(true);
+      try {
+        return await createOrder();
+      } catch (err) {
+        setIsProcessing(false);
+        throw err;
+      }
+    },
+    onApprove: async (data: { orderID: string }) => {
+      try {
+        const project = await captureOrder(data.orderID);
+
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 },
+        });
+
+        onSuccess(project);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error capturing payment';
+        onError(msg);
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    onCancel: () => setIsProcessing(false),
+    onError: (err: unknown) => {
+      setIsProcessing(false);
+      onError(`PayPal checkout error: ${err}`);
+    },
+  });
+
   return (
     <div className="space-y-3">
-      {/* Live PayPal Smart Buttons */}
+      {/* Live PayPal Standalone Buttons — zero white frame, 100% vibrant authentic brand colors */}
       <div
-        className="paypal-buttons-wrapper relative z-10 w-full min-h-[44px] rounded-xl overflow-hidden bg-transparent"
+        className="paypal-buttons-wrapper relative z-10 w-full rounded-xl overflow-hidden bg-transparent"
+        style={{ colorScheme: 'none' }}
         data-paypal-wrapper="true"
       >
         <PayPalScriptProvider
@@ -100,49 +138,54 @@ export function PayPalButtonWrapper({
             intent: 'capture',
           }}
         >
-          <PayPalButtons
-            style={{
-              layout: 'vertical',
-              color: 'gold',
-              shape: 'rect',
-              label: 'pay',
-              height: 44,
-            }}
-            disabled={isProcessing}
-            createOrder={async () => {
-              setIsProcessing(true);
-              try {
-                return await createOrder();
-              } catch (err) {
-                setIsProcessing(false);
-                throw err;
-              }
-            }}
-            onApprove={async (data) => {
-              try {
-                const project = await captureOrder(data.orderID);
+          <div className="space-y-2.5">
+            {/* Pay with PayPal (Vibrant Official Gold) */}
+            <div className="rounded-lg overflow-hidden">
+              <PayPalButtons
+                style={{
+                  layout: 'vertical',
+                  color: 'gold',
+                  shape: 'rect',
+                  label: 'pay',
+                  height: 44,
+                }}
+                {...createCommonButtonProps(FUNDING.PAYPAL)}
+              />
+            </div>
 
-                confetti({
-                  particleCount: 120,
-                  spread: 80,
-                  origin: { y: 0.6 },
-                });
+            {/* Pay Later (Vibrant Official Gold) */}
+            <div className="rounded-lg overflow-hidden">
+              <PayPalButtons
+                style={{
+                  layout: 'vertical',
+                  color: 'gold',
+                  shape: 'rect',
+                  height: 44,
+                }}
+                {...createCommonButtonProps(FUNDING.PAYLATER)}
+              />
+            </div>
 
-                onSuccess(project);
-              } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : 'Error capturing payment';
-                onError(msg);
-              } finally {
-                setIsProcessing(false);
-              }
-            }}
-            onCancel={() => setIsProcessing(false)}
-            onError={(err) => {
-              setIsProcessing(false);
-              onError(`PayPal checkout error: ${err}`);
-            }}
-          />
+            {/* Debit or Credit Card (Crisp Black/Dark Charcoal) */}
+            <div className="rounded-lg overflow-hidden">
+              <PayPalButtons
+                style={{
+                  layout: 'vertical',
+                  color: 'black',
+                  shape: 'rect',
+                  height: 44,
+                }}
+                {...createCommonButtonProps(FUNDING.CARD)}
+              />
+            </div>
+          </div>
         </PayPalScriptProvider>
+      </div>
+
+      {/* Verified Secure Checkout Indicator */}
+      <div className="flex items-center justify-center gap-1.5 pt-0.5 text-2xs text-muted-foreground/75 select-none">
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+        <span>Secured by PayPal 256-bit encryption</span>
       </div>
 
       {/* Discrete Sandbox Testing Action — dev builds only, never shipped to production */}

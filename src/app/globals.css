@@ -412,30 +412,20 @@ body {
 /* ========================================================= */
 /* PAYPAL SMART BUTTONS DARK MODE INTEGRATION                */
 /* ========================================================= */
-/* In dark mode, the PayPal SDK iframe renders with a harsh  */
-/* #ffffff canvas. This inversion + 180deg hue rotation      */
-/* transforms the white background to seamless dark charcoal */
-/* while preserving the PayPal yellow and blue branding.     */
 .paypal-buttons-wrapper {
   position: relative;
   width: 100%;
   border-radius: var(--radius-xl);
   overflow: hidden;
   background-color: transparent;
-  transition: all 200ms ease;
+  color-scheme: none;
 }
 
-.dark .paypal-buttons-wrapper iframe,
-.dark [data-paypal-wrapper] iframe,
-.dark .paypal-buttons-container iframe,
-.dark .paypal-buttons-wrapper .paypal-buttons,
-.dark [data-paypal-wrapper] .paypal-buttons,
-.dark .paypal-buttons-wrapper .paypal-button-row,
-.dark [data-paypal-wrapper] .paypal-button-row {
-  filter: invert(0.92) hue-rotate(180deg) contrast(1.05);
+.paypal-buttons-wrapper iframe,
+[data-paypal-wrapper] iframe,
+.paypal-buttons-container iframe {
   background-color: transparent !important;
   border-radius: var(--radius-lg);
-  color-scheme: light;
 }
 
 .dark .paypal-buttons-wrapper,

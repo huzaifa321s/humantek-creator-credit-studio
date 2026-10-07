@@ -36,6 +36,7 @@ yarn-error.log*
 
 # scratch / temp
 scratch/
+supabase/.temp/
 
 # vercel
 .vercel

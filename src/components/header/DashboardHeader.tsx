@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
 import { useUIStore } from '@/lib/uiStore';
+import { useWalletQuery } from '@/lib/queries/wallet';
 import { DashboardSearchDialog } from './DashboardSearchDialog';
 import { DashboardNotificationDropdown } from './DashboardNotificationDropdown';
 import { DashboardProfileDropdown } from './DashboardProfileDropdown';
@@ -81,11 +82,15 @@ export function DashboardHeader({
   };
   const effectiveName = resolveEffectiveName();
   const effectiveEmail = userEmail || user.email;
-  const isBalanceLoaded = isHydrated && (walletBalance !== undefined || user.id !== 'client-guest');
+  const { data: walletData, isSuccess: isWalletSuccess } = useWalletQuery(effectiveEmail);
+  const hasServerBalance = isWalletSuccess && typeof walletData?.walletBalance === 'number';
   const effectiveBalance =
-    walletBalance !== undefined && walletBalance !== null
+    hasServerBalance
+      ? walletData.walletBalance
+      : walletBalance !== undefined && walletBalance !== null
       ? walletBalance
       : user.walletBalance;
+  const isBalanceLoaded = isHydrated && (hasServerBalance || walletBalance !== undefined || user.id !== 'client-guest');
 
   // Compute default breadcrumb title if not explicitly passed
   const activePageTitle =
@@ -342,7 +347,7 @@ export function DashboardHeader({
         <DashboardSearchDialog
           open={isSearchOpen}
           onOpenChange={setSearchOpen}
-          walletBalance={walletBalance}
+          walletBalance={effectiveBalance}
         />
       )}
     </>

@@ -108,3 +108,9 @@ create policy "own redemptions" on public.promo_redemptions
   for select to authenticated using ((select auth.uid()) = user_id);
 
 -- promo_codes has no client SELECT policy (clients must not be able to scrape/dump unredeemed codes).
+
+revoke truncate on table public.promo_codes from public, anon, authenticated;
+revoke truncate on table public.promo_redemptions from public, anon, authenticated;
+revoke insert, update, delete on table public.promo_codes from anon, authenticated;
+revoke insert, update, delete on table public.promo_redemptions from anon, authenticated;
+

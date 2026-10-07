@@ -31,11 +31,22 @@ begin
   delete from public.wallets where user_id in (v_test_user, v_other_user);
   delete from public.profiles where id in (v_test_user, v_other_user);
 
-  insert into public.profiles (id, email, role) values (v_test_user, 'test-ledger@humantek.art', 'client');
-  insert into public.wallets (user_id, balance_purchased, balance_promo) values (v_test_user, 0, 0);
+  -- Ensure auth.users exist before profiles insert
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at)
+  values 
+    (v_test_user, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'test-ledger@humantek.art', 'dummy', now(), '{"provider":"email","providers":["email"]}', '{}', false, now(), now()),
+    (v_other_user, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'test-other@humantek.art', 'dummy', now(), '{"provider":"email","providers":["email"]}', '{}', false, now(), now())
+  on conflict (id) do nothing;
 
-  insert into public.profiles (id, email, role) values (v_other_user, 'test-other@humantek.art', 'client');
-  insert into public.wallets (user_id, balance_purchased, balance_promo) values (v_other_user, 0, 0);
+  insert into public.profiles (id, email, role) values (v_test_user, 'test-ledger@humantek.art', 'client')
+    on conflict (id) do nothing;
+  insert into public.wallets (user_id, balance_purchased, balance_promo) values (v_test_user, 0, 0)
+    on conflict (user_id) do update set balance_purchased = 0, balance_promo = 0;
+
+  insert into public.profiles (id, email, role) values (v_other_user, 'test-other@humantek.art', 'client')
+    on conflict (id) do nothing;
+  insert into public.wallets (user_id, balance_purchased, balance_promo) values (v_other_user, 0, 0)
+    on conflict (user_id) do update set balance_purchased = 0, balance_promo = 0;
 
   -- -----------------------------------------------------------
   -- TEST 1: Promo-first Spending across both buckets

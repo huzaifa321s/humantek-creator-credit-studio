@@ -72,6 +72,8 @@ create trigger trg_block_ledger_mutation
 before update or delete on public.credit_ledger
 for each row execute function public.prevent_ledger_mutation();
 
+revoke execute on function public.prevent_ledger_mutation() from public, anon, authenticated;
+
 -- Revoke dangerous table-level grants explicitly
 revoke truncate on table public.credit_ledger from public, anon, authenticated;
 revoke truncate on table public.wallets from public, anon, authenticated;
@@ -218,6 +220,8 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 -- 8. Row Level Security Policies
 alter table public.profiles enable row level security;
