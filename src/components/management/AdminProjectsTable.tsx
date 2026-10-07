@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ProjectRecord } from '@/types';
 import {
   Table,
@@ -52,6 +52,8 @@ import {
   FileText,
   Package,
   Layers,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import {
   cn,
@@ -81,7 +83,45 @@ export function AdminProjectsTable({
 }: AdminProjectsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedProject, setSelectedProject] = useState<ProjectRecord | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [draftStatus, setDraftStatus] = useState<ProjectRecord['status'] | null>(null);
+  const [draftPayment, setDraftPayment] = useState<ProjectRecord['paymentStatus'] | null>(null);
+
+  const selectedProject = useMemo(() => {
+    return projects.find((p) => p.id === selectedProjectId) || null;
+  }, [projects, selectedProjectId]);
+
+  useEffect(() => {
+    if (selectedProject) {
+      setDraftStatus(selectedProject.status);
+      setDraftPayment(selectedProject.paymentStatus);
+    } else {
+      setDraftStatus(null);
+      setDraftPayment(null);
+    }
+  }, [selectedProject?.id, selectedProject?.status, selectedProject?.paymentStatus]);
+
+  const isUpdating = isUpdatingId === selectedProject?.id;
+  const isDirty = Boolean(
+    selectedProject &&
+      ((draftStatus && draftStatus !== selectedProject.status) ||
+        (draftPayment && draftPayment !== selectedProject.paymentStatus))
+  );
+
+  const handleSaveStatus = () => {
+    if (!selectedProject || !draftStatus) return;
+    onUpdateStatus(
+      selectedProject.id,
+      draftStatus,
+      draftPayment || selectedProject.paymentStatus
+    );
+  };
+
+  const handleResetDraft = () => {
+    if (!selectedProject) return;
+    setDraftStatus(selectedProject.status);
+    setDraftPayment(selectedProject.paymentStatus);
+  };
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -316,7 +356,7 @@ export function AdminProjectsTable({
               filteredProjects.map((p) => (
                 <TableRow
                   key={p.id}
-                  onClick={() => setSelectedProject(p)}
+                  onClick={() => setSelectedProjectId(p.id)}
                   className="cursor-pointer hover:bg-muted/40 transition-colors group"
                 >
                   {/* Code */}
@@ -384,7 +424,7 @@ export function AdminProjectsTable({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedProject(p);
+                        setSelectedProjectId(p.id);
                       }}
                       className="h-8 px-2.5 text-xs text-muted-foreground group-hover:text-foreground cursor-pointer gap-1"
                     >
@@ -400,7 +440,7 @@ export function AdminProjectsTable({
       </div>
 
       {/* 3. Detail Drawer (Sheet) */}
-      <Sheet open={Boolean(selectedProject)} onOpenChange={(open) => !open && setSelectedProject(null)}>
+      <Sheet open={Boolean(selectedProject)} onOpenChange={(open) => !open && setSelectedProjectId(null)}>
         {selectedProject && (
           <SheetContent side="right" className="sm:max-w-md w-full p-0 flex flex-col h-full bg-card">
             {/* Drawer Header */}
@@ -424,34 +464,37 @@ export function AdminProjectsTable({
             {/* Drawer Body */}
             <div className="p-5 space-y-5 overflow-y-auto flex-1 text-xs">
               {/* Status Controls */}
-              <div className="p-4 rounded-xl bg-secondary/35 border border-border/80 space-y-3">
-                <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-amber-600" />
-                  <span>Production Management</span>
+              <div className="p-4 rounded-xl bg-secondary/35 border border-border/80 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    <span>Production Management</span>
+                  </div>
+                  {isDirty && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Unsaved Changes</span>
+                    </span>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
                   <div>
                     <label className="text-2xs font-bold text-muted-foreground uppercase block mb-1">
                       Production Status
                     </label>
                     <Select
-                      value={selectedProject.status}
-                      disabled={isUpdatingId === selectedProject.id}
+                      value={draftStatus || selectedProject.status}
+                      disabled={isUpdating}
                       onValueChange={(val) => {
                         if (!val) return;
-                        onUpdateStatus(
-                          selectedProject.id,
-                          val as ProjectRecord['status'],
-                          selectedProject.paymentStatus
-                        );
-                        setSelectedProject((prev) =>
-                          prev ? { ...prev, status: val as ProjectRecord['status'] } : null
-                        );
+                        setDraftStatus(val as ProjectRecord['status']);
                       }}
                     >
                       <SelectTrigger className="h-9 text-xs bg-card rounded-lg border-border/80">
-                        <SelectValue />
+                        <SelectValue>
+                          {getProjectStatusLabel(draftStatus || selectedProject.status)}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pending_review" className="text-xs">Pending Review</SelectItem>
@@ -468,16 +511,98 @@ export function AdminProjectsTable({
                     <label className="text-2xs font-bold text-muted-foreground uppercase block mb-1">
                       Payment Verification
                     </label>
-                    <div className="h-9 px-3 rounded-lg bg-card border border-border/80 flex items-center justify-between">
-                      <span className="text-xs font-semibold">
-                        {getPaymentStatusLabel(selectedProject.paymentStatus)}
+                    <Select
+                      value={draftPayment || selectedProject.paymentStatus}
+                      disabled={isUpdating}
+                      onValueChange={(val) => {
+                        if (!val) return;
+                        setDraftPayment(val as ProjectRecord['paymentStatus']);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-xs bg-card rounded-lg border-border/80">
+                        <SelectValue>
+                          {getPaymentStatusLabel(draftPayment || selectedProject.paymentStatus)}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="paid" className="text-xs">
+                          <span className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Paid</span>
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="unpaid" className="text-xs">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Unpaid</span>
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="refunded" className="text-xs">
+                          <span className="flex items-center gap-1.5">
+                            <RotateCcw className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Refunded</span>
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Staged Changes & Save Status Action Bar */}
+                <div className="pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-1.5 text-2xs min-w-0">
+                    {isDirty ? (
+                      <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-medium truncate">
+                        <span className="truncate">
+                          Pending: {getProjectStatusLabel(selectedProject.status)} → {getProjectStatusLabel(draftStatus || selectedProject.status)}
+                        </span>
                       </span>
-                      {selectedProject.paymentStatus === 'paid' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-amber-600" />
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-muted-foreground font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Status is up to date</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    {isDirty && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isUpdating}
+                        onClick={handleResetDraft}
+                        className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Reset
+                      </Button>
+                    )}
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!isDirty || isUpdating}
+                      onClick={handleSaveStatus}
+                      className={cn(
+                        'h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg transition-all cursor-pointer shadow-xs',
+                        isDirty
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                          : 'bg-muted text-muted-foreground opacity-60 cursor-not-allowed'
                       )}
-                    </div>
+                    >
+                      {isUpdating ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Updating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Update Status</span>
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -498,12 +623,14 @@ export function AdminProjectsTable({
                 )}
               </div>
 
-              {/* Service Items Breakdown — with no 'Tier 0' jargon */}
+              {/* Service Items Breakdown — with item count and clean formatting */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Package className="w-4 h-4 text-amber-600" />
-                    <span>Deliverable Items</span>
+                    <span>
+                      Deliverable Items ({selectedProject.selections?.length || 0})
+                    </span>
                   </span>
                   <span className="font-mono tabular-nums text-xs font-bold text-foreground">
                     {selectedProject.usedCredits} CR Total
@@ -536,7 +663,7 @@ export function AdminProjectsTable({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setSelectedProject(null)}
+                onClick={() => setSelectedProjectId(null)}
                 className="h-9 text-xs rounded-lg cursor-pointer"
               >
                 Close Drawer
@@ -549,7 +676,7 @@ export function AdminProjectsTable({
                   size="sm"
                   onClick={() => {
                     const id = selectedProject.id;
-                    setSelectedProject(null);
+                    setSelectedProjectId(null);
                     onOpenChat(id);
                   }}
                   className="h-9 text-xs font-semibold gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white cursor-pointer shadow-2xs"
