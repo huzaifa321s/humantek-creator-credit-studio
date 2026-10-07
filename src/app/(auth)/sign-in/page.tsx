@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 
 export default function SignInPage() {
   const router = useRouter();
-  const { user, signInAsClient } = useUserStore();
+  const { user, isHydrated, signInAsClient } = useUserStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,10 +29,10 @@ export default function SignInPage() {
 
   // If user is already authenticated, redirect immediately to My Projects
   useEffect(() => {
-    if (user && user.email && user.id !== 'client-guest') {
+    if (isHydrated && user && user.email && user.id !== 'client-guest') {
       router.replace('/projects');
     }
-  }, [user, router]);
+  }, [user, isHydrated, router]);
 
   // Gate demo helpers behind environment flag so they never ship to production
   const showDemoHelpers = process.env.NODE_ENV !== 'production' && !isConfigured;

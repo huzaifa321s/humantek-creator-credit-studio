@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -13,6 +13,7 @@ import {
   ChevronDown,
   User,
   MessageSquare,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -121,7 +122,31 @@ export function StudioCardLayout({
   };
 
   const isBackDisabled = mode === 'wizard' && currentStep === 1 && !onBack;
-  const { user } = useUserStore();
+  const { user, isHydrated } = useUserStore();
+
+  // Route protection: Unauthenticated users are redirected to /login
+  useEffect(() => {
+    if (isHydrated && (!user?.email || user.id === 'client-guest')) {
+      router.replace('/login');
+    }
+  }, [isHydrated, user?.email, user?.id, router]);
+
+  // Prevent UI flashing during auth verification
+  if (!isHydrated || !user?.email || user.id === 'client-guest') {
+    return (
+      <div className="min-h-screen w-full bg-background flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3 text-center animate-in fade-in duration-150">
+          <div className="size-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-black text-xs shadow-xs">
+            ART
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin text-amber-500" />
+            <span>Verifying studio credentials...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const effectiveName = user.name;
   const effectiveEmail = userEmail || user.email;

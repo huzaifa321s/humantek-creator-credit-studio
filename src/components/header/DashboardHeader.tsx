@@ -9,6 +9,7 @@ import {
   Sparkles,
   Search,
   MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -37,7 +38,7 @@ import { DashboardNotificationDropdown } from './DashboardNotificationDropdown';
 import { DashboardProfileDropdown } from './DashboardProfileDropdown';
 
 interface DashboardHeaderProps {
-  mode?: 'standalone' | 'wizard';
+  mode?: 'standalone' | 'wizard' | 'auth';
   showBack?: boolean;
   backLabel?: string;
   handleBack?: () => void;
@@ -145,137 +146,158 @@ export function DashboardHeader({
             </>
           )}
 
-          <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80" />
+          {mode !== 'auth' && (
+            <>
+              <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80" />
 
-          {/* Breadcrumb Navigation Trail */}
-          <Breadcrumb className="hidden sm:block">
-            <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
-              {pathname === '/' || activePageTitle === 'Studio' ? (
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="text-xs font-semibold text-white">
-                    Studio
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              ) : (
-                <>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink
-                      href="/"
-                      className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
-                    >
-                      Studio
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="text-xs font-semibold text-white">
-                      {activePageTitle}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </>
-              )}
-            </BreadcrumbList>
-          </Breadcrumb>
+              {/* Breadcrumb Navigation Trail */}
+              <Breadcrumb className="hidden sm:block">
+                <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
+                  {pathname === '/' || activePageTitle === 'Studio' ? (
+                    <BreadcrumbItem>
+                      <BreadcrumbPage className="text-xs font-semibold text-white">
+                        Studio
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  ) : (
+                    <>
+                      <BreadcrumbItem>
+                        <BreadcrumbLink
+                          href="/"
+                          className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
+                        >
+                          Studio
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
+                      <BreadcrumbItem>
+                        <BreadcrumbPage className="text-xs font-semibold text-white">
+                          {activePageTitle}
+                        </BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </>
+                  )}
+                </BreadcrumbList>
+              </Breadcrumb>
+            </>
+          )}
         </div>
 
         {/* =================================================================== */}
-        {/* Center Section: Interactive Command Search Pill                     */}
+        {/* Center Section: Interactive Command Search Pill (hidden in auth)    */}
         {/* =================================================================== */}
-        <div className="flex items-center justify-center flex-1 px-2 sm:px-4 max-w-sm mx-auto">
-          {/* Desktop & Tablet Search Bar Pill */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setSearchOpen(true)}
-            className="hidden sm:flex items-center justify-between gap-2.5 h-8 px-3 rounded-lg border-zinc-700/70 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-600 text-zinc-300 hover:text-white transition-all cursor-pointer w-full max-w-64 shadow-2xs text-xs select-none font-normal"
-          >
-            <div className="flex items-center gap-2 truncate">
-              <Search className="size-3.5 text-zinc-400 shrink-0" />
-              <span className="truncate text-xs font-medium text-zinc-300">Type to search...</span>
-            </div>
-            <Kbd className="bg-zinc-950 border border-zinc-700/80 text-2xs font-mono tabular-nums text-zinc-400 px-1.5 py-0.5 h-4.5 rounded shadow-2xs">
-              ⌘K
-            </Kbd>
-          </Button>
+        {mode !== 'auth' ? (
+          <div className="flex items-center justify-center flex-1 px-2 sm:px-4 max-w-sm mx-auto">
+            {/* Desktop & Tablet Search Bar Pill */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchOpen(true)}
+              className="hidden sm:flex items-center justify-between gap-2.5 h-8 px-3 rounded-lg border-zinc-700/70 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-600 text-zinc-300 hover:text-white transition-all cursor-pointer w-full max-w-64 shadow-2xs text-xs select-none font-normal"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Search className="size-3.5 text-zinc-400 shrink-0" />
+                <span className="truncate text-xs font-medium text-zinc-300">Type to search...</span>
+              </div>
+              <Kbd className="bg-zinc-950 border border-zinc-700/80 text-2xs font-mono tabular-nums text-zinc-400 px-1.5 py-0.5 h-4.5 rounded shadow-2xs">
+                ⌘K
+              </Kbd>
+            </Button>
 
-          {/* Mobile Search Icon Button */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search"
-            className="sm:hidden size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
-          >
-            <Search className="size-4" />
-          </Button>
-        </div>
+            {/* Mobile Search Icon Button */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search"
+              className="sm:hidden size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
+            >
+              <Search className="size-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
 
         {/* =================================================================== */}
         {/* Right Section: Producer Chat, Notifications, Balance & User Profile */}
         {/* =================================================================== */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Quick Producer Chat Trigger with Reusable Tooltip */}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setChatOpen(true)}
-                  aria-label="Messages"
-                  className="group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
-                />
-              }
-            >
-              <MessageSquare className="size-4 text-zinc-300 group-hover:text-white group-hover:scale-105 transition-transform" />
-              {totalUnreadChat > 0 ? (
-                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950" />
-              ) : null}
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p className="font-semibold text-white">Messages</p>
-              <p className="text-zinc-400 text-2xs">Chat with our team</p>
-            </TooltipContent>
-          </Tooltip>
+          {mode === 'auth' ? (
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-300 text-xs font-medium select-none shadow-2xs">
+                <ShieldCheck className="size-3.5 text-amber-500" />
+                <span className="text-2xs font-semibold uppercase tracking-wider text-zinc-300">Secure Access</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Quick Producer Chat Trigger with Reusable Tooltip */}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setChatOpen(true)}
+                      aria-label="Messages"
+                      className="group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
+                    />
+                  }
+                >
+                  <MessageSquare className="size-4 text-zinc-300 group-hover:text-white group-hover:scale-105 transition-transform" />
+                  {totalUnreadChat > 0 ? (
+                    <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950" />
+                  ) : null}
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="font-semibold text-white">Messages</p>
+                  <p className="text-zinc-400 text-2xs">Chat with our team</p>
+                </TooltipContent>
+              </Tooltip>
 
-          {/* Notification Popover Dropdown */}
-          <DashboardNotificationDropdown />
+              {/* Notification Popover Dropdown */}
+              <DashboardNotificationDropdown />
 
-          {/* Credit Balance Pill (Standardized naming, consistent across all screens) */}
-          <Link
-            href="/redeem-code"
-            title="View credit balance and redeem codes"
-            className={cn(
-              badgeVariants({ variant: 'gold', size: 'default' }),
-              'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
-            )}
-          >
-            <Coins className="size-3.5 text-amber-400 shrink-0" />
-            <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
-            <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">{effectiveBalance} CR</span>
-          </Link>
+              {/* Credit Balance Pill (Standardized naming, consistent across all screens) */}
+              <Link
+                href="/redeem-code"
+                title="View credit balance and redeem codes"
+                className={cn(
+                  badgeVariants({ variant: 'gold', size: 'default' }),
+                  'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
+                )}
+              >
+                <Coins className="size-3.5 text-amber-400 shrink-0" />
+                <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
+                <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">{effectiveBalance} CR</span>
+              </Link>
 
-          {/* Optional Top-Right Action Badge (e.g. New Project or Active Package) */}
-          {topRightBadge}
+              {/* Optional Top-Right Action Badge (e.g. New Project or Active Package) */}
+              {topRightBadge}
 
-          {/* User Profile Avatar Dropdown */}
-          <DashboardProfileDropdown
-            userEmail={effectiveEmail}
-            userName={effectiveName}
-            walletBalance={effectiveBalance}
-          />
+              {/* User Profile Avatar Dropdown */}
+              <DashboardProfileDropdown
+                userEmail={effectiveEmail}
+                userName={effectiveName}
+                walletBalance={effectiveBalance}
+              />
+            </>
+          )}
         </div>
       </header>
 
-      {/* Global Command / Quick Search Dialog */}
-      <DashboardSearchDialog
-        open={isSearchOpen}
-        onOpenChange={setSearchOpen}
-        walletBalance={walletBalance}
-      />
+      {/* Global Command / Quick Search Dialog (only in app modes) */}
+      {mode !== 'auth' && (
+        <DashboardSearchDialog
+          open={isSearchOpen}
+          onOpenChange={setSearchOpen}
+          walletBalance={walletBalance}
+        />
+      )}
     </>
   );
 }

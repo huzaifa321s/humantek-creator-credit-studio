@@ -14,6 +14,14 @@ export interface StudioUser {
   role?: string;
 }
 
+export const GUEST_USER: StudioUser = {
+  id: 'client-guest',
+  name: '',
+  email: '',
+  avatarInitials: 'GU',
+  walletBalance: 0,
+};
+
 export const DEFAULT_CLIENT_USER: StudioUser = {
   id: 'user-client-kira',
   name: 'Kira Streams',
@@ -26,6 +34,8 @@ export const DEFAULT_CLIENT_USER: StudioUser = {
 
 interface UserStoreState {
   user: StudioUser;
+  isHydrated: boolean;
+  setHydrated: (hydrated: boolean) => void;
   updateUser: (patch: Partial<StudioUser>) => void;
   signOut: () => void;
   signInAsClient: (name?: string, email?: string) => void;
@@ -37,7 +47,9 @@ interface UserStoreState {
 export const useUserStore = create<UserStoreState>()(
   persist(
     (set, get) => ({
-      user: DEFAULT_CLIENT_USER,
+      user: GUEST_USER,
+      isHydrated: false,
+      setHydrated: (hydrated) => set({ isHydrated: hydrated }),
       updateUser: (patch) =>
         set((state) => {
           const updated = { ...state.user, ...patch };
@@ -51,13 +63,7 @@ export const useUserStore = create<UserStoreState>()(
         }),
       signOut: () =>
         set({
-          user: {
-            id: 'client-guest',
-            name: '',
-            email: '',
-            avatarInitials: 'GU',
-            walletBalance: 0,
-          },
+          user: GUEST_USER,
         }),
       signInAsClient: (name = 'Kira Streams', email = 'kira@example.com') =>
         set({
@@ -97,6 +103,11 @@ export const useUserStore = create<UserStoreState>()(
     {
       name: 'humantek_studio_user',
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setHydrated(true);
+        }
+      },
     }
   )
 );

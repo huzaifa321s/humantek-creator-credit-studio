@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
+  FolderKanban,
+  Coins,
   LogOut,
   Sun,
   Moon,
@@ -24,6 +26,7 @@ import {
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUserStore } from '@/lib/userStore';
 import { cn } from '@/lib/utils';
 
@@ -75,8 +78,11 @@ export function DashboardProfileDropdown({
   walletBalance,
 }: DashboardProfileDropdownProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useUserStore();
+
+  const isProjectsActive = pathname === '/projects';
 
   const [mounted, setMounted] = useState(false);
 
@@ -109,8 +115,11 @@ export function DashboardProfileDropdown({
     user.role.toLowerCase() !== 'user'
   );
 
+  const queryClient = useQueryClient();
+
   const handleSignOut = () => {
     signOut();
+    queryClient.clear();
     router.push('/login');
   };
 
@@ -170,30 +179,61 @@ export function DashboardProfileDropdown({
         {/* Separator 1 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
-        {/* 2. Credit Balance Row: Single warm accent highlight */}
+        {/* 2. My Projects (Primary Navigation Home) */}
         <DropdownMenuItem
           render={
             <Link
-              href="/redeem-code"
-              className="group flex h-8.5 items-center justify-between rounded-lg px-2.5 text-xs font-medium text-zinc-200 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none select-none"
+              href="/projects"
+              className={cn(
+                'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
+                isProjectsActive
+                  ? 'bg-amber-500/12 text-amber-300 font-semibold'
+                  : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
+              )}
             >
-              <span className="text-zinc-300 group-hover:text-white transition-colors">Credit balance</span>
-              <Badge
-                variant="gold"
-                size="xs"
-                className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-2xs border-amber-500/30 bg-amber-500/15 text-amber-300 group-hover:bg-amber-500/25 transition-colors"
-              >
-                {effectiveBalance} {effectiveBalance === 1 ? 'credit' : 'credits'}
-              </Badge>
+              <FolderKanban
+                className={cn(
+                  'size-4 shrink-0 transition-colors',
+                  isProjectsActive
+                    ? 'text-amber-400'
+                    : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
+                )}
+              />
+              <span>My Projects</span>
             </Link>
           }
         />
 
+        {/* 3. Mobile-Only Credit Balance (Hidden on md+ desktop where header pill is visible) */}
+        <div className="md:hidden">
+          <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
+          <DropdownMenuItem
+            render={
+              <Link
+                href="/redeem-code"
+                className="group flex h-9 items-center justify-between rounded-lg px-2.5 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white cursor-pointer transition-colors w-full outline-none select-none"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Coins className="size-4 shrink-0 text-amber-400" />
+                  <span>Credit balance</span>
+                </div>
+                <Badge
+                  variant="gold"
+                  size="xs"
+                  className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-xs border-amber-500/30 bg-amber-500/15 text-amber-300 group-hover:bg-amber-500/25 transition-colors"
+                >
+                  {effectiveBalance} {effectiveBalance === 1 ? 'credit' : 'credits'}
+                </Badge>
+              </Link>
+            }
+          />
+        </div>
+
         {/* Separator 2 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
-        {/* 3. Theme Switcher */}
-        <div className="flex h-8.5 items-center justify-between px-2.5 text-xs font-medium text-zinc-300 select-none">
+        {/* 4. Theme Switcher */}
+        <div className="flex h-9 items-center justify-between px-2.5 text-sm font-medium text-zinc-300 select-none">
           <span>Theme</span>
           <div className="flex items-center gap-0.5 bg-white/5 p-0.5 rounded-md border border-white/10">
             <Button
@@ -247,15 +287,15 @@ export function DashboardProfileDropdown({
           </div>
         </div>
 
-        {/* Separator 4 */}
+        {/* Separator 3 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
         {/* 5. Sign out */}
         <DropdownMenuItem
-          className="group flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-white/5 focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors outline-none w-full"
+          className="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-white/5 focus:bg-white/5 focus:text-white cursor-pointer transition-colors outline-none w-full"
           onClick={handleSignOut}
         >
-          <LogOut className="size-4 shrink-0 text-zinc-400 group-hover:text-zinc-200 transition-colors" />
+          <LogOut className="size-4 shrink-0 text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200 transition-colors" />
           <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
