@@ -90,7 +90,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
     if (!text || isSending) return;
 
     setIsSending(true);
-    sendMessage(text, undefined, 'agent');
+    sendMessage(text);
     setReplyText('');
     setIsSending(false);
     toast.success('Reply sent to client');
@@ -275,7 +275,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                 key={msg.id}
                 message={msg}
                 onPreviewAttachment={() => {}}
-                onToggleReaction={toggleReaction}
+                onToggleReaction={(emoji) => toggleReaction(msg.id, emoji)}
               />
             ))
           )}

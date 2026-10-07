@@ -197,7 +197,10 @@ export function AdminProjectsTable({
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select
+            value={statusFilter}
+            onValueChange={(val) => setStatusFilter((val as string) || 'all')}
+          >
             <SelectTrigger className="h-9 text-xs bg-card min-w-[170px] rounded-lg border-border/80">
               <SelectValue placeholder="All Projects" />
             </SelectTrigger>
@@ -436,6 +439,7 @@ export function AdminProjectsTable({
                       value={selectedProject.status}
                       disabled={isUpdatingId === selectedProject.id}
                       onValueChange={(val) => {
+                        if (!val) return;
                         onUpdateStatus(
                           selectedProject.id,
                           val as ProjectRecord['status'],
