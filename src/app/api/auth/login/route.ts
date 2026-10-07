@@ -1,11 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { signSession, SESSION_COOKIE_NAME } from '@/lib/session';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 
+// Sliding-window rate limiting map: IP -> attempts & reset time
+const loginRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string, maxAttempts = 10, windowMs = 15 * 60 * 1000): boolean {
+  const now = Date.now();
+  const record = loginRateLimitMap.get(ip);
+  if (!record || now > record.resetAt) {
+    loginRateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    return false;
+  }
+  if (record.count >= maxAttempts) {
+    return true;
+  }
+  record.count += 1;
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown-ip';
+
+    if (checkRateLimit(clientIp)) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please wait 15 minutes and try again.' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const { email, password } = body;
 
@@ -14,19 +41,20 @@ export async function POST(req: NextRequest) {
 
     if (!userEmail || !userPass) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Email and password are required.' },
         { status: 400 }
       );
     }
 
     if (!isRealSupabaseConfigured()) {
       return NextResponse.json(
-        { error: 'Database service is not configured' },
+        { error: 'Database service is not configured.' },
         { status: 500 }
       );
     }
 
-    // 1. Authenticate with Supabase
+    // 1. Authenticate with Supabase Auth via @supabase/ssr server client
+    // This automatically sets the standard Supabase auth cookies (sb-*-auth-token)
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email: userEmail,
@@ -35,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     if (error || !data.user) {
       return NextResponse.json(
-        { error: error?.message || 'Invalid email or password' },
+        { error: 'Invalid email or password.' },
         { status: 401 }
       );
     }
@@ -43,7 +71,7 @@ export async function POST(req: NextRequest) {
     const userId = data.user.id;
     const admin = createAdminClient();
 
-    // 2. Fetch authoritative profile (role, full name)
+    // 2. Fetch authoritative profile (role, full name) from Postgres
     const { data: profile } = await admin
       .from('profiles')
       .select('role')
@@ -64,25 +92,6 @@ export async function POST(req: NextRequest) {
       .single();
 
     const walletBalance = wallet?.balance_credits ?? 0;
-
-    // 4. Generate signed HMAC session token
-    const token = await signSession({
-      sub: userId,
-      email: userEmail,
-      name: userName,
-      role: userRole,
-      walletBalance,
-    });
-
-    // 5. Set httpOnly session cookie
-    const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
 
     return NextResponse.json({
       ok: true,

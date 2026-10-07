@@ -58,6 +58,12 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         const errorMsg = error.message || '';
+        if (errorMsg.includes('email_not_confirmed')) {
+          return NextResponse.json(
+            { error: 'Please confirm your email address before redeeming promotional credits.' },
+            { status: 403 }
+          );
+        }
         if (errorMsg.includes('already_redeemed')) {
           return NextResponse.json(
             { error: 'You have already redeemed this promo voucher.' },

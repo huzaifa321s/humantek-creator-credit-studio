@@ -54,3 +54,32 @@ export function getTransactionTypeLabel(type?: string): string {
   return TRANSACTION_TYPE_LABELS[type] || type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+/**
+ * Validates a redirect URL to guarantee it is a safe relative internal route.
+ * Defends against open-redirect attacks (e.g. `//evil.com`, `https://evil.com`, `/\evil.com`).
+ */
+export function getSafeRedirectUrl(
+  nextParam: string | null | undefined,
+  fallback = '/projects'
+): string {
+  if (!nextParam) return fallback;
+  const trimmed = nextParam.trim();
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    !trimmed.startsWith('/\\') &&
+    !trimmed.includes(':')
+  ) {
+    try {
+      const parsed = new URL(trimmed, 'http://localhost');
+      if (parsed.origin === 'http://localhost' && parsed.pathname.startsWith('/')) {
+        return parsed.pathname + parsed.search;
+      }
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+

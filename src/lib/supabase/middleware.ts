@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSafeSupabaseCredentials, isRealSupabaseConfigured } from './config';
-import { SESSION_COOKIE_NAME, verifySessionToken } from '../session';
 
 const PROTECTED_PREFIXES = [
   '/projects',
@@ -15,6 +14,30 @@ const PROTECTED_PREFIXES = [
 
 const AUTH_PREFIXES = ['/login', '/sign-in'];
 
+const ADMIN_EMAILS = [
+  'dev@localhost',
+  'admin@humantek.art',
+  'huzaifa14321furqan@gmail.com',
+  ...(process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+];
+
+function sanitizeRedirectUrl(urlParam: string | null | undefined, fallback = '/projects'): string {
+  if (!urlParam) return fallback;
+  const trimmed = urlParam.trim();
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    !trimmed.startsWith('/\\') &&
+    !trimmed.includes(':')
+  ) {
+    return trimmed;
+  }
+  return fallback;
+}
+
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -22,86 +45,71 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  let isAuthenticated = false;
-  let userEmail: string | null = null;
-  let userRole: string | null = null;
-
-  // 1. Check signed HMAC session cookie first (super fast, edge compatible)
-  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  if (sessionCookie) {
-    const session = await verifySessionToken(sessionCookie);
-    if (session?.email) {
-      isAuthenticated = true;
-      userEmail = session.email;
-      userRole = session.role;
-    }
+  if (!isRealSupabaseConfigured()) {
+    return supabaseResponse;
   }
 
-  // 2. Sync/refresh Supabase auth session if configured
-  if (isRealSupabaseConfigured()) {
-    const { url, key } = getSafeSupabaseCredentials();
+  const { url, key } = getSafeSupabaseCredentials();
 
-    try {
-      const supabase = createServerClient(url, key, {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-            supabaseResponse = NextResponse.next({
-              request,
-            });
-            cookiesToSet.forEach(({ name, value, options }) =>
-              supabaseResponse.cookies.set(name, value, options)
-            );
-          },
+  let user: { id: string; email?: string; app_metadata?: Record<string, unknown> } | null = null;
+
+  try {
+    const supabase = createServerClient(url, key, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
         },
-      });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    });
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user?.email) {
-        isAuthenticated = true;
-        userEmail = user.email;
-        userRole = user.app_metadata?.role || userRole || 'client';
-      }
-    } catch {
-      // Silently fall through
-    }
+    // Authoritative user verification via Supabase session
+    const {
+      data: { user: authedUser },
+    } = await supabase.auth.getUser();
+
+    user = authedUser;
+  } catch {
+    user = null;
   }
 
+  const isAuthenticated = Boolean(user && user.email);
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   const isAuthPage = AUTH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   const isManagement = pathname.startsWith('/management');
 
-  // Unauthenticated user attempting to access protected route -> redirect to /login
+  // 1. Unauthenticated access to protected route -> redirect to /login
   if ((isProtected || isManagement) && !isAuthenticated) {
     const redirectUrl = new URL('/login', request.url);
-    const targetUrl = pathname + request.nextUrl.search;
-    if (targetUrl !== '/projects') {
+    const targetUrl = sanitizeRedirectUrl(pathname + request.nextUrl.search, '');
+    if (targetUrl && targetUrl !== '/projects') {
       redirectUrl.searchParams.set('next', targetUrl);
     }
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Authenticated user attempting to access /login or /sign-in -> redirect to /projects (or target)
+  // 2. Authenticated access to auth screens -> redirect to target or /projects
   if (isAuthPage && isAuthenticated) {
     const nextParam = request.nextUrl.searchParams.get('next');
-    const target =
-      nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
-        ? nextParam
-        : '/projects';
+    const target = sanitizeRedirectUrl(nextParam, '/projects');
     return NextResponse.redirect(new URL(target, request.url));
   }
 
-  // Management access check
+  // 3. Management route access control
   if (isManagement && isAuthenticated) {
-    const ADMIN_LIST = ['dev@localhost', 'admin@humantek.art', 'huzaifa14321furqan@gmail.com'];
+    const email = (user?.email || '').toLowerCase();
     const isAdmin =
-      userRole === 'admin' ||
-      (userEmail && ADMIN_LIST.includes(userEmail.toLowerCase()));
+      (user?.app_metadata as Record<string, unknown> | undefined)?.role === 'admin' ||
+      ADMIN_EMAILS.includes(email);
+
     if (!isAdmin) {
       return NextResponse.redirect(new URL('/projects', request.url));
     }

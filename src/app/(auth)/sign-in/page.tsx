@@ -28,7 +28,13 @@ function SignInContent() {
 
   // Verify safe relative URL to avoid open-redirect vulnerability
   const getSafeRedirectUrl = () => {
-    if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
+    if (
+      nextParam &&
+      nextParam.startsWith('/') &&
+      !nextParam.startsWith('//') &&
+      !nextParam.startsWith('/\\') &&
+      !nextParam.includes(':')
+    ) {
       return nextParam;
     }
     return '/projects';
@@ -90,6 +96,18 @@ function SignInContent() {
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data.error || 'Account creation failed');
+        }
+
+        if (data.requiresVerification) {
+          setMessage({
+            text:
+              data.message ||
+              'Account created! Please check your email to verify your address before logging in.',
+            type: 'success',
+          });
+          toast.success('Verification link dispatched to your email.');
+          setIsSignUp(false);
+          return;
         }
 
         const authUser = data.user;

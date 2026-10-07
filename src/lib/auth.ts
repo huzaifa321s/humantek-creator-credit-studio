@@ -1,12 +1,13 @@
-import { createClient } from '@/lib/supabase/server';
+import 'server-only';
+import { redirect } from 'next/navigation';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
-import { getSession } from '@/lib/session';
 
 export interface RequestUser {
-  id?: string;
+  id: string;
   email: string;
+  role: string;
   isAdmin: boolean;
-  /** True when no real auth provider is configured and we are in local development. */
   isDevFallback: boolean;
 }
 
@@ -24,56 +25,85 @@ export function isSupabaseConfigured(): boolean {
   return isRealSupabaseConfigured();
 }
 
-const DEV_USER: RequestUser = { id: '00000000-0000-0000-0000-000000000001', email: 'dev@localhost', isAdmin: true, isDevFallback: true };
+export { getSafeRedirectUrl } from '@/lib/utils';
 
 /**
- * Resolves the signed-in user for an API request.
- *
- * - Checks Supabase auth cookie first using authoritative getUser().
- * - Checks the signed session cookie.
- * - In local development without Supabase: returns a local dev admin.
- * - In production without Supabase: returns null (fail closed).
+ * Resolves the authenticated user for an API request or Server Component.
+ * Authoritative: strictly checks the active Supabase session cookie and loads
+ * the verified role from the PostgreSQL `profiles` table.
  */
 export async function getRequestUser(): Promise<RequestUser | null> {
-  // 1. Check Supabase authoritative getUser() if configured
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await createClient();
-      const { data, error } = await supabase.auth.getUser();
-      if (!error && data.user) {
-        const email = (data.user.email || '').toLowerCase();
-        return {
-          id: data.user.id,
-          email,
-          isAdmin: adminEmails().includes(email) || data.user.app_metadata?.role === 'admin',
-          isDevFallback: false,
-        };
-      }
-    } catch {
-      // Fall through to cookie session
-    }
-  }
-
-  // 2. Check signed server session cookie
-  try {
-    const session = await getSession();
-    if (session?.email) {
-      const email = session.email.toLowerCase();
+  if (!isSupabaseConfigured()) {
+    if (!isProduction) {
       return {
-        id: session.sub,
-        email,
-        isAdmin: adminEmails().includes(email) || session.role === 'admin',
-        isDevFallback: false,
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'dev@localhost',
+        role: 'admin',
+        isAdmin: true,
+        isDevFallback: true,
       };
     }
-  } catch {
-    // Fall through
-  }
-
-  // Fail closed when Supabase is configured or in production
-  if (isSupabaseConfigured() || isProduction) {
     return null;
   }
 
-  return DEV_USER;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error || !user || !user.email) {
+      return null;
+    }
+
+    const email = user.email.toLowerCase();
+    const admin = createAdminClient();
+
+    // Query authoritative role from database
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const role = profile?.role || 'client';
+    const isAdmin = role === 'admin' || adminEmails().includes(email);
+
+    return {
+      id: user.id,
+      email,
+      role,
+      isAdmin,
+      isDevFallback: false,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Asserts that the request is authenticated. Redirects to `/login` if unauthenticated.
+ */
+export async function requireUser(): Promise<RequestUser> {
+  const user = await getRequestUser();
+  if (!user) {
+    redirect('/login');
+  }
+  return user;
+}
+
+/**
+ * Asserts that the request is from a verified admin.
+ * Redirects non-admins to `/projects` or `/login`.
+ */
+export async function requireAdmin(): Promise<RequestUser> {
+  const user = await getRequestUser();
+  if (!user) {
+    redirect('/login?next=/management');
+  }
+  if (!user.isAdmin) {
+    redirect('/projects');
+  }
+  return user;
 }

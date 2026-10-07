@@ -1,11 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { signSession, SESSION_COOKIE_NAME } from '@/lib/session';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+
+const signupRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
+  const now = Date.now();
+  const record = signupRateLimitMap.get(ip);
+  if (!record || now > record.resetAt) {
+    signupRateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    return false;
+  }
+  if (record.count >= maxAttempts) {
+    return true;
+  }
+  record.count += 1;
+  return false;
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown-ip';
+
+    if (checkRateLimit(clientIp)) {
+      return NextResponse.json(
+        { error: 'Too many registration attempts. Please wait 15 minutes and try again.' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const rawEmail = typeof body.email === 'string' ? body.email : '';
     const rawPassword = typeof body.password === 'string' ? body.password : '';
@@ -37,88 +63,91 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const admin = createAdminClient();
+    // Optional dev bypass strictly for local testing when explicit env flag is active
+    const isDevAutoConfirm =
+      process.env.NODE_ENV !== 'production' &&
+      process.env.DEV_AUTO_CONFIRM === 'true';
 
-    // 1. Create user via admin API with email_confirm: true
-    // This triggers handle_new_user() in Postgres, creating profiles & wallets rows
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email: userEmail,
-      password: password,
-      email_confirm: true,
-      user_metadata: { name: userName },
-    });
+    if (isDevAutoConfirm) {
+      const admin = createAdminClient();
+      const { data: created, error: adminErr } = await admin.auth.admin.createUser({
+        email: userEmail,
+        password,
+        email_confirm: true,
+        user_metadata: { name: userName },
+      });
 
-    if (createError) {
-      const msg = createError.message || 'Failed to create account.';
-      if (
-        msg.toLowerCase().includes('already') ||
-        msg.toLowerCase().includes('registered')
-      ) {
+      if (adminErr || !created.user) {
         return NextResponse.json(
-          { error: 'An account with this email already exists. Please sign in.' },
-          { status: 409 }
+          { error: 'Unable to complete registration. If you already have an account, please sign in.' },
+          { status: 400 }
         );
       }
-      return NextResponse.json({ error: msg }, { status: 400 });
+
+      const supabase = await createClient();
+      await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        requiresVerification: false,
+        user: {
+          id: created.user.id,
+          email: userEmail,
+          name: userName,
+          role: 'client',
+          walletBalance: 0,
+        },
+      });
     }
 
-    if (!created?.user) {
+    // Production flow: Call Supabase auth.signUp with standard email confirmation
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email: userEmail,
+      password,
+      options: {
+        data: { name: userName },
+      },
+    });
+
+    if (error) {
+      // Non-revealing generic response to prevent email harvesting
       return NextResponse.json(
-        { error: 'Unable to initialize user account.' },
-        { status: 500 }
+        { error: 'Unable to complete registration. If you already have an account, please sign in.' },
+        { status: 400 }
       );
     }
 
-    const userId = created.user.id;
-
-    // 2. Fetch the newly initialized wallet (created by Postgres trigger)
-    const { data: wallet } = await admin
-      .from('wallets')
-      .select('balance_credits')
-      .eq('user_id', userId)
-      .single();
-
-    const walletBalance = wallet?.balance_credits ?? 0;
-
-    // 3. Sign in on the server client so Supabase auth cookies are set
-    try {
-      const serverSupabase = await createClient();
-      await serverSupabase.auth.signInWithPassword({
-        email: userEmail,
-        password: password,
-      });
-    } catch {
-      // Non-fatal if server cookies fail; signed session token will serve as primary cookie
+    if (!data.user) {
+      return NextResponse.json(
+        { error: 'Registration failed. Please try again.' },
+        { status: 400 }
+      );
     }
 
-    // 4. Generate signed HMAC session token
-    const token = await signSession({
-      sub: userId,
-      email: userEmail,
-      name: userName,
-      role: 'client',
-      walletBalance,
-    });
+    // If Supabase auto-confirmed or session is present (e.g. SMTP confirmation disabled)
+    if (data.session) {
+      return NextResponse.json({
+        ok: true,
+        requiresVerification: false,
+        user: {
+          id: data.user.id,
+          email: userEmail,
+          name: userName,
+          role: 'client',
+          walletBalance: 0,
+        },
+      });
+    }
 
-    // 5. Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
+    // Standard flow requiring email verification
     return NextResponse.json({
       ok: true,
-      user: {
-        id: userId,
-        email: userEmail,
-        name: userName,
-        role: 'client',
-        walletBalance,
-      },
+      requiresVerification: true,
+      message: 'Account created! Please check your email to verify your address before signing in.',
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Sign up failed';
