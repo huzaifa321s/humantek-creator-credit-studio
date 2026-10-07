@@ -15,6 +15,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -260,10 +261,10 @@ export function StudioCardLayout({
               {!isHydrated ? (
                 <div className="space-y-6 pb-24 sm:pb-32 w-full" aria-busy="true">
                   <div className="space-y-2 border-b border-border/60 pb-5">
-                    <div className="skeleton h-9 w-48" />
-                    <div className="skeleton h-4 w-80 max-w-full" />
+                    <Skeleton className="h-9 w-48" />
+                    <Skeleton className="h-4 w-80 max-w-full" />
                   </div>
-                  <div className="skeleton h-[520px] w-full rounded-xl border border-border/60" />
+                  <Skeleton className="h-[520px] w-full rounded-xl border border-border/60" />
                 </div>
               ) : (
                 children

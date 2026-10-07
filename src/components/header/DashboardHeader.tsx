@@ -29,6 +29,7 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip';
 import { badgeVariants } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
@@ -257,7 +258,7 @@ export function DashboardHeader({
 
               {/* Credit Balance Pill (Standardized naming, consistent across all screens) */}
               {!isBalanceLoaded ? (
-                <div className="skeleton hidden md:block h-8 w-36 rounded-full" />
+                <Skeleton className="hidden md:block h-8 w-36 rounded-full" />
               ) : (
                 <Link
                   href="/redeem-code"
