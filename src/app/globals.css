@@ -364,3 +364,46 @@ input:-webkit-autofill:active {
   caret-color: var(--foreground) !important;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* ========================================================= */
+/* ACCESSIBLE HIGH-CONTRAST SKELETON WITH SHIMMER ANIMATION  */
+/* ========================================================= */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg, 0.75rem);
+  background: oklch(0.92 0.008 260);          /* clearly darker than 0.985 page and 1.0 cards */
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.6), transparent);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.dark .skeleton {
+  background: oklch(0.26 0.02 260);
+}
+.dark .skeleton::after {
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.07), transparent);
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* ========================================================= */
+/* HORIZONTAL OVERFLOW PREVENTION (Preserves sticky offsets) */
+/* ========================================================= */
+html,
+body {
+  overflow-x: clip;
+}

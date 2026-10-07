@@ -258,12 +258,12 @@ export function StudioCardLayout({
             {/* Main Step / Page Content */}
             <div className="flex-1 p-3.5 sm:p-4 lg:p-5 w-full mx-auto relative z-10 max-w-[1600px]">
               {!isHydrated ? (
-                <div className="space-y-6 max-w-5xl mx-auto" aria-busy="true">
+                <div className="space-y-6 pb-24 sm:pb-32 w-full" aria-busy="true">
                   <div className="space-y-2 border-b border-border/60 pb-5">
-                    <div className="h-8 w-48 bg-muted/60 rounded-lg animate-pulse" />
-                    <div className="h-4 w-72 bg-muted/40 rounded-md animate-pulse" />
+                    <div className="skeleton h-9 w-48" />
+                    <div className="skeleton h-4 w-80 max-w-full" />
                   </div>
-                  <div className="h-96 w-full bg-muted/30 rounded-xl border border-border/60 animate-pulse" />
+                  <div className="skeleton h-[520px] w-full rounded-xl border border-border/60" />
                 </div>
               ) : (
                 children

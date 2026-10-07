@@ -136,7 +136,12 @@ export function ChatFloatingWidget() {
                 {isWizardRoute || isGlobal ? 'Chat with Our Team' : 'Messages'}
               </span>
               <span className="text-muted-foreground/60 font-normal">·</span>
-              <span className="text-muted-foreground font-mono text-2xs font-medium">
+              <span
+                className={cn(
+                  'text-muted-foreground text-2xs font-medium',
+                  isWizardRoute || isGlobal ? 'font-sans' : 'font-mono'
+                )}
+              >
                 {isWizardRoute || isGlobal ? 'Sarah Miller' : displayMeta.projectCode}
               </span>
             </div>

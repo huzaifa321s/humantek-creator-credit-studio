@@ -33,7 +33,7 @@ export function StudioBackground({
       {/* 1. Primary Top Studio Spotlight (Amber/Gold aura) */}
       <div
         className={cn(
-          'absolute -top-[100px] left-1/2 -translate-x-1/2 w-[1100px] max-w-[100vw] h-[550px] rounded-full blur-3xl transition-opacity duration-500',
+          'absolute -top-[100px] left-1/2 -translate-x-1/2 w-[1100px] max-w-full h-[550px] rounded-full blur-3xl transition-opacity duration-500',
           variant === 'subtle'
             ? 'opacity-25 dark:opacity-20'
             : 'opacity-45 dark:opacity-30'

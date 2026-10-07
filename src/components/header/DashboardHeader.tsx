@@ -67,7 +67,7 @@ export function DashboardHeader({
   const pathname = usePathname();
   const { isSearchOpen, setSearchOpen, toggleSearch } = useUIStore();
   const { setIsOpen: setChatOpen, unreadCounts } = useStudioChat();
-  const { user } = useUserStore();
+  const { user, isHydrated } = useUserStore();
   const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
   const resolveEffectiveName = () => {
@@ -79,6 +79,7 @@ export function DashboardHeader({
   };
   const effectiveName = resolveEffectiveName();
   const effectiveEmail = userEmail || user.email;
+  const isBalanceLoaded = isHydrated && (walletBalance !== undefined || user.id !== 'client-guest');
   const effectiveBalance =
     walletBalance !== undefined && walletBalance !== null
       ? walletBalance
@@ -146,37 +147,27 @@ export function DashboardHeader({
             </>
           )}
 
-          {mode !== 'auth' && (
+          {mode !== 'auth' && breadcrumbPage && (
             <>
               <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80" />
 
-              {/* Breadcrumb Navigation Trail */}
+              {/* Breadcrumb Navigation Trail for Deeper Sub-Pages */}
               <Breadcrumb className="hidden sm:block">
                 <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
-                  {pathname === '/' || activePageTitle === 'Dashboard' ? (
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="text-xs font-semibold text-white">
-                        Dashboard
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  ) : (
-                    <>
-                      <BreadcrumbItem>
-                        <BreadcrumbLink
-                          href="/"
-                          className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
-                        >
-                          Dashboard
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage className="text-xs font-semibold text-white">
-                          {activePageTitle}
-                        </BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </>
-                  )}
+                  <BreadcrumbItem>
+                    <BreadcrumbLink
+                      href="/"
+                      className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
+                    >
+                      Home
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="text-xs font-semibold text-white">
+                      {breadcrumbPage}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
             </>
@@ -265,20 +256,24 @@ export function DashboardHeader({
               <DashboardNotificationDropdown />
 
               {/* Credit Balance Pill (Standardized naming, consistent across all screens) */}
-              <Link
-                href="/redeem-code"
-                title="View credit balance and redeem codes"
-                className={cn(
-                  badgeVariants({ variant: 'gold', size: 'default' }),
-                  'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
-                )}
-              >
-                <Coins className="size-3.5 text-amber-400 shrink-0" />
-                <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
-                <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">
-                  {effectiveBalance !== undefined ? `${effectiveBalance} CR` : '— CR'}
-                </span>
-              </Link>
+              {!isBalanceLoaded ? (
+                <div className="skeleton hidden md:block h-8 w-36 rounded-full" />
+              ) : (
+                <Link
+                  href="/redeem-code"
+                  title="View credit balance and redeem codes"
+                  className={cn(
+                    badgeVariants({ variant: 'gold', size: 'default' }),
+                    'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
+                  )}
+                >
+                  <Coins className="size-3.5 text-amber-400 shrink-0" />
+                  <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
+                  <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">
+                    {effectiveBalance} CR
+                  </span>
+                </Link>
+              )}
 
               {/* Optional Top-Right Action Badge (e.g. New Project or Active Package) */}
               {topRightBadge}
