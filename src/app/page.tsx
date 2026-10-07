@@ -129,7 +129,6 @@ import {
   ArrowLeft,
   ArrowDown,
   ShieldAlert,
-  Loader2,
   Check,
   Copy,
   X,
@@ -3105,19 +3104,13 @@ export default function CreatorStudioPage() {
                           <Button
                             type="button"
                             size="lg"
-                            disabled={isSubmitting || user.walletBalance < usedCredits}
+                            loading={isSubmitting}
+                            loadingText="Launching Project..."
+                            disabled={user.walletBalance < usedCredits}
                             onClick={handleLaunchWithWallet}
                             className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-2"
                           >
-                            {isSubmitting ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" /> Launching Project...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="w-4 h-4" /> Confirm & Launch with {usedCredits} Credits ($0.00 USD)
-                              </>
-                            )}
+                            <Sparkles className="w-4 h-4" /> Confirm & Launch with {usedCredits} Credits ($0.00 USD)
                           </Button>
                           <p className="text-2xs text-center text-muted-foreground leading-normal">
                             Instantly debits {usedCredits} CR from your Studio Wallet. Project moves directly to active production.
@@ -3199,17 +3192,12 @@ export default function CreatorStudioPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={isSubmitting}
+                        loading={isSubmitting}
+                        loadingText="Submitting..."
                         onClick={handleSubmitForReview}
                         className="w-full text-xs font-semibold rounded-xl cursor-pointer h-9 hover:bg-secondary/60 text-muted-foreground hover:text-foreground border-border/80"
                       >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Submitting...
-                          </>
-                        ) : (
-                          'Submit Brief for Manual Agency Review'
-                        )}
+                        Submit Brief for Manual Agency Review
                       </Button>
                     </div>
 

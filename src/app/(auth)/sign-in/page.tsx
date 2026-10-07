@@ -12,7 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Field, FieldLabel, FieldGroup } from '@/components/ui/field';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -191,22 +191,15 @@ export default function SignInPage() {
               </Field>
             </FieldGroup>
 
-            {/* Clear sentence case action button in rounded rectangle shape */}
+            {/* Clear sentence case action button with reusable loading state */}
             <Button
               type="submit"
               variant="default"
-              disabled={isLoading}
+              loading={isLoading}
+              loadingText={isSignUp ? 'Creating account...' : 'Authenticating...'}
               className="w-full text-sm font-semibold gap-2 mt-2 h-11 min-h-[44px] rounded-lg cursor-pointer shadow-xs bg-amber-500 hover:bg-amber-600 text-white"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Authenticating...
-                </>
-              ) : isSignUp ? (
-                'Create account'
-              ) : (
-                'Sign in'
-              )}
+              {isSignUp ? 'Create account' : 'Sign in'}
             </Button>
           </form>
 

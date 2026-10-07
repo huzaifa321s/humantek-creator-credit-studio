@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { useQueryClient } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
-import { Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+import { Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProjectRecord } from '@/types';
 import { useUserStore } from '@/lib/userStore';
@@ -149,21 +149,13 @@ export function PayPalButtonWrapper({
           type="button"
           variant="ghost"
           size="xs"
-          disabled={isProcessing}
+          loading={isProcessing}
+          loadingText="Processing simulation..."
           onClick={handleSimulatePayment}
           className="text-xs h-7 text-muted-foreground/70 hover:text-amber-600 dark:hover:text-amber-400 gap-1.5"
         >
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
-              <span>Processing simulation...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-3 h-3 text-amber-500" />
-              <span>Simulate Sandbox Payment (Dev Test)</span>
-            </>
-          )}
+          <Sparkles className="w-3 h-3 text-amber-500" />
+          <span>Simulate Sandbox Payment (Dev Test)</span>
         </Button>
       </div>
       )}

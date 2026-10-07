@@ -220,10 +220,12 @@ export default function RedeemCodePage() {
                             />
                             <Button
                               type="submit"
-                              disabled={isRedeeming || !redeemCode}
+                              loading={isRedeeming}
+                              loadingText="Applying…"
+                              disabled={!redeemCode}
                               className="shrink-0 h-9 px-3.5 text-xs font-semibold gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-xs cursor-pointer"
                             >
-                              <span>{isRedeeming ? 'Applying…' : 'Redeem'}</span>
+                              <span>Redeem</span>
                               <ArrowRight className="w-3.5 h-3.5" />
                             </Button>
                           </div>
