@@ -20,6 +20,8 @@ import {
   UploadedFile,
 } from '@/types';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
+import { useStepFocus, getStepAnnouncement } from '@/hooks/useStepNavigation';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { ScopeGuideModal } from '@/components/ScopeGuideModal';
 import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
@@ -39,6 +41,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -175,7 +178,11 @@ import {
 import confetti from 'canvas-confetti';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
+import { useWalletQuery, useRedeemPromoCode } from '@/lib/queries/wallet';
+import { useCreateProject } from '@/lib/queries/projects';
 import { STUDIO_WALLET_PACKAGE } from '@/lib/pricing';
+import { useWizardStore } from '@/lib/wizardStore';
+import { useNotificationStore } from '@/lib/notificationStore';
 
 function getServiceIcon(serviceId: string, category: string) {
   switch (serviceId) {
@@ -286,67 +293,125 @@ const CORE_RESTRICTED_ITEMS = [
 type PriceFilterType = (typeof PRICE_FILTER_OPTIONS)[number]['id'];
 
 export default function CreatorStudioPage() {
-  // User store & global credit wallet
+  // User store & TanStack Query synchronized server state
   const { user, addCredits, deductCredits } = useUserStore();
-  const [fundingSource, setFundingSource] = useState<'wallet' | 'package'>('package');
+  const walletQuery = useWalletQuery(user.email);
+  const createProjectMutation = useCreateProject();
+  const redeemPromoMutation = useRedeemPromoCode();
 
-  // Synchronize live wallet balance with the authoritative server ledger on mount
-  useEffect(() => {
-    const userEmail = user.email || 'kira@example.com';
-    fetch(`/api/wallet?email=${encodeURIComponent(userEmail)}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && typeof data.walletBalance === 'number') {
-          useUserStore.getState().updateUser({ walletBalance: data.walletBalance });
-        }
-      })
-      .catch(() => {});
-  }, [user.email]);
+  // Place 4: Wizard Zustand Store (Global Wizard & Cart State)
+  const wizard = useWizardStore();
+  const {
+    projectId,
+    currentStep,
+    selectedPackageId,
+    fundingSource,
+    applyWalletCredits,
+    activeCategory,
+    priceFilter,
+    selections,
+    additions,
+    policyAccepted,
+    openPolicyAccordion,
+    showAllRestricted,
+    termsAccepted,
+    isTermsExpanded,
+    brief: wizardBrief,
+    uploadedFiles,
+    redeemCodeInput,
+    redeemCodeAttached,
+    isSubmitting,
+    errorMessage,
+    submittedProject,
+    setStep: setCurrentStep,
+    setSelectedPackageId,
+    setFundingSource,
+    setApplyWalletCredits,
+    setActiveCategory,
+    setPriceFilter,
+    setSelections,
+    setAdditions,
+    setPolicyAccepted,
+    setOpenPolicyAccordion,
+    setShowAllRestricted,
+    setTermsAccepted,
+    setIsTermsExpanded,
+    setUploadedFiles,
+    setRedeemCodeInput,
+    setRedeemCodeAttached,
+    setIsSubmitting,
+    setErrorMessage,
+    setSubmittedProject,
+    resetWizard,
+  } = wizard;
 
-  // Navigation & Step state
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedPackageId, setSelectedPackageId] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>('All');
-  const [priceFilter, setPriceFilter] = useState<PriceFilterType>('all');
   const { setIsOpen: setChatOpen, registerProject } = useStudioChat();
 
-  // Asset selections & additions
-  const [selections, setSelections] = useState<Record<string, ServiceSelection>>({});
-  const [additions, setAdditions] = useState<string[]>([]);
-  const [policyAccepted, setPolicyAccepted] = useState(false);
-  const [openPolicyAccordion, setOpenPolicyAccordion] = useState<string[]>(['revisions']);
-  const [showAllRestricted, setShowAllRestricted] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [isTermsExpanded, setIsTermsExpanded] = useState(false);
+  // Brief fields & ergonomic setters mapped to wizardStore
+  const { clientName, channelName, email, platform, style, colors, instructions } = wizardBrief;
 
-  // Creative brief form
-  const [clientName, setClientName] = useState('');
-  const [channelName, setChannelName] = useState('');
-  const [email, setEmail] = useState('');
-  const [platform, setPlatform] = useState('');
-  const [style, setStyle] = useState('');
-  const [colors, setColors] = useState('');
-  const [instructions, setInstructions] = useState('');
+  const setClientName = (val: string | ((prev: string) => string)) => {
+    wizard.updateBriefField('clientName', typeof val === 'function' ? val(wizardBrief.clientName) : val);
+  };
+  const setChannelName = (val: string | ((prev: string) => string)) => {
+    wizard.updateBriefField('channelName', typeof val === 'function' ? val(wizardBrief.channelName) : val);
+  };
+  const setEmail = (val: string | ((prev: string) => string)) => {
+    wizard.updateBriefField('email', typeof val === 'function' ? val(wizardBrief.email) : val);
+  };
+  const setPlatform = (val: string | ((prev: string) => string)) => {
+    wizard.updateBriefField('platform', typeof val === 'function' ? val(wizardBrief.platform) : val);
+  };
+  const setStyle = (val: string | ((prev: string) => string)) => {
+    wizard.updateBriefField('style', typeof val === 'function' ? val(wizardBrief.style) : val);
+  };
+  const setColors = (val: string | ((prev: string) => string)) => {
+    wizard.updateBriefField('colors', typeof val === 'function' ? val(wizardBrief.colors) : val);
+  };
+  const setInstructions = (val: string | ((prev: string) => string)) => {
+    wizard.updateBriefField('instructions', typeof val === 'function' ? val(wizardBrief.instructions) : val);
+  };
 
-  // Uploads & wallet tools
-  const [projectId] = useState(
-    () => `proj-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-  );
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  // Upload transient DOM interaction state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingNames, setUploadingNames] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [redeemCodeInput, setRedeemCodeInput] = useState('');
-  const [redeemCodeAttached, setRedeemCodeAttached] = useState(false);
 
-  // Submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [submittedProject, setSubmittedProject] = useState<ProjectRecord | null>(null);
+  // Step focus & accessibility navigation hook (scrolls to top on step or confirmation change)
+  const headingRef = useStepFocus(currentStep, Boolean(submittedProject));
+
+  // Track if user has active unsaved draft progress
+  const hasUnsavedProgress = useMemo(() => {
+    if (submittedProject) return false;
+    return Boolean(
+      selectedPackageId ||
+      Object.keys(selections).length > 0 ||
+      clientName.trim() ||
+      email.trim() ||
+      instructions.trim() ||
+      uploadedFiles.length > 0
+    );
+  }, [submittedProject, selectedPackageId, selections, clientName, email, instructions, uploadedFiles.length]);
+
+  // Standard production browser exit guard ("Leave site? Changes you made may not be saved.")
+  useUnsavedChangesWarning(hasUnsavedProgress);
+
+  // Clean URL to keep it pristine (Approach 1: clean single-page URL)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('step')) {
+      url.searchParams.delete('step');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+    }
+  }, []);
 
   // Derived package & credit calculations
-  const isWalletFunding = fundingSource === 'wallet' || selectedPackageId === 'studio-wallet';
+  const isWalletFunding = selectedPackageId === 'studio-wallet' || fundingSource === 'wallet';
+  const isPackageSelected = Boolean(selectedPackageId && selectedPackageId !== 'studio-wallet');
+  const effectiveApplyWallet = applyWalletCredits && user.walletBalance > 0 && isPackageSelected;
+  const appliedWalletCredits = isWalletFunding ? user.walletBalance : (effectiveApplyWallet ? user.walletBalance : 0);
 
   const currentPackage = useMemo(() => {
     if (isWalletFunding) {
@@ -373,8 +438,15 @@ export default function CreatorStudioPage() {
     0
   );
   const usedCredits = servicesCredits + additionsCredits;
-  const totalPackageCredits = currentPackage?.credits ?? 0;
-  const remainingCredits = totalPackageCredits - usedCredits;
+
+  const totalUsableCredits = useMemo(() => {
+    if (!currentPackage) return 0;
+    if (isWalletFunding) return user.walletBalance;
+    return currentPackage.credits + (effectiveApplyWallet ? user.walletBalance : 0);
+  }, [currentPackage, isWalletFunding, user.walletBalance, effectiveApplyWallet]);
+
+  const totalPackageCredits = totalUsableCredits;
+  const remainingCredits = totalUsableCredits - usedCredits;
 
   const standardUnits = selectedEntries
     .filter((e) => e.choice.level === 1)
@@ -458,9 +530,9 @@ export default function CreatorStudioPage() {
   }, [activeCategory, selections, priceFilter]);
 
   const handleUpgradePackage = (packageId: string) => {
-    setFundingSource('package');
     setSelectedPackageId(packageId);
-    toast.success('Switched to package to support your credit scope');
+    setFundingSource(user.walletBalance > 0 && applyWalletCredits ? 'hybrid' : 'package');
+    toast.success('Selected package to expand your credit budget');
   };
 
   // Navigation handlers
@@ -500,6 +572,9 @@ export default function CreatorStudioPage() {
             toast.error('Adjust your services — check your credit budget and tier limits.');
           }
         } else if (s === 3) {
+          const el = document.getElementById('policy-ack') || document.getElementById('policy-ack-card');
+          el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el?.focus({ preventScroll: true });
           toast.error('Please accept the scope policy to continue.');
         } else if (s === 4) {
           if (!brief.validateAll()) {
@@ -509,12 +584,21 @@ export default function CreatorStudioPage() {
                 : `Please fix the ${brief.errorCount} highlighted fields.`
             );
           } else if (!termsAccepted) {
-            document.getElementById('terms-ack')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const el = document.getElementById('terms-ack') || document.getElementById('terms-ack-card');
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el?.focus({ preventScroll: true });
             toast.error('Please accept the Terms & Conditions to continue.');
           }
         }
         return;
       }
+    }
+
+    if (target === 5 && email.trim()) {
+      useUserStore.getState().updateUser({
+        email: email.trim(),
+        name: clientName.trim() || undefined,
+      });
     }
 
     setCurrentStep(target);
@@ -523,25 +607,13 @@ export default function CreatorStudioPage() {
   const handleSelectWallet = () => {
     setFundingSource('wallet');
     setSelectedPackageId('studio-wallet');
-    setSelections({});
-    setAdditions([]);
     setPriceFilter('all');
-    setPolicyAccepted(false);
-    setOpenPolicyAccordion(['revisions']);
-    setShowAllRestricted(false);
-    setTermsAccepted(false);
   };
 
   const handleSelectPackage = (packageId: string) => {
-    setFundingSource('package');
     setSelectedPackageId(packageId);
-    setSelections({});
-    setAdditions([]);
+    setFundingSource(user.walletBalance > 0 && applyWalletCredits ? 'hybrid' : 'package');
     setPriceFilter('all');
-    setPolicyAccepted(false);
-    setOpenPolicyAccordion(['revisions']);
-    setShowAllRestricted(false);
-    setTermsAccepted(false);
   };
 
   const toggleService = (serviceId: string) => {
@@ -657,38 +729,34 @@ export default function CreatorStudioPage() {
     setErrorMessage('');
 
     try {
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          packageId: isWalletFunding ? 'studio-wallet' : currentPackage.id,
-          fundingSource: isWalletFunding ? 'wallet' : 'package',
-          walletBalance: user.walletBalance,
-          selections: selectedEntries.map((e) => ({
-            id: e.service.id,
-            name: e.service.name,
-            level: e.choice.level,
-            quantity: e.choice.quantity,
-            credits: e.credits,
-          })),
-          additions,
-          clientName,
-          channelName,
-          email,
-          platform,
-          style,
-          colors,
-          instructions,
-          redeemCode: redeemCodeAttached ? redeemCodeInput : '',
-          uploadedFiles,
-          paymentStatus: 'unpaid',
-          status: 'pending_review',
-        }),
+      const data = await createProjectMutation.mutateAsync({
+        projectId,
+        packageId: isWalletFunding ? 'studio-wallet' : currentPackage.id,
+        fundingSource: isWalletFunding ? 'wallet' : (appliedWalletCredits > 0 ? 'hybrid' : 'package'),
+        walletBalance: user.walletBalance,
+        applyWalletCredits: effectiveApplyWallet,
+        appliedWalletCredits,
+        selections: selectedEntries.map((e) => ({
+          id: e.service.id,
+          name: e.service.name,
+          level: e.choice.level,
+          quantity: e.choice.quantity,
+          credits: e.credits,
+        })),
+        additions,
+        clientName,
+        channelName,
+        email,
+        platform,
+        style,
+        colors,
+        instructions,
+        redeemCode: redeemCodeAttached ? redeemCodeInput : '',
+        uploadedFiles,
+        paymentStatus: 'unpaid',
+        status: 'pending_review',
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit request');
       setSubmittedProject(data.project);
       registerProject({
         id: data.project.id,
@@ -698,6 +766,16 @@ export default function CreatorStudioPage() {
         status: data.project.status,
         price: data.project.packagePrice,
         credits: data.project.packageCredits,
+      });
+      useUserStore.getState().updateUser({
+        email: email.trim() || user.email,
+        name: clientName.trim() || user.name,
+      });
+      useNotificationStore.getState().addNotification({
+        title: 'Project Submitted for Review',
+        description: `Project HT-${data.project.projectCode} (${data.project.packageName}) submitted to creative operations.`,
+        iconType: 'sparkles',
+        link: '/projects',
       });
       toast.success('Project request submitted for studio review!');
     } catch (err: unknown) {
@@ -719,41 +797,42 @@ export default function CreatorStudioPage() {
     setErrorMessage('');
 
     try {
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          packageId: 'studio-wallet',
-          fundingSource: 'wallet',
-          walletBalance: user.walletBalance,
-          selections: selectedEntries.map((e) => ({
-            id: e.service.id,
-            name: e.service.name,
-            level: e.choice.level,
-            quantity: e.choice.quantity,
-            credits: e.credits,
-          })),
-          additions,
-          clientName,
-          channelName,
-          email,
-          platform,
-          style,
-          colors,
-          instructions,
-          redeemCode: redeemCodeAttached ? redeemCodeInput : '',
-          uploadedFiles,
-        }),
+      const data = await createProjectMutation.mutateAsync({
+        projectId,
+        packageId: 'studio-wallet',
+        fundingSource: 'wallet',
+        walletBalance: user.walletBalance,
+        selections: selectedEntries.map((e) => ({
+          id: e.service.id,
+          name: e.service.name,
+          level: e.choice.level,
+          quantity: e.choice.quantity,
+          credits: e.credits,
+        })),
+        additions,
+        clientName,
+        channelName,
+        email,
+        platform,
+        style,
+        colors,
+        instructions,
+        redeemCode: redeemCodeAttached ? redeemCodeInput : '',
+        uploadedFiles,
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit request');
-
       if (typeof data.newWalletBalance === 'number') {
-        useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
+        useUserStore.getState().updateUser({
+          walletBalance: data.newWalletBalance,
+          email: email.trim() || user.email,
+          name: clientName.trim() || user.name,
+        });
       } else {
         deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
+        useUserStore.getState().updateUser({
+          email: email.trim() || user.email,
+          name: clientName.trim() || user.name,
+        });
       }
 
       confetti({
@@ -771,6 +850,12 @@ export default function CreatorStudioPage() {
         status: data.project.status,
         price: data.project.packagePrice,
         credits: data.project.packageCredits,
+      });
+      useNotificationStore.getState().addNotification({
+        title: 'Project Launched with Credits',
+        description: `Project HT-${data.project.projectCode} active in production. ${usedCredits} CR deducted from wallet.`,
+        iconType: 'credits',
+        link: '/projects',
       });
 
       toast.success(`Success! Project launched instantly with ${usedCredits} Studio Wallet credits.`);
@@ -920,6 +1005,11 @@ export default function CreatorStudioPage() {
       showBack={!submittedProject}
       footerActions={renderFooterActions()}
     >
+      {/* Screen reader live region step announcement */}
+      <p aria-live="polite" aria-atomic="true" className="sr-only">
+        {getStepAnnouncement(currentStep, Boolean(submittedProject))}
+      </p>
+
       {/* ============================================================ */}
       {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}
       {/* ============================================================ */}
@@ -931,11 +1021,15 @@ export default function CreatorStudioPage() {
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                 1 OF 5 · FUNDING SOURCE &amp; PACKAGE SELECTION
               </div>
-              <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
+              >
                 Choose how to fund your creative project.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Fund instantly with your Studio Wallet balance ($0 USD checkout) or purchase a new package with permanent credit rollover.
+                Deploy instantly with your available Studio Wallet balance ($0 USD checkout), select a new package, or combine both for higher project scopes.
               </p>
             </div>
           </div>
@@ -943,85 +1037,141 @@ export default function CreatorStudioPage() {
           {/* ReUI Standardized Announcement & Status Banner */}
           <StudioNoticeBanner type="step1-scope" />
 
-          {/* Dedicated Option: Use Global Studio Wallet Balance */}
-          {user.walletBalance > 0 && (
+          {/* Dedicated Studio Wallet Balance Status & Hybrid Management Card */}
+          {user.walletBalance > 0 ? (
             <Card
-              onClick={handleSelectWallet}
               className={cn(
-                'relative flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 rounded-xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs gap-4',
-                selectedPackageId === 'studio-wallet'
+                'relative flex flex-col p-4 sm:p-5 rounded-xl transition-all duration-200 select-none overflow-hidden shadow-2xs gap-3',
+                isWalletFunding
                   ? 'border-2 border-emerald-500 bg-emerald-500/[0.06] dark:bg-emerald-950/20 shadow-md ring-2 ring-emerald-500/20'
                   : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
               )}
             >
-              <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                <div
-                  className={cn(
-                    'size-11 sm:size-12 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors',
-                    selectedPackageId === 'studio-wallet'
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                  )}
-                >
-                  <Wallet className="size-6" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                  <div
+                    className={cn(
+                      'size-11 sm:size-12 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors',
+                      isWalletFunding
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                    )}
+                  >
+                    <Wallet className="size-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge
+                        variant={isWalletFunding ? 'default' : 'secondary'}
+                        className={cn(
+                          'text-2xs font-bold uppercase tracking-wider py-0 px-2',
+                          isWalletFunding && 'bg-emerald-600 hover:bg-emerald-600 text-white'
+                        )}
+                      >
+                        Global Studio Wallet
+                      </Badge>
+                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-mono">
+                        <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                        {walletQuery.isPending ? (
+                          <Skeleton className="h-4 w-12 rounded-xs" />
+                        ) : (
+                          `${user.walletBalance} CR Active Balance`
+                        )}
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-foreground leading-tight">
+                      {isWalletFunding
+                        ? 'Funding with Existing Studio Wallet Balance'
+                        : 'Active Studio Credit Balance Available'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {isWalletFunding
+                        ? `Deploy your project with $0.00 USD checkout using your current ${user.walletBalance} CR. Any unused credits remain preserved in your wallet.`
+                        : `You have ${user.walletBalance} CR available. You can apply these credits alongside a package below to increase your total project purchasing power.`}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge
-                      variant={selectedPackageId === 'studio-wallet' ? 'default' : 'secondary'}
-                      className={cn(
-                        'text-2xs font-bold uppercase tracking-wider py-0 px-2',
-                        selectedPackageId === 'studio-wallet' && 'bg-emerald-600 hover:bg-emerald-600 text-white'
+
+                <div className="flex items-center gap-3 shrink-0 self-stretch sm:self-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-border/60">
+                  <div className="text-left sm:text-right">
+                    <div className="flex items-baseline sm:justify-end gap-1">
+                      {walletQuery.isPending ? (
+                        <Skeleton className="h-7 sm:h-8 w-14 rounded-xs inline-block" />
+                      ) : (
+                        <span className="text-xl sm:text-2xl font-black text-foreground font-mono tabular-nums">
+                          {user.walletBalance}
+                        </span>
                       )}
-                    >
-                      Studio Account Wallet
-                    </Badge>
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                      0 USD Checkout
+                      <span className="text-xs font-bold text-muted-foreground">CR Available</span>
+                    </div>
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block font-mono">
+                      {isWalletFunding ? '$0.00 USD Checkout' : 'Prepaid & Ready'}
                     </span>
                   </div>
-                  <h3 className="text-base sm:text-lg font-bold text-foreground leading-tight">
-                    Use Existing Studio Wallet Balance
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Your Available Balance: <strong className="text-foreground">{user.walletBalance} CR</strong> · Ready to deploy your project with $0.00 USD checkout. Leftover balance rolls over automatically.
-                  </p>
+
+                  <Button
+                    type="button"
+                    variant={isWalletFunding ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={handleSelectWallet}
+                    className={cn(
+                      'text-xs font-semibold gap-1.5 h-9 px-4 rounded-lg cursor-pointer transition-colors',
+                      isWalletFunding
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                        : 'border-border hover:bg-secondary text-foreground'
+                    )}
+                  >
+                    {isWalletFunding ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Wallet Only ($0)
+                      </>
+                    ) : (
+                      'Use Wallet Only ($0)'
+                    )}
+                  </Button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 shrink-0 self-stretch sm:self-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-border/60">
-                <div className="text-left sm:text-right">
-                  <div className="flex items-baseline sm:justify-end gap-1">
-                    <span className="text-xl sm:text-2xl font-black text-foreground">
-                      {user.walletBalance}
-                    </span>
-                    <span className="text-xs font-bold text-muted-foreground">CR Available</span>
+              {/* Hybrid Wallet Integration Toggle when a Package is selected */}
+              {isPackageSelected && (
+                <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-500/5 dark:bg-amber-950/20 -mx-4 -mb-4 sm:-mx-5 sm:-mb-5 p-3 sm:px-5 rounded-b-xl">
+                  <div className="flex items-center gap-2.5">
+                    <Checkbox
+                      id="apply-wallet-toggle"
+                      checked={applyWalletCredits}
+                      onCheckedChange={(checked) => setApplyWalletCredits(Boolean(checked))}
+                      className="cursor-pointer"
+                    />
+                    <label
+                      htmlFor="apply-wallet-toggle"
+                      className="text-xs font-medium text-foreground cursor-pointer select-none"
+                    >
+                      Apply my <strong className="font-mono">{user.walletBalance} CR</strong> wallet balance to this project ({currentPackage?.name} + Wallet)
+                    </label>
                   </div>
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block">
-                    $0.00 USD Due
-                  </span>
+                  <Badge variant="gold" className="text-2xs font-mono font-bold self-start sm:self-auto py-0 px-2 shrink-0">
+                    {applyWalletCredits
+                      ? `Total Budget: ${(currentPackage?.credits ?? 0) + user.walletBalance} CR`
+                      : `Using Package Only: ${currentPackage?.credits ?? 0} CR`}
+                  </Badge>
                 </div>
-
-                <Button
-                  type="button"
-                  variant={selectedPackageId === 'studio-wallet' ? 'default' : 'outline'}
-                  size="sm"
-                  className={cn(
-                    'text-xs font-semibold gap-1.5 h-9 px-4 rounded-lg cursor-pointer transition-colors',
-                    selectedPackageId === 'studio-wallet'
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                      : 'border-border hover:bg-secondary text-foreground'
-                  )}
-                >
-                  {selectedPackageId === 'studio-wallet' ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Selected
-                    </>
-                  ) : (
-                    'Use Wallet Balance'
-                  )}
-                </Button>
+              )}
+            </Card>
+          ) : (
+            <Card className="p-3.5 sm:p-4 rounded-xl border border-border/70 bg-secondary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <div className="size-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Coins className="size-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-foreground">Global Studio Credit System</h4>
+                  <p className="text-2xs text-muted-foreground mt-0.5">
+                    All packages include permanent studio credits with 12-month rollover. Select a tier below to fund your project.
+                  </p>
+                </div>
+              </div>
+              <div className="text-left sm:text-right shrink-0">
+                <span className="text-xs font-mono font-bold text-muted-foreground">0 CR Balance</span>
               </div>
             </Card>
           )}
@@ -1033,7 +1183,9 @@ export default function CreatorStudioPage() {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-3 font-bold tracking-wider text-muted-foreground">
-                  Or purchase a package to top up credits
+                  {isWalletFunding
+                    ? 'Or select a package to expand your credit budget'
+                    : 'Choose your package tier below'}
                 </span>
               </div>
             </div>
@@ -1046,6 +1198,7 @@ export default function CreatorStudioPage() {
               const effectiveRate = (pkg.price / pkgCredits).toFixed(2);
               const isSelected = selectedPackageId === pkg.id;
               const isPopular = pkg.id === 'studio-momentum';
+              const combinedBudget = effectiveApplyWallet && isSelected ? pkgCredits + user.walletBalance : pkgCredits;
 
               return (
                 <Card
@@ -1091,10 +1244,16 @@ export default function CreatorStudioPage() {
                       <span className="text-xs text-muted-foreground font-semibold">USD</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <CreditValue value={pkgCredits} size="sm" variant="pill" />
-                      <span className="text-xs text-muted-foreground font-medium font-mono tabular-nums">
-                        ${effectiveRate}/CR
-                      </span>
+                      <CreditValue value={combinedBudget} size="sm" variant="pill" />
+                      {effectiveApplyWallet && isSelected ? (
+                        <span className="text-2xs text-emerald-600 dark:text-emerald-400 font-bold font-mono">
+                          +{user.walletBalance} CR Wallet
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground font-medium font-mono tabular-nums">
+                          ${effectiveRate}/CR
+                        </span>
+                      )}
                     </div>
                     <CardDescription className="text-xs leading-relaxed text-muted-foreground line-clamp-2 min-h-[2.5rem] mt-1">
                       {pkg.bestFor}
@@ -1200,7 +1359,11 @@ export default function CreatorStudioPage() {
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                 2 OF 5 · PICK YOUR SERVICES
               </div>
-              <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
+              >
                 Choose everything you need in one go.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
@@ -1546,6 +1709,8 @@ export default function CreatorStudioPage() {
                 entries={selectedEntries}
                 usedCredits={usedCredits}
                 remainingCredits={remainingCredits}
+                totalAvailableCredits={totalUsableCredits}
+                appliedWalletCredits={appliedWalletCredits}
                 standardUnits={standardUnits}
                 eliteUnits={eliteUnits}
                 recommendedPack={recommendedPack}
@@ -1605,7 +1770,11 @@ export default function CreatorStudioPage() {
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                 3 OF 5 · WHAT CREDITS COVER
               </div>
-              <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
+              >
                 Check what your credits can be used for.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
@@ -2011,8 +2180,9 @@ export default function CreatorStudioPage() {
 
           {/* Required Acknowledgement Checkbox Card */}
           <Card
+            id="policy-ack-card"
             className={cn(
-              'rounded-xl border transition-all cursor-pointer select-none',
+              'rounded-xl border transition-all cursor-pointer select-none scroll-mt-[140px]',
               policyAccepted
                 ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
                 : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-2xs'
@@ -2024,7 +2194,7 @@ export default function CreatorStudioPage() {
                 id="policy-ack"
                 checked={policyAccepted}
                 onCheckedChange={(checked) => setPolicyAccepted(Boolean(checked))}
-                className="mt-0.5 shrink-0"
+                className="mt-0.5 shrink-0 scroll-mt-[140px]"
               />
               <div className="space-y-0.5">
                 <Label htmlFor="policy-ack" className="text-sm font-bold text-foreground cursor-pointer block">
@@ -2051,7 +2221,11 @@ export default function CreatorStudioPage() {
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                 4 OF 5 · YOUR PROJECT DETAILS
               </div>
-              <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
+              >
                 Tell us what each item should include.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
@@ -2069,7 +2243,7 @@ export default function CreatorStudioPage() {
             {/* Form Fields Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
               {/* Your Name */}
-              <div className="space-y-1">
+              <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('clientName')} className="text-xs font-semibold text-foreground">
                   Your Name <span className="text-destructive font-semibold">*</span>
                 </Label>
@@ -2080,13 +2254,13 @@ export default function CreatorStudioPage() {
                   placeholder="Your full legal or creator name"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
+                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50 scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('clientName')} message={brief.getError('clientName')} />
               </div>
 
               {/* Channel / Brand Name */}
-              <div className="space-y-1">
+              <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('channelName')} className="text-xs font-semibold text-foreground">
                   Channel / Brand Name
                 </Label>
@@ -2097,13 +2271,13 @@ export default function CreatorStudioPage() {
                   placeholder="e.g. KiraOfficial, PixelGamer"
                   value={channelName}
                   onChange={(e) => setChannelName(e.target.value)}
-                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
+                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50 scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('channelName')} message={brief.getError('channelName')} />
               </div>
 
               {/* Email */}
-              <div className="space-y-1">
+              <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('email')} className="text-xs font-semibold text-foreground">
                   Email Address <span className="text-destructive font-semibold">*</span>
                 </Label>
@@ -2117,13 +2291,13 @@ export default function CreatorStudioPage() {
                   placeholder="creator@channel.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
+                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50 scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('email')} message={brief.getError('email')} />
               </div>
 
               {/* Primary Platform */}
-              <div className="space-y-1">
+              <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('platform')} className="text-xs font-semibold text-foreground">
                   Primary Platform
                 </Label>
@@ -2136,7 +2310,7 @@ export default function CreatorStudioPage() {
                 >
                   <SelectTrigger
                     {...brief.fieldProps('platform')}
-                    className="w-full h-9 bg-background/50 rounded-lg text-xs sm:text-sm font-medium"
+                    className="w-full h-9 bg-background/50 rounded-lg text-xs sm:text-sm font-medium scroll-mt-[140px]"
                   >
                     <SelectValue placeholder="Select Platform" />
                   </SelectTrigger>
@@ -2152,7 +2326,7 @@ export default function CreatorStudioPage() {
               </div>
 
               {/* Preferred Art Style */}
-              <div className="space-y-1">
+              <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('style')} className="text-xs font-semibold text-foreground">
                   Preferred Art Style
                 </Label>
@@ -2162,13 +2336,13 @@ export default function CreatorStudioPage() {
                   placeholder="e.g. Cyberpunk Anime, Chibi, Dark Fantasy, 3D"
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
-                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
+                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50 scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('style')} message={brief.getError('style')} />
               </div>
 
               {/* Color Palette */}
-              <div className="space-y-1">
+              <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('colors')} className="text-xs font-semibold text-foreground">
                   Color Palette / Themes
                 </Label>
@@ -2178,13 +2352,13 @@ export default function CreatorStudioPage() {
                   placeholder="e.g. #FF007F Neon Pink, Cyan, Deep Slate"
                   value={colors}
                   onChange={(e) => setColors(e.target.value)}
-                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50"
+                  className="rounded-lg h-9 text-xs sm:text-sm bg-background/50 scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('colors')} message={brief.getError('colors')} />
               </div>
 
               {/* Instructions Full Width */}
-              <div className="space-y-1 sm:col-span-2">
+              <div className="space-y-1 sm:col-span-2 scroll-mt-[140px]">
                 <div className="flex items-center justify-between">
                   <Label htmlFor={briefFieldId('instructions')} className="text-xs font-semibold text-foreground">
                     Creative Brief & Asset Instructions <span className="text-destructive font-semibold">*</span>
@@ -2207,7 +2381,7 @@ export default function CreatorStudioPage() {
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   rows={3}
-                  className="rounded-lg text-xs sm:text-sm leading-relaxed bg-background/50 py-2 resize-y"
+                  className="rounded-lg text-xs sm:text-sm leading-relaxed bg-background/50 py-2 resize-y scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('instructions')} message={brief.getError('instructions')} />
               </div>
@@ -2380,25 +2554,26 @@ export default function CreatorStudioPage() {
                       const clean = parsed.data;
                       setRedeemCodeInput(clean);
                       try {
-                        const res = await fetch('/api/wallet/redeem', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ code: clean, email: email || user.email }),
+                        const data = await redeemPromoMutation.mutateAsync({
+                          code: clean,
+                          email: email || user.email,
                         });
-                        const data = await res.json();
-                        if (res.ok) {
-                          useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
-                          setRedeemCodeAttached(true);
-                          toast.success(`Promo code redeemed! +${data.creditsAdded} CR added to your balance.`);
-                        } else if (res.status === 409) {
+                        setRedeemCodeAttached(true);
+                        useNotificationStore.getState().addNotification({
+                          title: 'Promo Code Applied',
+                          description: `Code ${clean} redeemed: +${data.creditsAdded} CR added to your wallet.`,
+                          iconType: 'credits',
+                          link: '/redeem-code',
+                        });
+                        toast.success(`Promo code redeemed! +${data.creditsAdded} CR added to your balance.`);
+                      } catch (err: unknown) {
+                        const apiErr = err as { status?: number; message?: string };
+                        if (apiErr.status === 409) {
                           setRedeemCodeAttached(true);
                           toast.info(`Promo code attached: ${clean}`);
                         } else {
-                          toast.error(data.error || 'Failed to redeem promo code');
+                          toast.error(apiErr.message || 'Failed to redeem promo code');
                         }
-                      } catch {
-                        setRedeemCodeAttached(true);
-                        toast.success(`Promo code attached: ${clean}`);
                       }
                     }}
                     className="text-xs shrink-0 font-semibold h-9 px-3.5 rounded-lg cursor-pointer"
@@ -2454,8 +2629,9 @@ export default function CreatorStudioPage() {
 
             {/* Terms & Conditions Checkbox (Compact and Direct) */}
             <Card
+              id="terms-ack-card"
               className={cn(
-                'rounded-xl border transition-all cursor-pointer select-none',
+                'rounded-xl border transition-all cursor-pointer select-none scroll-mt-[140px]',
                 termsAccepted
                   ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
                   : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-2xs'
@@ -2467,7 +2643,7 @@ export default function CreatorStudioPage() {
                   id="terms-ack"
                   checked={termsAccepted}
                   onCheckedChange={(checked) => setTermsAccepted(Boolean(checked))}
-                  className="mt-0.5 shrink-0"
+                  className="mt-0.5 shrink-0 scroll-mt-[140px]"
                 />
                 <div className="space-y-0.5">
                   <Label htmlFor="terms-ack" className="text-xs font-bold text-foreground cursor-pointer block">
@@ -2507,7 +2683,11 @@ export default function CreatorStudioPage() {
 
               {/* Title & Subtitle */}
               <div className="space-y-1.5">
-                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                <h2
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground outline-none"
+                >
                   Order confirmed
                 </h2>
                 <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
@@ -2590,7 +2770,7 @@ export default function CreatorStudioPage() {
                   </Button>
                 </Link>
 
-                <div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Button
                     type="button"
                     variant="link"
@@ -2600,6 +2780,16 @@ export default function CreatorStudioPage() {
                   >
                     <MessageSquare className="size-3.5" />
                     <span>Message our team</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => resetWizard()}
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Start another project</span>
                   </Button>
                 </div>
               </div>
@@ -2613,7 +2803,11 @@ export default function CreatorStudioPage() {
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                     5 OF 5 · REVIEW &amp; PAY
                   </div>
-                  <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl">
+                  <h1
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
+                  >
                     Ready to submit?
                   </h1>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
@@ -2861,21 +3055,31 @@ export default function CreatorStudioPage() {
                       ) : (
                         <>
                           <div className="flex items-center justify-between text-muted-foreground">
-                            <span>{currentPackage.name} Base Package</span>
+                            <span>{currentPackage.name} Package</span>
                             <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString()} USD</span>
                           </div>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>Package Allocation</span>
-                            <span className="font-semibold text-foreground font-mono tabular-nums">{currentPackage.credits} CR</span>
+                            <span className="font-semibold text-foreground font-mono tabular-nums">+{currentPackage.credits} CR</span>
                           </div>
-                          <div className="flex items-center justify-between text-muted-foreground">
+                          {appliedWalletCredits > 0 && (
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Applied from Studio Wallet</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} CR</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-muted-foreground font-medium pt-1 border-t border-border/40">
+                            <span>Total Usable Project Budget</span>
+                            <span className="font-semibold text-foreground font-mono tabular-nums">{totalUsableCredits} CR</span>
+                          </div>
+                          <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
                             <span>Service Scope Used</span>
-                            <span className="font-semibold text-foreground font-mono tabular-nums">{usedCredits} CR</span>
+                            <span className="font-semibold font-mono tabular-nums">-{usedCredits} CR</span>
                           </div>
-                          {currentPackage.credits > usedCredits && (
+                          {totalUsableCredits > usedCredits && (
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                               <span>Rollover to Global Wallet</span>
-                              <span className="font-mono tabular-nums">+{currentPackage.credits - usedCredits} CR</span>
+                              <span className="font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
                             </div>
                           )}
                           {redeemCodeAttached && (
@@ -2927,8 +3131,10 @@ export default function CreatorStudioPage() {
                             projectPayload={{
                               projectId,
                               packageId: currentPackage.id,
-                              fundingSource: 'package',
+                              fundingSource: appliedWalletCredits > 0 ? 'hybrid' : 'package',
                               walletBalance: user.walletBalance,
+                              applyWalletCredits: effectiveApplyWallet,
+                              appliedWalletCredits,
                               selections: selectedEntries.map((e) => ({
                                 id: e.service.id,
                                 name: e.service.name,
@@ -2958,16 +3164,26 @@ export default function CreatorStudioPage() {
                                 price: proj.packagePrice,
                                 credits: proj.packageCredits,
                               });
-                              toast.success('Payment verified! Project created.');
+                              useNotificationStore.getState().addNotification({
+                                title: 'Payment Confirmed',
+                                description: `Project HT-${proj.projectCode} payment received. Production initiated.`,
+                                iconType: 'check',
+                                link: '/projects',
+                              });
+                              toast.success(
+                                appliedWalletCredits > 0
+                                  ? `Success! Project launched with ${proj.packageName} + ${appliedWalletCredits} CR applied from your Studio Wallet!`
+                                  : `Success! Project HT-${proj.projectCode} payment confirmed!`
+                              );
                             }}
                             onError={(err) => {
                               setErrorMessage(err);
                               toast.error(err);
                             }}
                           />
-                          {currentPackage.credits > usedCredits && (
+                          {totalUsableCredits > usedCredits && (
                             <p className="text-2xs text-center text-emerald-600 dark:text-emerald-400 font-medium leading-normal">
-                              ★ Any unused credits ({currentPackage.credits - usedCredits} CR) automatically roll over into your Global Studio Wallet!
+                              ★ Any unused credits ({totalUsableCredits - usedCredits} CR) automatically roll over into your Global Studio Wallet!
                             </p>
                           )}
                         </>

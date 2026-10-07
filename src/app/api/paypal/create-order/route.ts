@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPayPalOrder } from '@/lib/paypal';
 import { computeOrderQuote } from '@/lib/pricing';
 import { orderRequestSchema, firstIssue } from '@/lib/validation';
-import { addPendingOrder } from '@/lib/store';
+import { addPendingOrder, getUserBalance } from '@/lib/store';
 
 /**
  * Creates a PayPal order for a server-priced quote. The full validated order
@@ -29,7 +29,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = computeOrderQuote(parsed.data);
+  const normEmail = (parsed.data.email || 'kira@example.com').toLowerCase().trim();
+  const serverBalance = getUserBalance(normEmail);
+
+  const quoteInput = {
+    ...parsed.data,
+    email: normEmail,
+    walletBalance: serverBalance,
+  };
+
+  const result = computeOrderQuote(quoteInput);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 422 });
   }
@@ -46,7 +55,7 @@ export async function POST(req: NextRequest) {
     const order = await createPayPalOrder(quote.priceUSD, parsed.data.projectId);
     addPendingOrder({
       orderId: order.id,
-      request: parsed.data,
+      request: { ...parsed.data, walletBalance: serverBalance },
       quote,
       createdAt: Date.now(),
     });

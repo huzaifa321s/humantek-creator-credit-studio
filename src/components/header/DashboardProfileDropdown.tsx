@@ -5,9 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
-  FolderKanban,
-  MessageSquare,
-  Ticket,
   LogOut,
   Sun,
   Moon,
@@ -195,50 +192,7 @@ export function DashboardProfileDropdown({
         {/* Separator 2 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
-        {/* 3. Navigation Links (Plain 16px icons, no chevrons, no icon boxes) */}
-        {/* Action 1: My Projects */}
-        <DropdownMenuItem
-          render={
-            <Link
-              href="/projects"
-              className="group flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
-            >
-              <FolderKanban className="size-4 shrink-0 text-zinc-400 group-hover:text-amber-400 transition-colors" />
-              <span>My Projects</span>
-            </Link>
-          }
-        />
-
-        {/* Action 2: Messages */}
-        <DropdownMenuItem
-          render={
-            <Link
-              href="/messages"
-              className="group flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
-            >
-              <MessageSquare className="size-4 shrink-0 text-zinc-400 group-hover:text-amber-400 transition-colors" />
-              <span>Messages</span>
-            </Link>
-          }
-        />
-
-        {/* Action 3: Promo Code */}
-        <DropdownMenuItem
-          render={
-            <Link
-              href="/redeem-code"
-              className="group flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white cursor-pointer transition-colors w-full outline-none"
-            >
-              <Ticket className="size-4 shrink-0 text-zinc-400 group-hover:text-amber-400 transition-colors" />
-              <span>Promo Code</span>
-            </Link>
-          }
-        />
-
-        {/* Separator 3 */}
-        <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
-
-        {/* 4. Theme Switcher */}
+        {/* 3. Theme Switcher */}
         <div className="flex h-8.5 items-center justify-between px-2.5 text-xs font-medium text-zinc-300 select-none">
           <span>Theme</span>
           <div className="flex items-center gap-0.5 bg-white/5 p-0.5 rounded-md border border-white/10">

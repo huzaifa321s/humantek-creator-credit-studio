@@ -28,10 +28,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { CreditValue } from '@/components/ui/credit-value';
 import { cn } from '@/lib/utils';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
+import { useUIStore } from '@/lib/uiStore';
 
 const ITEMS_PER_PAGE = 5;
 
 export function ScopeGuideModal() {
+  const { isScopeGuideOpen, setScopeGuideOpen } = useUIStore();
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,7 +76,7 @@ export function ScopeGuideModal() {
   const endIdx = Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredServices.length);
 
   return (
-    <Dialog>
+    <Dialog open={isScopeGuideOpen} onOpenChange={setScopeGuideOpen}>
       <DialogTrigger
         render={
           <Button

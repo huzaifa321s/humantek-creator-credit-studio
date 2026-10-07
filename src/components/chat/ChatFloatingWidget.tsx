@@ -102,7 +102,8 @@ export function ChatFloatingWidget() {
     }
   };
 
-  if (isMessagesRoute) return null;
+  const isAuthRoute = Boolean(pathname?.startsWith('/login') || pathname?.startsWith('/sign-in'));
+  if (isMessagesRoute || isAuthRoute) return null;
 
   return (
     <>
@@ -250,6 +251,7 @@ export function ChatFloatingWidget() {
                   projectMessages={projectMessages}
                   onSelectProject={handleSelectProject}
                   onNewBriefClick={() => setIsOpen(false)}
+                  isLoading={projectsQuery.isPending}
                   className="h-full border-0"
                 />
               </div>

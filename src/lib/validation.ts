@@ -26,8 +26,10 @@ export const uploadedFileSchema = z.object({
 
 export const orderCoreSchema = z.object({
   packageId: z.string().trim().min(1).max(64).default('studio-wallet'),
-  fundingSource: z.enum(['wallet', 'package']).default('package'),
+  fundingSource: z.enum(['wallet', 'package', 'hybrid']).default('package'),
   walletBalance: z.number().nonnegative().optional(),
+  applyWalletCredits: z.boolean().default(true),
+  appliedWalletCredits: z.number().nonnegative().optional(),
   selections: z.array(orderLineSchema).min(1).max(60),
   additions: z.array(z.string().max(80)).max(20).default([]),
 });

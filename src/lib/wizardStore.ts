@@ -1,0 +1,273 @@
+'use client';
+
+import { create } from 'zustand';
+import type {
+  ServiceSelection,
+  ServiceTierLevel,
+  UploadedFile,
+  ProjectRecord,
+} from '@/types';
+
+export interface WizardBriefState {
+  clientName: string;
+  channelName: string;
+  email: string;
+  platform: string;
+  style: string;
+  colors: string;
+  instructions: string;
+}
+
+const INITIAL_BRIEF: WizardBriefState = {
+  clientName: '',
+  channelName: '',
+  email: '',
+  platform: '',
+  style: '',
+  colors: '',
+  instructions: '',
+};
+
+const createProjectId = () =>
+  `proj-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+export interface WizardStoreState {
+  projectId: string;
+  currentStep: number;
+  selectedPackageId: string;
+  fundingSource: 'wallet' | 'package' | 'hybrid';
+  applyWalletCredits: boolean;
+  activeCategory: string;
+  priceFilter: string;
+
+  selections: Record<string, ServiceSelection>;
+  additions: string[];
+  policyAccepted: boolean;
+  openPolicyAccordion: string[];
+  showAllRestricted: boolean;
+  termsAccepted: boolean;
+  isTermsExpanded: boolean;
+
+  brief: WizardBriefState;
+  uploadedFiles: UploadedFile[];
+  redeemCodeInput: string;
+  redeemCodeAttached: boolean;
+
+  isSubmitting: boolean;
+  errorMessage: string;
+  submittedProject: ProjectRecord | null;
+
+  // Actions
+  generateNewProjectId: () => string;
+  setStep: (step: number) => void;
+  setSelectedPackageId: (id: string) => void;
+  setFundingSource: (source: 'wallet' | 'package' | 'hybrid') => void;
+  setApplyWalletCredits: (apply: boolean) => void;
+  setActiveCategory: (cat: string) => void;
+  setPriceFilter: (filter: string) => void;
+
+  setSelections: (
+    selections:
+      | Record<string, ServiceSelection>
+      | ((prev: Record<string, ServiceSelection>) => Record<string, ServiceSelection>)
+  ) => void;
+  toggleService: (serviceId: string) => void;
+  updateServiceTier: (serviceId: string, level: ServiceTierLevel) => void;
+  updateServiceQuantity: (serviceId: string, quantity: number) => void;
+  removeService: (serviceId: string) => void;
+  clearAllServices: () => void;
+
+  setAdditions: (additions: string[] | ((prev: string[]) => string[])) => void;
+  toggleAddition: (extra: string) => void;
+
+  setPolicyAccepted: (accepted: boolean) => void;
+  setOpenPolicyAccordion: (sections: string[]) => void;
+  setShowAllRestricted: (show: boolean) => void;
+
+  setTermsAccepted: (accepted: boolean) => void;
+  setIsTermsExpanded: (expanded: boolean) => void;
+
+  updateBriefField: (field: keyof WizardBriefState, value: string) => void;
+  setBrief: (patch: Partial<WizardBriefState>) => void;
+
+  setUploadedFiles: (
+    files: UploadedFile[] | ((prev: UploadedFile[]) => UploadedFile[])
+  ) => void;
+  addUploadedFile: (file: UploadedFile) => void;
+  removeUploadedFile: (id: string) => void;
+
+  setRedeemCodeInput: (code: string) => void;
+  setRedeemCodeAttached: (attached: boolean) => void;
+
+  setIsSubmitting: (submitting: boolean) => void;
+  setErrorMessage: (msg: string) => void;
+  setSubmittedProject: (project: ProjectRecord | null) => void;
+
+  resetWizard: () => void;
+}
+
+export const useWizardStore = create<WizardStoreState>()((set) => ({
+  projectId: createProjectId(),
+  currentStep: 1,
+  selectedPackageId: '',
+  fundingSource: 'package',
+  applyWalletCredits: true,
+  activeCategory: 'All',
+  priceFilter: 'all',
+
+  selections: {},
+  additions: [],
+  policyAccepted: false,
+  openPolicyAccordion: ['revisions'],
+  showAllRestricted: false,
+  termsAccepted: false,
+  isTermsExpanded: false,
+
+  brief: INITIAL_BRIEF,
+  uploadedFiles: [],
+  redeemCodeInput: '',
+  redeemCodeAttached: false,
+
+  isSubmitting: false,
+  errorMessage: '',
+  submittedProject: null,
+
+  generateNewProjectId: () => {
+    const id = createProjectId();
+    set({ projectId: id });
+    return id;
+  },
+  setStep: (step) => set({ currentStep: Math.max(1, Math.min(5, step)) }),
+  setSelectedPackageId: (id) => set({ selectedPackageId: id }),
+  setFundingSource: (source) => set({ fundingSource: source }),
+  setApplyWalletCredits: (apply) => set({ applyWalletCredits: apply }),
+  setActiveCategory: (cat) => set({ activeCategory: cat }),
+  setPriceFilter: (filter) => set({ priceFilter: filter }),
+
+  setSelections: (updater) =>
+    set((state) => ({
+      selections: typeof updater === 'function' ? updater(state.selections) : updater,
+    })),
+
+  toggleService: (serviceId) =>
+    set((state) => {
+      const next = { ...state.selections };
+      if (next[serviceId]) {
+        delete next[serviceId];
+      } else {
+        next[serviceId] = { level: 0, quantity: 1 };
+      }
+      return { selections: next };
+    }),
+
+  updateServiceTier: (serviceId, level) =>
+    set((state) => ({
+      selections: {
+        ...state.selections,
+        [serviceId]: {
+          level,
+          quantity: state.selections[serviceId]?.quantity || 1,
+        },
+      },
+    })),
+
+  updateServiceQuantity: (serviceId, quantity) =>
+    set((state) => {
+      if (quantity <= 0) {
+        const next = { ...state.selections };
+        delete next[serviceId];
+        return { selections: next };
+      }
+      return {
+        selections: {
+          ...state.selections,
+          [serviceId]: {
+            level: state.selections[serviceId]?.level ?? 0,
+            quantity,
+          },
+        },
+      };
+    }),
+
+  removeService: (serviceId) =>
+    set((state) => {
+      const next = { ...state.selections };
+      delete next[serviceId];
+      return { selections: next };
+    }),
+
+  clearAllServices: () => set({ selections: {} }),
+
+  setAdditions: (updater) =>
+    set((state) => ({
+      additions: typeof updater === 'function' ? updater(state.additions) : updater,
+    })),
+
+  toggleAddition: (extra) =>
+    set((state) => ({
+      additions: state.additions.includes(extra)
+        ? state.additions.filter((a) => a !== extra)
+        : [...state.additions, extra],
+    })),
+
+  setPolicyAccepted: (accepted) => set({ policyAccepted: accepted }),
+  setOpenPolicyAccordion: (sections) => set({ openPolicyAccordion: sections }),
+  setShowAllRestricted: (show) => set({ showAllRestricted: show }),
+
+  setTermsAccepted: (accepted) => set({ termsAccepted: accepted }),
+  setIsTermsExpanded: (expanded) => set({ isTermsExpanded: expanded }),
+
+  updateBriefField: (field, value) =>
+    set((state) => ({
+      brief: { ...state.brief, [field]: value },
+    })),
+
+  setBrief: (patch) =>
+    set((state) => ({
+      brief: { ...state.brief, ...patch },
+    })),
+
+  setUploadedFiles: (updater) =>
+    set((state) => ({
+      uploadedFiles:
+        typeof updater === 'function' ? updater(state.uploadedFiles) : updater,
+    })),
+
+  addUploadedFile: (file) =>
+    set((state) => ({
+      uploadedFiles: [...state.uploadedFiles, file],
+    })),
+
+  removeUploadedFile: (id) =>
+    set((state) => ({
+      uploadedFiles: state.uploadedFiles.filter((f) => f.id !== id),
+    })),
+
+  setRedeemCodeInput: (code) => set({ redeemCodeInput: code }),
+  setRedeemCodeAttached: (attached) => set({ redeemCodeAttached: attached }),
+
+  setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
+  setErrorMessage: (msg) => set({ errorMessage: msg }),
+  setSubmittedProject: (project) => set({ submittedProject: project }),
+
+  resetWizard: () =>
+    set({
+      projectId: createProjectId(),
+      currentStep: 1,
+      selectedPackageId: '',
+      fundingSource: 'package',
+      applyWalletCredits: true,
+      activeCategory: 'All',
+      priceFilter: 'all',
+      selections: {},
+      additions: [],
+      policyAccepted: false,
+      termsAccepted: false,
+      brief: INITIAL_BRIEF,
+      uploadedFiles: [],
+      redeemCodeInput: '',
+      redeemCodeAttached: false,
+      errorMessage: '',
+      submittedProject: null,
+    }),
+}));

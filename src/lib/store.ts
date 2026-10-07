@@ -290,21 +290,37 @@ export function markProjectMessagesRead(projectIdOrCode: string): void {
 }
 
 // ─── Global Studio Credit System Balance Resolver ─────────────────────────
+const INITIAL_DEMO_STARTER_CREDITS = 80;
+
+export function ensureUserStarterLedger(email: string): void {
+  const normEmail = (email || '').toLowerCase().trim();
+  if (!normEmail) return;
+
+  const ledger = getLedger().filter((e) => (e.userEmail || '').toLowerCase().trim() === normEmail);
+  if (ledger.length === 0) {
+    addLedgerEntry({
+      id: `led-starter-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      userEmail: normEmail,
+      type: 'promo_credit',
+      creditsDelta: INITIAL_DEMO_STARTER_CREDITS,
+      usdAmount: 0,
+      referenceId: 'WELCOME-STUDIO',
+      description: 'Studio Starter Credit Grant',
+      createdAt: new Date().toISOString(),
+    });
+  }
+}
+
 export function getUserBalance(email: string): number {
   const normEmail = (email || '').toLowerCase().trim();
   if (!normEmail) return 0;
 
-  const ledger = getLedger().filter((e) => (e.userEmail || '').toLowerCase().trim() === normEmail);
-  if (ledger.length > 0) {
-    const net = ledger.reduce((sum, e) => sum + e.creditsDelta, 0);
-    return Math.max(0, net);
-  }
+  // Guarantee any active client/creator email has initial starter credits in the ledger
+  ensureUserStarterLedger(normEmail);
 
-  // Initial demo balance fallback
-  if (normEmail === 'kira@example.com' || normEmail === 'client@creator.studio') {
-    return 80;
-  }
-  return 0;
+  const ledger = getLedger().filter((e) => (e.userEmail || '').toLowerCase().trim() === normEmail);
+  const net = ledger.reduce((sum, e) => sum + e.creditsDelta, 0);
+  return Math.max(0, net);
 }
 
 export function adjustUserBalance(email: string, delta: number, description?: string): number {

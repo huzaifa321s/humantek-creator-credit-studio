@@ -29,63 +29,33 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
+import { useNotificationStore, type StudioNotification, type NotificationIconType } from '@/lib/notificationStore';
 import { useStudioChat } from '@/lib/chatStore';
 import { cn } from '@/lib/utils';
 
-interface NotificationItem {
-  id: string;
-  title: string;
-  description: string;
-  time: string;
-  icon: React.ComponentType<{ className?: string }>;
-  unread: boolean;
-  link?: string;
-}
+const ICON_MAP: Record<NotificationIconType, React.ComponentType<{ className?: string }>> = {
+  message: MessageSquare,
+  credits: Coins,
+  sparkles: Sparkles,
+  check: CheckCircle2,
+  alert: Bell,
+};
 
 export function DashboardNotificationDropdown() {
   const router = useRouter();
   const { setIsOpen: setChatOpen } = useStudioChat();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: 'notif-1',
-      title: 'Creative Team Active',
-      description: 'Our team is on standby for realtime project feedback and updates.',
-      time: 'Just now',
-      icon: MessageSquare,
-      unread: true,
-    },
-    {
-      id: 'notif-2',
-      title: 'Studio Credits Ready',
-      description: 'Balance is verified and ready to allocate across media production deliverables.',
-      time: '1h ago',
-      icon: Coins,
-      unread: true,
-      link: '/redeem-code',
-    },
-    {
-      id: 'notif-3',
-      title: 'Design System Upgraded',
-      description: 'Executive dark header navigation and compact workspace active.',
-      time: '2h ago',
-      icon: Sparkles,
-      unread: false,
-      link: '/projects',
-    },
-  ]);
+  const { notifications, markAsRead, markAllAsRead } = useNotificationStore();
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
-  const markAllAsRead = (e: React.MouseEvent) => {
+  const handleMarkAll = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    markAllAsRead();
   };
 
-  const handleItemClick = (item: NotificationItem) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
-    );
-    if (item.id === 'notif-1') {
+  const handleItemClick = (item: StudioNotification) => {
+    markAsRead(item.id);
+    if (item.actionId === 'open-chat') {
       setChatOpen(true);
     } else if (item.link) {
       router.push(item.link);
@@ -137,7 +107,7 @@ export function DashboardNotificationDropdown() {
               type="button"
               variant="ghost"
               size="xs"
-              onClick={markAllAsRead}
+              onClick={handleMarkAll}
               className="h-6 px-1.5 text-2xs font-medium text-zinc-400 hover:text-amber-400 hover:bg-white/5 transition-colors gap-1"
             >
               <CheckCircle2 className="size-3" />
@@ -164,7 +134,7 @@ export function DashboardNotificationDropdown() {
         ) : (
           <DropdownMenuGroup className="space-y-0.5">
             {notifications.map((item) => {
-              const Icon = item.icon;
+              const Icon = ICON_MAP[item.iconType] || Bell;
               return (
                 <DropdownMenuItem
                   key={item.id}

@@ -157,7 +157,7 @@ export function StudioCardLayout({
               {/* Main Studio Navigation Group */}
               <SidebarGroup className="p-0">
                 <SidebarGroupContent>
-                  <SidebarMenu className="gap-0.5">
+                  <SidebarMenu className="gap-1">
                     {/* 1. My Projects */}
                     <SidebarMenuItem>
                       <SidebarMenuButton
@@ -165,7 +165,7 @@ export function StudioCardLayout({
                         render={<Link href="/projects" />}
                         tooltip="My Projects"
                         className={cn(
-                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          'h-9 min-h-[44px] sm:min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                           pathname === '/projects'
                             ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
                             : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
@@ -173,7 +173,7 @@ export function StudioCardLayout({
                       >
                         <FolderKanban
                           className={cn(
-                            'size-3.5 shrink-0 transition-colors',
+                            'size-4 shrink-0 transition-colors',
                             pathname === '/projects'
                               ? 'text-amber-600 dark:text-amber-400'
                               : 'text-muted-foreground group-hover/menu-button:text-foreground'
@@ -183,37 +183,14 @@ export function StudioCardLayout({
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
-                    {/* 2. New Project */}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={pathname === '/'}
-                        render={<Link href="/" />}
-                        tooltip="New Project"
-                        className={cn(
-                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
-                          pathname === '/'
-                            ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
-                        )}
-                      >
-                        <Sparkles
-                          className={cn(
-                            'size-3.5 shrink-0 transition-colors',
-                            pathname === '/' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                          )}
-                        />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">New Project</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    {/* 3. Messages */}
+                    {/* 2. Messages */}
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={isOpen}
                         onClick={() => setChatOpen(!isOpen)}
                         tooltip="Messages"
                         className={cn(
-                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          'h-9 min-h-[44px] sm:min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                           isOpen
                             ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
                             : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
@@ -221,27 +198,27 @@ export function StudioCardLayout({
                       >
                         <MessageSquare
                           className={cn(
-                            'size-3.5 shrink-0 transition-colors',
+                            'size-4 shrink-0 transition-colors',
                             isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
                           )}
                         />
                         <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
                         {totalUnreadChat > 0 && (
-                          <SidebarMenuBadge className="bg-rose-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full animate-pulse group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+                          <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
                             {totalUnreadChat}
                           </SidebarMenuBadge>
                         )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
-                    {/* 4. Promo Code */}
+                    {/* 3. Promo Code */}
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={pathname === '/redeem-code'}
                         render={<Link href="/redeem-code" />}
                         tooltip="Promo Code"
                         className={cn(
-                          'h-7.5 px-2 rounded-md text-xs font-medium gap-2 transition-colors cursor-pointer',
+                          'h-9 min-h-[44px] sm:min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                           pathname === '/redeem-code'
                             ? 'bg-amber-500/12 text-amber-900 dark:text-amber-200 font-semibold'
                             : 'text-sidebar-foreground/80 hover:bg-muted/60 hover:text-foreground'
@@ -249,7 +226,7 @@ export function StudioCardLayout({
                       >
                         <Ticket
                           className={cn(
-                            'size-3.5 shrink-0 transition-colors',
+                            'size-4 shrink-0 transition-colors',
                             pathname === '/redeem-code'
                               ? 'text-amber-600 dark:text-amber-400'
                               : 'text-muted-foreground group-hover/menu-button:text-foreground'
@@ -262,30 +239,6 @@ export function StudioCardLayout({
                 </SidebarGroupContent>
               </SidebarGroup>
             </SidebarContent>
-
-            {/* 3. Refined Ultra-Compact Studio Balance Card */}
-            <SidebarFooter className="p-1.5 border-t border-sidebar-border/60 mt-auto shrink-0 bg-transparent mb-1">
-              <div className="px-2 py-1.5 rounded-md border border-sidebar-border/60 bg-muted/20 hover:bg-muted/30 transition-colors group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:mx-0">
-                <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <div className="size-5 rounded-md bg-amber-500/15 text-amber-600 flex items-center justify-center shrink-0">
-                      <Coins className="size-3" />
-                    </div>
-                    <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                      <span className="block text-xs font-semibold text-sidebar-foreground truncate leading-tight">
-                        Studio Balance
-                      </span>
-                      <span className="block text-2xs text-muted-foreground truncate leading-tight">
-                        Active Account
-                      </span>
-                    </div>
-                  </div>
-                  <div className="group-data-[collapsible=icon]:hidden shrink-0">
-                    <CreditValue value={effectiveBalance} size="xs" variant="pill" className="h-5 px-2 text-xs font-bold" />
-                  </div>
-                </div>
-              </div>
-            </SidebarFooter>
             <SidebarRail />
           </Sidebar>
 

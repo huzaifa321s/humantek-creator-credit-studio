@@ -48,6 +48,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ChatFullView } from '@/components/chat/ChatFullView';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useProjectsQuery, useUpdateProjectStatus } from '@/lib/queries/projects';
 import { useStudioChat } from '@/lib/chatStore';
 
@@ -60,6 +61,7 @@ export default function ManagementPage() {
 
   const projectsQuery = useProjectsQuery();
   const projects = projectsQuery.data ?? EMPTY_PROJECTS;
+  const isLoading = projectsQuery.isPending;
   const updateStatus = useUpdateProjectStatus();
   const isUpdating = updateStatus.isPending ? updateStatus.variables?.id ?? null : null;
 
@@ -266,9 +268,13 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Verified Revenue
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">
-                ${totalRevenue.toLocaleString()}
-              </b>
+              {isLoading ? (
+                <Skeleton className="h-8 sm:h-9 w-28 rounded-md my-0.5" />
+              ) : (
+                <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">
+                  ${totalRevenue.toLocaleString()}
+                </b>
+              )}
               <small className="text-xs text-amber-700 dark:text-amber-400 font-semibold block mt-0.5">PayPal confirmed orders</small>
             </div>
             <IconTile variant="soft" size="lg" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
@@ -281,9 +287,13 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Committed Credits
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">
-                {totalCreditsAllocated.toLocaleString()} CR
-              </b>
+              {isLoading ? (
+                <Skeleton className="h-8 sm:h-9 w-28 rounded-md my-0.5" />
+              ) : (
+                <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">
+                  {totalCreditsAllocated.toLocaleString()} CR
+                </b>
+              )}
               <small className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold block mt-0.5">Active work scope value</small>
             </div>
             <IconTile variant="soft" size="lg" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -296,7 +306,11 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Active Production
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">{activeOrdersCount}</b>
+              {isLoading ? (
+                <Skeleton className="h-8 sm:h-9 w-16 rounded-md my-0.5" />
+              ) : (
+                <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">{activeOrdersCount}</b>
+              )}
               <small className="text-xs text-blue-700 dark:text-blue-400 font-semibold block mt-0.5">In review or production</small>
             </div>
             <IconTile variant="soft" size="lg" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
@@ -309,7 +323,11 @@ export default function ManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Delivered Work
               </span>
-              <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">{deliveredCount}</b>
+              {isLoading ? (
+                <Skeleton className="h-8 sm:h-9 w-16 rounded-md my-0.5" />
+              ) : (
+                <b className="text-2xl sm:text-3xl font-black text-foreground block font-mono tabular-nums mt-0.5">{deliveredCount}</b>
+              )}
               <small className="text-xs text-purple-700 dark:text-purple-400 font-semibold block mt-0.5">Completed asset packs</small>
             </div>
             <IconTile variant="soft" size="lg" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
@@ -346,7 +364,48 @@ export default function ManagementPage() {
               </div>
             </Card>
 
-            {filteredProjects.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Card
+                    key={i}
+                    className="p-5 sm:p-6 rounded-xl border-border bg-card space-y-4 shadow-xs"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-10 h-10 rounded-full shrink-0 mt-0.5" />
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-5 w-24 rounded-md" />
+                            <Skeleton className="h-5 w-32 rounded-full" />
+                          </div>
+                          <Skeleton className="h-6 w-44 rounded-md" />
+                          <Skeleton className="h-4 w-64 rounded-md" />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="space-y-1">
+                          <Skeleton className="h-3 w-24 rounded-xs" />
+                          <Skeleton className="h-9 w-36 rounded-lg" />
+                        </div>
+                        <div className="space-y-1">
+                          <Skeleton className="h-3 w-24 rounded-xs" />
+                          <Skeleton className="h-9 w-32 rounded-lg" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                      <Skeleton className="h-14 w-full rounded-lg" />
+                      <Skeleton className="h-14 w-full rounded-lg" />
+                      <Skeleton className="h-14 w-full rounded-lg" />
+                      <Skeleton className="h-14 w-full rounded-lg" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredProjects.length === 0 ? (
               <Empty className="p-10 border border-dashed rounded-xl bg-secondary/20">
                 <EmptyHeader>
                   <EmptyMedia variant="icon" className="size-12 rounded-lg">

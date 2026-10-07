@@ -48,14 +48,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This project was already submitted.' }, { status: 409 });
   }
 
-  const isWalletFunding = parsed.data.fundingSource === 'wallet';
+  const isWalletFunding = parsed.data.fundingSource === 'wallet' || parsed.data.packageId === 'studio-wallet';
   const normEmail = (parsed.data.email || 'kira@example.com').toLowerCase().trim();
   const serverBalance = getUserBalance(normEmail);
 
   const quoteInput = {
     ...parsed.data,
     email: normEmail,
-    walletBalance: isWalletFunding ? serverBalance : parsed.data.walletBalance,
+    walletBalance: serverBalance,
   };
 
   const result = computeOrderQuote(quoteInput);

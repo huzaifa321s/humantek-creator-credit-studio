@@ -30,8 +30,10 @@ export interface OrderLineInput {
 
 export interface OrderInput {
   packageId?: string;
-  fundingSource?: 'wallet' | 'package';
+  fundingSource?: 'wallet' | 'package' | 'hybrid';
   walletBalance?: number;
+  applyWalletCredits?: boolean;
+  appliedWalletCredits?: number;
   selections: OrderLineInput[];
   additions: string[];
 }
@@ -45,13 +47,15 @@ export interface PricedLine {
 }
 
 export interface OrderQuote {
-  fundingSource: 'wallet' | 'package';
+  fundingSource: 'wallet' | 'package' | 'hybrid';
   package: PackageDefinition;
   selections: PricedLine[];
   additions: string[];
   servicesCredits: number;
   additionsCredits: number;
   usedCredits: number;
+  packageCredits: number;
+  appliedWalletCredits: number;
   totalCredits: number;
   remainingCredits: number;
   remainingWalletCredits?: number;
@@ -144,7 +148,7 @@ export function computeOrderQuote(input: OrderInput): QuoteResult {
   const usedCredits = servicesCredits + additionsCredits;
 
   if (isWallet) {
-    const walletBalance = typeof input.walletBalance === 'number' ? input.walletBalance : 0;
+    const walletBalance = typeof input.walletBalance === 'number' ? Math.max(0, input.walletBalance) : 0;
     const remainingWalletCredits = walletBalance - usedCredits;
 
     if (remainingWalletCredits < 0) {
@@ -164,6 +168,8 @@ export function computeOrderQuote(input: OrderInput): QuoteResult {
         servicesCredits,
         additionsCredits,
         usedCredits,
+        packageCredits: 0,
+        appliedWalletCredits: walletBalance,
         totalCredits: walletBalance,
         remainingCredits: remainingWalletCredits,
         remainingWalletCredits,
@@ -172,26 +178,32 @@ export function computeOrderQuote(input: OrderInput): QuoteResult {
     };
   }
 
-  const totalCredits = pkg.credits;
+  // Package or Hybrid (Package + Applied Wallet Credits)
+  const walletBalance = typeof input.walletBalance === 'number' ? Math.max(0, input.walletBalance) : 0;
+  const shouldApplyWallet = input.applyWalletCredits ?? true;
+  const appliedWalletCredits = shouldApplyWallet ? walletBalance : (input.appliedWalletCredits ?? 0);
+  const totalCredits = pkg.credits + appliedWalletCredits;
   const remainingCredits = totalCredits - usedCredits;
 
   if (remainingCredits < 0) {
     return {
       ok: false,
-      error: `Selected services need ${usedCredits} CR but ${pkg.name} only provides ${totalCredits} CR.`,
+      error: `Selected services need ${usedCredits} CR but your total available budget (${pkg.name} ${pkg.credits} CR${appliedWalletCredits > 0 ? ` + ${appliedWalletCredits} CR wallet` : ''}) is ${totalCredits} CR.`,
     };
   }
 
   return {
     ok: true,
     quote: {
-      fundingSource: 'package',
+      fundingSource: appliedWalletCredits > 0 ? 'hybrid' : 'package',
       package: pkg,
       selections: lines,
       additions,
       servicesCredits,
       additionsCredits,
       usedCredits,
+      packageCredits: pkg.credits,
+      appliedWalletCredits,
       totalCredits,
       remainingCredits,
       priceUSD: pkg.price,

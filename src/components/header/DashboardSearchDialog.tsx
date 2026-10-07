@@ -112,7 +112,7 @@ export function DashboardSearchDialog({
       {
         id: 'action-balance',
         category: 'Actions',
-        title: `Studio Balance (${walletBalance} CR)`,
+        title: `Credit balance (${walletBalance} CR)`,
         description: 'Review credit utilization, top-ups, and balance breakdown',
         icon: Coins,
         keywords: ['balance', 'credits', 'wallet', 'funds', 'cr', 'coins'],

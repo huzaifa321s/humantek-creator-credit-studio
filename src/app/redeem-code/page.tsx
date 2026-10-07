@@ -44,9 +44,13 @@ import {
 } from 'lucide-react';
 
 import { useUserStore } from '@/lib/userStore';
+import { useWalletQuery, useRedeemPromoCode } from '@/lib/queries/wallet';
+import { useNotificationStore } from '@/lib/notificationStore';
 
 export default function RedeemCodePage() {
-  const { user, addCredits } = useUserStore();
+  const { user } = useUserStore();
+  const walletQuery = useWalletQuery(user.email);
+  const redeemMutation = useRedeemPromoCode();
   const [tab, setTab] = useState('redeem');
 
   // Generator State
@@ -58,7 +62,7 @@ export default function RedeemCodePage() {
 
   // Redemption State
   const [redeemCode, setRedeemCode] = useState('');
-  const [isRedeeming, setIsRedeeming] = useState(false);
+  const isRedeeming = redeemMutation.isPending;
   const [redeemedAmount, setRedeemedAmount] = useState<number | null>(null);
 
   const handleGenerate = (e: React.FormEvent) => {
@@ -86,30 +90,26 @@ export default function RedeemCodePage() {
       return;
     }
 
-    setIsRedeeming(true);
     try {
-      const res = await fetch('/api/wallet/redeem', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cleanCode, email: user.email }),
+      const data = await redeemMutation.mutateAsync({
+        code: cleanCode,
+        email: user.email,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to redeem promo code');
-      }
-
-      useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
       setRedeemedAmount(data.creditsAdded);
       setRedeemCode('');
+      useNotificationStore.getState().addNotification({
+        title: 'Promo Code Redeemed',
+        description: `+${data.creditsAdded} CR deposited into your wallet. New balance: ${data.newWalletBalance} CR.`,
+        iconType: 'credits',
+        link: '/redeem-code',
+      });
       toast.success(
         data.message || `Success! ${data.creditsAdded} CR deposited into your Studio Wallet. New balance: ${data.newWalletBalance} CR.`
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Redemption failed';
       toast.error(msg);
-    } finally {
-      setIsRedeeming(false);
     }
   };
 
@@ -237,7 +237,7 @@ export default function RedeemCodePage() {
                   <Alert variant="success" className="rounded-xl border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/20">
                     <Check className="w-4 h-4 text-emerald-600" />
                     <AlertTitle className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-                      Credits Added to Studio Balance!
+                      Credits added to credit balance!
                     </AlertTitle>
                     <AlertDescription className="text-xs text-emerald-800/90 dark:text-emerald-300">
                       Your promo code successfully added <b className="font-mono tabular-nums">{redeemedAmount} CR</b> to your creator balance. You can use them for any project right now.

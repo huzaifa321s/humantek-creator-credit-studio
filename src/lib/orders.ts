@@ -28,13 +28,14 @@ export function buildProjectRecord(
     packageId: pkg.id,
     packageName: pkg.name,
     packagePrice: quote.priceUSD,
-    packageCredits: quote.totalCredits,
+    packageCredits: quote.packageCredits ?? quote.totalCredits,
+    appliedWalletCredits: quote.appliedWalletCredits ?? 0,
     usedCredits: quote.usedCredits,
     remainingCredits: quote.remainingCredits,
     status: opts.status,
     paymentStatus: opts.paymentStatus,
-    paymentMethod: opts.paymentStatus === 'paid' ? (request.fundingSource === 'wallet' ? 'credits' : 'paypal') : 'unpaid',
-    fundingSource: request.fundingSource || (quote.fundingSource ?? 'package'),
+    paymentMethod: opts.paymentStatus === 'paid' ? (quote.fundingSource === 'wallet' ? 'credits' : 'paypal') : 'unpaid',
+    fundingSource: quote.fundingSource || request.fundingSource || 'package',
     clientName: request.clientName,
     channelName: request.channelName,
     email: request.email || 'guest@humantek.art',
@@ -54,13 +55,14 @@ export function buildProjectRecord(
 export function recordPaidProject(project: ProjectRecord, paymentRef: string) {
   project.paymentStatus = 'paid';
   project.paymentMethod = 'paypal';
-  project.fundingSource = 'package';
+  project.fundingSource = project.fundingSource || 'package';
   addProject(project);
   const now = new Date().toISOString();
+  const normEmail = (project.email || '').toLowerCase().trim();
 
   addLedgerEntry({
     id: `led-${crypto.randomUUID()}`,
-    userEmail: project.email,
+    userEmail: normEmail,
     type: 'package_purchase',
     creditsDelta: project.packageCredits,
     usdAmount: project.packagePrice,
@@ -72,7 +74,7 @@ export function recordPaidProject(project: ProjectRecord, paymentRef: string) {
   if (project.usedCredits > 0) {
     addLedgerEntry({
       id: `led-${crypto.randomUUID()}`,
-      userEmail: project.email,
+      userEmail: normEmail,
       type: 'service_deduction',
       creditsDelta: -project.usedCredits,
       usdAmount: 0,
@@ -95,11 +97,12 @@ export function recordWalletFundedProject(project: ProjectRecord) {
   addProject(project);
 
   const now = new Date().toISOString();
+  const normEmail = (project.email || '').toLowerCase().trim();
 
   if (project.usedCredits > 0) {
     addLedgerEntry({
       id: `led-${crypto.randomUUID()}`,
-      userEmail: project.email,
+      userEmail: normEmail,
       type: 'service_deduction',
       creditsDelta: -project.usedCredits,
       usdAmount: 0,

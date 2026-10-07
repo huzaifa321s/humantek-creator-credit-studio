@@ -70,3 +70,29 @@ export function useUpdateProjectStatus() {
     },
   });
 }
+
+export interface CreateProjectResult {
+  success: boolean;
+  project: ProjectRecord;
+  fundingSource?: string;
+  newWalletBalance?: number;
+  message?: string;
+}
+
+/** Project submission mutation with automatic cache invalidation for both projects and wallet balance. */
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: Record<string, unknown>) =>
+      fetchJson<CreateProjectResult>('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    },
+  });
+}

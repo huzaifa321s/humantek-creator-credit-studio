@@ -31,6 +31,7 @@ import { badgeVariants } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
+import { useUIStore } from '@/lib/uiStore';
 import { DashboardSearchDialog } from './DashboardSearchDialog';
 import { DashboardNotificationDropdown } from './DashboardNotificationDropdown';
 import { DashboardProfileDropdown } from './DashboardProfileDropdown';
@@ -63,7 +64,7 @@ export function DashboardHeader({
   currentStep = 1,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const { isSearchOpen, setSearchOpen, toggleSearch } = useUIStore();
   const { setIsOpen: setChatOpen, unreadCounts } = useStudioChat();
   const { user } = useUserStore();
   const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
@@ -149,20 +150,30 @@ export function DashboardHeader({
           {/* Breadcrumb Navigation Trail */}
           <Breadcrumb className="hidden sm:block">
             <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
-              <BreadcrumbItem>
-                <BreadcrumbLink
-                  href="/"
-                  className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
-                >
-                  Studio
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-xs font-semibold text-white">
-                  {activePageTitle}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
+              {pathname === '/' || activePageTitle === 'Studio' ? (
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="text-xs font-semibold text-white">
+                    Studio
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              ) : (
+                <>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink
+                      href="/"
+                      className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
+                    >
+                      Studio
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="text-zinc-500 [&>svg]:size-3" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="text-xs font-semibold text-white">
+                      {activePageTitle}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
             </BreadcrumbList>
           </Breadcrumb>
         </div>
@@ -215,13 +226,13 @@ export function DashboardHeader({
                   size="icon-sm"
                   onClick={() => setChatOpen(true)}
                   aria-label="Messages"
-                  className="group relative size-8 rounded-md text-amber-400 hover:text-amber-300 hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
+                  className="group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
                 />
               }
             >
-              <MessageSquare className="size-4 fill-amber-500/20 text-amber-400 group-hover:scale-105 transition-transform" />
+              <MessageSquare className="size-4 text-zinc-300 group-hover:text-white group-hover:scale-105 transition-transform" />
               {totalUnreadChat > 0 ? (
-                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-400 ring-2 ring-zinc-950 animate-pulse" />
+                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950" />
               ) : null}
             </TooltipTrigger>
             <TooltipContent side="bottom">
@@ -233,17 +244,17 @@ export function DashboardHeader({
           {/* Notification Popover Dropdown */}
           <DashboardNotificationDropdown />
 
-          {/* Studio Balance Pill (Consistent across all screens in the same location) */}
+          {/* Credit Balance Pill (Standardized naming, consistent across all screens) */}
           <Link
             href="/redeem-code"
-            title="View balance and redeem credits"
+            title="View credit balance and redeem codes"
             className={cn(
               badgeVariants({ variant: 'gold', size: 'default' }),
               'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
             )}
           >
             <Coins className="size-3.5 text-amber-400 shrink-0" />
-            <span className="text-zinc-300 font-medium text-xs">Balance:</span>
+            <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
             <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">{effectiveBalance} CR</span>
           </Link>
 
@@ -261,7 +272,7 @@ export function DashboardHeader({
 
       {/* Global Command / Quick Search Dialog */}
       <DashboardSearchDialog
-        open={searchOpen}
+        open={isSearchOpen}
         onOpenChange={setSearchOpen}
         walletBalance={walletBalance}
       />

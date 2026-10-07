@@ -33,6 +33,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface ChatProjectSidebarProps {
   projects: Array<{
@@ -49,6 +50,7 @@ export interface ChatProjectSidebarProps {
   projectMessages: Record<string, ChatMessage[]>;
   onSelectProject: (projectId: string) => void;
   onNewBriefClick?: () => void;
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -61,6 +63,7 @@ export function ChatProjectSidebar({
   projectMessages,
   onSelectProject,
   onNewBriefClick,
+  isLoading = false,
   className,
 }: ChatProjectSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -261,7 +264,23 @@ export function ChatProjectSidebar({
       {/* 3. PROJECT SESSIONS LIST                                  */}
       {/* ========================================================= */}
       <ScrollArea className="flex-1 p-1.5">
-        {projects.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-2 p-1">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="p-2.5 rounded-lg border border-border/60 bg-card/60 space-y-2 shadow-2xs"
+              >
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3.5 w-20 rounded-md" />
+                  <Skeleton className="h-3 w-12 rounded-full" />
+                </div>
+                <Skeleton className="h-4 w-28 rounded-md" />
+                <Skeleton className="h-3 w-36 rounded-md" />
+              </div>
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
           <Empty className="py-6 border-0">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="bg-amber-500/10 text-amber-600 size-8">

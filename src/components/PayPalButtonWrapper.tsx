@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { useQueryClient } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
 import { Loader2, Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProjectRecord } from '@/types';
 import { useUserStore } from '@/lib/userStore';
+import { projectKeys } from '@/lib/queries/projects';
+import { walletKeys } from '@/lib/queries/wallet';
 
 interface PayPalButtonWrapperProps {
   packageId: string;
@@ -23,6 +26,7 @@ export function PayPalButtonWrapper({
   onSuccess,
   onError,
 }: PayPalButtonWrapperProps) {
+  const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
   const showSimulator = process.env.NODE_ENV !== 'production';
@@ -54,6 +58,9 @@ export function PayPalButtonWrapper({
     } else if (typeof data.surplusCredits === 'number' && data.surplusCredits > 0) {
       useUserStore.getState().addCredits(data.surplusCredits, 'Package unused credits rollover');
     }
+
+    void queryClient.invalidateQueries({ queryKey: projectKeys.all });
+    void queryClient.invalidateQueries({ queryKey: walletKeys.all });
 
     return data.project as ProjectRecord;
   };

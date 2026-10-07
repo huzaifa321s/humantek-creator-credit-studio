@@ -188,6 +188,7 @@ export function ChatFullView() {
               unreadCounts={unreadCounts}
               projectMessages={projectMessages}
               onSelectProject={setActiveProjectId}
+              isLoading={projectsQuery.isPending}
               className="h-full border-0 bg-transparent"
             />
           </div>
