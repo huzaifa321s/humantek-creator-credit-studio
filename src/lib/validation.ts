@@ -185,6 +185,7 @@ export const projectStatusSchema = z.enum([
   'review_round',
   'delivered',
   'declined',
+  'cancelled',
 ]);
 
 export const patchProjectSchema = z.object({

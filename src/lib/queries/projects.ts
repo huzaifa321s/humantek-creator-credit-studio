@@ -96,3 +96,22 @@ export function useCreateProject() {
     },
   });
 }
+
+/** Project cancellation mutation with automatic cache invalidation for both projects and wallet balance. */
+export function useCancelProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectId: string) =>
+      fetchJson<{ success: boolean; project: ProjectRecord }>('/api/projects', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: projectId, status: 'cancelled' }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    },
+  });
+}
+
