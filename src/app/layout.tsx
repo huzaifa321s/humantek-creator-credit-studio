@@ -35,7 +35,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-500/20 selection:text-amber-900 font-sans">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-500/20 selection:text-amber-900 font-sans"
+      >
         <NextTopLoader
           color="#f59e0b"
           initialPosition={0.08}

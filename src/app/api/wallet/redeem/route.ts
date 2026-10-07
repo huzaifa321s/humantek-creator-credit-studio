@@ -1,79 +1,121 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserBalance, addLedgerEntry, getLedger } from '@/lib/store';
-import { firstIssue } from '@/lib/validation';
-import { z } from 'zod';
+import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
+import { createAdminClient } from '@/lib/supabase/server';
+import { adjustUserBalance, getUserBalance } from '@/lib/store';
 
-const redeemRequestSchema = z.object({
-  code: z.string().trim().min(3).max(40),
-  email: z.string().trim().email().optional().default('kira@example.com'),
-});
+// Rate limiting: in-memory sliding window for brute-force protection
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-/**
- * Redeems a promotional voucher or creator pass directly into the client's global wallet.
- * Enforces single-use idempotency and writes an immutable audit entry to the credit ledger.
- */
+function isRateLimited(identifier: string, limit = 5, windowMs = 60_000): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(identifier);
+
+  if (!record || now > record.resetAt) {
+    rateLimitMap.set(identifier, { count: 1, resetAt: now + windowMs });
+    return false;
+  }
+
+  if (record.count >= limit) {
+    return true;
+  }
+
+  record.count += 1;
+  return false;
+}
+
 export async function POST(req: NextRequest) {
-  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
+    const user = await getRequestUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
 
-  const parsed = redeemRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
-  }
+    // Rate limiting per user / IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || user.email;
+    if (isRateLimited(`redeem:${clientIp}`)) {
+      return NextResponse.json(
+        { error: 'Too many redemption attempts. Please wait a minute and try again.' },
+        { status: 429 }
+      );
+    }
 
-  const { code, email } = parsed.data;
-  const cleanCode = code.toUpperCase().trim();
-  const normEmail = email.toLowerCase().trim();
+    const body = await req.json().catch(() => ({}));
+    const rawCode = typeof body.code === 'string' ? body.code : '';
+    const cleanCode = rawCode.trim().toUpperCase();
 
-  // Idempotency: verify this code has not already been claimed by this account
-  const alreadyClaimed = getLedger().some(
-    (e) =>
-      e.referenceId === cleanCode &&
-      (e.userEmail || '').toLowerCase().trim() === normEmail
-  );
+    if (!cleanCode || cleanCode.length < 3 || cleanCode.length > 32) {
+      return NextResponse.json({ error: 'Please enter a valid promo code' }, { status: 400 });
+    }
 
-  if (alreadyClaimed) {
-    return NextResponse.json(
-      {
-        error: `Promo code ${cleanCode} has already been redeemed for ${normEmail}.`,
-        code: cleanCode,
-        walletBalance: getUserBalance(normEmail),
-      },
-      { status: 409 }
+    // 1. Production / Real Supabase Path (Atomic PostgreSQL RPC)
+    if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
+      const adminClient = createAdminClient();
+
+      const { data, error } = await adminClient.rpc('redeem_promo', {
+        p_user: user.id,
+        p_raw_code: cleanCode,
+      });
+
+      if (error) {
+        const errorMsg = error.message || '';
+        if (errorMsg.includes('already_redeemed')) {
+          return NextResponse.json(
+            { error: 'You have already redeemed this promo voucher.' },
+            { status: 400 }
+          );
+        }
+        if (errorMsg.includes('invalid_or_exhausted_code') || errorMsg.includes('invalid_code')) {
+          return NextResponse.json(
+            { error: 'Invalid, expired, or fully claimed promo code.' },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json(
+          { error: 'Unable to redeem code. Please verify and try again.' },
+          { status: 400 }
+        );
+      }
+
+      const result = data as {
+        success: boolean;
+        credits_granted: number;
+        new_balance: number;
+        code: string;
+      };
+
+      return NextResponse.json({
+        success: true,
+        code: result.code,
+        creditsAdded: result.credits_granted,
+        newWalletBalance: result.new_balance,
+        message: `Successfully redeemed ${result.credits_granted} CR to your studio wallet!`,
+      });
+    }
+
+    // 2. Development / Offline Fallback Path
+    // Parse credits from patterns like HT-150CR-XXXX or default to 80 CR
+    let grantedCredits = 80;
+    const match = cleanCode.match(/(\d+)\s*CR/i);
+    if (match && match[1]) {
+      const parsed = parseInt(match[1], 10);
+      if (parsed > 0 && parsed <= 5000) grantedCredits = parsed;
+    }
+
+    const newBalance = adjustUserBalance(
+      user.email,
+      grantedCredits,
+      `Redeemed promotional code ${cleanCode}`
     );
+
+    return NextResponse.json({
+      success: true,
+      code: cleanCode,
+      creditsAdded: grantedCredits,
+      newWalletBalance: newBalance,
+      message: `Successfully redeemed ${grantedCredits} CR to your studio wallet!`,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  // Parse credit value: e.g. HT-200CR-ABCD -> 200, LAUNCH150 -> 150, or default 150 CR
-  const match = cleanCode.match(/(\d+)\s*(?:CR)?/i);
-  const parsedAmount = match ? parseInt(match[1], 10) : 150;
-  const creditAmount =
-    !isNaN(parsedAmount) && parsedAmount >= 10 && parsedAmount <= 5000
-      ? parsedAmount
-      : 150;
-
-  const now = new Date().toISOString();
-  addLedgerEntry({
-    id: `led-${crypto.randomUUID()}`,
-    userEmail: normEmail,
-    type: 'promo_credit',
-    creditsDelta: creditAmount,
-    usdAmount: 0,
-    referenceId: cleanCode,
-    description: `Promo pass ${cleanCode} redeemed to Studio Wallet (+${creditAmount} CR)`,
-    createdAt: now,
-  });
-
-  const newWalletBalance = getUserBalance(normEmail);
-
-  return NextResponse.json({
-    success: true,
-    code: cleanCode,
-    creditsAdded: creditAmount,
-    newWalletBalance,
-    message: `Success! ${creditAmount} CR deposited into your Studio Wallet. New balance: ${newWalletBalance} CR.`,
-  });
 }

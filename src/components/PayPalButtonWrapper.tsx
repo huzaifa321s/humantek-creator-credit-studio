@@ -89,7 +89,10 @@ export function PayPalButtonWrapper({
   return (
     <div className="space-y-3">
       {/* Live PayPal Smart Buttons */}
-      <div className="relative z-10 w-full min-h-[44px]">
+      <div
+        className="paypal-buttons-wrapper relative z-10 w-full min-h-[44px] rounded-xl overflow-hidden bg-transparent"
+        data-paypal-wrapper="true"
+      >
         <PayPalScriptProvider
           options={{
             clientId: clientId,

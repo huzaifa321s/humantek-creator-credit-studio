@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { getSafeSupabaseCredentials } from './config';
 
@@ -21,6 +22,24 @@ export async function createClient() {
           // This can be ignored if you have middleware refreshing user sessions.
         }
       },
+    },
+  });
+}
+
+/**
+ * Service Role client for trusted server-side operations (bypasses RLS, can execute SECURITY DEFINER RPCs).
+ * NEVER expose this to client code.
+ */
+export function createAdminClient() {
+  const { url } = getSafeSupabaseCredentials();
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!serviceKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing in server environment variables.');
+  }
+  return createSupabaseClient(url, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
     },
   });
 }
