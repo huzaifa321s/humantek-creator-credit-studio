@@ -61,13 +61,15 @@ export function ChatFullView() {
     [projects, projectId]
   );
 
+  const targetProjectId = isGlobal || !activeProject || projectId === 'proj-demo-1' ? null : projectId;
+
   // Hook into real Supabase doorbell realtime transport & messages
   const {
     messages: dbMessages,
     lastReadId,
     sendMessage: sendDbMessage,
     markAsRead,
-  } = useProjectChat({ projectId: isGlobal ? null : projectId });
+  } = useProjectChat({ projectId: targetProjectId });
 
   const displayMeta = isGlobal
     ? GLOBAL_META

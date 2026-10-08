@@ -39,6 +39,7 @@ export function useProjectChat({
   transport = defaultChatTransport,
   pollIntervalMs = 15_000,
 }: UseProjectChatOptions) {
+  const isRealProject = Boolean(projectId && projectId !== 'proj-demo-1');
   const [messages, setMessages] = useState<ProjectChatMessage[]>([]);
   const [lastReadId, setLastReadId] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -62,7 +63,7 @@ export function useProjectChat({
   // Fetch messages incrementally using after_id with overlap
   const fetchIncremental = useCallback(
     async (currentHighestId?: number) => {
-      if (!projectId) return;
+      if (!isRealProject) return;
       const highest =
         currentHighestId ??
         (messagesRef.current.length > 0
@@ -93,12 +94,12 @@ export function useProjectChat({
         console.error('Failed to fetch messages:', err);
       }
     },
-    [projectId, mergeMessages]
+    [isRealProject, projectId, mergeMessages]
   );
 
   // Initial load
   useEffect(() => {
-    if (!projectId) {
+    if (!isRealProject) {
       setMessages([]);
       setIsLoading(false);
       return;
@@ -128,14 +129,14 @@ export function useProjectChat({
     return () => {
       isMounted = false;
     };
-  }, [projectId]);
+  }, [isRealProject, projectId]);
 
   // Realtime subscription (Doorbell pattern)
   useEffect(() => {
-    if (!projectId) return;
+    if (!isRealProject) return;
 
     const unsubscribe = transport.subscribe(
-      projectId,
+      projectId!,
       (event: ChatEvent) => {
         // Doorbell signal: fetch new messages since highest local ID with overlap window
         const highest =
@@ -152,11 +153,11 @@ export function useProjectChat({
     return () => {
       unsubscribe();
     };
-  }, [projectId, transport, fetchIncremental]);
+  }, [isRealProject, projectId, transport, fetchIncremental]);
 
   // 15-second polling fallback & online/focus listeners
   useEffect(() => {
-    if (!projectId) return;
+    if (!isRealProject) return;
 
     const interval = setInterval(() => {
       fetchIncremental();
@@ -173,12 +174,12 @@ export function useProjectChat({
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
     };
-  }, [projectId, pollIntervalMs, fetchIncremental]);
+  }, [isRealProject, projectId, pollIntervalMs, fetchIncremental]);
 
   // Send message
   const sendMessage = useCallback(
     async (bodyText: string, attachments?: any[]) => {
-      if (!projectId || !bodyText.trim() || isSending) return;
+      if (!isRealProject || !bodyText.trim() || isSending) return;
       setIsSending(true);
 
       const clientMessageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -207,13 +208,13 @@ export function useProjectChat({
         setIsSending(false);
       }
     },
-    [projectId, isSending, mergeMessages]
+    [isRealProject, projectId, isSending, mergeMessages]
   );
 
   // Mark messages as read
   const markAsRead = useCallback(
     async (messageId?: number) => {
-      if (!projectId) return;
+      if (!isRealProject) return;
       const targetId =
         messageId ??
         (messagesRef.current.length > 0
@@ -239,7 +240,7 @@ export function useProjectChat({
         console.error('Failed to mark read state:', err);
       }
     },
-    [projectId, lastReadId]
+    [isRealProject, projectId, lastReadId]
   );
 
   const unreadCount = messages.filter((m) => m.id > lastReadId).length;

@@ -184,7 +184,7 @@ export function createInitialProjectMessages(project: ProjectMeta): ChatMessage[
   ];
 }
 
-const STORAGE_KEY = 'humantek_project_chat_v5';
+const STORAGE_KEY = 'humantek_project_chat_v6';
 const LEGACY_STORAGE_KEY_V2 = 'humantek_client_chat_v2';
 const LEGACY_STORAGE_KEY_V1 = 'humantek_client_chat_messages_v1';
 
@@ -239,11 +239,9 @@ export const useChatStore = create<ChatState>()(
       activeProjectId: GLOBAL_CHAT_ID,
       projectMessages: {
         [GLOBAL_CHAT_ID]: createInitialGlobalMessages(),
-        [DEFAULT_DEMO_PROJECT.id]: createInitialProjectMessages(DEFAULT_DEMO_PROJECT),
       },
       projectMeta: {
         [GLOBAL_CHAT_ID]: GLOBAL_META,
-        [DEFAULT_DEMO_PROJECT.id]: DEFAULT_DEMO_PROJECT,
       },
       isOpen: false,
       isTyping: {},
@@ -541,10 +539,11 @@ export function useStudioChat(scopedProjectId?: string) {
     }))
   );
 
-  const effectiveProjectId = scopedProjectId || activeProjectId || GLOBAL_CHAT_ID;
+  const rawId = scopedProjectId || activeProjectId || GLOBAL_CHAT_ID;
+  const effectiveProjectId = rawId === 'proj-demo-1' ? GLOBAL_CHAT_ID : rawId;
   const isGlobal = effectiveProjectId === GLOBAL_CHAT_ID;
   const messages = projectMessages[effectiveProjectId] || (isGlobal ? createInitialGlobalMessages() : []);
-  const currentMeta = isGlobal ? GLOBAL_META : (projectMeta[effectiveProjectId] || DEFAULT_DEMO_PROJECT);
+  const currentMeta = isGlobal ? GLOBAL_META : (projectMeta[effectiveProjectId] || GLOBAL_META);
   const isCurrentTyping = Boolean(isTyping[effectiveProjectId]);
 
   // Project unread count
