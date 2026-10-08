@@ -3140,6 +3140,16 @@ export default function CreatorStudioPage() {
                         </div>
                       ) : (
                         <>
+                          {/* Calm green reassurance for unused credits rollover placed calmly ABOVE payment */}
+                          {totalUsableCredits > usedCredits && (
+                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="leading-snug">
+                                <b>+{totalUsableCredits - usedCredits} CR unused balance</b> will automatically roll over into your Global Studio Wallet upon payment.
+                              </span>
+                            </div>
+                          )}
+
                           <PayPalButtonWrapper
                             packageId={currentPackage.id}
                             packagePrice={currentPackage.price}
@@ -3196,31 +3206,23 @@ export default function CreatorStudioPage() {
                               toast.error(err);
                             }}
                           />
-                          {totalUsableCredits > usedCredits && (
-                            <p className="text-2xs text-center text-emerald-600 dark:text-emerald-400 font-medium leading-normal">
-                              ★ Any unused credits ({totalUsableCredits - usedCredits} CR) automatically roll over into your Global Studio Wallet!
-                            </p>
-                          )}
                         </>
                       )}
                     </div>
 
-                    {/* Fallback Review Submission (Alternative Path - Softened Hierarchy) */}
-                    <div className="pt-2 border-t border-border/60 text-center space-y-2">
-                      <p className="text-xs text-muted-foreground">
-                        Need sponsor or agency PO approval before payment?
-                      </p>
-                      <Button
+                    {/* Secondary Alternative Path: Quiet link for users needing PO / sponsor sign-off */}
+                    <div className="pt-1.5 border-t border-border/60 text-center">
+                      <button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        loading={isSubmitting}
-                        loadingText="Submitting..."
                         onClick={handleSubmitForReview}
-                        className="w-full text-xs font-semibold rounded-xl cursor-pointer h-9 hover:bg-secondary/60 text-muted-foreground hover:text-foreground border-border/80"
+                        disabled={isSubmitting}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer underline-offset-4 hover:underline py-1 group"
                       >
-                        Submit Brief for Manual Agency Review
-                      </Button>
+                        <span>Need sponsor or agency PO approval first?</span>
+                        <span className="font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400">
+                          {isSubmitting ? 'Submitting review...' : 'Request review (no payment yet) →'}
+                        </span>
+                      </button>
                     </div>
 
                     {/* Direct Producer Chat Trigger */}

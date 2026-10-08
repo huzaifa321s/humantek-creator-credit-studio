@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { PayPalScriptProvider, PayPalButtons, FUNDING } from '@paypal/react-paypal-js';
+import { PayPalScriptProvider, PayPalButtons, FUNDING, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import { useQueryClient } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
-import { Sparkles, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ShieldCheck, AlertCircle } from 'lucide-react';
 import { ProjectRecord } from '@/types';
 import { useUserStore } from '@/lib/userStore';
 import { projectKeys } from '@/lib/queries/projects';
@@ -19,6 +18,101 @@ interface PayPalButtonWrapperProps {
   onError: (msg: string) => void;
 }
 
+/**
+ * Pixel-matched button skeletons mirroring the exact heights (44px) and gaps
+ * of the 3 PayPal buttons. Prevents Cumulative Layout Shift (CLS) while PayPal SDK loads.
+ */
+export function PaymentButtonsSkeleton() {
+  return (
+    <div className="space-y-2.5 animate-pulse" aria-label="Loading secure payment options...">
+      {/* 1. Pay with PayPal slot */}
+      <div className="h-11 w-full rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+        <div className="h-4 w-28 bg-amber-500/30 rounded-md" />
+      </div>
+
+      {/* 2. Pay Later slot */}
+      <div className="h-11 w-full rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+        <div className="h-4 w-20 bg-amber-500/20 rounded-md" />
+      </div>
+
+      {/* 3. Debit or Credit Card slot */}
+      <div className="h-11 w-full rounded-lg bg-secondary/70 border border-border/80 flex items-center justify-center">
+        <div className="h-4 w-32 bg-muted-foreground/20 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
+function PayPalButtonsContent({
+  createCommonButtonProps,
+}: {
+  createCommonButtonProps: (fundingSource: (typeof FUNDING)[keyof typeof FUNDING]) => Record<string, unknown>;
+}) {
+  const [{ isPending, isRejected }] = usePayPalScriptReducer();
+
+  if (isPending) {
+    return <PaymentButtonsSkeleton />;
+  }
+
+  if (isRejected) {
+    return (
+      <div className="p-3.5 text-center rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs space-y-1">
+        <div className="flex items-center justify-center gap-1.5 font-semibold">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>Unable to connect to PayPal</span>
+        </div>
+        <p className="text-2xs text-muted-foreground">
+          Please check your connection or temporarily disable strict ad-blockers and refresh.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2.5 animate-in fade-in duration-200">
+      {/* Pay with PayPal (Vibrant Official Gold) */}
+      <div className="rounded-lg overflow-hidden">
+        <PayPalButtons
+          style={{
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'pay',
+            height: 44,
+          }}
+          {...createCommonButtonProps(FUNDING.PAYPAL)}
+        />
+      </div>
+
+      {/* Pay Later (Vibrant Official Gold) */}
+      <div className="rounded-lg overflow-hidden">
+        <PayPalButtons
+          style={{
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            height: 44,
+          }}
+          {...createCommonButtonProps(FUNDING.PAYLATER)}
+        />
+      </div>
+
+      {/* Debit or Credit Card (Crisp Black/Dark Charcoal) */}
+      <div className="rounded-lg overflow-hidden">
+        <PayPalButtons
+          style={{
+            layout: 'vertical',
+            color: 'black',
+            shape: 'rect',
+            height: 44,
+          }}
+          {...createCommonButtonProps(FUNDING.CARD)}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function PayPalButtonWrapper({
   packageId,
   packagePrice: _packagePrice,
@@ -29,7 +123,6 @@ export function PayPalButtonWrapper({
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
-  const showSimulator = process.env.NODE_ENV !== 'production';
 
   /** Server validates + prices the full order and returns a PayPal order id. */
   const createOrder = async (): Promise<string> => {
@@ -63,27 +156,6 @@ export function PayPalButtonWrapper({
     void queryClient.invalidateQueries({ queryKey: walletKeys.all });
 
     return data.project as ProjectRecord;
-  };
-
-  const handleSimulatePayment = async () => {
-    setIsProcessing(true);
-    try {
-      const orderId = await createOrder();
-      const project = await captureOrder(orderId);
-
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-      });
-
-      onSuccess(project);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Payment error';
-      onError(msg);
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   const createCommonButtonProps = (fundingSource: (typeof FUNDING)[keyof typeof FUNDING]) => ({
@@ -125,9 +197,9 @@ export function PayPalButtonWrapper({
 
   return (
     <div className="space-y-3">
-      {/* Live PayPal Standalone Buttons — zero white frame, 100% vibrant authentic brand colors */}
+      {/* Live PayPal Standalone Buttons with script loading skeleton */}
       <div
-        className="paypal-buttons-wrapper relative z-10 w-full rounded-xl overflow-hidden bg-transparent"
+        className="paypal-buttons-wrapper relative z-10 w-full rounded-xl overflow-hidden bg-transparent min-h-[152px]"
         style={{ colorScheme: 'none' }}
         data-paypal-wrapper="true"
       >
@@ -138,47 +210,7 @@ export function PayPalButtonWrapper({
             intent: 'capture',
           }}
         >
-          <div className="space-y-2.5">
-            {/* Pay with PayPal (Vibrant Official Gold) */}
-            <div className="rounded-lg overflow-hidden">
-              <PayPalButtons
-                style={{
-                  layout: 'vertical',
-                  color: 'gold',
-                  shape: 'rect',
-                  label: 'pay',
-                  height: 44,
-                }}
-                {...createCommonButtonProps(FUNDING.PAYPAL)}
-              />
-            </div>
-
-            {/* Pay Later (Vibrant Official Gold) */}
-            <div className="rounded-lg overflow-hidden">
-              <PayPalButtons
-                style={{
-                  layout: 'vertical',
-                  color: 'gold',
-                  shape: 'rect',
-                  height: 44,
-                }}
-                {...createCommonButtonProps(FUNDING.PAYLATER)}
-              />
-            </div>
-
-            {/* Debit or Credit Card (Crisp Black/Dark Charcoal) */}
-            <div className="rounded-lg overflow-hidden">
-              <PayPalButtons
-                style={{
-                  layout: 'vertical',
-                  color: 'black',
-                  shape: 'rect',
-                  height: 44,
-                }}
-                {...createCommonButtonProps(FUNDING.CARD)}
-              />
-            </div>
-          </div>
+          <PayPalButtonsContent createCommonButtonProps={createCommonButtonProps} />
         </PayPalScriptProvider>
       </div>
 
@@ -187,24 +219,6 @@ export function PayPalButtonWrapper({
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
         <span>Secured by PayPal 256-bit encryption</span>
       </div>
-
-      {/* Discrete Sandbox Testing Action — dev builds only, never shipped to production */}
-      {showSimulator && (
-      <div className="pt-1 text-center">
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          loading={isProcessing}
-          loadingText="Processing simulation..."
-          onClick={handleSimulatePayment}
-          className="text-xs h-7 text-muted-foreground/70 hover:text-amber-600 dark:hover:text-amber-400 gap-1.5"
-        >
-          <Sparkles className="w-3 h-3 text-amber-500" />
-          <span>Simulate Sandbox Payment (Dev Test)</span>
-        </Button>
-      </div>
-      )}
     </div>
   );
 }
