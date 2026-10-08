@@ -11,6 +11,9 @@ import {
   Play,
   Pause,
   Volume2,
+  Clock,
+  AlertCircle,
+  RotateCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -42,6 +45,7 @@ interface ChatMessageItemProps {
   message: ChatMessage;
   onPreviewAttachment: (attachment: ChatAttachment) => void;
   onToggleReaction?: (emoji: string) => void;
+  onRetry?: (clientMessageId: string) => void;
   /** Compact mode used inside the floating widget */
   compact?: boolean;
 }
@@ -67,6 +71,7 @@ export const ChatMessageItem = React.memo(
     message,
     onPreviewAttachment,
     onToggleReaction,
+    onRetry,
     compact = false,
   }: ChatMessageItemProps) {
     const [copied, setCopied] = useState(false);
@@ -183,13 +188,15 @@ export const ChatMessageItem = React.memo(
           <Bubble
             variant={isClient ? 'default' : 'outline'}
             align={isClient ? 'end' : 'start'}
-            className={cn('relative max-w-[75%]')}
+            className={cn('relative max-w-[85%] sm:max-w-[75%]')}
           >
             <BubbleContent
               className={cn(
                 'px-3.5 py-2.5 text-sm leading-relaxed',
                 isClient
-                  ? 'rounded-xl rounded-br-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs'
+                  ? message.status === 'failed'
+                    ? 'rounded-xl rounded-br-sm bg-rose-500/15 border border-rose-500/30 text-foreground shadow-xs'
+                    : 'rounded-xl rounded-br-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs'
                   : 'rounded-xl rounded-bl-sm border-border/80 bg-muted/50 dark:bg-card shadow-2xs text-foreground'
               )}
             >
@@ -226,11 +233,11 @@ export const ChatMessageItem = React.memo(
           </Bubble>
         )}
 
-        {/* Audio Voice Note memo pill */}
+        {/* Audio Voice Note memo pill with explicit min-height for intrinsic containment */}
         {message.audioNote && (
           <div
             className={cn(
-              'flex items-center gap-2.5 px-3 py-2 rounded-lg bg-secondary/50 border border-border/70 max-w-xs text-xs',
+              'flex items-center gap-2.5 px-3 py-2 rounded-lg bg-secondary/50 border border-border/70 max-w-xs text-xs min-h-[52px]',
               isClient ? 'self-end' : 'self-start'
             )}
           >
@@ -269,7 +276,7 @@ export const ChatMessageItem = React.memo(
           </div>
         )}
 
-        {/* Reference images — official shadcn Attachment (vertical, image media) */}
+        {/* Reference images — official shadcn Attachment with explicit aspect ratio */}
         {hasAttachments && (
           <AttachmentGroup className={isClient ? 'justify-end self-end' : 'self-start'}>
             {message.attachments!.map((att, idx) => (
@@ -278,11 +285,11 @@ export const ChatMessageItem = React.memo(
                 orientation="vertical"
                 className="w-40 has-data-[slot=attachment-content]:w-40 rounded-xl border-border/80 shadow-2xs hover:border-amber-500/50"
               >
-                <AttachmentMedia variant="image" className="rounded-lg group/media">
+                <AttachmentMedia variant="image" className="rounded-lg group/media aspect-video min-h-[85px] w-full bg-secondary/40 relative overflow-hidden">
                   {att.previewUrl ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={att.previewUrl} alt={att.name} />
+                      <img src={att.previewUrl} alt={att.name} className="w-full h-full object-cover" />
                       <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition-opacity group-hover/attachment:opacity-100">
                         <Eye className="size-4" />
                       </span>
@@ -301,10 +308,35 @@ export const ChatMessageItem = React.memo(
           </AttachmentGroup>
         )}
 
+        {/* Message Delivery Status Indicator */}
         {isClient && (
-          <MessageFooter className="gap-1 text-2xs text-amber-600/90 dark:text-amber-400/90">
-            <CheckCheck className="size-3" />
-            <span>Delivered to studio</span>
+          <MessageFooter className="gap-1 text-2xs">
+            {message.status === 'sending' ? (
+              <span className="flex items-center gap-1 text-muted-foreground/80 animate-pulse font-mono text-3xs">
+                <Clock className="size-3 text-muted-foreground/70" />
+                <span>Sending...</span>
+              </span>
+            ) : message.status === 'failed' ? (
+              <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-medium">
+                <AlertCircle className="size-3 shrink-0" />
+                <span className="text-3xs truncate max-w-[160px] sm:max-w-xs">{message.errorReason || 'Failed to send'}</span>
+                {onRetry && (
+                  <button
+                    type="button"
+                    onClick={() => onRetry(message.clientMessageId || message.id)}
+                    className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded text-3xs font-bold uppercase tracking-wider bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <RotateCw className="size-2.5" />
+                    Retry
+                  </button>
+                )}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-amber-600/90 dark:text-amber-400/90">
+                <CheckCheck className="size-3 text-amber-600 dark:text-amber-400" />
+                <span className="text-muted-foreground">Delivered to studio</span>
+              </span>
+            )}
           </MessageFooter>
         )}
       </MessageContent>
@@ -312,8 +344,13 @@ export const ChatMessageItem = React.memo(
   );
 },
 (prev, next) =>
-  prev.message === next.message &&
+  prev.message.id === next.message.id &&
+  prev.message.content === next.message.content &&
+  prev.message.status === next.message.status &&
+  prev.message.errorReason === next.message.errorReason &&
+  prev.message.reactions?.length === next.message.reactions?.length &&
   prev.compact === next.compact &&
-  prev.onPreviewAttachment === next.onPreviewAttachment
+  prev.onPreviewAttachment === next.onPreviewAttachment &&
+  prev.onRetry === next.onRetry
 );
 

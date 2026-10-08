@@ -13,7 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
+import { useStudioChat, useChatStore, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
 import { toast } from 'sonner';
@@ -38,6 +38,10 @@ export function ChatFloatingWidget() {
     isTyping,
     totalUnreadCount,
     unreadCounts,
+    unreadBelowScroll,
+    incrementUnreadBelowScroll,
+    clearUnreadBelowScroll,
+    retryMessage,
     setIsOpen,
     setActiveProjectId,
     sendMessage: sendStoreMessage,
@@ -104,8 +108,9 @@ export function ChatFloatingWidget() {
       return storeMessages;
     }
     if (dbMessages && dbMessages.length > 0) {
-      return dbMessages.map((m) => ({
+      const mappedDb: ChatMessage[] = dbMessages.map((m) => ({
         id: String(m.id),
+        clientMessageId: m.clientMessageId || undefined,
         projectId: m.projectId,
         sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
         senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
@@ -113,6 +118,7 @@ export function ChatFloatingWidget() {
         content: m.body,
         timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isRead: m.id <= lastReadId,
+        status: 'sent',
         attachments: (m.attachments || []).map((att) => ({
           id: att.id,
           name: att.fileName,
@@ -122,21 +128,37 @@ export function ChatFloatingWidget() {
           previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
         })),
       }));
+
+      // Include pending/failed optimistic messages from store that haven't landed in dbMessages yet
+      const confirmedClientIds = new Set(
+        dbMessages.map((m) => m.clientMessageId).filter(Boolean)
+      );
+      const pendingOptimistic = storeMessages.filter(
+        (m) =>
+          m.clientMessageId &&
+          !confirmedClientIds.has(m.clientMessageId) &&
+          (m.status === 'sending' || m.status === 'failed')
+      );
+
+      return [...mappedDb, ...pendingOptimistic];
     }
     return storeMessages;
   }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
 
   const handleSendMessage = async (text: string, attachments?: ChatAttachment[]) => {
-    if (!isGlobal && projectId) {
+    // 1. Send optimistically into Zustand store (enforces single-flight lock, clears draft, sets status: 'sending')
+    const clientMsgId = await sendStoreMessage(text, attachments);
+
+    // 2. If connected to a real Supabase DB project, dispatch to DB API endpoint
+    if (!isGlobal && projectId && targetProjectId && clientMsgId) {
       try {
-        await sendDbMessage(text);
-        return;
+        await sendDbMessage(text, attachments, clientMsgId);
+        useChatStore.getState().reconcileMessage(projectId, clientMsgId, { status: 'sent' });
       } catch (err: any) {
+        useChatStore.getState().markMessageFailed(projectId, clientMsgId, err.message || 'Failed to send');
         toast.error(err.message || 'Failed to send message');
-        return;
       }
     }
-    sendStoreMessage(text, attachments);
   };
 
   // Mount drawer contents when opened
@@ -467,6 +489,10 @@ export function ChatFloatingWidget() {
                     isTyping={isTyping}
                     agentName={agent.name}
                     isGlobal={isGlobal}
+                    projectId={projectId}
+                    unreadCount={unreadBelowScroll}
+                    onClearUnread={clearUnreadBelowScroll}
+                    onIncrementUnread={incrementUnreadBelowScroll}
                     className="h-full"
                     contentClassName="px-3.5 sm:px-4 py-3 gap-3"
                     renderMessage={(msg) => (
@@ -475,6 +501,7 @@ export function ChatFloatingWidget() {
                         compact
                         onPreviewAttachment={setPreviewAttachment}
                         onToggleReaction={(emoji) => toggleReaction(msg.id, emoji)}
+                        onRetry={retryMessage}
                       />
                     )}
                   />
@@ -487,6 +514,7 @@ export function ChatFloatingWidget() {
                     isTyping={isTyping}
                     compact
                     isGlobal={isGlobal}
+                    projectId={projectId}
                     activeProjectCode={isGlobal ? undefined : displayMeta.projectCode}
                     activeProjectName={isGlobal ? undefined : displayMeta.packageName}
                   />

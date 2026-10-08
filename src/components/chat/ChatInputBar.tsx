@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ArrowUp, Paperclip, Image as ImageIcon, X, Sparkles, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { ChatAttachment, SAMPLE_REFERENCES } from '@/lib/chatStore';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,11 +31,14 @@ import {
 } from '@/components/ui/attachment';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 
+import { ChatAttachment, SAMPLE_REFERENCES, useChatStore } from '@/lib/chatStore';
+
 interface ChatInputBarProps {
   onSendMessage: (text: string, attachments?: ChatAttachment[]) => void;
   isTyping?: boolean;
   compact?: boolean;
   isGlobal?: boolean;
+  projectId?: string;
   activeProjectCode?: string;
   activeProjectName?: string;
 }
@@ -58,12 +60,31 @@ export function ChatInputBar({
   isTyping = false,
   compact = false,
   isGlobal = false,
+  projectId,
   activeProjectCode,
   activeProjectName,
 }: ChatInputBarProps) {
-  const [text, setText] = useState('');
+  const effectiveId = projectId || (isGlobal ? 'global' : undefined);
+  const [text, setText] = useState(() =>
+    effectiveId ? useChatStore.getState().drafts[effectiveId] || '' : ''
+  );
   const [draft, setDraft] = useState<ChatAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Restore draft when switching active project or drawer reopening
+  useEffect(() => {
+    if (!effectiveId) return;
+    const saved = useChatStore.getState().drafts[effectiveId] || '';
+    setText(saved);
+  }, [effectiveId]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setText(val);
+    if (effectiveId) {
+      useChatStore.getState().setDraft(effectiveId, val);
+    }
+  };
 
   const quickPrompts = isGlobal ? GLOBAL_QUICK_PROMPTS : PROJECT_QUICK_PROMPTS;
   const placeholder = compact
@@ -81,6 +102,9 @@ export function ChatInputBar({
     onSendMessage(text, draft ? [draft] : undefined);
     setText('');
     setDraft(null);
+    if (effectiveId) {
+      useChatStore.getState().clearDraft(effectiveId);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -158,7 +182,7 @@ export function ChatInputBar({
 
         <InputGroupTextarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={handleTextChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={1}

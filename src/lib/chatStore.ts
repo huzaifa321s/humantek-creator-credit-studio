@@ -195,10 +195,26 @@ interface ChatState {
   isOpen: boolean;
   isTyping: Record<string, boolean>;
 
+  // Per-project draft persistence (Auto-persisted to localStorage)
+  drafts: Record<string, string>;
+  setDraft: (projectId: string, text: string) => void;
+  clearDraft: (projectId: string) => void;
+
+  // Floating unread counter when scrolled up
+  unreadBelowScroll: Record<string, number>;
+  incrementUnreadBelowScroll: (projectId: string) => void;
+  clearUnreadBelowScroll: (projectId: string) => void;
+
+  // Idempotency & Outbox Actions
+  inFlight: Record<string, boolean>;
+  reconcileMessage: (projectId: string, clientMessageId: string, updates: Partial<ChatMessage>) => void;
+  markMessageFailed: (projectId: string, clientMessageId: string, errorReason?: string) => void;
+  retryMessage: (projectId: string, clientMessageId: string) => Promise<void>;
+
   setActiveProjectId: (projectId: string) => void;
   setIsOpen: (open: boolean, projectId?: string) => void;
   markProjectAsRead: (projectId: string) => void;
-  sendMessage: (text: string, attachments?: ChatAttachment[], targetProjectId?: string) => void;
+  sendMessage: (text: string, attachments?: ChatAttachment[], targetProjectId?: string, clientMsgId?: string) => Promise<string | undefined>;
   toggleReaction: (projectId: string, messageId: string, emoji: string) => void;
   registerProject: (project: ProjectMeta) => void;
 }
@@ -245,6 +261,100 @@ export const useChatStore = create<ChatState>()(
       },
       isOpen: false,
       isTyping: {},
+      drafts: {},
+      unreadBelowScroll: {},
+      inFlight: {},
+
+      setDraft: (projectId, text) => {
+        set((s) => {
+          if ((s.drafts[projectId] || '') === text) return s;
+          return {
+            drafts: {
+              ...s.drafts,
+              [projectId]: text,
+            },
+          };
+        });
+      },
+
+      clearDraft: (projectId) => {
+        set((s) => {
+          if (!s.drafts[projectId]) return s;
+          const next = { ...s.drafts };
+          delete next[projectId];
+          return { drafts: next };
+        });
+      },
+
+      incrementUnreadBelowScroll: (projectId) => {
+        set((s) => ({
+          unreadBelowScroll: {
+            ...s.unreadBelowScroll,
+            [projectId]: (s.unreadBelowScroll[projectId] || 0) + 1,
+          },
+        }));
+      },
+
+      clearUnreadBelowScroll: (projectId) => {
+        set((s) => {
+          if (!s.unreadBelowScroll[projectId]) return s;
+          return {
+            unreadBelowScroll: {
+              ...s.unreadBelowScroll,
+              [projectId]: 0,
+            },
+          };
+        });
+      },
+
+      reconcileMessage: (projectId, clientMessageId, updates) => {
+        set((s) => {
+          const list = s.projectMessages[projectId] || [];
+          const nextInFlight = { ...s.inFlight };
+          delete nextInFlight[clientMessageId];
+
+          return {
+            inFlight: nextInFlight,
+            projectMessages: {
+              ...s.projectMessages,
+              [projectId]: list.map((m) =>
+                m.clientMessageId === clientMessageId || m.id === clientMessageId
+                  ? { ...m, ...updates, clientMessageId, status: updates.status || 'sent', errorReason: undefined }
+                  : m
+              ),
+            },
+          };
+        });
+      },
+
+      markMessageFailed: (projectId, clientMessageId, errorReason = 'Failed to send. Tap to retry.') => {
+        set((s) => {
+          const list = s.projectMessages[projectId] || [];
+          const nextInFlight = { ...s.inFlight };
+          delete nextInFlight[clientMessageId];
+
+          return {
+            inFlight: nextInFlight,
+            projectMessages: {
+              ...s.projectMessages,
+              [projectId]: list.map((m) =>
+                m.clientMessageId === clientMessageId || m.id === clientMessageId
+                  ? { ...m, status: 'failed', errorReason }
+                  : m
+              ),
+            },
+          };
+        });
+      },
+
+      retryMessage: async (projectId, clientMessageId) => {
+        const msgs = get().projectMessages[projectId] || [];
+        const target = msgs.find(
+          (m) => m.clientMessageId === clientMessageId || m.id === clientMessageId
+        );
+        if (!target) return;
+        await get().sendMessage(target.content, target.attachments, projectId, clientMessageId);
+      },
 
       setActiveProjectId: (projectId) => {
         set((s) => {
@@ -335,15 +445,40 @@ export const useChatStore = create<ChatState>()(
         });
       },
 
-      sendMessage: (text, attachments, targetProjectId) => {
-        if (!text.trim() && (!attachments || attachments.length === 0)) return;
+      sendMessage: async (text, attachments, targetProjectId, clientMsgId) => {
+        if (!text.trim() && (!attachments || attachments.length === 0)) return undefined;
 
         const currentTargetId = targetProjectId || get().activeProjectId;
         const isGlobal = currentTargetId === GLOBAL_CHAT_ID;
         const meta = isGlobal ? GLOBAL_META : (get().projectMeta[currentTargetId] || DEFAULT_DEMO_PROJECT);
 
-        const newMsg: ChatMessage = {
-          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        // Generate pure UUID for idempotency key
+        const clientMessageId =
+          clientMsgId ||
+          (typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+
+        // Single-flight lock: prevent duplicate execution from double clicks/taps
+        if (get().inFlight[clientMessageId]) {
+          console.warn(`[CHAT] Send already in flight for ${clientMessageId}`);
+          return clientMessageId;
+        }
+
+        // Engage single-flight lock & clear project draft in store
+        set((s) => ({
+          inFlight: { ...s.inFlight, [clientMessageId]: true },
+          drafts: { ...s.drafts, [currentTargetId]: '' },
+        }));
+
+        const existingList = get().projectMessages[currentTargetId] || [];
+        const existingIdx = existingList.findIndex(
+          (m) => m.clientMessageId === clientMessageId || m.id === clientMessageId
+        );
+
+        const optimisticMsg: ChatMessage = {
+          id: clientMessageId,
+          clientMessageId,
           projectId: currentTargetId,
           sender: 'client',
           senderName: isGlobal ? 'You (Creator)' : (meta.clientName || 'You (Creator)'),
@@ -351,47 +486,90 @@ export const useChatStore = create<ChatState>()(
           timestamp: nowLabel(),
           attachments,
           isRead: true,
+          status: 'sending',
+          errorReason: undefined,
         };
 
-        set((s) => ({
-          projectMessages: {
-            ...s.projectMessages,
-            [currentTargetId]: [...(s.projectMessages[currentTargetId] || []), newMsg],
-          },
-          isTyping: {
-            ...s.isTyping,
-            [currentTargetId]: true,
-          },
-        }));
-
-        // Trigger contextual agent response
-        setTimeout(() => {
-          const replyContent = isGlobal
-            ? buildGlobalAgentReply(text)
-            : buildProjectAgentReply(text, meta, attachments);
-
-          const agentMsg: ChatMessage = {
-            id: `msg-agent-${Date.now()}`,
-            projectId: currentTargetId,
-            sender: 'agent',
-            senderName: DEFAULT_AGENT.name,
-            senderRole: DEFAULT_AGENT.role,
-            content: replyContent,
-            timestamp: nowLabel(),
-            isRead: get().isOpen && get().activeProjectId === currentTargetId,
-          };
-
-          set((s) => ({
+        // Insert or update optimistic message in-place
+        set((s) => {
+          const currentList = s.projectMessages[currentTargetId] || [];
+          let updated: ChatMessage[];
+          if (existingIdx >= 0) {
+            updated = currentList.map((m, idx) =>
+              idx === existingIdx ? { ...m, ...optimisticMsg } : m
+            );
+          } else {
+            updated = [...currentList, optimisticMsg];
+          }
+          return {
             projectMessages: {
               ...s.projectMessages,
-              [currentTargetId]: [...(s.projectMessages[currentTargetId] || []), agentMsg],
+              [currentTargetId]: updated,
             },
+          };
+        });
+
+        // Network connectivity check: if offline, immediately mark failed with retryable status
+        const isOnline = typeof window !== 'undefined' ? window.navigator.onLine : true;
+        if (!isOnline) {
+          setTimeout(() => {
+            get().markMessageFailed(
+              currentTargetId,
+              clientMessageId,
+              'Network connection offline. Tap to retry.'
+            );
+          }, 150);
+          return clientMessageId;
+        }
+
+        // Simulate network dispatch with server confirmation
+        setTimeout(() => {
+          // Reconcile message to confirmed 'sent'
+          get().reconcileMessage(currentTargetId, clientMessageId, {
+            status: 'sent',
+          });
+
+          // Trigger simulated producer typing
+          set((s) => ({
             isTyping: {
               ...s.isTyping,
-              [currentTargetId]: false,
+              [currentTargetId]: true,
             },
           }));
-        }, 1300);
+
+          // Trigger producer response after latency
+          setTimeout(() => {
+            const replyContent = isGlobal
+              ? buildGlobalAgentReply(text)
+              : buildProjectAgentReply(text, meta, attachments);
+
+            const agentMsg: ChatMessage = {
+              id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-agent-${Date.now()}`,
+              clientMessageId: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined,
+              projectId: currentTargetId,
+              sender: 'agent',
+              senderName: DEFAULT_AGENT.name,
+              senderRole: DEFAULT_AGENT.role,
+              content: replyContent,
+              timestamp: nowLabel(),
+              isRead: get().isOpen && get().activeProjectId === currentTargetId,
+              status: 'sent',
+            };
+
+            set((s) => ({
+              projectMessages: {
+                ...s.projectMessages,
+                [currentTargetId]: [...(s.projectMessages[currentTargetId] || []), agentMsg],
+              },
+              isTyping: {
+                ...s.isTyping,
+                [currentTargetId]: false,
+              },
+            }));
+          }, 1200);
+        }, 250);
+
+        return clientMessageId;
       },
 
       toggleReaction: (projectId, messageId, emoji) => {
@@ -433,8 +611,9 @@ export const useChatStore = create<ChatState>()(
         activeProjectId: s.activeProjectId,
         projectMessages: s.projectMessages,
         projectMeta: s.projectMeta,
+        drafts: s.drafts,
       }),
-      version: 5,
+      version: 6,
       skipHydration: true,
     }
   )
@@ -517,10 +696,18 @@ export function useStudioChat(scopedProjectId?: string) {
     projectMeta,
     isOpen,
     isTyping,
+    drafts,
+    unreadBelowScroll,
+    inFlight,
     setActiveProjectId,
     setIsOpen,
     markProjectAsRead,
     sendMessage,
+    retryMessage,
+    setDraft,
+    clearDraft,
+    incrementUnreadBelowScroll,
+    clearUnreadBelowScroll,
     toggleReaction,
     registerProject,
   } = useChatStore(
@@ -530,10 +717,18 @@ export function useStudioChat(scopedProjectId?: string) {
       projectMeta: s.projectMeta,
       isOpen: s.isOpen,
       isTyping: s.isTyping,
+      drafts: s.drafts,
+      unreadBelowScroll: s.unreadBelowScroll,
+      inFlight: s.inFlight,
       setActiveProjectId: s.setActiveProjectId,
       setIsOpen: s.setIsOpen,
       markProjectAsRead: s.markProjectAsRead,
       sendMessage: s.sendMessage,
+      retryMessage: s.retryMessage,
+      setDraft: s.setDraft,
+      clearDraft: s.clearDraft,
+      incrementUnreadBelowScroll: s.incrementUnreadBelowScroll,
+      clearUnreadBelowScroll: s.clearUnreadBelowScroll,
       toggleReaction: s.toggleReaction,
       registerProject: s.registerProject,
     }))
@@ -560,9 +755,34 @@ export function useStudioChat(scopedProjectId?: string) {
   }
 
   const handleSendMessage = useCallback(
-    (text: string, attachments?: ChatAttachment[]) =>
-      sendMessage(text, attachments, effectiveProjectId),
+    (text: string, attachments?: ChatAttachment[], clientMsgId?: string) =>
+      sendMessage(text, attachments, effectiveProjectId, clientMsgId),
     [sendMessage, effectiveProjectId]
+  );
+
+  const handleRetryMessage = useCallback(
+    (clientMessageId: string) => retryMessage(effectiveProjectId, clientMessageId),
+    [retryMessage, effectiveProjectId]
+  );
+
+  const handleSetDraft = useCallback(
+    (text: string) => setDraft(effectiveProjectId, text),
+    [setDraft, effectiveProjectId]
+  );
+
+  const handleClearDraft = useCallback(
+    () => clearDraft(effectiveProjectId),
+    [clearDraft, effectiveProjectId]
+  );
+
+  const handleIncrementUnreadBelowScroll = useCallback(
+    () => incrementUnreadBelowScroll(effectiveProjectId),
+    [incrementUnreadBelowScroll, effectiveProjectId]
+  );
+
+  const handleClearUnreadBelowScroll = useCallback(
+    () => clearUnreadBelowScroll(effectiveProjectId),
+    [clearUnreadBelowScroll, effectiveProjectId]
   );
 
   const handleToggleReaction = useCallback(
@@ -589,9 +809,17 @@ export function useStudioChat(scopedProjectId?: string) {
     unreadCount,
     totalUnreadCount,
     unreadCounts,
+    draft: drafts[effectiveProjectId] || '',
+    unreadBelowScroll: unreadBelowScroll[effectiveProjectId] || 0,
+    inFlight,
     setActiveProjectId,
     setIsOpen,
+    setDraft: handleSetDraft,
+    clearDraft: handleClearDraft,
+    incrementUnreadBelowScroll: handleIncrementUnreadBelowScroll,
+    clearUnreadBelowScroll: handleClearUnreadBelowScroll,
     sendMessage: handleSendMessage,
+    retryMessage: handleRetryMessage,
     toggleReaction: handleToggleReaction,
     markAllAsRead: handleMarkAllAsRead,
     registerProject,

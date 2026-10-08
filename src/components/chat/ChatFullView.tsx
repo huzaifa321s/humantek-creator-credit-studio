@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useStudioChat, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
+import { useStudioChat, useChatStore, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
 import { toast } from 'sonner';
@@ -44,6 +44,10 @@ export function ChatFullView() {
     agent,
     isTyping,
     unreadCounts,
+    unreadBelowScroll,
+    incrementUnreadBelowScroll,
+    clearUnreadBelowScroll,
+    retryMessage,
     setActiveProjectId,
     sendMessage: sendStoreMessage,
     toggleReaction,
@@ -99,8 +103,9 @@ export function ChatFullView() {
       return storeMessages;
     }
     if (dbMessages && dbMessages.length > 0) {
-      return dbMessages.map((m) => ({
+      const mappedDb: ChatMessage[] = dbMessages.map((m) => ({
         id: String(m.id),
+        clientMessageId: m.clientMessageId || undefined,
         projectId: m.projectId,
         sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
         senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
@@ -108,6 +113,7 @@ export function ChatFullView() {
         content: m.body,
         timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isRead: m.id <= lastReadId,
+        status: 'sent',
         attachments: (m.attachments || []).map((att) => ({
           id: att.id,
           name: att.fileName,
@@ -117,21 +123,37 @@ export function ChatFullView() {
           previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
         })),
       }));
+
+      // Include pending/failed optimistic messages from store that haven't landed in dbMessages yet
+      const confirmedClientIds = new Set(
+        dbMessages.map((m) => m.clientMessageId).filter(Boolean)
+      );
+      const pendingOptimistic = storeMessages.filter(
+        (m) =>
+          m.clientMessageId &&
+          !confirmedClientIds.has(m.clientMessageId) &&
+          (m.status === 'sending' || m.status === 'failed')
+      );
+
+      return [...mappedDb, ...pendingOptimistic];
     }
     return storeMessages;
   }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
 
   const handleSendMessage = async (text: string, attachments?: ChatAttachment[]) => {
-    if (!isGlobal && projectId) {
+    // 1. Send optimistically into Zustand store (enforces single-flight lock, clears draft, sets status: 'sending')
+    const clientMsgId = await sendStoreMessage(text, attachments);
+
+    // 2. If connected to a real Supabase DB project, dispatch to DB API endpoint
+    if (!isGlobal && projectId && targetProjectId && clientMsgId) {
       try {
-        await sendDbMessage(text);
-        return;
+        await sendDbMessage(text, attachments, clientMsgId);
+        useChatStore.getState().reconcileMessage(projectId, clientMsgId, { status: 'sent' });
       } catch (err: any) {
+        useChatStore.getState().markMessageFailed(projectId, clientMsgId, err.message || 'Failed to send');
         toast.error(err.message || 'Failed to send message');
-        return;
       }
     }
-    sendStoreMessage(text, attachments);
   };
 
   // Extract unique attachments from the currently active project chat
@@ -396,12 +418,17 @@ export function ChatFullView() {
                 isTyping={isTyping}
                 agentName={agent.name}
                 isGlobal={isGlobal}
+                projectId={projectId}
+                unreadCount={unreadBelowScroll}
+                onClearUnread={clearUnreadBelowScroll}
+                onIncrementUnread={incrementUnreadBelowScroll}
                 contentClassName="px-5 py-4 gap-3"
                 renderMessage={(msg) => (
                   <ChatMessageItem
                     message={msg}
                     onPreviewAttachment={setPreviewAttachment}
                     onToggleReaction={(emoji) => toggleReaction(msg.id, emoji)}
+                    onRetry={retryMessage}
                   />
                 )}
               />
@@ -413,6 +440,7 @@ export function ChatFullView() {
                 onSendMessage={handleSendMessage}
                 isTyping={isTyping}
                 isGlobal={isGlobal}
+                projectId={projectId}
                 activeProjectCode={isGlobal ? undefined : displayMeta.projectCode}
                 activeProjectName={isGlobal ? undefined : displayMeta.packageName}
               />

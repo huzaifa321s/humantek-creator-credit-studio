@@ -141,6 +141,7 @@ export interface ChatAudioNote {
 
 export interface ChatMessage {
   id: string;
+  clientMessageId?: string;
   projectId: string;
   sender: 'client' | 'agent' | 'system';
   senderName: string;
@@ -152,5 +153,7 @@ export interface ChatMessage {
   isRead?: boolean;
   reactions?: ChatReaction[];
   audioNote?: ChatAudioNote;
+  status?: 'sending' | 'sent' | 'failed';
+  errorReason?: string;
 }
 

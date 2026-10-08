@@ -178,11 +178,15 @@ export function useProjectChat({
 
   // Send message
   const sendMessage = useCallback(
-    async (bodyText: string, attachments?: any[]) => {
+    async (bodyText: string, attachments?: any[], existingClientMsgId?: string) => {
       if (!isRealProject || !bodyText.trim() || isSending) return;
       setIsSending(true);
 
-      const clientMessageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const clientMessageId =
+        existingClientMsgId ||
+        (typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
 
       try {
         const res = await fetch(`/api/projects/${projectId}/messages`, {
