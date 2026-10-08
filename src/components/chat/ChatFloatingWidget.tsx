@@ -273,7 +273,7 @@ export function ChatFloatingWidget() {
         aria-label="Studio Messages & Project Discussion"
         inert={!isOpen}
         className={cn(
-          'fixed inset-y-0 right-0 z-50 h-full w-full sm:w-[680px] md:w-[780px] lg:w-[860px] max-w-full',
+          'fixed inset-y-0 right-0 z-50 h-[100dvh] sm:h-full w-full sm:w-[680px] md:w-[780px] lg:w-[860px] max-w-full',
           'bg-card border-l border-border flex flex-col overflow-hidden',
           'transition-transform duration-300 ease-out motion-reduce:transition-none',
           isOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'
@@ -284,9 +284,9 @@ export function ChatFloatingWidget() {
             {/* ========================================================= */}
             {/* 1. TOP AGENT BAR (Lightweight & Reassuring, px-4 py-2.5)   */}
             {/* ========================================================= */}
-            <div className="px-4 py-2.5 border-b border-border/80 bg-secondary/35 shrink-0 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                {/* Sidebar toggle button (ChatGPT / Grok style) */}
+            <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/80 bg-secondary/35 shrink-0 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                {/* Sidebar toggle button (desktop only) */}
                 {projects.length > 1 && (
                   <Button
                     type="button"
@@ -295,7 +295,7 @@ export function ChatFloatingWidget() {
                     onClick={() => setUserToggledSidebar(!isSidebarOpen)}
                     title={isSidebarOpen ? 'Collapse Project Sessions' : 'Show Project Sessions'}
                     className={cn(
-                      'h-8 w-8 rounded-lg cursor-pointer transition-colors',
+                      'hidden sm:inline-flex h-8 w-8 rounded-lg cursor-pointer transition-colors',
                       isSidebarOpen && 'bg-accent text-accent-foreground'
                     )}
                   >
@@ -304,7 +304,7 @@ export function ChatFloatingWidget() {
                 )}
 
                 <div className="relative shrink-0">
-                  <Avatar className="size-8.5 border border-amber-500/50 bg-gradient-to-br from-amber-500/20 to-amber-600/30 shadow-2xs">
+                  <Avatar className="size-8 sm:size-8.5 border border-amber-500/50 bg-gradient-to-br from-amber-500/20 to-amber-600/30 shadow-2xs">
                     <AvatarFallback className="bg-transparent text-amber-800 dark:text-amber-300 font-semibold text-xs">
                       {agent.avatarInitials}
                     </AvatarFallback>
@@ -314,17 +314,17 @@ export function ChatFloatingWidget() {
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-foreground truncate">{agent.name}</span>
+                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate">{agent.name}</span>
                     <span className="text-xs text-muted-foreground hidden xs:inline">· Lead Producer</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                  <div className="flex items-center gap-1.5 text-2xs text-muted-foreground truncate">
                     <span className="flex size-1.5 rounded-full bg-emerald-500" />
                     <span>{agent.responseTime}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <span className="text-xs font-normal text-muted-foreground hidden sm:inline">
                   {projects.length} Active
                 </span>
@@ -336,7 +336,7 @@ export function ChatFloatingWidget() {
                   onClick={() => setIsOpen(false)}
                   aria-label="Close chat"
                   title="Close chat"
-                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer size-8"
                 >
                   <X className="size-4" />
                 </Button>
@@ -376,19 +376,19 @@ export function ChatFloatingWidget() {
                 )}
               >
                 {/* Mobile Back button when sidebar is collapsed */}
-                <div className="sm:hidden px-3 py-1.5 border-b border-border/70 bg-secondary/25 flex items-center justify-between">
+                <div className="sm:hidden px-3.5 py-1.5 border-b border-border/70 bg-secondary/30 flex items-center justify-between">
                   <Button
                     type="button"
                     variant="ghost"
                     size="xs"
                     onClick={() => setUserToggledSidebar(true)}
-                    className="h-7 text-xs font-medium gap-1 text-amber-700 dark:text-amber-400 cursor-pointer"
+                    className="h-7 text-xs font-semibold gap-1 text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 p-0 hover:bg-transparent cursor-pointer"
                   >
                     <ChevronLeft className="size-3.5" />
-                    <span>Back to chats</span>
+                    <span>All Project Chats</span>
                   </Button>
-                  <span className="text-2xs font-mono font-medium text-muted-foreground">
-                    {isGlobal ? 'Global Chat' : displayMeta.projectCode}
+                  <span className="text-3xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
+                    {projects.length} {projects.length === 1 ? 'Project' : 'Projects'}
                   </span>
                 </div>
 
@@ -396,10 +396,10 @@ export function ChatFloatingWidget() {
                 {/* 3. CONTEXT BAR: Global Header vs Project Context Bar      */}
                 {/* ========================================================= */}
                 {isGlobal ? (
-                  <div className="px-4 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] max-h-[60px] flex flex-col justify-center">
+                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold tracking-tight text-foreground">Global Chat</span>
+                        <span className="text-xs sm:text-sm font-semibold tracking-tight text-foreground">Global Chat</span>
                         <span className="flex size-1.5 rounded-full bg-emerald-500 inline-block align-middle" />
                       </div>
                       <p className="text-2xs text-muted-foreground mt-0.5 leading-normal">
@@ -408,44 +408,52 @@ export function ChatFloatingWidget() {
                     </div>
                   </div>
                 ) : (
-                  <div className="px-4 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] max-h-[60px] flex flex-col justify-center gap-1">
-                    {/* Line 1: Code · Package · Status */}
-                    <div className="flex items-center gap-2 flex-wrap text-xs font-medium">
-                      <span className="font-mono text-xs font-bold tracking-tight text-foreground">
-                        {displayMeta.projectCode}
-                      </span>
-                      <span className="text-muted-foreground">·</span>
-                      <span className="text-foreground/90 font-medium text-xs">
-                        {displayMeta.packageName}
-                      </span>
-                      <span className="text-muted-foreground">·</span>
-                      <Badge variant="outline" className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md">
-                        {displayMeta.status.replace('_', ' ').toLowerCase()}
-                      </Badge>
-                    </div>
-
-                    {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
-                    <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span>Client: <b className="text-foreground font-medium">{displayMeta.clientName}</b></span>
-                        <span>·</span>
-                        <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-semibold">{displayMeta.credits || 660} CR</b></span>
-                        {displayMeta.price && (
-                          <>
-                            <span>·</span>
-                            <span className="font-mono tabular-nums">${displayMeta.price.toLocaleString()} USD</span>
-                          </>
-                        )}
+                  <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1.5">
+                    {/* Line 1: Code + Package + Status Badge (Left) & Milestone Tracker (Right) */}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                        <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
+                          {displayMeta.projectCode}
+                        </span>
+                        <span className="text-foreground/90 font-semibold text-xs truncate max-w-[130px] sm:max-w-[220px]">
+                          {displayMeta.packageName}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                        >
+                          {displayMeta.status.replace(/_/g, ' ').toLowerCase()}
+                        </Badge>
                       </div>
 
                       <Link
                         href="/projects"
                         onClick={() => setIsOpen(false)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline shrink-0"
+                        className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-500/10 dark:bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/20 transition-colors"
                       >
-                        <span>Milestone Tracker</span>
-                        <ExternalLink className="size-3" />
+                        <span className="hidden min-[380px]:inline">Milestone Tracker</span>
+                        <span className="min-[380px]:hidden">Milestones</span>
+                        <ExternalLink className="size-3 shrink-0" />
                       </Link>
+                    </div>
+
+                    {/* Line 2: Client Info · Credits Badge · Price */}
+                    <div className="flex items-center gap-1.5 text-2xs text-muted-foreground flex-wrap min-w-0">
+                      <span className="inline-flex items-center gap-1 truncate max-w-[160px] sm:max-w-[240px]">
+                        Client: <b className="text-foreground font-medium truncate">{displayMeta.clientName}</b>
+                      </span>
+                      <span className="text-muted-foreground/50">·</span>
+                      <span className="inline-flex items-center font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/25 shrink-0">
+                        {displayMeta.credits || 660} CR
+                      </span>
+                      {displayMeta.price && (
+                        <>
+                          <span className="text-muted-foreground/50">·</span>
+                          <span className="font-mono tabular-nums text-foreground/80 font-medium shrink-0">
+                            ${displayMeta.price.toLocaleString()} USD
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -457,7 +465,8 @@ export function ChatFloatingWidget() {
                     isTyping={isTyping}
                     agentName={agent.name}
                     isGlobal={isGlobal}
-                    contentClassName="px-4 py-3 gap-3"
+                    className="h-full"
+                    contentClassName="px-3.5 sm:px-4 py-3 gap-3"
                     renderMessage={(msg) => (
                       <ChatMessageItem
                         message={msg}
@@ -470,7 +479,7 @@ export function ChatFloatingWidget() {
                 </div>
 
                 {/* Input Bar Footer */}
-                <div className="px-4 py-3 border-t border-border/70 bg-card shrink-0">
+                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-t border-border/70 bg-card shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                   <ChatInputBar
                     onSendMessage={handleSendMessage}
                     isTyping={isTyping}

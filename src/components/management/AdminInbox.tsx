@@ -24,6 +24,7 @@ import {
   Layers,
   Sparkles,
   Paperclip,
+  ChevronLeft,
 } from 'lucide-react';
 import { cn, formatStudioDate, getProjectStatusLabel } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -49,12 +50,16 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [replyText, setReplyText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [showMobileThread, setShowMobileThread] = useState(() => Boolean(initialProjectId));
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Set initial project if provided and different
   useEffect(() => {
-    if (initialProjectId && initialProjectId !== projectId) {
-      setActiveProjectId(initialProjectId);
+    if (initialProjectId) {
+      if (initialProjectId !== projectId) {
+        setActiveProjectId(initialProjectId);
+      }
+      setShowMobileThread(true);
     }
   }, [initialProjectId, projectId, setActiveProjectId]);
 
@@ -163,7 +168,10 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
       {/* ========================================================= */}
       {/* 1. Left Column: Client Conversation List                  */}
       {/* ========================================================= */}
-      <div className="md:col-span-4 lg:col-span-4 border-r border-border/80 bg-secondary/15 flex flex-col min-h-0">
+      <div className={cn(
+        "md:col-span-4 lg:col-span-4 border-r border-border/80 bg-secondary/15 flex flex-col min-h-0",
+        showMobileThread ? "hidden md:flex" : "flex"
+      )}>
         {/* Search header */}
         <div className="p-3 border-b border-border/80 bg-card/60 shrink-0">
           <div className="relative">
@@ -183,7 +191,10 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
           {/* General Inquiries channel */}
           <button
             type="button"
-            onClick={() => setActiveProjectId(GLOBAL_CHAT_ID)}
+            onClick={() => {
+              setActiveProjectId(GLOBAL_CHAT_ID);
+              setShowMobileThread(true);
+            }}
             className={cn(
               'w-full text-left p-3 transition-colors flex items-start gap-2.5 cursor-pointer',
               isGlobal
@@ -216,7 +227,10 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
               <button
                 key={p.id}
                 type="button"
-                onClick={() => setActiveProjectId(p.id)}
+                onClick={() => {
+                  setActiveProjectId(p.id);
+                  setShowMobileThread(true);
+                }}
                 className={cn(
                   'w-full text-left p-3 transition-colors flex items-start gap-2.5 cursor-pointer',
                   isSelected
@@ -274,11 +288,24 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
       {/* ========================================================= */}
       {/* 2. Right Column: Active Thread & Direct Admin Composer    */}
       {/* ========================================================= */}
-      <div className="md:col-span-8 lg:col-span-8 flex flex-col min-h-0 bg-background">
+      <div className={cn(
+        "md:col-span-8 lg:col-span-8 flex flex-col min-h-0 bg-background",
+        !showMobileThread ? "hidden md:flex" : "flex"
+      )}>
         {/* Active conversation header */}
-        <div className="p-3.5 border-b border-border/80 bg-card/40 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Avatar className="w-9 h-9 rounded-lg border border-border bg-amber-100 text-amber-800 font-bold text-xs shrink-0">
+        <div className="p-3 sm:p-3.5 border-b border-border/80 bg-card/40 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setShowMobileThread(false)}
+              className="md:hidden size-8 rounded-lg text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+              aria-label="Back to conversations"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Avatar className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg border border-border bg-amber-100 text-amber-800 font-bold text-xs shrink-0">
               <AvatarFallback>
                 {clientDisplayName.slice(0, 2).toUpperCase()}
               </AvatarFallback>
@@ -308,9 +335,10 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                 {getProjectStatusLabel(activeProject.status)}
               </Badge>
             )}
-            <div className="flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shrink-0">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin Mode</span>
+              <span className="hidden min-[420px]:inline">Admin Mode</span>
+              <span className="min-[420px]:hidden">Admin</span>
             </div>
           </div>
         </div>

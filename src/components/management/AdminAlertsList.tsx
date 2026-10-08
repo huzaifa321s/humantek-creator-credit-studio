@@ -47,18 +47,18 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
   const getBadgeStyle = (type: string) => {
     if (type.includes('SHORTFALL') || type.includes('PRICE_MISMATCH')) {
       return {
-        bg: 'bg-red-500/10 text-red-400 border-red-500/20',
+        bg: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30',
         icon: AlertTriangle,
       };
     }
     if (type.includes('DISPUTE') || type.includes('REVERSAL')) {
       return {
-        bg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        bg: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
         icon: ShieldAlert,
       };
     }
     return {
-      bg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+      bg: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30',
       icon: DollarSign,
     };
   };
@@ -66,16 +66,16 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
   return (
     <div className="space-y-4">
       {/* Header bar */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-card border border-border/80 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400">
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-white tracking-tight">
+            <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
               Security & Settlement Alerts
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               Audit log of chargebacks, refund shortfalls, price mismatches, and frozen wallets
             </p>
           </div>
@@ -84,7 +84,7 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
         <button
           onClick={fetchAlerts}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 rounded-lg transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-foreground bg-secondary/70 hover:bg-secondary border border-border/80 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh
@@ -93,12 +93,12 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
 
       {/* Alerts list */}
       {loading && alerts.length === 0 ? (
-        <div className="p-12 text-center text-slate-400">Loading alerts...</div>
+        <div className="p-12 text-center text-muted-foreground text-xs sm:text-sm">Loading alerts...</div>
       ) : alerts.length === 0 ? (
-        <div className="p-12 rounded-xl bg-slate-900/40 border border-slate-800/60 text-center space-y-3">
-          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-          <h4 className="text-sm font-medium text-white">All Clear</h4>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+        <div className="p-10 sm:p-12 rounded-xl bg-card border border-border/80 text-center space-y-3 shadow-2xs">
+          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+          <h4 className="text-sm font-semibold text-foreground">All Clear</h4>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             No active shortfalls, disputes, or security alerts. All transactions and wallet settlements are in good standing.
           </p>
         </div>
@@ -111,35 +111,35 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
             return (
               <div
                 key={alert.id}
-                className="rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700/80 transition-all overflow-hidden"
+                className="rounded-xl bg-card border border-border/80 hover:border-border transition-all overflow-hidden shadow-2xs"
               >
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : alert.id)}
-                  className="p-4 flex items-start justify-between gap-4 cursor-pointer select-none"
+                  className="p-3.5 sm:p-4 flex items-start justify-between gap-3 cursor-pointer select-none"
                 >
-                  <div className="flex items-start gap-3 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${bg} shrink-0`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${bg} shrink-0 self-start`}
                     >
                       <Icon className="w-3.5 h-3.5" />
                       {alert.type.replace(/_/g, ' ')}
                     </span>
-                    <div className="min-w-0">
-                      <p className="text-sm text-slate-200 font-medium leading-snug break-words">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-foreground font-medium leading-snug break-words">
                         {alert.message}
                       </p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                      <div className="flex items-center gap-3 sm:gap-4 mt-2 text-2xs sm:text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-500" />
+                          <Clock className="w-3 h-3 text-muted-foreground" />
                           {new Date(alert.created_at).toLocaleString()}
                         </span>
                         {alert.order_id && (
-                          <span className="font-mono text-slate-500">
+                          <span className="font-mono text-muted-foreground">
                             Order: {alert.order_id.slice(0, 8)}...
                           </span>
                         )}
                         {alert.user_id && (
-                          <span className="font-mono text-slate-500">
+                          <span className="font-mono text-muted-foreground">
                             User: {alert.user_id.slice(0, 8)}...
                           </span>
                         )}
@@ -147,17 +147,17 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
                     </div>
                   </div>
 
-                  <div className="text-slate-500 shrink-0 mt-1">
+                  <div className="text-muted-foreground shrink-0 mt-1">
                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </div>
                 </div>
 
                 {isExpanded && alert.metadata && Object.keys(alert.metadata).length > 0 && (
-                  <div className="px-4 pb-4 pt-2 border-t border-slate-800/60 bg-slate-950/40">
-                    <div className="text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+                  <div className="px-4 pb-4 pt-2 border-t border-border/60 bg-muted/20">
+                    <div className="text-2xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">
                       Settlement Metadata
                     </div>
-                    <pre className="p-3 rounded-lg bg-black/60 border border-slate-800 text-[11px] font-mono text-cyan-300/90 overflow-x-auto">
+                    <pre className="p-3 rounded-lg bg-card border border-border/80 text-[11px] font-mono text-foreground overflow-x-auto">
                       {JSON.stringify(alert.metadata, null, 2)}
                     </pre>
                   </div>

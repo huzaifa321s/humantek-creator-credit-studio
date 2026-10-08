@@ -66,7 +66,11 @@ export function ChatInputBar({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const quickPrompts = isGlobal ? GLOBAL_QUICK_PROMPTS : PROJECT_QUICK_PROMPTS;
-  const placeholder = isGlobal
+  const placeholder = compact
+    ? isGlobal
+      ? 'Message Sarah about packages & credits...'
+      : 'Message Sarah or share references...'
+    : isGlobal
     ? 'Message Sarah about packages, credits, or anything else...'
     : 'Message Sarah, share references or ask a question...';
 
@@ -158,7 +162,7 @@ export function ChatInputBar({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={1}
-          className="min-h-[42px] max-h-32 px-3.5 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground/70"
+          className="min-h-[40px] max-h-32 px-3 sm:px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm leading-relaxed placeholder:text-muted-foreground/70 scrollbar-none overflow-y-auto"
         />
 
         <InputGroupAddon align="block-end" className="gap-2">

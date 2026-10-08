@@ -159,8 +159,8 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
     <div className={cn('space-y-4', className)}>
       {/* Control Bar: Search, Type Filter, Status Filter, Reset */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
-        <div className="flex flex-1 items-center gap-2 min-w-0">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-2 min-w-0">
+          <div className="relative flex-1 sm:max-w-sm">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               type="text"
@@ -174,44 +174,46 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
             />
           </div>
 
-          {/* Type Filter */}
-          <Select
-            value={typeFilter}
-            onValueChange={(val) => {
-              setTypeFilter(val as string);
-              setCurrentPage(1);
-            }}
-          >
-            <SelectTrigger className="h-9 text-xs bg-card min-w-[140px] rounded-lg">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="text-xs">All Types</SelectItem>
-              <SelectItem value="package_purchase" className="text-xs">Package Purchase</SelectItem>
-              <SelectItem value="service_deduction" className="text-xs">Service Scope</SelectItem>
-              <SelectItem value="promo_credit" className="text-xs">Promo Code</SelectItem>
-              <SelectItem value="refund" className="text-xs">Refund</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 sm:flex items-center gap-2">
+            {/* Type Filter */}
+            <Select
+              value={typeFilter}
+              onValueChange={(val) => {
+                setTypeFilter(val as string);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[140px] rounded-lg">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All Types</SelectItem>
+                <SelectItem value="package_purchase" className="text-xs">Package Purchase</SelectItem>
+                <SelectItem value="service_deduction" className="text-xs">Service Scope</SelectItem>
+                <SelectItem value="promo_credit" className="text-xs">Promo Code</SelectItem>
+                <SelectItem value="refund" className="text-xs">Refund</SelectItem>
+              </SelectContent>
+            </Select>
 
-          {/* Status Filter */}
-          <Select
-            value={statusFilter}
-            onValueChange={(val) => {
-              setStatusFilter(val as string);
-              setCurrentPage(1);
-            }}
-          >
-            <SelectTrigger className="h-9 text-xs bg-card min-w-[130px] rounded-lg">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="text-xs">All Status</SelectItem>
-              <SelectItem value="completed" className="text-xs">Completed</SelectItem>
-              <SelectItem value="pending" className="text-xs">Pending</SelectItem>
-              <SelectItem value="reversed" className="text-xs">Reversed</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* Status Filter */}
+            <Select
+              value={statusFilter}
+              onValueChange={(val) => {
+                setStatusFilter(val as string);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[130px] rounded-lg">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All Status</SelectItem>
+                <SelectItem value="completed" className="text-xs">Completed</SelectItem>
+                <SelectItem value="pending" className="text-xs">Pending</SelectItem>
+                <SelectItem value="reversed" className="text-xs">Reversed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Clear Filters / Summary Count */}
@@ -260,7 +262,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
       ) : (
         <div className="rounded-xl border border-border/80 overflow-hidden bg-card shadow-2xs">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[780px]">
               <TableHeader className="bg-muted/40">
                 <TableRow className="border-b border-border/80 hover:bg-transparent select-none">
                   <TableHead

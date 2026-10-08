@@ -26,35 +26,56 @@ export class SupabaseRealtimeTransport implements ChatTransport {
   ): () => void {
     const supabase = createClient();
     const topic = `project:${projectId}`;
+    let isCancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // Note: Clients connect with { config: { private: true } } matching RLS policy
-    const channel = supabase.channel(topic, {
-      config: {
-        broadcast: {
-          self: false,
+    const setup = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          await supabase.realtime.setAuth(session.access_token);
+        }
+      } catch (err) {
+        console.warn('Could not set realtime auth token:', err);
+      }
+
+      if (isCancelled) return;
+
+      channel = supabase.channel(topic, {
+        config: {
+          broadcast: {
+            self: false,
+          },
+          private: true,
         },
-        private: true,
-      },
-    });
-
-    channel
-      .on('broadcast', { event: 'new_message' }, ({ payload }) => {
-        if (payload && payload.project_id === projectId) {
-          onEvent({
-            projectId: payload.project_id,
-            messageId: Number(payload.message_id),
-            kind: payload.kind,
-          });
-        }
-      })
-      .subscribe((status, err) => {
-        if (err || status === 'CHANNEL_ERROR') {
-          if (onError) onError(err || new Error(`Channel error on ${topic}`));
-        }
       });
 
+      channel
+        .on('broadcast', { event: 'new_message' }, ({ payload }) => {
+          if (payload && payload.project_id === projectId) {
+            onEvent({
+              projectId: payload.project_id,
+              messageId: Number(payload.message_id),
+              kind: payload.kind,
+            });
+          }
+        })
+        .subscribe((status, err) => {
+          if (err || status === 'CHANNEL_ERROR') {
+            if (onError) onError(err || new Error(`Channel error on ${topic}`));
+          }
+        });
+    };
+
+    void setup();
+
     return () => {
-      supabase.removeChannel(channel);
+      isCancelled = true;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }
 }

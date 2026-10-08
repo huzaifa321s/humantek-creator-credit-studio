@@ -193,7 +193,7 @@ export const ChatMessageItem = React.memo(
                   : 'rounded-xl rounded-bl-sm border-border/80 bg-muted/50 dark:bg-card shadow-2xs text-foreground'
               )}
             >
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
             </BubbleContent>
 
             {/* Reactions rendered in clean normal flow to avoid any overflow clipping */}

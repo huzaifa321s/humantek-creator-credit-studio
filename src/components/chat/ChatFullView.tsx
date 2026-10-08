@@ -338,43 +338,51 @@ export function ChatFullView() {
                 </div>
               </div>
             ) : (
-              <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center gap-1">
-                {/* Line 1: Code · Package · Status */}
-                <div className="flex items-center gap-2 flex-wrap text-sm font-medium">
-                  <span className="font-mono text-xs font-bold tracking-tight text-foreground">
-                    {displayMeta.projectCode}
-                  </span>
-                  <span className="text-muted-foreground">·</span>
-                  <span className="text-foreground/90 font-medium text-xs">
-                    {displayMeta.packageName}
-                  </span>
-                  <span className="text-muted-foreground">·</span>
-                  <Badge variant="outline" className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md">
-                    {displayMeta.status?.replace('_', ' ').toLowerCase() || 'in progress'}
-                  </Badge>
-                </div>
-
-                {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
-                <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span>Client: <b className="text-foreground font-medium">{displayMeta.clientName}</b></span>
-                    <span>·</span>
-                    <span className="font-mono tabular-nums"><b className="text-amber-600 dark:text-amber-400 font-bold">{displayMeta.credits || 660} CR</b></span>
-                    {displayMeta.price && (
-                      <>
-                        <span>·</span>
-                        <span className="font-mono tabular-nums">${displayMeta.price.toLocaleString()} USD</span>
-                      </>
-                    )}
+              <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1.5">
+                {/* Line 1: Code + Package + Status Badge (Left) & Milestone Tracker (Right) */}
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                    <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
+                      {displayMeta.projectCode}
+                    </span>
+                    <span className="text-foreground/90 font-semibold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-[240px]">
+                      {displayMeta.packageName}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="text-3xs sm:text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                    >
+                      {(displayMeta.status || 'in_progress').replace(/_/g, ' ').toLowerCase()}
+                    </Badge>
                   </div>
 
                   <Link
                     href="/projects"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline shrink-0"
+                    className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-500/10 dark:bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/20 transition-colors"
                   >
-                    <span>Milestone Tracker</span>
-                    <ExternalLink className="size-3" />
+                    <span className="hidden min-[380px]:inline">Milestone Tracker</span>
+                    <span className="min-[380px]:hidden">Milestones</span>
+                    <ExternalLink className="size-3 shrink-0" />
                   </Link>
+                </div>
+
+                {/* Line 2: Client Info · Credits Badge · Price */}
+                <div className="flex items-center gap-1.5 text-2xs text-muted-foreground flex-wrap min-w-0">
+                  <span className="inline-flex items-center gap-1 truncate max-w-[160px] sm:max-w-[260px]">
+                    Client: <b className="text-foreground font-medium truncate">{displayMeta.clientName}</b>
+                  </span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span className="inline-flex items-center font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/25 shrink-0">
+                    {displayMeta.credits || 660} CR
+                  </span>
+                  {displayMeta.price && (
+                    <>
+                      <span className="text-muted-foreground/50">·</span>
+                      <span className="font-mono tabular-nums text-foreground/80 font-medium shrink-0">
+                        ${displayMeta.price.toLocaleString()} USD
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             )}

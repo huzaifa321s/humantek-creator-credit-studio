@@ -225,8 +225,8 @@ export function AdminProjectsTable({
     <div className="space-y-4">
       {/* 1. Unified Back-Office Toolbar matching Ledger */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
-        <div className="flex flex-1 items-center gap-2 min-w-0">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-2 min-w-0">
+          <div className="relative flex-1 sm:max-w-sm">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               type="text"
@@ -241,7 +241,7 @@ export function AdminProjectsTable({
             value={statusFilter}
             onValueChange={(val) => setStatusFilter((val as string) || 'all')}
           >
-            <SelectTrigger className="h-9 text-xs bg-card min-w-[170px] rounded-lg border-border/80">
+            <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[170px] rounded-lg border-border/80">
               <SelectValue placeholder="All Projects" />
             </SelectTrigger>
             <SelectContent>
@@ -293,7 +293,7 @@ export function AdminProjectsTable({
 
       {/* 2. Projects Table */}
       <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-        <Table>
+        <Table className="min-w-[780px]">
           <TableHeader className="bg-secondary/40 border-b border-border/80">
             <TableRow className="hover:bg-transparent">
               <TableHead className="font-bold text-xs uppercase tracking-wider text-muted-foreground py-3 px-4">
