@@ -1,6 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { SERVICES, PACKAGES } from '@/lib/catalog';
 import type {
   ServiceSelection,
   ServiceTierLevel,
@@ -9,9 +11,7 @@ import type {
 } from '@/types';
 
 export interface WizardBriefState {
-  clientName: string;
   channelName: string;
-  email: string;
   platform: string;
   style: string;
   colors: string;
@@ -19,9 +19,7 @@ export interface WizardBriefState {
 }
 
 const INITIAL_BRIEF: WizardBriefState = {
-  clientName: '',
   channelName: '',
-  email: '',
   platform: '',
   style: '',
   colors: '',
@@ -56,6 +54,7 @@ export interface WizardStoreState {
   isSubmitting: boolean;
   errorMessage: string;
   submittedProject: ProjectRecord | null;
+  savedAt?: number;
 
   // Actions
   generateNewProjectId: () => string;
@@ -106,152 +105,9 @@ export interface WizardStoreState {
   resetWizard: () => void;
 }
 
-export const useWizardStore = create<WizardStoreState>()((set) => ({
-  projectId: createProjectId(),
-  currentStep: 1,
-  selectedPackageId: '',
-  fundingSource: 'package',
-  applyWalletCredits: true,
-  activeCategory: 'All',
-  priceFilter: 'all',
-
-  selections: {},
-  additions: [],
-  policyAccepted: false,
-  openPolicyAccordion: ['revisions'],
-  showAllRestricted: false,
-  termsAccepted: false,
-  isTermsExpanded: false,
-
-  brief: INITIAL_BRIEF,
-  uploadedFiles: [],
-  redeemCodeInput: '',
-  redeemCodeAttached: false,
-
-  isSubmitting: false,
-  errorMessage: '',
-  submittedProject: null,
-
-  generateNewProjectId: () => {
-    const id = createProjectId();
-    set({ projectId: id });
-    return id;
-  },
-  setStep: (step) => set({ currentStep: Math.max(1, Math.min(5, step)) }),
-  setSelectedPackageId: (id) => set({ selectedPackageId: id }),
-  setFundingSource: (source) => set({ fundingSource: source }),
-  setApplyWalletCredits: (apply) => set({ applyWalletCredits: apply }),
-  setActiveCategory: (cat) => set({ activeCategory: cat }),
-  setPriceFilter: (filter) => set({ priceFilter: filter }),
-
-  setSelections: (updater) =>
-    set((state) => ({
-      selections: typeof updater === 'function' ? updater(state.selections) : updater,
-    })),
-
-  toggleService: (serviceId) =>
-    set((state) => {
-      const next = { ...state.selections };
-      if (next[serviceId]) {
-        delete next[serviceId];
-      } else {
-        next[serviceId] = { level: 0, quantity: 1 };
-      }
-      return { selections: next };
-    }),
-
-  updateServiceTier: (serviceId, level) =>
-    set((state) => ({
-      selections: {
-        ...state.selections,
-        [serviceId]: {
-          level,
-          quantity: state.selections[serviceId]?.quantity || 1,
-        },
-      },
-    })),
-
-  updateServiceQuantity: (serviceId, quantity) =>
-    set((state) => {
-      if (quantity <= 0) {
-        const next = { ...state.selections };
-        delete next[serviceId];
-        return { selections: next };
-      }
-      return {
-        selections: {
-          ...state.selections,
-          [serviceId]: {
-            level: state.selections[serviceId]?.level ?? 0,
-            quantity,
-          },
-        },
-      };
-    }),
-
-  removeService: (serviceId) =>
-    set((state) => {
-      const next = { ...state.selections };
-      delete next[serviceId];
-      return { selections: next };
-    }),
-
-  clearAllServices: () => set({ selections: {} }),
-
-  setAdditions: (updater) =>
-    set((state) => ({
-      additions: typeof updater === 'function' ? updater(state.additions) : updater,
-    })),
-
-  toggleAddition: (extra) =>
-    set((state) => ({
-      additions: state.additions.includes(extra)
-        ? state.additions.filter((a) => a !== extra)
-        : [...state.additions, extra],
-    })),
-
-  setPolicyAccepted: (accepted) => set({ policyAccepted: accepted }),
-  setOpenPolicyAccordion: (sections) => set({ openPolicyAccordion: sections }),
-  setShowAllRestricted: (show) => set({ showAllRestricted: show }),
-
-  setTermsAccepted: (accepted) => set({ termsAccepted: accepted }),
-  setIsTermsExpanded: (expanded) => set({ isTermsExpanded: expanded }),
-
-  updateBriefField: (field, value) =>
-    set((state) => ({
-      brief: { ...state.brief, [field]: value },
-    })),
-
-  setBrief: (patch) =>
-    set((state) => ({
-      brief: { ...state.brief, ...patch },
-    })),
-
-  setUploadedFiles: (updater) =>
-    set((state) => ({
-      uploadedFiles:
-        typeof updater === 'function' ? updater(state.uploadedFiles) : updater,
-    })),
-
-  addUploadedFile: (file) =>
-    set((state) => ({
-      uploadedFiles: [...state.uploadedFiles, file],
-    })),
-
-  removeUploadedFile: (id) =>
-    set((state) => ({
-      uploadedFiles: state.uploadedFiles.filter((f) => f.id !== id),
-    })),
-
-  setRedeemCodeInput: (code) => set({ redeemCodeInput: code }),
-  setRedeemCodeAttached: (attached) => set({ redeemCodeAttached: attached }),
-
-  setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
-  setErrorMessage: (msg) => set({ errorMessage: msg }),
-  setSubmittedProject: (project) => set({ submittedProject: project }),
-
-  resetWizard: () =>
-    set({
+export const useWizardStore = create<WizardStoreState>()(
+  persist(
+    (set) => ({
       projectId: createProjectId(),
       currentStep: 1,
       selectedPackageId: '',
@@ -259,15 +115,228 @@ export const useWizardStore = create<WizardStoreState>()((set) => ({
       applyWalletCredits: true,
       activeCategory: 'All',
       priceFilter: 'all',
+
       selections: {},
       additions: [],
       policyAccepted: false,
+      openPolicyAccordion: [],
+      showAllRestricted: false,
       termsAccepted: false,
+      isTermsExpanded: false,
+
       brief: INITIAL_BRIEF,
       uploadedFiles: [],
       redeemCodeInput: '',
       redeemCodeAttached: false,
+
+      isSubmitting: false,
       errorMessage: '',
       submittedProject: null,
+      savedAt: Date.now(),
+
+      generateNewProjectId: () => {
+        const id = createProjectId();
+        set({ projectId: id });
+        return id;
+      },
+      setStep: (step) => set({ currentStep: Math.max(1, Math.min(5, step)) }),
+      setSelectedPackageId: (id) => set({ selectedPackageId: id }),
+      setFundingSource: (source) => set({ fundingSource: source }),
+      setApplyWalletCredits: (apply) => set({ applyWalletCredits: apply }),
+      setActiveCategory: (cat) => set({ activeCategory: cat }),
+      setPriceFilter: (filter) => set({ priceFilter: filter }),
+
+      setSelections: (updater) =>
+        set((state) => ({
+          selections: typeof updater === 'function' ? updater(state.selections) : updater,
+        })),
+
+      toggleService: (serviceId) =>
+        set((state) => {
+          const next = { ...state.selections };
+          if (next[serviceId]) {
+            delete next[serviceId];
+          } else {
+            next[serviceId] = { level: 0, quantity: 1 };
+          }
+          return { selections: next };
+        }),
+
+      updateServiceTier: (serviceId, level) =>
+        set((state) => ({
+          selections: {
+            ...state.selections,
+            [serviceId]: {
+              level,
+              quantity: state.selections[serviceId]?.quantity || 1,
+            },
+          },
+        })),
+
+      updateServiceQuantity: (serviceId, quantity) =>
+        set((state) => {
+          if (quantity <= 0) {
+            const next = { ...state.selections };
+            delete next[serviceId];
+            return { selections: next };
+          }
+          return {
+            selections: {
+              ...state.selections,
+              [serviceId]: {
+                level: state.selections[serviceId]?.level ?? 0,
+                quantity,
+              },
+            },
+          };
+        }),
+
+      removeService: (serviceId) =>
+        set((state) => {
+          const next = { ...state.selections };
+          delete next[serviceId];
+          return { selections: next };
+        }),
+
+      clearAllServices: () => set({ selections: {} }),
+
+      setAdditions: (updater) =>
+        set((state) => ({
+          additions: typeof updater === 'function' ? updater(state.additions) : updater,
+        })),
+
+      toggleAddition: (extra) =>
+        set((state) => ({
+          additions: state.additions.includes(extra)
+            ? state.additions.filter((a) => a !== extra)
+            : [...state.additions, extra],
+        })),
+
+      setPolicyAccepted: (accepted) => set({ policyAccepted: accepted }),
+      setOpenPolicyAccordion: (sections) => set({ openPolicyAccordion: sections }),
+      setShowAllRestricted: (show) => set({ showAllRestricted: show }),
+
+      setTermsAccepted: (accepted) => set({ termsAccepted: accepted }),
+      setIsTermsExpanded: (expanded) => set({ isTermsExpanded: expanded }),
+
+      updateBriefField: (field, value) =>
+        set((state) => ({
+          brief: { ...state.brief, [field]: value },
+        })),
+
+      setBrief: (patch) =>
+        set((state) => ({
+          brief: { ...state.brief, ...patch },
+        })),
+
+      setUploadedFiles: (updater) =>
+        set((state) => ({
+          uploadedFiles:
+            typeof updater === 'function' ? updater(state.uploadedFiles) : updater,
+        })),
+
+      addUploadedFile: (file) =>
+        set((state) => ({
+          uploadedFiles: [...state.uploadedFiles, file],
+        })),
+
+      removeUploadedFile: (id) =>
+        set((state) => ({
+          uploadedFiles: state.uploadedFiles.filter((f) => f.id !== id),
+        })),
+
+      setRedeemCodeInput: (code) => set({ redeemCodeInput: code }),
+      setRedeemCodeAttached: (attached) => set({ redeemCodeAttached: attached }),
+
+      setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
+      setErrorMessage: (msg) => set({ errorMessage: msg }),
+      setSubmittedProject: (project) => set({ submittedProject: project }),
+
+      resetWizard: () => {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('humantek_wizard_cart');
+          } catch {
+            // Ignore storage removal errors
+          }
+        }
+        set({
+          projectId: createProjectId(),
+          currentStep: 1,
+          selectedPackageId: '',
+          fundingSource: 'package',
+          applyWalletCredits: true,
+          activeCategory: 'All',
+          priceFilter: 'all',
+          selections: {},
+          additions: [],
+          policyAccepted: false,
+          openPolicyAccordion: [],
+          showAllRestricted: false,
+          termsAccepted: false,
+          isTermsExpanded: false,
+          brief: INITIAL_BRIEF,
+          uploadedFiles: [],
+          redeemCodeInput: '',
+          redeemCodeAttached: false,
+          isSubmitting: false,
+          errorMessage: '',
+          submittedProject: null,
+          savedAt: Date.now(),
+        });
+      },
     }),
-}));
+    {
+      name: 'humantek_wizard_cart',
+      storage: createJSONStorage(() => localStorage),
+      version: 1,
+      partialize: (state) => ({
+        projectId: state.projectId,
+        selectedPackageId: state.selectedPackageId,
+        fundingSource: state.fundingSource,
+        currentStep: state.currentStep,
+        selections: Object.fromEntries(
+          Object.entries(state.selections).map(([id, s]) => [
+            id,
+            { level: s.level, quantity: s.quantity },
+          ])
+        ),
+        additions: state.additions,
+        policyAccepted: state.policyAccepted,
+        termsAccepted: state.termsAccepted,
+        brief: {
+          channelName: state.brief.channelName,
+          platform: state.brief.platform,
+          style: state.brief.style,
+          colors: state.brief.colors,
+          instructions: state.brief.instructions,
+        },
+        savedAt: Date.now(),
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        if (state.savedAt && Date.now() - state.savedAt > SEVEN_DAYS_MS) {
+          state.resetWizard();
+          return;
+        }
+
+        // Validate service IDs against catalog
+        const validServiceIds = new Set(SERVICES.map((s) => s.id));
+        const cleaned: Record<string, ServiceSelection> = {};
+        for (const [id, choice] of Object.entries(state.selections || {})) {
+          if (validServiceIds.has(id)) {
+            cleaned[id] = choice;
+          }
+        }
+        state.selections = cleaned;
+
+        // Validate package ID
+        const validPackageIds = new Set([...PACKAGES.map((p) => p.id), 'studio-wallet']);
+        if (state.selectedPackageId && !validPackageIds.has(state.selectedPackageId)) {
+          state.selectedPackageId = '';
+        }
+      },
+    }
+  )
+);

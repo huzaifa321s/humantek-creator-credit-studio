@@ -13,7 +13,7 @@ import {
 } from '@/lib/store';
 import { computeOrderQuote } from '@/lib/pricing';
 import { buildProjectRecord } from '@/lib/orders';
-import { PACKAGES } from '@/lib/catalog';
+import { PACKAGES, SERVICES } from '@/lib/catalog';
 
 function formatDbProject(p: any): ProjectRecord {
   return {
@@ -24,7 +24,7 @@ function formatDbProject(p: any): ProjectRecord {
     packagePrice: Number(p.package_price_usd) || 0,
     packageCredits: p.package_credits || 0,
     usedCredits: p.total_credits || 0,
-    remainingCredits: Math.max(0, (p.package_credits || 0) - (p.total_credits || 0)),
+    remainingCredits: 0,
     status: p.status,
     paymentStatus: p.payment_status,
     paymentMethod: p.payment_method,
@@ -111,6 +111,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
+  // Administrators cannot create client projects for themselves
+  if (user.isAdmin) {
+    return NextResponse.json(
+      { error: 'Administrators cannot create client projects. Please use the Management Console to oversee client projects.' },
+      { status: 403 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -121,6 +129,72 @@ export async function POST(req: NextRequest) {
   const parsed = orderRequestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
+  }
+
+  // Validate package against official catalog
+  const isValidPackage =
+    parsed.data.packageId === 'studio-wallet' ||
+    PACKAGES.some((p) => p.id === parsed.data.packageId);
+  if (!isValidPackage) {
+    return NextResponse.json(
+      { error: `Invalid package "${parsed.data.packageId}". Please select a valid package from the catalog.` },
+      { status: 400 }
+    );
+  }
+
+  // Validate service selections against official catalog
+  const validServices = new Map(SERVICES.map((s) => [s.id, s]));
+  for (const sel of parsed.data.selections) {
+    const serviceDef = validServices.get(sel.id);
+    if (!serviceDef) {
+      return NextResponse.json(
+        { error: `Invalid service selection: "${sel.id}" does not exist in the catalog.` },
+        { status: 400 }
+      );
+    }
+    if (!sel.quantity || sel.quantity < 1 || sel.quantity > 50) {
+      return NextResponse.json(
+        { error: `Invalid quantity (${sel.quantity}) for service "${serviceDef.name || sel.id}". Must be between 1 and 50.` },
+        { status: 400 }
+      );
+    }
+    if (sel.level < 0 || sel.level > 2) {
+      return NextResponse.json(
+        { error: `Invalid tier level (${sel.level}) for service "${serviceDef.name || sel.id}".` },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Resolve project owner display name and email exclusively from authenticated profile & session.
+  // Any clientName or email passed in the request body is strictly ignored for security.
+  let ownerName = 'Creator';
+  let ownerEmail = user.email.toLowerCase().trim();
+
+  if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
+    try {
+      const adminClient = createAdminClient();
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        if (profile.full_name?.trim()) {
+          ownerName = profile.full_name.trim();
+        } else if (profile.email) {
+          ownerName = profile.email.split('@')[0];
+        }
+        if (profile.email) {
+          ownerEmail = profile.email.toLowerCase().trim();
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load profile for project owner:', e);
+    }
+  } else {
+    ownerName = user.email.split('@')[0] || 'Creator';
   }
 
   // 1. Production / Real Supabase Path (Atomic PostgreSQL Pipeline)
@@ -159,17 +233,17 @@ export async function POST(req: NextRequest) {
             user_id: user.id,
             package_id: parsed.data.packageId,
             package_name: pkg.name,
-            funding_source: 'package',
+            funding_source: parsed.data.fundingSource || 'wallet',
             status: 'pending_review',
             payment_status: 'unpaid',
             payment_method: 'unpaid',
-            package_price_usd: pkg.price,
-            package_credits: pkg.credits,
+            package_price_usd: pkg.price || 0,
+            package_credits: 0,
             total_credits: totalCreditsRequired,
             applied_wallet_credits: 0,
-            client_name: parsed.data.clientName,
+            client_name: ownerName,
             channel_name: parsed.data.channelName || '',
-            email: user.email,
+            email: ownerEmail,
             platform: parsed.data.platform || '',
             style: parsed.data.style || '',
             colors: parsed.data.colors || '',
@@ -240,9 +314,9 @@ export async function POST(req: NextRequest) {
         p_user_id: user.id,
         p_package_id: parsed.data.packageId,
         p_funding_source: 'wallet',
-        p_client_name: parsed.data.clientName,
+        p_client_name: ownerName,
         p_channel_name: parsed.data.channelName || '',
-        p_email: user.email,
+        p_email: ownerEmail,
         p_platform: parsed.data.platform || '',
         p_style: parsed.data.style || '',
         p_colors: parsed.data.colors || '',
@@ -259,18 +333,6 @@ export async function POST(req: NextRequest) {
             { error: 'Insufficient wallet credits. Please redeem a promo code or top up your balance.' },
             { status: 400 }
           );
-        }
-        if (rpcErr.message.includes('standard_tier_limit_exceeded')) {
-          return NextResponse.json({ error: 'This package allows a maximum of 2 Standard tier services.' }, { status: 422 });
-        }
-        if (rpcErr.message.includes('elite_tier_limit_exceeded')) {
-          return NextResponse.json({ error: 'This package allows a maximum of 2 Elite tier services.' }, { status: 422 });
-        }
-        if (rpcErr.message.includes('tier_exceeds_package_level')) {
-          return NextResponse.json({ error: 'Selected service tier exceeds the maximum level of this package.' }, { status: 422 });
-        }
-        if (rpcErr.message.includes('credits_exceed_package_budget')) {
-          return NextResponse.json({ error: 'Total credits required exceed the package budget.' }, { status: 422 });
         }
         return NextResponse.json({ error: rpcErr.message }, { status: 400 });
       }
@@ -303,11 +365,12 @@ export async function POST(req: NextRequest) {
   }
 
   const isWalletFunding = parsed.data.fundingSource === 'wallet' || parsed.data.packageId === 'studio-wallet';
-  const normEmail = (parsed.data.email || 'kira@example.com').toLowerCase().trim();
+  const normEmail = ownerEmail;
   const serverBalance = getUserBalance(normEmail);
 
   const quoteInput = {
     ...parsed.data,
+    clientName: ownerName,
     email: normEmail,
     walletBalance: serverBalance,
   };
@@ -327,10 +390,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const project = buildProjectRecord(parsed.data, result.quote, {
-      status: 'pending_review',
-      paymentStatus: 'paid',
-    });
+    const project = buildProjectRecord(
+      {
+        ...parsed.data,
+        clientName: ownerName,
+        email: normEmail,
+      },
+      result.quote,
+      {
+        status: 'pending_review',
+        paymentStatus: 'paid',
+      }
+    );
     project.paymentMethod = 'credits';
     project.fundingSource = 'wallet';
     project.packagePrice = 0;
@@ -347,12 +418,20 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const project = buildProjectRecord(parsed.data, result.quote, {
-    status: 'pending_review',
-    paymentStatus: 'unpaid',
-  });
+  const project = buildProjectRecord(
+    {
+      ...parsed.data,
+      clientName: ownerName,
+      email: normEmail,
+    },
+    result.quote,
+    {
+      status: 'pending_review',
+      paymentStatus: 'unpaid',
+    }
+  );
   project.paymentMethod = 'unpaid';
-  project.fundingSource = 'package';
+  project.fundingSource = parsed.data.fundingSource || 'wallet';
   addProject(project);
 
   return NextResponse.json({ success: true, project, notificationStatus: 'sent' });

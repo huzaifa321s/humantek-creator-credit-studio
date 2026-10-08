@@ -47,8 +47,8 @@ export function ServiceCategoryTabs({
     if (windowWidth < 520) return 2; // Under 520px (all mobile phones): 2 primary tabs + More dropdown fits perfectly without clipping
     if (windowWidth < 768) return 3; // 520px - 767px (large phones in landscape, phablets)
     if (windowWidth < 1024) return 4; // 768px - 1023px (tablets)
-    if (windowWidth < 1440) return 5; // 1024px - 1439px (small desktops/laptops)
-    return 6;
+    if (windowWidth < 1700) return 5; // 1024px - 1699px (laptops, standard 1080p desktop): 5 primary tabs + More dropdown fits with generous room so Chevron is ALWAYS fully visible
+    return 6; // Ultrawide screens >= 1700px
   }, [maxPrimary, mounted, windowWidth]);
 
   // Split into primary visible tabs and secondary "More" items to eliminate horizontal clipping
@@ -71,7 +71,7 @@ export function ServiceCategoryTabs({
       className={cn('w-full min-w-0', className)}
     >
       <div className="w-full min-w-0 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        <TabsList className="bg-secondary/60 p-1 rounded-xl h-10 inline-flex w-auto min-w-0 justify-start gap-1 items-center flex-nowrap">
+        <TabsList className="bg-secondary/60 p-1 pr-2 rounded-xl h-10 inline-flex w-auto min-w-0 justify-start gap-1 items-center flex-nowrap">
           {primaryTabs.map((cat) => {
             const count = categoryCounts?.[cat];
             const isSelectedTab = cat === 'Selected';
@@ -82,7 +82,7 @@ export function ServiceCategoryTabs({
                 key={cat}
                 value={cat}
                 className={cn(
-                  'rounded-lg text-xs sm:text-sm font-semibold px-2.5 sm:px-3 h-8 shrink-0 transition-all select-none flex items-center gap-1 sm:gap-1.5 cursor-pointer',
+                  'rounded-lg text-xs sm:text-sm font-semibold px-2 sm:px-2.5 h-8 shrink-0 transition-all select-none flex items-center gap-1 sm:gap-1.5 cursor-pointer',
                   'data-active:bg-card data-active:text-foreground data-active:shadow-2xs',
                   hasSelectedItems
                     ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold border border-amber-500/40 shadow-xs'
@@ -127,7 +127,7 @@ export function ServiceCategoryTabs({
                     {moreTabs.length}
                   </span>
                 )}
-                <ChevronDown className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                <ChevronDown className="w-3.5 h-3.5 opacity-90 text-foreground/80 shrink-0" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 rounded-xl p-1 shadow-md bg-popover text-popover-foreground border border-border">
                 {moreTabs.map((cat) => {

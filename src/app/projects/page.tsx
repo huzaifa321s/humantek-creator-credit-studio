@@ -78,7 +78,7 @@ export default function ProjectsPage() {
               My Projects
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-              See where each project is and how many credits it uses.
+              Track your projects, progress, and deliverables.
             </p>
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function ProjectsPage() {
               size="sm"
               tabs={[
                 { value: 'all', label: 'All', count: projects.length },
-                { value: 'active', label: 'Active Production', count: activeCount },
+                { value: 'active', label: 'In Progress', count: activeCount },
                 { value: 'delivered', label: 'Delivered', count: deliveredCount },
               ]}
             />
@@ -195,25 +195,75 @@ export default function ProjectsPage() {
                         </Badge>
                       </div>
                       <CardTitle className="text-xl sm:text-2xl font-bold text-foreground mt-1.5 tracking-tight break-words">
-                        {proj.channelName || proj.clientName}
+                        {proj.channelName || proj.packageName}
                       </CardTitle>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
-                        Client: <b className="text-foreground font-semibold">{proj.clientName}</b> ({proj.email}) · Platform: <span className="font-semibold text-foreground">{proj.platform || 'General'}</span>
-                      </p>
+
+                      {/* Client-friendly Status & Context note */}
+                      <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+                        {proj.status === 'pending_review' ? (
+                          <>
+                            <span className="size-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                            <span>Pending Studio Review · Creative brief submitted for review</span>
+                          </>
+                        ) : proj.status === 'payment_confirmed' ? (
+                          <>
+                            <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            <span>Payment Confirmed · Preparing production assets</span>
+                          </>
+                        ) : proj.status === 'in_production' ? (
+                          <>
+                            <span className="size-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                            <span>In Production · Creative work in progress</span>
+                          </>
+                        ) : proj.status === 'review_round' ? (
+                          <>
+                            <span className="size-1.5 rounded-full bg-purple-500 shrink-0" />
+                            <span>Review Round Open · Deliverables awaiting your review</span>
+                          </>
+                        ) : proj.status === 'delivered' ? (
+                          <>
+                            <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            <span>Delivered · All project assets completed</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="size-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
+                            <span>Project {proj.status.replace(/_/g, ' ')}</span>
+                          </>
+                        )}
+                        {proj.platform && proj.platform.toLowerCase() !== 'general' && (
+                          <>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span>Platform: <b className="text-foreground font-semibold">{proj.platform}</b></span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between md:justify-end md:flex-col md:items-end gap-2 pt-2 md:pt-0 border-t border-border/40 md:border-t-0 shrink-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
-                          variant={proj.paymentStatus === 'paid' ? 'success' : 'secondary'}
+                          variant={
+                            proj.paymentStatus === 'paid'
+                              ? 'success'
+                              : proj.status === 'pending_review'
+                              ? 'gold'
+                              : 'secondary'
+                          }
                           className="text-xs font-semibold uppercase px-2.5 py-0.5 rounded-md"
                         >
-                          {proj.paymentStatus === 'paid' ? 'Payment Verified' : 'Awaiting Payment'}
+                          {proj.paymentStatus === 'paid'
+                            ? 'Payment Confirmed'
+                            : proj.status === 'pending_review'
+                            ? 'Pending Review'
+                            : 'Awaiting Payment'}
                         </Badge>
-                        <div className="flex items-center gap-1.5">
-                          <CreditValue value={proj.usedCredits} size="sm" variant="pill" />
-                          <span className="text-xs text-muted-foreground font-semibold hidden min-[440px]:inline">Allocated</span>
-                        </div>
+                        {proj.usedCredits > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <CreditValue value={proj.usedCredits} size="sm" variant="pill" />
+                            <span className="text-xs text-muted-foreground font-semibold hidden min-[440px]:inline">used</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center md:justify-end gap-2 w-full md:w-auto">
                         <Button
@@ -253,7 +303,12 @@ export default function ProjectsPage() {
                     </div>
 
                     {/* Summary Details */}
-                    <div className="p-4 sm:p-6 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 border-t border-border/60">
+                    <div className={cn(
+                      "p-4 sm:p-6 grid gap-3 sm:gap-4 border-t border-border/60",
+                      proj.platform && proj.platform.toLowerCase() !== 'general'
+                        ? "grid-cols-2 sm:grid-cols-4"
+                        : "grid-cols-1 sm:grid-cols-3"
+                    )}>
                       <div className="min-w-0">
                         <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Aesthetic Style</span>
                         <b className="text-xs sm:text-sm font-semibold text-foreground truncate block">{proj.style || 'Custom Art'}</b>
@@ -262,10 +317,12 @@ export default function ProjectsPage() {
                         <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Color Palette</span>
                         <b className="text-xs sm:text-sm font-semibold text-foreground truncate block">{proj.colors || 'Brand Colors'}</b>
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Remaining</span>
-                        <b className="text-xs sm:text-sm font-extrabold text-amber-700 dark:text-amber-400 font-mono tabular-nums">{proj.remainingCredits} CR</b>
-                      </div>
+                      {proj.platform && proj.platform.toLowerCase() !== 'general' && (
+                        <div className="min-w-0">
+                          <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Target Platform</span>
+                          <b className="text-xs sm:text-sm font-semibold text-foreground truncate block">{proj.platform}</b>
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Submitted Date</span>
                         <b className="text-xs sm:text-sm font-semibold font-mono tabular-nums text-foreground">
@@ -280,17 +337,24 @@ export default function ProjectsPage() {
                         <span className="text-2xs sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Deliverable Assets</span>
                         <span className="text-xs text-muted-foreground font-mono tabular-nums">{proj.selections.length} items</span>
                       </div>
-                      <div className="divide-y divide-border/50 rounded-lg border border-border/60 bg-muted/20 text-xs overflow-hidden">
-                        {proj.selections.map((item, i) => (
-                          <div key={i} className="flex items-center justify-between px-3.5 py-2 hover:bg-muted/40 transition-colors gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="font-medium text-foreground truncate">{item.name}</span>
-                              <span className="text-muted-foreground font-mono tabular-nums shrink-0">× {item.quantity}</span>
+                      {proj.selections.length > 0 ? (
+                        <div className="divide-y divide-border/50 rounded-lg border border-border/60 bg-muted/20 text-xs overflow-hidden">
+                          {proj.selections.map((item, i) => (
+                            <div key={i} className="flex items-center justify-between px-3.5 py-2 hover:bg-muted/40 transition-colors gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-medium text-foreground truncate">{item.name}</span>
+                                <span className="text-muted-foreground font-mono tabular-nums shrink-0">× {item.quantity}</span>
+                              </div>
+                              <span className="font-semibold text-amber-700 dark:text-amber-400 font-mono tabular-nums shrink-0">{item.credits} CR</span>
                             </div>
-                            <span className="font-semibold text-amber-700 dark:text-amber-400 font-mono tabular-nums shrink-0">{item.credits} CR</span>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-lg border border-dashed border-border/70 bg-muted/10 text-xs text-muted-foreground flex items-center justify-between">
+                          <span>We’ll finalize the exact deliverables together during the brief review.</span>
+                          <span className="font-mono text-2xs text-muted-foreground/60">Awaiting Brief</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -14,6 +14,9 @@ import {
   User,
   MessageSquare,
   ShieldCheck,
+  LayoutDashboard,
+  Landmark,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -111,130 +114,202 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
     }
   };
 
+  const isAdmin = Boolean(
+    user?.role &&
+    user.role.toLowerCase() !== 'client' &&
+    user.role.toLowerCase() !== 'user' &&
+    (
+      user.role.toLowerCase() === 'admin' ||
+      user.email === 'dev@localhost' ||
+      user.email === 'admin@humantek.art' ||
+      user.email === 'huzaifa14321furqan@gmail.com' ||
+      user.email === 'huzaifafurqan22@gmail.com'
+    )
+  );
+
   return (
     <SidebarContent className="p-1.5 space-y-1.5 flex-1">
-      {/* Main Studio Navigation Group */}
       <SidebarGroup className="p-0">
         <SidebarGroupContent>
           <SidebarMenu className="gap-1">
-            {/* 1. My Projects */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={pathname === '/projects'}
-                onClick={handleNavClick}
-                render={<Link href="/projects" onClick={handleNavClick} />}
-                tooltip="My Projects"
-                className={cn(
-                  'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                  pathname === '/projects'
-                    ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                    : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                )}
-              >
-                <FolderKanban
-                  className={cn(
-                    'size-4 shrink-0 transition-colors',
-                    pathname === '/projects'
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                  )}
-                />
-                <span className="truncate group-data-[collapsible=icon]:hidden">My Projects</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
-            {/* 2. Messages */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={isOpen}
-                onClick={handleMessagesClick}
-                tooltip="Messages"
-                className={cn(
-                  'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                  isOpen
-                    ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                    : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                )}
-              >
-                <MessageSquare
-                  className={cn(
-                    'size-4 shrink-0 transition-colors',
-                    isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                  )}
-                />
-                <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
-                {totalUnreadChat > 0 && (
-                  <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
-                    {totalUnreadChat}
-                  </SidebarMenuBadge>
-                )}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
-            {/* 3. Promo Code */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={pathname === '/redeem-code'}
-                onClick={handleNavClick}
-                render={<Link href="/redeem-code" onClick={handleNavClick} />}
-                tooltip="Promo Code"
-                className={cn(
-                  'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                  pathname === '/redeem-code'
-                    ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                    : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                )}
-              >
-                <Ticket
-                  className={cn(
-                    'size-4 shrink-0 transition-colors',
-                    pathname === '/redeem-code'
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                  )}
-                />
-                <span className="truncate group-data-[collapsible=icon]:hidden">Promo Code</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
-            {/* 4. Management Console (Strictly for Admins & Staff; never shown to client role) */}
-            {Boolean(
-              user?.role &&
-              user.role.toLowerCase() !== 'client' &&
-              user.role.toLowerCase() !== 'user' &&
-              (
-                user.role.toLowerCase() === 'admin' ||
-                user.role.toLowerCase() === 'producer' ||
-                user.role.toLowerCase() === 'staff' ||
-                user.email === 'dev@localhost' ||
-                user.email === 'admin@humantek.art' ||
-                user.email === 'huzaifa14321furqan@gmail.com'
-              )
-            ) && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={pathname.startsWith('/management')}
-                  onClick={handleNavClick}
-                  render={<Link href="/management" onClick={handleNavClick} />}
-                  tooltip="Management"
-                  className={cn(
-                    'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                    pathname.startsWith('/management')
-                      ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                      : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                  )}
-                >
-                  <ShieldCheck
+            {isAdmin ? (
+              // =========================================================
+              // ADMINISTRATOR NAVIGATION MENU (Strict Operations Console)
+              // =========================================================
+              <>
+                {/* 1. Projects & Orders Overview */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname === '/management'}
+                    onClick={handleNavClick}
+                    render={<Link href="/management" onClick={handleNavClick} />}
+                    tooltip="Projects & Orders"
                     className={cn(
-                      'size-4 shrink-0 transition-colors',
-                      pathname.startsWith('/management')
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      pathname === '/management'
+                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                     )}
-                  />
-                  <span className="truncate group-data-[collapsible=icon]:hidden">Management</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                  >
+                    <LayoutDashboard
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname === '/management'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Projects & Orders</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 2. Client Communications (Realtime Doorbell Chat) */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={isOpen}
+                    onClick={handleMessagesClick}
+                    tooltip="Client Communications"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      isOpen
+                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <MessageSquare
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Communications</span>
+                    {totalUnreadChat > 0 && (
+                      <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+                        {totalUnreadChat}
+                      </SidebarMenuBadge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 3. Manual Payment Orders */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname === '/management' && typeof window !== 'undefined' && window.location.search.includes('tab=wire-orders')}
+                    onClick={handleNavClick}
+                    render={<Link href="/management?tab=wire-orders" onClick={handleNavClick} />}
+                    tooltip="Manual Payments"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <Landmark className="size-4 shrink-0 text-muted-foreground group-hover/menu-button:text-foreground transition-colors" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Manual Payments</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 4. Security Alerts */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname === '/management' && typeof window !== 'undefined' && window.location.search.includes('tab=alerts')}
+                    onClick={handleNavClick}
+                    render={<Link href="/management?tab=alerts" onClick={handleNavClick} />}
+                    tooltip="Security Alerts"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <ShieldAlert className="size-4 shrink-0 text-muted-foreground group-hover/menu-button:text-foreground transition-colors" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Security Alerts</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            ) : (
+              // =========================================================
+              // CREATOR CLIENT NAVIGATION MENU (Clean Self-Service)
+              // =========================================================
+              <>
+                {/* 1. My Projects */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname === '/projects'}
+                    onClick={handleNavClick}
+                    render={<Link href="/projects" onClick={handleNavClick} />}
+                    tooltip="My Projects"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      pathname === '/projects'
+                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <FolderKanban
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname === '/projects'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">My Projects</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 2. Messages */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={isOpen}
+                    onClick={handleMessagesClick}
+                    tooltip="Messages"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      isOpen
+                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <MessageSquare
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
+                    {totalUnreadChat > 0 && (
+                      <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+                        {totalUnreadChat}
+                      </SidebarMenuBadge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 3. Promo Code */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname === '/redeem-code'}
+                    onClick={handleNavClick}
+                    render={<Link href="/redeem-code" onClick={handleNavClick} />}
+                    tooltip="Promo Code"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      pathname === '/redeem-code'
+                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <Ticket
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname === '/redeem-code'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Promo Code</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
             )}
           </SidebarMenu>
         </SidebarGroupContent>
@@ -282,13 +357,32 @@ export function StudioCardLayout({
   const isBackDisabled = mode === 'wizard' && currentStep === 1 && !onBack;
   const { user, isHydrated } = useUserStore();
 
-  // Fallback client check for expired sessions (Server proxy handles primary optimistic redirect)
+  // Fallback client check for expired sessions and role confinement
   useEffect(() => {
-    if (isHydrated && !user?.email) {
-      const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/projects';
-      router.replace(`/login?next=${encodeURIComponent(currentUrl)}`);
+    if (!isHydrated) return;
+
+    if (!user?.email) {
+      if (pathname.startsWith('/management')) {
+        router.replace('/admin-login');
+      } else if (!pathname.startsWith('/new-project')) {
+        const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/projects';
+        router.replace(`/login?next=${encodeURIComponent(currentUrl)}`);
+      }
+      return;
     }
-  }, [isHydrated, user?.email, router]);
+
+    const isAdminUser =
+      user.role === 'admin' ||
+      user.email === 'admin@humantek.art' ||
+      user.email === 'huzaifafurqan22@gmail.com' ||
+      user.email === 'dev@localhost';
+
+    if (isAdminUser && !pathname.startsWith('/management')) {
+      router.replace('/management');
+    } else if (!isAdminUser && pathname.startsWith('/management')) {
+      router.replace('/projects');
+    }
+  }, [isHydrated, user?.email, user?.role, pathname, router]);
 
   const effectiveName = user?.name || '';
   const effectiveEmail = userEmail || user?.email || '';

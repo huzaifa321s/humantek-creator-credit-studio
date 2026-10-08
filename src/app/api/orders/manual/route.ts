@@ -12,6 +12,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
+  if (user.isAdmin) {
+    return NextResponse.json(
+      { error: 'Administrators cannot create client purchase orders.' },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await req.json();
     const { packageId, idempotencyKey } = body;

@@ -30,6 +30,8 @@ interface UserStoreState {
   addCredits: (amount: number, description?: string) => void;
   deductCredits: (amount: number, description?: string) => boolean;
   hasSufficientBalance: (amount: number) => boolean;
+  isAdmin: () => boolean;
+  isClient: () => boolean;
 }
 
 function computeInitials(name?: string, email?: string): string {
@@ -61,10 +63,16 @@ export const useUserStore = create<UserStoreState>()(
           }
           return { user: updated };
         }),
-      signOut: () =>
+      signOut: () => {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('humantek_wizard_cart');
+          } catch {}
+        }
         set({
           user: null,
-        }),
+        });
+      },
       signInAsClient: (
         name = 'Creator',
         email = '',
@@ -114,6 +122,16 @@ export const useUserStore = create<UserStoreState>()(
       hasSufficientBalance: (amount: number) => {
         const currentUser = get().user;
         return Boolean(currentUser && (currentUser.walletBalance || 0) >= amount);
+      },
+      isAdmin: () => {
+        const u = get().user;
+        if (!u) return false;
+        return u.role === 'admin' || u.email === 'admin@humantek.art' || u.email === 'huzaifafurqan22@gmail.com';
+      },
+      isClient: () => {
+        const u = get().user;
+        if (!u) return false;
+        return u.role === 'client' || (!u.role && !!u.email);
       },
     }),
     {

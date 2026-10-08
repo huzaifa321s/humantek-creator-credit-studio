@@ -224,7 +224,7 @@ export function ChatFloatingWidget() {
 
   const isAuthRoute = Boolean(pathname?.startsWith('/login') || pathname?.startsWith('/sign-in'));
   const isManagementRoute = Boolean(pathname?.startsWith('/management'));
-  if (isMessagesRoute || isAuthRoute || isManagementRoute) return null;
+  if (!user?.email || isMessagesRoute || isAuthRoute || isManagementRoute) return null;
 
   return (
     <>
@@ -232,7 +232,7 @@ export function ChatFloatingWidget() {
       <div
         className={cn(
           'fixed right-5 sm:right-6 md:right-7 z-50 transition-all duration-300 ease-in-out motion-reduce:transition-none',
-          hasFooter ? 'bottom-20 sm:bottom-22' : 'bottom-5 sm:bottom-6',
+          hasFooter ? 'hidden md:block bottom-20 md:bottom-22' : 'bottom-5 sm:bottom-6',
           isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
         )}
       >
@@ -247,7 +247,7 @@ export function ChatFloatingWidget() {
             setIsOpen(true, isWizardRoute ? GLOBAL_CHAT_ID : undefined);
           }}
           aria-label="Open studio chat"
-          className="group/chat-trigger h-9 sm:h-9.5 px-3 sm:px-3.5 py-1.5 rounded-lg bg-card hover:bg-amber-500/5 dark:bg-card border-border hover:border-amber-500/40 text-foreground shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none flex items-center gap-2"
+          className="group/chat-trigger h-9 sm:h-9.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg bg-card hover:bg-amber-500/5 dark:bg-card border-border hover:border-amber-500/40 text-foreground shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none flex items-center gap-1.5 sm:gap-2"
         >
           {/* Brand Orange Chat Icon */}
           <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover/chat-trigger:bg-amber-500/25 transition-colors">
@@ -257,12 +257,13 @@ export function ChatFloatingWidget() {
           {/* Label: Chat with Our Team on wizard flow, or Messages on tracking views */}
           <div className="flex items-center gap-1.5 text-xs font-medium">
             <span className="text-foreground font-semibold">
-              {isWizardRoute || isGlobal ? 'Chat with Our Team' : 'Messages'}
+              <span className="hidden sm:inline">{isWizardRoute || isGlobal ? 'Chat with Our Team' : 'Messages'}</span>
+              <span className="sm:hidden">{isWizardRoute || isGlobal ? 'Chat' : 'Messages'}</span>
             </span>
-            <span className="text-muted-foreground/60 font-normal">·</span>
+            <span className="hidden sm:inline text-muted-foreground/60 font-normal">·</span>
             <span
               className={cn(
-                'text-muted-foreground text-2xs font-medium',
+                'hidden sm:inline text-muted-foreground text-2xs font-medium',
                 isWizardRoute || isGlobal ? 'font-sans' : 'font-mono'
               )}
             >

@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Optional dev bypass strictly for local testing when explicit env flag is active
+    // Dev bypass strictly for local testing when running locally or explicit env flag is active
     const isDevAutoConfirm =
-      process.env.NODE_ENV !== 'production' &&
-      process.env.DEV_AUTO_CONFIRM === 'true';
+      process.env.DEV_AUTO_CONFIRM === 'true' ||
+      process.env.NODE_ENV !== 'production';
 
     if (isDevAutoConfirm) {
       const admin = createAdminClient();
@@ -82,6 +82,12 @@ export async function POST(req: NextRequest) {
           { error: 'Unable to complete registration. If you already have an account, please sign in.' },
           { status: 400 }
         );
+      }
+
+      try {
+        await admin.from('profiles').update({ full_name: userName }).eq('id', created.user.id);
+      } catch (e) {
+        console.warn('Could not update profile full_name on dev auto-confirm:', e);
       }
 
       const supabase = await createClient();
@@ -126,6 +132,13 @@ export async function POST(req: NextRequest) {
         { error: 'Registration failed. Please try again.' },
         { status: 400 }
       );
+    }
+
+    try {
+      const admin = createAdminClient();
+      await admin.from('profiles').update({ full_name: userName }).eq('id', data.user.id);
+    } catch (e) {
+      console.warn('Could not update profile full_name on signup:', e);
     }
 
     // If Supabase auto-confirmed or session is present (e.g. SMTP confirmation disabled)

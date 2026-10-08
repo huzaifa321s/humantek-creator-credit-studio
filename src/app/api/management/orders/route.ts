@@ -14,7 +14,7 @@ export async function GET() {
     const admin = createAdminClient();
     const { data: orders, error } = await admin
       .from('orders')
-      .select('id, user_id, provider, package_id, credits_to_grant, expected_amount_cents, captured_amount_cents, currency, status, provider_order_id, provider_capture_id, created_at, fulfilled_at, profiles(email, full_name), packages(name)')
+      .select('id, user_id, provider, package_id, credits_to_grant, expected_amount_cents, captured_amount_cents, currency, status, provider_order_id, provider_capture_id, created_at, fulfilled_at, profiles(email), packages(name)')
       .order('created_at', { ascending: false })
       .limit(100);
 

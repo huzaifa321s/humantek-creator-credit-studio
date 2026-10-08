@@ -75,34 +75,12 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
 const countWords = (v: string) => v.trim().split(/\s+/).filter(Boolean).length;
 
 export const briefFieldsSchema = z.object({
-  clientName: z
-    .string()
-    .trim()
-    .overwrite(collapseSpaces)
-    .min(1, 'Your name is required')
-    .min(BRIEF_LIMITS.clientName.min, `Name must be at least ${BRIEF_LIMITS.clientName.min} characters`)
-    .max(BRIEF_LIMITS.clientName.max, `Name must be ${BRIEF_LIMITS.clientName.max} characters or fewer`)
-    .regex(/^[\p{L}\p{M}\p{N} .'_-]+$/u, "Use letters, numbers, spaces, apostrophes, dots or hyphens only")
-    .refine((v) => /\p{L}/u.test(v), 'Name must contain at least one letter'),
-
   channelName: z
     .string()
     .trim()
     .max(BRIEF_LIMITS.channelName.max, `Channel name must be ${BRIEF_LIMITS.channelName.max} characters or fewer`)
     .regex(/^[\p{L}\p{M}\p{N} _.@&'-]*$/u, 'Channel name contains unsupported characters')
     .default(''),
-
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .min(1, 'Email address is required')
-    .max(BRIEF_LIMITS.email.max, 'Email address is too long')
-    .pipe(z.email('Enter a valid email address, e.g. creator@channel.com'))
-    .refine(
-      (v) => !DISPOSABLE_EMAIL_DOMAINS.has(v.split('@')[1] ?? ''),
-      'Please use a permanent email — disposable inboxes are not accepted'
-    ),
 
   platform: z
     .union([z.literal(''), z.enum(PLATFORM_OPTIONS)], { error: 'Choose a platform from the list' })
@@ -171,6 +149,8 @@ export const projectBriefSchema = briefFieldsSchema.extend({
 /** Full order: catalog identifiers + creative brief. */
 export const orderRequestSchema = orderCoreSchema.extend(projectBriefSchema.shape).extend({
   projectId: projectIdSchema,
+  clientName: z.string().optional(),
+  email: z.string().optional(),
   paymentStatus: z.enum(['paid', 'unpaid', 'pending', 'refunded']).optional(),
   status: z.enum(['pending_review', 'active', 'in_progress', 'completed', 'cancelled']).optional(),
 });

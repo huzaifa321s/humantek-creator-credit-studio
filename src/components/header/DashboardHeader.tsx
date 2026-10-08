@@ -280,6 +280,19 @@ export function DashboardHeader({
                 Need help?
               </a>
             </div>
+          ) : !effectiveEmail ? (
+            <div className="flex items-center gap-2">
+              <Link href="/login">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 rounded-lg border-amber-500/40 text-amber-400 hover:text-white hover:bg-amber-500/20 text-xs font-semibold cursor-pointer shadow-2xs"
+                >
+                  Sign In
+                </Button>
+              </Link>
+            </div>
           ) : (
             <>
               {/* Quick Producer Chat Trigger with Reusable Tooltip */}

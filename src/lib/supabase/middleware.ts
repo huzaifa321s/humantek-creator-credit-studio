@@ -1,10 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSafeSupabaseCredentials, isRealSupabaseConfigured } from './config';
+import { ADMIN_EMAILS, isSystemAdminEmail } from '@/lib/auth/roles';
 
-const PROTECTED_PREFIXES = [
+const ADMIN_ONLY_PATHS = ['/management', '/admin'];
+const CLIENT_ONLY_PATHS = [
   '/projects',
-  '/new-project',
   '/configure',
   '/wallet',
   '/messages',
@@ -13,16 +14,7 @@ const PROTECTED_PREFIXES = [
 ];
 
 const AUTH_PREFIXES = ['/login', '/sign-in'];
-
-const ADMIN_EMAILS = [
-  'dev@localhost',
-  'admin@humantek.art',
-  'huzaifa14321furqan@gmail.com',
-  ...(process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean),
-];
+const ADMIN_AUTH_PATH = '/admin-login';
 
 function sanitizeRedirectUrl(urlParam: string | null | undefined, fallback = '/projects'): string {
   if (!urlParam) return fallback;
@@ -52,6 +44,7 @@ export async function updateSession(request: NextRequest) {
   const { url, key } = getSafeSupabaseCredentials();
 
   let user: { id: string; email?: string; app_metadata?: Record<string, unknown> } | null = null;
+  let userRole: 'admin' | 'client' = 'client';
 
   try {
     const supabase = createServerClient(url, key, {
@@ -77,42 +70,91 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     user = authedUser;
+
+    if (user && user.email) {
+      const email = user.email.toLowerCase().trim();
+      const appRole = (user.app_metadata as Record<string, unknown> | undefined)?.role;
+      if (appRole === 'admin' || isSystemAdminEmail(email)) {
+        userRole = 'admin';
+      } else {
+        // Query database profile if available
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        userRole = profile?.role === 'admin' ? 'admin' : 'client';
+      }
+    }
   } catch {
     user = null;
   }
 
   const isAuthenticated = Boolean(user && user.email);
-  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-  const isAuthPage = AUTH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-  const isManagement = pathname.startsWith('/management');
+  const isAdminPath = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
+  const isClientPath = CLIENT_ONLY_PATHS.some((p) => pathname.startsWith(p));
+  const isClientAuthPage = AUTH_PREFIXES.some((p) => pathname.startsWith(p));
+  const isAdminAuthPage = pathname === ADMIN_AUTH_PATH;
+  const isNewProjectPath = pathname.startsWith('/new-project');
 
-  // 1. Unauthenticated access to protected route -> redirect to /login
-  if ((isProtected || isManagement) && !isAuthenticated) {
-    const redirectUrl = new URL('/login', request.url);
-    const targetUrl = sanitizeRedirectUrl(pathname + request.nextUrl.search, '');
-    if (targetUrl && targetUrl !== '/projects') {
-      redirectUrl.searchParams.set('next', targetUrl);
+  // Handle Root Gateway ('/')
+  if (pathname === '/') {
+    if (!isAuthenticated) {
+      return NextResponse.redirect(new URL('/new-project', request.url));
     }
-    return NextResponse.redirect(redirectUrl);
+    if (userRole === 'admin') {
+      return NextResponse.redirect(new URL('/management', request.url));
+    }
+    return NextResponse.redirect(new URL('/projects', request.url));
   }
 
-  // 2. Authenticated access to auth screens -> redirect to target or /projects
-  if (isAuthPage && isAuthenticated) {
-    const nextParam = request.nextUrl.searchParams.get('next');
-    const target = sanitizeRedirectUrl(nextParam, '/projects');
-    return NextResponse.redirect(new URL(target, request.url));
+  // 1. UNHEALTHY / UNAUTHENTICATED USERS
+  if (!isAuthenticated) {
+    if (isAdminPath) {
+      return NextResponse.redirect(new URL('/admin-login', request.url));
+    }
+    if (isClientPath) {
+      const redirectUrl = new URL('/login', request.url);
+      const targetUrl = sanitizeRedirectUrl(pathname + request.nextUrl.search, '');
+      if (targetUrl && targetUrl !== '/projects') {
+        redirectUrl.searchParams.set('next', targetUrl);
+      }
+      return NextResponse.redirect(redirectUrl);
+    }
+    // /new-project is public for guests (steps 1–4)
+    return supabaseResponse;
   }
 
-  // 3. Management route access control
-  if (isManagement && isAuthenticated) {
-    const email = (user?.email || '').toLowerCase();
-    const isAdmin =
-      (user?.app_metadata as Record<string, unknown> | undefined)?.role === 'admin' ||
-      ADMIN_EMAILS.includes(email);
+  // 2. AUTHENTICATED ADMINISTRATORS
+  if (userRole === 'admin') {
+    // Admins are prohibited from accessing client project creation & self-service pages
+    if (isClientPath || isNewProjectPath) {
+      return NextResponse.redirect(new URL('/management', request.url));
+    }
+    // Admins accessing any login route are redirected to management
+    if (isClientAuthPage || isAdminAuthPage) {
+      return NextResponse.redirect(new URL('/management', request.url));
+    }
+    return supabaseResponse;
+  }
 
-    if (!isAdmin) {
+  // 3. AUTHENTICATED CREATOR CLIENTS
+  if (userRole === 'client') {
+    // Clients attempting to access administration console are redirected to their projects
+    if (isAdminPath) {
       return NextResponse.redirect(new URL('/projects', request.url));
     }
+    // Clients attempting to access admin login portal are redirected to client login
+    if (isAdminAuthPage) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    // Clients visiting login/sign-in are redirected to their projects or target next
+    if (isClientAuthPage) {
+      const nextParam = request.nextUrl.searchParams.get('next');
+      const target = sanitizeRedirectUrl(nextParam, '/projects');
+      return NextResponse.redirect(new URL(target, request.url));
+    }
+    return supabaseResponse;
   }
 
   return supabaseResponse;

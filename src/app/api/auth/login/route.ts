@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { email, password } = body;
+    const { email, password, adminOnly } = body;
 
     const userEmail = (email || '').trim().toLowerCase();
     const userPass = (password || '').trim();
@@ -74,12 +74,36 @@ export async function POST(req: NextRequest) {
     // 2. Fetch authoritative profile (role, full name) from Postgres
     const { data: profile } = await admin
       .from('profiles')
-      .select('role')
+      .select('role, full_name')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    const userRole = profile?.role || 'client';
+    const ADMIN_EMAILS = [
+      'dev@localhost',
+      'admin@humantek.art',
+      'huzaifa14321furqan@gmail.com',
+      'huzaifaf22@gmail.com',
+      'huzaifafurqan22@gmail.com',
+      ...(process.env.ADMIN_EMAILS || '')
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ];
+
+    const isAdmin = profile?.role === 'admin' || ADMIN_EMAILS.includes(userEmail);
+    const userRole = isAdmin ? 'admin' : 'client';
+
+    // If this request came from the restricted /admin-login portal, strictly enforce admin role
+    if (adminOnly && !isAdmin) {
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        { error: 'Access denied: Administrator privileges required. Client accounts must use the client portal.' },
+        { status: 403 }
+      );
+    }
+
     const userName =
+      profile?.full_name ||
       data.user.user_metadata?.name ||
       data.user.user_metadata?.full_name ||
       (userEmail.includes('@') ? userEmail.split('@')[0] : 'Creator');
@@ -95,11 +119,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
+      redirect: isAdmin ? '/management' : '/projects',
       user: {
         id: userId,
         email: userEmail,
         name: userName,
         role: userRole,
+        isAdmin,
         walletBalance,
       },
     });

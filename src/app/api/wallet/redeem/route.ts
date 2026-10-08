@@ -30,6 +30,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
+    if (user.isAdmin) {
+      return NextResponse.json(
+        { error: 'Administrators cannot redeem promo codes.' },
+        { status: 403 }
+      );
+    }
+
     // Rate limiting per user / IP
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || user.email;
     if (isRateLimited(`redeem:${clientIp}`)) {

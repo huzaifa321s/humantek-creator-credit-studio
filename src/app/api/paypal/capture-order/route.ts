@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { capturePayPalOrder } from '@/lib/paypal';
+import { adjustUserBalance, getUserBalance } from '@/lib/store';
 
 export async function POST(req: NextRequest) {
   const user = await getRequestUser();
@@ -105,6 +106,19 @@ export async function POST(req: NextRequest) {
           const randomDigits = Math.floor(1000 + Math.random() * 9000);
           const projectCode = `HT-${randomDigits}-${pkgCode}`;
 
+          let ownerName = 'Creator';
+          const { data: profile } = await adminClient
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profile?.full_name?.trim()) {
+            ownerName = profile.full_name.trim();
+          } else if (user.email) {
+            ownerName = user.email.split('@')[0];
+          }
+
           // Credits were just deposited in the wallet by fulfill_order, so spend strictly from wallet
           const { data: rpcRes, error: rpcErr } = await adminClient.rpc('create_project_and_spend_credits', {
             p_project_id: raw.projectId,
@@ -112,7 +126,7 @@ export async function POST(req: NextRequest) {
             p_user_id: user.id,
             p_package_id: raw.packageId || order.package_id,
             p_funding_source: 'wallet',
-            p_client_name: raw.clientName,
+            p_client_name: ownerName,
             p_channel_name: raw.channelName || '',
             p_email: user.email,
             p_platform: raw.platform || '',
@@ -143,7 +157,7 @@ export async function POST(req: NextRequest) {
                 packagePrice: Number(projRow.package_price_usd) || 0,
                 packageCredits: projRow.package_credits || 0,
                 usedCredits: projRow.total_credits || 0,
-                remainingCredits: Math.max(0, (projRow.package_credits || 0) - (projRow.total_credits || 0)),
+                remainingCredits: 0,
                 status: projRow.status,
                 paymentStatus: projRow.payment_status,
                 paymentMethod: projRow.payment_method,
@@ -211,11 +225,15 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Dev Mock Fallback
+  const userEmail = (user.email || 'kira@example.com').toLowerCase().trim();
+  const granted = 660;
+  const newBal = adjustUserBalance(userEmail, granted, 'PayPal mock payment captured');
+
   return NextResponse.json({
     success: true,
     status: 'fulfilled',
-    creditsGranted: 660,
-    newWalletBalance: 660,
+    creditsGranted: granted,
+    newWalletBalance: newBal,
     message: 'Mock payment captured successfully.',
   });
 }

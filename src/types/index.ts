@@ -47,9 +47,9 @@ export interface SelectedServiceEntry {
 }
 
 export interface ProjectBrief {
-  clientName: string;
+  clientName?: string;
   channelName: string;
-  email: string;
+  email?: string;
   platform: string;
   style: string;
   colors: string;
@@ -69,9 +69,9 @@ export interface ProjectRecord {
   packageId: string;
   packageName: string;
   packagePrice: number;
-  packageCredits: number;
+  packageCredits?: number;
   usedCredits: number;
-  remainingCredits: number;
+  remainingCredits?: number;
   status: 'pending_review' | 'payment_confirmed' | 'in_production' | 'review_round' | 'delivered' | 'declined' | 'cancelled';
   paymentStatus: 'unpaid' | 'paid' | 'refunded';
   paymentMethod?: 'credits' | 'paypal' | 'unpaid' | 'manual' | string;

@@ -13,12 +13,10 @@ export interface RequestUser {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+import { ADMIN_EMAILS, isSystemAdminEmail } from '@/lib/auth/roles';
+
 function adminEmails(): string[] {
-  const envAdmins = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return ['dev@localhost', 'admin@humantek.art', 'huzaifa14321furqan@gmail.com', ...envAdmins];
+  return ADMIN_EMAILS;
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -67,13 +65,13 @@ export async function getRequestUser(): Promise<RequestUser | null> {
       .eq('id', user.id)
       .single();
 
-    const role = profile?.role || 'client';
-    const isAdmin = role === 'admin' || adminEmails().includes(email);
+    const role = profile?.role || (isSystemAdminEmail(email) ? 'admin' : 'client');
+    const isAdmin = role === 'admin' || isSystemAdminEmail(email);
 
     return {
       id: user.id,
       email,
-      role,
+      role: isAdmin ? 'admin' : 'client',
       isAdmin,
       isDevFallback: false,
     };
@@ -94,16 +92,34 @@ export async function requireUser(): Promise<RequestUser> {
 }
 
 /**
+ * Asserts that the request is from a verified non-admin client.
+ * Redirects admins to `/management`.
+ * Redirects unauthenticated users to `/login`.
+ */
+export async function requireClient(): Promise<RequestUser> {
+  const user = await getRequestUser();
+  if (!user) {
+    redirect('/login');
+  }
+  if (user.isAdmin) {
+    redirect('/management');
+  }
+  return user;
+}
+
+/**
  * Asserts that the request is from a verified admin.
- * Redirects non-admins to `/projects` or `/login`.
+ * Redirects unauthenticated users to `/admin-login`.
+ * Redirects non-admins to `/projects`.
  */
 export async function requireAdmin(): Promise<RequestUser> {
   const user = await getRequestUser();
   if (!user) {
-    redirect('/login?next=/management');
+    redirect('/admin-login');
   }
   if (!user.isAdmin) {
     redirect('/projects');
   }
   return user;
 }
+

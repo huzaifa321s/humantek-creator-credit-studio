@@ -12,7 +12,7 @@ import { useUserStore } from '@/lib/userStore';
  * so that client roles are strictly and reliably enforced.
  */
 function SessionSync() {
-  const { user, isHydrated, updateUser } = useUserStore();
+  const isHydrated = useUserStore((s) => s.isHydrated);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -22,15 +22,25 @@ function SessionSync() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (isCancelled || !data) return;
+        const currentUser = useUserStore.getState().user;
         if (data.authenticated && data.user) {
-          updateUser({
-            id: data.user.id,
-            email: data.user.email,
-            role: data.user.role || 'client',
-          });
+          // Strictly prevent unnecessary state updates if profile is already up-to-date
+          const needsUpdate =
+            !currentUser ||
+            currentUser.id !== data.user.id ||
+            currentUser.email !== data.user.email ||
+            currentUser.role !== (data.user.role || 'client');
+
+          if (needsUpdate) {
+            useUserStore.getState().updateUser({
+              id: data.user.id,
+              email: data.user.email,
+              role: data.user.role || 'client',
+            });
+          }
         } else if (!data.authenticated) {
-          // If server session is unauthenticated, clear stale user state to prevent 401 auth storms
-          if (user?.email && user.email !== 'dev@localhost') {
+          // If server session is unauthenticated, clear stale user state
+          if (currentUser?.email && currentUser.email !== 'dev@localhost') {
             useUserStore.getState().signOut();
           }
         }
@@ -40,7 +50,7 @@ function SessionSync() {
     return () => {
       isCancelled = true;
     };
-  }, [isHydrated, updateUser, user]);
+  }, [isHydrated]);
 
   return null;
 }

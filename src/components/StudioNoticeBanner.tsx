@@ -31,17 +31,22 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
       <Alert
         variant="warning"
         className={cn(
-          'relative rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 px-4 py-2.5 shadow-2xs transition-all',
+          'relative rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 px-3 sm:px-4 py-2 sm:py-2.5 shadow-2xs transition-all',
           props.className
         )}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex size-6 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
-              <Sparkles className="size-3.5" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 w-full">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <span className="flex size-5 sm:size-6 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+              <Sparkles className="size-3 sm:size-3.5" />
             </span>
-            <p className="text-xs text-foreground/90 font-medium">
-              <strong className="font-semibold text-foreground">Customized Creator Services:</strong> Prepaid credits for custom graphics, VTubers & stream branding · Commercial rights & revisions included.
+            <p className="text-xs text-foreground/90 font-medium leading-tight sm:leading-normal">
+              <span className="hidden sm:inline">
+                <strong className="font-semibold text-foreground">Customized Creator Services:</strong> Prepaid credits for custom graphics, VTubers & stream branding · Commercial rights & revisions included.
+              </span>
+              <span className="sm:hidden text-2xs">
+                <strong className="font-semibold text-foreground">Prepaid Studio Credits:</strong> Commercial rights & revisions included.
+              </span>
             </p>
           </div>
 

@@ -17,8 +17,11 @@ export default async function RootGatewayPage() {
   const user = await getRequestUser();
 
   if (user?.email && !user.isDevFallback) {
+    if (user.role === 'admin' || user.isAdmin) {
+      redirect('/management');
+    }
     redirect('/projects');
   } else {
-    redirect('/login');
+    redirect('/new-project');
   }
 }

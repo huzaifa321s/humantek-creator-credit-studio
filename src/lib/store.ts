@@ -1,22 +1,9 @@
 import { ProjectRecord, CreditLedgerEntry, ChatMessage } from '@/types';
-import type { OrderQuote } from '@/lib/pricing';
-import type { OrderRequest } from '@/lib/validation';
-
-/** An order created server-side, awaiting PayPal capture. */
-export interface PendingOrder {
-  orderId: string;
-  request: OrderRequest;
-  quote: OrderQuote;
-  createdAt: number;
-  /** Set once captured — makes capture idempotent. */
-  projectId?: string;
-}
 
 // In-memory persistent cache for demo / offline fallback
 const globalStore = globalThis as unknown as {
   __HUMANTEK_PROJECTS__?: ProjectRecord[];
   __HUMANTEK_LEDGER__?: CreditLedgerEntry[];
-  __HUMANTEK_PENDING_ORDERS__?: Map<string, PendingOrder>;
   __HUMANTEK_PROJECT_MESSAGES__?: Map<string, ChatMessage[]>;
   __HUMANTEK_USER_BALANCES__?: Map<string, number>;
 };
@@ -31,7 +18,7 @@ if (!globalStore.__HUMANTEK_PROJECTS__) {
       packagePrice: 1500,
       packageCredits: 660,
       usedCredits: 580,
-      remainingCredits: 80,
+      remainingCredits: 0,
       status: 'in_production',
       paymentStatus: 'paid',
       clientName: 'Kira Vance',
@@ -166,7 +153,7 @@ export function getProjects(): ProjectRecord[] {
       { id: 'overlays', name: 'Overlays 3×', level: 0, quantity: 1, credits: 40 },
     ];
     demo.usedCredits = 580;
-    demo.remainingCredits = 80;
+    demo.remainingCredits = 0;
   }
   return list;
 }
@@ -204,35 +191,6 @@ export function addLedgerEntry(entry: CreditLedgerEntry) {
     globalStore.__HUMANTEK_LEDGER__ = [];
   }
   globalStore.__HUMANTEK_LEDGER__.unshift(entry);
-}
-
-// ─── Pending PayPal orders ───────────────────────────────────────────────
-const PENDING_TTL_MS = 1000 * 60 * 60 * 3; // 3h — PayPal approvals expire well before this
-
-function pendingMap(): Map<string, PendingOrder> {
-  if (!globalStore.__HUMANTEK_PENDING_ORDERS__) {
-    globalStore.__HUMANTEK_PENDING_ORDERS__ = new Map();
-  }
-  return globalStore.__HUMANTEK_PENDING_ORDERS__;
-}
-
-export function addPendingOrder(order: PendingOrder) {
-  const map = pendingMap();
-  const now = Date.now();
-  // Opportunistic cleanup of stale, uncaptured orders.
-  for (const [id, o] of map) {
-    if (!o.projectId && now - o.createdAt > PENDING_TTL_MS) map.delete(id);
-  }
-  map.set(order.orderId, order);
-}
-
-export function getPendingOrder(orderId: string): PendingOrder | undefined {
-  return pendingMap().get(orderId);
-}
-
-export function markOrderCaptured(orderId: string, projectId: string) {
-  const order = pendingMap().get(orderId);
-  if (order) order.projectId = projectId;
 }
 
 export function getProjectById(id: string): ProjectRecord | undefined {
@@ -351,5 +309,5 @@ export function setUserBalance(email: string, targetBalance: number, description
   }
 }
 
-export { recordPaidProject, recordWalletFundedProject } from '@/lib/orders';
+export { recordWalletFundedProject } from '@/lib/orders';
 

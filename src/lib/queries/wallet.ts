@@ -38,16 +38,17 @@ export interface WalletApiResponse {
  * Automatically synchronizes with local userStore whenever fresh data arrives.
  */
 export function useWalletQuery(email?: string | null) {
-  const normalizedEmail = (email || 'kira@example.com').toLowerCase().trim();
+  const normalizedEmail = (email || '').toLowerCase().trim();
 
   const query = useQuery({
-    queryKey: walletKeys.balance(normalizedEmail),
+    queryKey: walletKeys.balance(normalizedEmail || 'none'),
     queryFn: async ({ signal }) => {
       return fetchJson<WalletApiResponse>(
         `/api/wallet?email=${encodeURIComponent(normalizedEmail)}`,
         { signal }
       );
     },
+    enabled: Boolean(normalizedEmail),
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });

@@ -10,9 +10,7 @@ export type BriefFormValues = Record<BriefField, string>;
 export const briefFieldId = (field: BriefField) => `brief-${field}`;
 
 const FIELD_ORDER: BriefField[] = [
-  'clientName',
   'channelName',
-  'email',
   'platform',
   'style',
   'colors',
@@ -28,13 +26,11 @@ export function useBriefValidation(values: BriefFormValues) {
   const [touched, setTouched] = useState<Partial<Record<BriefField, boolean>>>({});
   const [showAll, setShowAll] = useState(false);
 
-  const { clientName, channelName, email, platform, style, colors, instructions } = values;
+  const { channelName, platform, style, colors, instructions } = values;
 
   const errors = useMemo(() => {
     const result = briefFieldsSchema.safeParse({
-      clientName,
       channelName,
-      email,
       platform,
       style,
       colors,
@@ -48,7 +44,7 @@ export function useBriefValidation(values: BriefFormValues) {
       }
     }
     return out;
-  }, [clientName, channelName, email, platform, style, colors, instructions]);
+  }, [channelName, platform, style, colors, instructions]);
 
   const isValid = Object.keys(errors).length === 0;
 

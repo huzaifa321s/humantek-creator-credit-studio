@@ -83,10 +83,11 @@ export function ScopeGuideModal() {
             type="button"
             variant="outline"
             size="sm"
-            className="gap-2 text-xs border-dashed text-muted-foreground hover:text-foreground cursor-pointer shadow-2xs"
+            className="gap-1.5 sm:gap-2 text-2xs sm:text-xs h-7 sm:h-8 px-2.5 sm:px-3 border-dashed text-muted-foreground hover:text-foreground cursor-pointer shadow-2xs"
           >
-            <TableIcon className="w-3.5 h-3.5 text-amber-600" />
-            Full Credit Rates & Scope Matrix
+            <TableIcon className="size-3 sm:size-3.5 text-amber-600" />
+            <span className="hidden min-[400px]:inline">Full Credit Rates &amp; Scope Matrix</span>
+            <span className="min-[400px]:hidden">Rates &amp; Scope Matrix</span>
           </Button>
         }
       />

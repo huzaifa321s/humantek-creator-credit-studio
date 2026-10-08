@@ -28,15 +28,15 @@ export function buildProjectRecord(
     packageId: pkg.id,
     packageName: pkg.name,
     packagePrice: quote.priceUSD,
-    packageCredits: quote.packageCredits ?? quote.totalCredits,
+    packageCredits: quote.packageCredits ?? 0,
     appliedWalletCredits: quote.appliedWalletCredits ?? 0,
     usedCredits: quote.usedCredits,
-    remainingCredits: quote.remainingCredits,
+    remainingCredits: 0,
     status: opts.status,
     paymentStatus: opts.paymentStatus,
     paymentMethod: opts.paymentStatus === 'paid' ? (quote.fundingSource === 'wallet' ? 'credits' : 'paypal') : 'unpaid',
-    fundingSource: quote.fundingSource || request.fundingSource || 'package',
-    clientName: request.clientName,
+    fundingSource: quote.fundingSource || request.fundingSource || 'wallet',
+    clientName: request.clientName || 'Creator',
     channelName: request.channelName,
     email: request.email || 'guest@humantek.art',
     platform: request.platform,
@@ -49,43 +49,6 @@ export function buildProjectRecord(
     uploadedFiles: request.uploadedFiles,
     createdAt: new Date().toISOString(),
   };
-}
-
-/** Persists a paid project, records matching credit-ledger entries, and rolls over surplus credits to the global wallet. */
-export function recordPaidProject(project: ProjectRecord, paymentRef: string) {
-  project.paymentStatus = 'paid';
-  project.paymentMethod = 'paypal';
-  project.fundingSource = project.fundingSource || 'package';
-  addProject(project);
-  const now = new Date().toISOString();
-  const normEmail = (project.email || '').toLowerCase().trim();
-
-  addLedgerEntry({
-    id: `led-${crypto.randomUUID()}`,
-    userEmail: normEmail,
-    type: 'package_purchase',
-    creditsDelta: project.packageCredits,
-    usdAmount: project.packagePrice,
-    referenceId: project.projectCode,
-    description: `PayPal payment ${paymentRef} verified for ${project.packageName}`,
-    createdAt: now,
-  });
-
-  if (project.usedCredits > 0) {
-    addLedgerEntry({
-      id: `led-${crypto.randomUUID()}`,
-      userEmail: normEmail,
-      type: 'service_deduction',
-      creditsDelta: -project.usedCredits,
-      usdAmount: 0,
-      referenceId: project.projectCode,
-      description: `Credits allocated for order ${project.projectCode}`,
-      createdAt: now,
-    });
-  }
-
-  // The net surplus (packageCredits - usedCredits) is naturally and permanently
-  // credited into the user's global wallet through the ledger entries above.
 }
 
 /** Creates and records a project funded 100% from the client's global studio credit wallet ($0 USD checkout). */
