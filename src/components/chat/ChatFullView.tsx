@@ -152,9 +152,9 @@ export function ChatFullView() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
       {/* Top Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-2 text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Project-Based Creative Studio Communications</span>
           </div>
@@ -166,17 +166,18 @@ export function ChatFullView() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 shrink-0">
           <Link href="/new-project">
-            <Button variant="outline" size="sm" className="h-9 text-xs font-semibold gap-1.5 rounded-xl cursor-pointer">
+            <Button variant="outline" size="sm" className="h-8.5 text-xs font-semibold gap-1.5 rounded-lg sm:rounded-xl cursor-pointer">
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>New Project</span>
+              <span className="hidden sm:inline">New Project</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </Link>
           <Link href="/projects">
-            <Button variant="secondary" size="sm" className="h-9 text-xs font-semibold gap-1.5 rounded-xl cursor-pointer">
+            <Button variant="secondary" size="sm" className="h-8.5 text-xs font-semibold gap-1.5 rounded-lg sm:rounded-xl cursor-pointer">
               <FolderKanban className="w-3.5 h-3.5 text-amber-600" />
-              <span>My Projects</span>
+              <span>Projects</span>
             </Button>
           </Link>
         </div>
@@ -187,7 +188,7 @@ export function ChatFullView() {
         {/* ========================================================= */}
         {/* LEFT COLUMN: PROJECT DIRECTORY & ASSETS                   */}
         {/* ========================================================= */}
-        <div className="lg:col-span-4 xl:col-span-3 space-y-4">
+        <div className="lg:col-span-4 xl:col-span-3 space-y-4 order-2 lg:order-1">
           {/* Producer Profile Card */}
           <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
             <div className="flex items-start gap-3.5">
@@ -321,11 +322,11 @@ export function ChatFullView() {
         {/* ========================================================= */}
         {/* RIGHT COLUMN: CHAT STREAM                                 */}
         {/* ========================================================= */}
-        <div className="lg:col-span-8 xl:col-span-9">
-          <Card className="rounded-xl border border-border/80 bg-card shadow-sm flex flex-col gap-0 py-0 h-[740px] max-h-[85vh] overflow-hidden">
+        <div className="lg:col-span-8 xl:col-span-9 order-1 lg:order-2">
+          <Card className="rounded-xl border border-border/80 bg-card shadow-sm flex flex-col gap-0 py-0 h-[620px] sm:h-[700px] lg:h-[740px] max-h-[85vh] overflow-hidden">
             {/* Chat Pane Header */}
             {isGlobal ? (
-              <div className="px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center">
+              <div className="px-3.5 sm:px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm sm:text-base font-semibold tracking-tight text-foreground">Global Chat</span>
@@ -337,7 +338,7 @@ export function ChatFullView() {
                 </div>
               </div>
             ) : (
-              <div className="px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center gap-1">
+              <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex flex-col justify-center gap-1">
                 {/* Line 1: Code · Package · Status */}
                 <div className="flex items-center gap-2 flex-wrap text-sm font-medium">
                   <span className="font-mono text-xs font-bold tracking-tight text-foreground">
@@ -354,7 +355,7 @@ export function ChatFullView() {
                 </div>
 
                 {/* Line 2: Client · Credits · Price (left) + Milestone Tracker ↗ (right) */}
-                <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5">
+                <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground mt-0.5 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span>Client: <b className="text-foreground font-medium">{displayMeta.clientName}</b></span>
                     <span>·</span>

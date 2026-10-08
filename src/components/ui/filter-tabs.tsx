@@ -36,9 +36,9 @@ export function FilterTabs<T extends string = string>({
     <Tabs
       value={value}
       onValueChange={(val) => onValueChange(val as T)}
-      className={cn('w-auto', className)}
+      className={cn('w-full overflow-x-auto scrollbar-none', className)}
     >
-      <TabsList variant={variant} size={size} className={cn('max-w-full', listClassName)}>
+      <TabsList variant={variant} size={size} className={cn('w-auto min-w-0 flex-nowrap justify-start', listClassName)}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -47,6 +47,7 @@ export function FilterTabs<T extends string = string>({
               value={tab.value}
               variant={variant}
               size={size}
+              className="whitespace-nowrap shrink-0"
             >
               {Icon && <Icon className="size-3.5 shrink-0" />}
               <span>{tab.label}</span>

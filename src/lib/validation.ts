@@ -171,6 +171,8 @@ export const projectBriefSchema = briefFieldsSchema.extend({
 /** Full order: catalog identifiers + creative brief. */
 export const orderRequestSchema = orderCoreSchema.extend(projectBriefSchema.shape).extend({
   projectId: projectIdSchema,
+  paymentStatus: z.enum(['paid', 'unpaid', 'pending', 'refunded']).optional(),
+  status: z.enum(['pending_review', 'active', 'in_progress', 'completed', 'cancelled']).optional(),
 });
 export type OrderRequest = z.infer<typeof orderRequestSchema>;
 

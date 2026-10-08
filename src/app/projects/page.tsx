@@ -62,9 +62,10 @@ export default function ProjectsPage() {
       backLabel="Back to Studio"
       topRightBadge={
         <Link href="/new-project">
-          <Button variant="default" size="sm" className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer">
+          <Button variant="default" size="sm" className="h-8 px-2.5 sm:px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>New Project</span>
+            <span className="hidden min-[400px]:inline">New Project</span>
+            <span className="min-[400px]:hidden">New</span>
           </Button>
         </Link>
       }
@@ -183,9 +184,9 @@ export default function ProjectsPage() {
                   className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-500/40 transition-all overflow-hidden"
                 >
                   {/* Top Header */}
-                  <CardHeader className="p-4 sm:p-5 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
+                  <CardHeader className="p-4 sm:p-5 border-b border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="gold" size="sm" className="font-bold">
                           {proj.packageName}
                         </Badge>
@@ -193,34 +194,34 @@ export default function ProjectsPage() {
                           {proj.projectCode}
                         </Badge>
                       </div>
-                      <CardTitle className="text-xl sm:text-2xl font-bold text-foreground mt-1.5 tracking-tight">
+                      <CardTitle className="text-xl sm:text-2xl font-bold text-foreground mt-1.5 tracking-tight break-words">
                         {proj.channelName || proj.clientName}
                       </CardTitle>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
                         Client: <b className="text-foreground font-semibold">{proj.clientName}</b> ({proj.email}) · Platform: <span className="font-semibold text-foreground">{proj.platform || 'General'}</span>
                       </p>
                     </div>
 
-                    <div className="sm:text-right">
-                      <div className="flex items-center sm:justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-between md:justify-end md:flex-col md:items-end gap-2 pt-2 md:pt-0 border-t border-border/40 md:border-t-0 shrink-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge
                           variant={proj.paymentStatus === 'paid' ? 'success' : 'secondary'}
                           className="text-xs font-semibold uppercase px-2.5 py-0.5 rounded-md"
                         >
                           {proj.paymentStatus === 'paid' ? 'Payment Verified' : 'Awaiting Payment'}
                         </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <CreditValue value={proj.usedCredits} size="sm" variant="pill" />
+                          <span className="text-xs text-muted-foreground font-semibold hidden min-[440px]:inline">Allocated</span>
+                        </div>
                       </div>
-                      <div className="flex items-center sm:justify-end gap-1.5 mt-1.5">
-                        <CreditValue value={proj.usedCredits} size="sm" variant="pill" />
-                        <span className="text-xs text-muted-foreground font-semibold">Allocated</span>
-                      </div>
-                      <div className="mt-2 flex items-center sm:justify-end gap-2">
+                      <div className="flex items-center md:justify-end gap-2 w-full md:w-auto">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => setIsOpen(true, proj.id)}
-                          className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
+                          className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer w-full md:w-auto justify-center"
                         >
                           <MessageSquare className="size-3.5 text-amber-600" />
                           <span>Messages</span>
@@ -240,7 +241,7 @@ export default function ProjectsPage() {
 
                   <CardContent className="p-0">
                     {/* 6-Stage Project Progress Stepper */}
-                    <div className="p-5 sm:p-6 bg-secondary/25">
+                    <div className="p-4 sm:p-6 bg-secondary/25">
                       <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
                         Project Progress
                       </p>
@@ -252,41 +253,41 @@ export default function ProjectsPage() {
                     </div>
 
                     {/* Summary Details */}
-                    <div className="p-5 sm:p-6 grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-border/60">
-                      <div>
-                        <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Aesthetic Style</span>
-                        <b className="text-sm font-semibold text-foreground">{proj.style || 'Custom Art'}</b>
+                    <div className="p-4 sm:p-6 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 border-t border-border/60">
+                      <div className="min-w-0">
+                        <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Aesthetic Style</span>
+                        <b className="text-xs sm:text-sm font-semibold text-foreground truncate block">{proj.style || 'Custom Art'}</b>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Color Palette</span>
-                        <b className="text-sm font-semibold text-foreground">{proj.colors || 'Brand Colors'}</b>
+                      <div className="min-w-0">
+                        <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Color Palette</span>
+                        <b className="text-xs sm:text-sm font-semibold text-foreground truncate block">{proj.colors || 'Brand Colors'}</b>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Remaining in this package</span>
-                        <b className="text-sm font-extrabold text-amber-700 dark:text-amber-400 font-mono tabular-nums">{proj.remainingCredits} CR</b>
+                      <div className="min-w-0">
+                        <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Remaining</span>
+                        <b className="text-xs sm:text-sm font-extrabold text-amber-700 dark:text-amber-400 font-mono tabular-nums">{proj.remainingCredits} CR</b>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs block font-bold uppercase tracking-wider mb-1">Submitted Date</span>
-                        <b className="text-sm font-semibold font-mono tabular-nums text-foreground">
+                      <div className="min-w-0">
+                        <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Submitted Date</span>
+                        <b className="text-xs sm:text-sm font-semibold font-mono tabular-nums text-foreground">
                           {formatStudioDate(proj.createdAt)}
                         </b>
                       </div>
                     </div>
 
                     {/* Deliverable Assets List */}
-                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 border-t border-border/60 pt-4">
+                    <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-border/60 pt-4">
                       <div className="flex items-center justify-between mb-2.5">
-                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Deliverable Assets</span>
+                        <span className="text-2xs sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Deliverable Assets</span>
                         <span className="text-xs text-muted-foreground font-mono tabular-nums">{proj.selections.length} items</span>
                       </div>
                       <div className="divide-y divide-border/50 rounded-lg border border-border/60 bg-muted/20 text-xs overflow-hidden">
                         {proj.selections.map((item, i) => (
-                          <div key={i} className="flex items-center justify-between px-3.5 py-2 hover:bg-muted/40 transition-colors">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">{item.name}</span>
-                              <span className="text-muted-foreground font-mono tabular-nums">× {item.quantity}</span>
+                          <div key={i} className="flex items-center justify-between px-3.5 py-2 hover:bg-muted/40 transition-colors gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-medium text-foreground truncate">{item.name}</span>
+                              <span className="text-muted-foreground font-mono tabular-nums shrink-0">× {item.quantity}</span>
                             </div>
-                            <span className="font-semibold text-amber-700 dark:text-amber-400 font-mono tabular-nums">{item.credits} CR</span>
+                            <span className="font-semibold text-amber-700 dark:text-amber-400 font-mono tabular-nums shrink-0">{item.credits} CR</span>
                           </div>
                         ))}
                       </div>

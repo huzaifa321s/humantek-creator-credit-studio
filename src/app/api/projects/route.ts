@@ -13,6 +13,7 @@ import {
 } from '@/lib/store';
 import { computeOrderQuote } from '@/lib/pricing';
 import { buildProjectRecord } from '@/lib/orders';
+import { PACKAGES } from '@/lib/catalog';
 
 function formatDbProject(p: any): ProjectRecord {
   return {
@@ -137,15 +138,108 @@ export async function POST(req: NextRequest) {
       const randomDigits = Math.floor(1000 + Math.random() * 9000);
       const projectCode = `HT-${randomDigits}-${pkgCode}`;
 
-      const isWalletFunding = parsed.data.fundingSource === 'wallet' || parsed.data.packageId === 'studio-wallet';
-      const fundingSource = parsed.data.fundingSource || (isWalletFunding ? 'wallet' : 'package');
+      // A. Unpaid Project Submission (Manual Agency Review / PO approval requested)
+      if (parsed.data.paymentStatus === 'unpaid') {
+        const pkg = PACKAGES.find((p) => p.id === parsed.data.packageId) || {
+          name: parsed.data.packageId,
+          price: 0,
+          credits: 0,
+        };
 
+        const totalCreditsRequired = (parsed.data.selections || []).reduce(
+          (sum: number, s: any) => sum + (s.credits || 0),
+          0
+        );
+
+        const { data: insertedProj, error: insertErr } = await adminClient
+          .from('projects')
+          .insert({
+            id: parsed.data.projectId,
+            project_code: projectCode,
+            user_id: user.id,
+            package_id: parsed.data.packageId,
+            package_name: pkg.name,
+            funding_source: 'package',
+            status: 'pending_review',
+            payment_status: 'unpaid',
+            payment_method: 'unpaid',
+            package_price_usd: pkg.price,
+            package_credits: pkg.credits,
+            total_credits: totalCreditsRequired,
+            applied_wallet_credits: 0,
+            client_name: parsed.data.clientName,
+            channel_name: parsed.data.channelName || '',
+            email: user.email,
+            platform: parsed.data.platform || '',
+            style: parsed.data.style || '',
+            colors: parsed.data.colors || '',
+            instructions: parsed.data.instructions || '',
+            uploaded_files: parsed.data.uploadedFiles || [],
+            idempotency_key: parsed.data.projectId,
+          })
+          .select('*, project_items(*), project_additions(*)')
+          .single();
+
+        if (insertErr) {
+          console.error('Failed to insert unpaid project:', insertErr);
+          return NextResponse.json({ error: 'Failed to submit project for review' }, { status: 500 });
+        }
+
+        // Insert project items
+        if (parsed.data.selections && parsed.data.selections.length > 0) {
+          const itemsToInsert = parsed.data.selections.map((sel: any) => ({
+            project_id: parsed.data.projectId,
+            service_id: sel.id,
+            service_name: sel.name,
+            tier_level: sel.level,
+            quantity: sel.quantity,
+            unit_credits: Math.round(sel.credits / Math.max(1, sel.quantity)),
+            total_credits: sel.credits,
+          }));
+          await adminClient.from('project_items').insert(itemsToInsert);
+        }
+
+        // Insert additions
+        if (parsed.data.additions && parsed.data.additions.length > 0) {
+          const additionsToInsert = parsed.data.additions.map((addName: string) => ({
+            project_id: parsed.data.projectId,
+            name: addName,
+            unit_credits: 0,
+          }));
+          await adminClient.from('project_additions').insert(additionsToInsert);
+        }
+
+        // Record initial status history
+        await adminClient.from('project_status_history').insert({
+          project_id: parsed.data.projectId,
+          old_status: null,
+          new_status: 'pending_review',
+          changed_by: user.id,
+          reason: 'Client submitted brief for manual agency review (no upfront payment)',
+        });
+
+        const { data: freshProj } = await adminClient
+          .from('projects')
+          .select('*, project_items(*), project_additions(*)')
+          .eq('id', parsed.data.projectId)
+          .single();
+
+        return NextResponse.json({
+          success: true,
+          project: freshProj ? formatDbProject(freshProj) : null,
+          fundingSource: 'package',
+          notificationStatus: 'sent',
+          message: 'Project brief submitted for manual studio review!',
+        });
+      }
+
+      // B. Paid Settlement via Studio Wallet Credits
       const { data: rpcRes, error: rpcErr } = await adminClient.rpc('create_project_and_spend_credits', {
         p_project_id: parsed.data.projectId,
         p_project_code: projectCode,
         p_user_id: user.id,
         p_package_id: parsed.data.packageId,
-        p_funding_source: fundingSource,
+        p_funding_source: 'wallet',
         p_client_name: parsed.data.clientName,
         p_channel_name: parsed.data.channelName || '',
         p_email: user.email,
@@ -192,10 +286,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         project,
-        fundingSource,
+        fundingSource: parsed.data.fundingSource,
         newWalletBalance: rpcRes.new_wallet_balance,
         notificationStatus: 'sent',
-        message: fundingSource === 'wallet' ? 'Project launched successfully using Studio Wallet credits!' : undefined,
+        message: parsed.data.fundingSource === 'wallet' ? 'Project launched successfully using Studio Wallet credits!' : undefined,
       });
     } catch (err) {
       console.error('Error processing project in PostgreSQL pipeline:', err);

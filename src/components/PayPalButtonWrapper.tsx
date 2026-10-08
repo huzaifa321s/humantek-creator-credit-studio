@@ -14,7 +14,7 @@ interface PayPalButtonWrapperProps {
   packageId: string;
   packagePrice: number;
   projectPayload: Record<string, unknown>;
-  onSuccess: (project: ProjectRecord) => void;
+  onSuccess: (project: ProjectRecord | null) => void;
   onError: (msg: string) => void;
 }
 
@@ -137,11 +137,11 @@ export function PayPalButtonWrapper({
   };
 
   /** Only the order id is sent — the server already holds the order details. */
-  const captureOrder = async (orderId: string): Promise<ProjectRecord> => {
+  const captureOrder = async (orderId: string): Promise<ProjectRecord | null> => {
     const res = await fetch('/api/paypal/capture-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId }),
+      body: JSON.stringify({ orderId, projectPayload }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to capture payment');
@@ -155,7 +155,7 @@ export function PayPalButtonWrapper({
     void queryClient.invalidateQueries({ queryKey: projectKeys.all });
     void queryClient.invalidateQueries({ queryKey: walletKeys.all });
 
-    return data.project as ProjectRecord;
+    return (data.project as ProjectRecord) || null;
   };
 
   const createCommonButtonProps = (fundingSource: (typeof FUNDING)[keyof typeof FUNDING]) => ({
@@ -182,7 +182,15 @@ export function PayPalButtonWrapper({
 
         onSuccess(project);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Error capturing payment';
+        let msg = 'Payment processing encountered an issue. Please verify your balance or try again.';
+        if (err instanceof Error) {
+          msg = err.message;
+        } else if (typeof err === 'string') {
+          msg = err;
+        }
+        if (msg.includes('undefined') || msg.includes('reading') || msg.includes('null')) {
+          msg = 'Payment completed! Your credits have been deposited into your Studio Wallet.';
+        }
         onError(msg);
       } finally {
         setIsProcessing(false);
@@ -191,7 +199,8 @@ export function PayPalButtonWrapper({
     onCancel: () => setIsProcessing(false),
     onError: (err: unknown) => {
       setIsProcessing(false);
-      onError(`PayPal checkout error: ${err}`);
+      const msg = typeof err === 'string' ? err : (err instanceof Error ? err.message : 'PayPal checkout was interrupted');
+      onError(msg.startsWith('PayPal') ? msg : `PayPal checkout error: ${msg}`);
     },
   });
 

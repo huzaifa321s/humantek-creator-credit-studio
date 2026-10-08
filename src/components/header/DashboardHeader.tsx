@@ -132,7 +132,7 @@ export function DashboardHeader({
                   'border-r border-zinc-800/80 bg-zinc-950',
                   isSidebarCollapsed
                     ? 'w-(--sidebar-width-icon) justify-center px-1.5'
-                    : 'w-(--sidebar-width) px-3 sm:px-3.5'
+                    : 'w-auto md:w-(--sidebar-width) px-2 sm:px-3.5'
                 )
               : 'gap-2 sm:gap-2.5'
           )}

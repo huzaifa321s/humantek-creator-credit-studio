@@ -123,10 +123,11 @@ export default function RedeemCodePage() {
             type="button"
             variant="default"
             size="sm"
-            className="h-8 px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
+            className="h-8 px-2.5 sm:px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>New Project</span>
+            <span className="hidden min-[400px]:inline">New Project</span>
+            <span className="min-[400px]:hidden">New</span>
           </Button>
         </Link>
       }
@@ -195,15 +196,15 @@ export default function RedeemCodePage() {
                             }}
                           >
                             <InputOTPGroup>
-                              <InputOTPSlot index={0} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={1} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={2} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={0} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={1} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={2} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
                             </InputOTPGroup>
                             <InputOTPSeparator />
                             <InputOTPGroup>
-                              <InputOTPSlot index={3} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={4} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={5} className="size-9 sm:size-10 text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={3} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={4} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={5} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
                             </InputOTPGroup>
                           </InputOTP>
 
@@ -373,25 +374,25 @@ export default function RedeemCodePage() {
 
               {/* Luxury Card Preview */}
               <div className="lg:col-span-6">
-                <Card className="p-8 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-gradient-to-br from-amber-50/70 via-card to-amber-100/30 dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-xs flex flex-col justify-between min-h-[340px]">
+                <Card className="p-4 sm:p-6 md:p-8 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-gradient-to-br from-amber-50/70 via-card to-amber-100/30 dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-xs flex flex-col justify-between min-h-[300px] sm:min-h-[340px]">
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm uppercase tracking-wider text-amber-800 dark:text-amber-300 font-extrabold">
+                      <span className="text-xs sm:text-sm uppercase tracking-wider text-amber-800 dark:text-amber-300 font-extrabold">
                         Humantek Creator Pass
                       </span>
                       <Sparkles className="w-4 h-4 text-amber-600" />
                     </div>
 
-                    <div className="my-8">
+                    <div className="my-6 sm:my-8">
                       <CreditValue value={credits} size="hero" className="block" />
-                      <small className="text-muted-foreground text-sm block mt-1">
+                      <small className="text-muted-foreground text-xs sm:text-sm block mt-1">
                         Redeemable against any approved Humantek Art creative services.
                       </small>
                     </div>
 
                     {generatedCode ? (
-                      <div className="p-4 bg-amber-50/90 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 rounded-xl flex items-center justify-between mt-4 shadow-2xs">
-                        <span className="font-mono tabular-nums text-base font-bold text-amber-900 dark:text-amber-200 tracking-wider">
+                      <div className="p-3 sm:p-4 bg-amber-50/90 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 rounded-xl flex items-center justify-between gap-2 mt-4 shadow-2xs">
+                        <span className="font-mono tabular-nums text-sm sm:text-base font-bold text-amber-900 dark:text-amber-200 tracking-wider break-all">
                           {generatedCode}
                         </span>
                         <Button
@@ -399,7 +400,7 @@ export default function RedeemCodePage() {
                           variant="ghost"
                           size="sm"
                           onClick={copyToClipboard}
-                          className="h-9 px-3 text-amber-800 dark:text-amber-200 hover:text-amber-900 hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer rounded-lg"
+                          className="h-8 sm:h-9 px-2.5 sm:px-3 text-amber-800 dark:text-amber-200 hover:text-amber-900 hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer rounded-lg shrink-0"
                         >
                           {copied ? (
                             <Check className="w-4 h-4 text-emerald-600" />
@@ -409,14 +410,14 @@ export default function RedeemCodePage() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="p-4 bg-secondary/60 border border-border rounded-xl text-center text-sm text-muted-foreground">
+                      <div className="p-3.5 sm:p-4 bg-secondary/60 border border-border rounded-xl text-center text-xs sm:text-sm text-muted-foreground">
                         Configure parameters and click Generate to produce code.
                       </div>
                     )}
                   </div>
 
                   <Separator className="my-4 bg-border/70" />
-                  <div className="text-xs text-muted-foreground font-medium">
+                  <div className="text-2xs sm:text-xs text-muted-foreground font-medium break-words">
                     Recipient: <b className="text-foreground">{recipient || 'Open Creator Pass'}</b> · Single-use authorization only.
                   </div>
                 </Card>

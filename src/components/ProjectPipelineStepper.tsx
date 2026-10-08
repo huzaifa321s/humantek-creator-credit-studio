@@ -236,7 +236,7 @@ export function ProjectPipelineStepper({
                 {/* Stage Label directly under circle */}
                 <p
                   className={cn(
-                    'mt-2.5 text-xs sm:text-sm leading-tight transition-colors',
+                    'mt-2 text-xs md:text-sm leading-tight transition-colors',
                     isCurrent
                       ? 'font-bold text-foreground'
                       : isCompleted
@@ -244,7 +244,8 @@ export function ProjectPipelineStepper({
                       : 'font-medium text-muted-foreground'
                   )}
                 >
-                  {stage.name}
+                  <span className="hidden lg:inline">{stage.name}</span>
+                  <span className="inline lg:hidden">{stage.shortName}</span>
                 </p>
 
                 {/* Status indicator / Date (only shown for completed or active) */}

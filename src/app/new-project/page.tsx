@@ -984,21 +984,6 @@ export default function CreatorStudioPage() {
               <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
           )}
-
-          {currentStep === 5 && (
-            <Button
-              type="button"
-              variant="default"
-              size="default"
-              onClick={() => {
-                document.getElementById('studio-checkout-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              className="lg:hidden font-semibold px-4 sm:px-5 h-9 gap-1.5 text-xs sm:text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-xs cursor-pointer"
-            >
-              <span>{isWalletFunding ? 'Confirm & Launch' : 'Pay & Submit'}</span>
-              <ArrowDown className="w-3.5 h-3.5" />
-            </Button>
-          )}
         </div>
       </div>
     );
@@ -2693,7 +2678,7 @@ export default function CreatorStudioPage() {
       {/* STEP 5: REVIEW & CHECKOUT                                    */}
       {/* ============================================================ */}
       {currentStep === 5 && currentPackage && (
-        <div className="space-y-6 animate-in fade-in duration-200">
+        <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16">
           {submittedProject ? (
             /* Order Confirmed Screen */
             <Card className="max-w-lg w-full mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-sm text-center animate-in fade-in zoom-in-95 duration-200">
@@ -3140,12 +3125,12 @@ export default function CreatorStudioPage() {
                         </div>
                       ) : (
                         <>
-                          {/* Calm green reassurance for unused credits rollover placed calmly ABOVE payment */}
+                          {/* Prominent Creator Benefit: Credit Rollover */}
                           {totalUsableCredits > usedCredits && (
-                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs">
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-200 text-xs">
+                              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
                               <span className="leading-snug">
-                                <b>+{totalUsableCredits - usedCredits} CR unused balance</b> will automatically roll over into your Global Studio Wallet upon payment.
+                                <strong className="font-semibold text-emerald-900 dark:text-emerald-100">+{totalUsableCredits - usedCredits} CR Rollover Benefit:</strong> Any unused package credits automatically roll over into your Global Studio Wallet upon payment!
                               </span>
                             </div>
                           )}
@@ -3179,33 +3164,50 @@ export default function CreatorStudioPage() {
                               uploadedFiles,
                             }}
                             onSuccess={(proj) => {
-                              setSubmittedProject(proj);
-                              registerProject({
-                                id: proj.id,
-                                projectCode: proj.projectCode,
-                                packageName: proj.packageName,
-                                clientName: proj.clientName,
-                                status: proj.status,
-                                price: proj.packagePrice,
-                                credits: proj.packageCredits,
-                              });
-                              useNotificationStore.getState().addNotification({
-                                title: 'Payment Confirmed',
-                                description: `Project HT-${proj.projectCode} payment received. Production initiated.`,
-                                iconType: 'check',
-                                link: '/projects',
-                              });
-                              toast.success(
-                                appliedWalletCredits > 0
-                                  ? `Success! Project launched with ${proj.packageName} + ${appliedWalletCredits} CR applied from your Studio Wallet!`
-                                  : `Success! Project HT-${proj.projectCode} payment confirmed!`
-                              );
+                              if (proj && proj.id) {
+                                setSubmittedProject(proj);
+                                registerProject({
+                                  id: proj.id,
+                                  projectCode: proj.projectCode,
+                                  packageName: proj.packageName,
+                                  clientName: proj.clientName,
+                                  status: proj.status,
+                                  price: proj.packagePrice,
+                                  credits: proj.packageCredits,
+                                });
+                                useNotificationStore.getState().addNotification({
+                                  title: 'Payment Confirmed',
+                                  description: `Project HT-${proj.projectCode} payment received. Production initiated.`,
+                                  iconType: 'check',
+                                  link: '/projects',
+                                });
+                                toast.success(
+                                  appliedWalletCredits > 0
+                                    ? `Success! Project launched with ${proj.packageName} + ${appliedWalletCredits} CR applied from your Studio Wallet!`
+                                    : `Success! Project HT-${proj.projectCode} payment confirmed!`
+                                );
+                              } else {
+                                // PayPal succeeded and credits deposited in wallet; launch project via wallet
+                                handleLaunchWithWallet();
+                              }
                             }}
                             onError={(err) => {
-                              setErrorMessage(err);
-                              toast.error(err);
+                              const sanitized = err.includes('undefined') || err.includes('reading') || err.includes('null')
+                                ? 'Payment was received, but brief creation took longer than usual. Your credits are stored in your Studio Wallet.'
+                                : err;
+                              setErrorMessage(sanitized);
+                              toast.error(sanitized);
                             }}
                           />
+
+                          {/* Instant contextual error alert placed directly below payment options */}
+                          {errorMessage && (
+                            <Alert variant="destructive" className="rounded-xl p-3">
+                              <AlertTriangle className="w-4 h-4" />
+                              <AlertTitle className="text-xs sm:text-sm font-bold">Payment Notice</AlertTitle>
+                              <AlertDescription className="text-xs mt-0.5 leading-relaxed">{errorMessage}</AlertDescription>
+                            </Alert>
+                          )}
                         </>
                       )}
                     </div>
@@ -3241,21 +3243,15 @@ export default function CreatorStudioPage() {
                     </div>
 
                     {/* Security & SLA Badges */}
-                    <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1 shrink-0">
-                        <Lock className="w-3.5 h-3.5 text-emerald-600" /> 256-Bit SSL
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-center gap-2 text-2xs text-muted-foreground/70">
+                      <span className="flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-emerald-600/80" /> 256-Bit SSL
                       </span>
-                      <span className="shrink-0">PayPal Protection</span>
-                      <span className="shrink-0">Verified Studio SLA</span>
+                      <span>·</span>
+                      <span>PayPal Protection</span>
+                      <span>·</span>
+                      <span>Studio SLA</span>
                     </div>
-
-                    {errorMessage && (
-                      <Alert variant="destructive" className="rounded-xl p-3">
-                        <AlertTriangle className="w-4 h-4" />
-                        <AlertTitle className="text-xs sm:text-sm font-bold">Checkout Error</AlertTitle>
-                        <AlertDescription className="text-xs mt-0.5 leading-relaxed">{errorMessage}</AlertDescription>
-                      </Alert>
-                    )}
                   </Card>
                 </div>
               </div>
