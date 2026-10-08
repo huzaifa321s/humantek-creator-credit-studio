@@ -52,6 +52,7 @@ import {
   SidebarRail,
   SidebarInset,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { HorizontalStepper } from '@/components/HorizontalStepper';
 import { StudioBackground } from '@/components/StudioBackground';
@@ -84,6 +85,158 @@ interface StudioCardLayoutProps {
   hideStepper?: boolean;
 }
 
+interface StudioSidebarNavigationProps {
+  pathname: string;
+  user: any;
+}
+
+function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProps) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { setIsOpen: setChatOpen, unreadCounts, isOpen } = useStudioChat();
+  const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
+
+  const handleMessagesClick = () => {
+    // When clicking messages in mobile view, auto-close the dashboard sidebar sheet because the right messages drawer will open
+    if (isMobile) {
+      setChatOpen(true);
+      setOpenMobile(false);
+    } else {
+      setChatOpen(!isOpen);
+    }
+  };
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  return (
+    <SidebarContent className="p-1.5 space-y-1.5 flex-1">
+      {/* Main Studio Navigation Group */}
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-1">
+            {/* 1. My Projects */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={pathname === '/projects'}
+                onClick={handleNavClick}
+                render={<Link href="/projects" onClick={handleNavClick} />}
+                tooltip="My Projects"
+                className={cn(
+                  'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                  pathname === '/projects'
+                    ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                    : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                )}
+              >
+                <FolderKanban
+                  className={cn(
+                    'size-4 shrink-0 transition-colors',
+                    pathname === '/projects'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                  )}
+                />
+                <span className="truncate group-data-[collapsible=icon]:hidden">My Projects</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {/* 2. Messages */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={isOpen}
+                onClick={handleMessagesClick}
+                tooltip="Messages"
+                className={cn(
+                  'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                  isOpen
+                    ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                    : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                )}
+              >
+                <MessageSquare
+                  className={cn(
+                    'size-4 shrink-0 transition-colors',
+                    isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                  )}
+                />
+                <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
+                {totalUnreadChat > 0 && (
+                  <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+                    {totalUnreadChat}
+                  </SidebarMenuBadge>
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {/* 3. Promo Code */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={pathname === '/redeem-code'}
+                onClick={handleNavClick}
+                render={<Link href="/redeem-code" onClick={handleNavClick} />}
+                tooltip="Promo Code"
+                className={cn(
+                  'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                  pathname === '/redeem-code'
+                    ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                    : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                )}
+              >
+                <Ticket
+                  className={cn(
+                    'size-4 shrink-0 transition-colors',
+                    pathname === '/redeem-code'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                  )}
+                />
+                <span className="truncate group-data-[collapsible=icon]:hidden">Promo Code</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {/* 4. Management Console (Role-Aware for Admins & Staff) */}
+            {(user?.role === 'admin' ||
+              user?.role === 'producer' ||
+              user?.role === 'staff' ||
+              user?.email === 'dev@localhost' ||
+              user?.email === 'admin@humantek.art' ||
+              user?.email === 'huzaifa14321furqan@gmail.com' ||
+              pathname.startsWith('/management')) && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={pathname.startsWith('/management')}
+                  onClick={handleNavClick}
+                  render={<Link href="/management" onClick={handleNavClick} />}
+                  tooltip="Management"
+                  className={cn(
+                    'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                    pathname.startsWith('/management')
+                      ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                      : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                  )}
+                >
+                  <ShieldCheck
+                    className={cn(
+                      'size-4 shrink-0 transition-colors',
+                      pathname.startsWith('/management')
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                    )}
+                  />
+                  <span className="truncate group-data-[collapsible=icon]:hidden">Management</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  );
+}
+
 export function StudioCardLayout({
   children,
   mode = 'wizard',
@@ -109,8 +262,6 @@ export function StudioCardLayout({
 }: StudioCardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { setIsOpen: setChatOpen, unreadCounts, isOpen } = useStudioChat();
-  const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
   const handleBack = () => {
     if (onBack) {
@@ -164,126 +315,8 @@ export function StudioCardLayout({
         <div className="flex flex-1 w-full min-h-0 relative">
           {/* 2. Official Ultra-Compact shadcn Sidebar sitting below the top header */}
           <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar select-none top-13 sm:top-13.5 h-[calc(100vh-3.25rem)] sm:h-[calc(100vh-3.375rem)]">
-            {/* Sidebar Content with Categorized Groups */}
-            <SidebarContent className="p-1.5 space-y-1.5 flex-1">
-              {/* Main Studio Navigation Group */}
-              <SidebarGroup className="p-0">
-                <SidebarGroupContent>
-                  <SidebarMenu className="gap-1">
-                    {/* 1. My Projects */}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={pathname === '/projects'}
-                        render={<Link href="/projects" />}
-                        tooltip="My Projects"
-                        className={cn(
-                          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                          pathname === '/projects'
-                            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                        )}
-                      >
-                        <FolderKanban
-                          className={cn(
-                            'size-4 shrink-0 transition-colors',
-                            pathname === '/projects'
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                          )}
-                        />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">My Projects</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    {/* 2. Messages */}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={isOpen}
-                        onClick={() => setChatOpen(!isOpen)}
-                        tooltip="Messages"
-                        className={cn(
-                          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                          isOpen
-                            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                        )}
-                      >
-                        <MessageSquare
-                          className={cn(
-                            'size-4 shrink-0 transition-colors',
-                            isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                          )}
-                        />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
-                        {totalUnreadChat > 0 && (
-                          <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
-                            {totalUnreadChat}
-                          </SidebarMenuBadge>
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    {/* 3. Promo Code */}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={pathname === '/redeem-code'}
-                        render={<Link href="/redeem-code" />}
-                        tooltip="Promo Code"
-                        className={cn(
-                          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                          pathname === '/redeem-code'
-                            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                        )}
-                      >
-                        <Ticket
-                          className={cn(
-                            'size-4 shrink-0 transition-colors',
-                            pathname === '/redeem-code'
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                          )}
-                        />
-                        <span className="truncate group-data-[collapsible=icon]:hidden">Promo Code</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    {/* 4. Management Console (Role-Aware for Admins & Staff) */}
-                    {(user?.role === 'admin' ||
-                      user?.role === 'producer' ||
-                      user?.role === 'staff' ||
-                      user?.email === 'dev@localhost' ||
-                      user?.email === 'admin@humantek.art' ||
-                      user?.email === 'huzaifa14321furqan@gmail.com' ||
-                      pathname.startsWith('/management')) && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          isActive={pathname.startsWith('/management')}
-                          render={<Link href="/management" />}
-                          tooltip="Management"
-                          className={cn(
-                            'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                            pathname.startsWith('/management')
-                              ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                              : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                          )}
-                        >
-                          <ShieldCheck
-                            className={cn(
-                              'size-4 shrink-0 transition-colors',
-                              pathname.startsWith('/management')
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                            )}
-                          />
-                          <span className="truncate group-data-[collapsible=icon]:hidden">Management</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </SidebarContent>
+            {/* Sidebar Navigation Content with Mobile Auto-Close */}
+            <StudioSidebarNavigation pathname={pathname} user={user} />
             <SidebarRail />
           </Sidebar>
 

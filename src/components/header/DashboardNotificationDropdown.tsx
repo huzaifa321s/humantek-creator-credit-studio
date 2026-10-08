@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/empty';
 import { useNotificationStore, type StudioNotification, type NotificationIconType } from '@/lib/notificationStore';
 import { useStudioChat } from '@/lib/chatStore';
+import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
 const ICON_MAP: Record<NotificationIconType, React.ComponentType<{ className?: string }>> = {
@@ -43,6 +44,7 @@ const ICON_MAP: Record<NotificationIconType, React.ComponentType<{ className?: s
 
 export function DashboardNotificationDropdown() {
   const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { setIsOpen: setChatOpen } = useStudioChat();
   const { notifications, markAsRead, markAllAsRead } = useNotificationStore();
 
@@ -57,7 +59,13 @@ export function DashboardNotificationDropdown() {
     markAsRead(item.id);
     if (item.actionId === 'open-chat') {
       setChatOpen(true);
+      if (isMobile) {
+        setOpenMobile(false);
+      }
     } else if (item.link) {
+      if (isMobile) {
+        setOpenMobile(false);
+      }
       router.push(item.link);
     }
   };

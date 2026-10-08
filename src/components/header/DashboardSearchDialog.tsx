@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
 import { useStudioChat } from '@/lib/chatStore';
+import { useSidebar } from '@/components/ui/sidebar';
 
 interface DashboardSearchDialogProps {
   open: boolean;
@@ -46,6 +47,7 @@ export function DashboardSearchDialog({
   walletBalance = 0,
 }: DashboardSearchDialogProps) {
   const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { setIsOpen: setChatOpen } = useStudioChat();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -59,7 +61,10 @@ export function DashboardSearchDialog({
         description: 'See where each project is and how many credits it uses',
         icon: FolderKanban,
         keywords: ['projects', 'status', 'deliverables', 'history', 'milestones', 'progress'],
-        action: () => router.push('/projects'),
+        action: () => {
+          if (isMobile) setOpenMobile(false);
+          router.push('/projects');
+        },
       },
       {
         id: 'nav-wizard',
@@ -68,7 +73,10 @@ export function DashboardSearchDialog({
         description: 'Configure and start your next creative media project',
         icon: Sparkles,
         keywords: ['new', 'project', 'brief', 'create', 'order', 'package', 'home', 'services', 'wizard'],
-        action: () => router.push('/new-project'),
+        action: () => {
+          if (isMobile) setOpenMobile(false);
+          router.push('/new-project');
+        },
       },
       {
         id: 'nav-messages',
@@ -77,7 +85,10 @@ export function DashboardSearchDialog({
         description: 'Direct chat with our team for project updates, feedback, and questions',
         icon: MessageSquare,
         keywords: ['chat', 'messages', 'team', 'feedback', 'support', 'talk', 'producer'],
-        action: () => setChatOpen(true),
+        action: () => {
+          setChatOpen(true);
+          if (isMobile) setOpenMobile(false);
+        },
         badge: 'Chat',
       },
       {
@@ -87,7 +98,10 @@ export function DashboardSearchDialog({
         description: 'Enter promotional codes to claim instant studio credits',
         icon: Ticket,
         keywords: ['promo', 'code', 'redeem', 'voucher', 'coupon', 'discount', 'free credits'],
-        action: () => router.push('/redeem-code'),
+        action: () => {
+          if (isMobile) setOpenMobile(false);
+          router.push('/redeem-code');
+        },
       },
       {
         id: 'nav-management',
@@ -96,7 +110,10 @@ export function DashboardSearchDialog({
         description: 'Administrative workspace, client overview, and billing',
         icon: ShieldCheck,
         keywords: ['agency', 'management', 'admin', 'console', 'workspace', 'billing'],
-        action: () => router.push('/management'),
+        action: () => {
+          if (isMobile) setOpenMobile(false);
+          router.push('/management');
+        },
         badge: 'Admin',
       },
       {

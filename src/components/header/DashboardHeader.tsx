@@ -110,7 +110,7 @@ export function DashboardHeader({
       ? 'New Project'
       : backLabel.replace(/^Back to\s+/, ''));
 
-  const { state: sidebarState } = useSidebar();
+  const { state: sidebarState, isMobile, setOpenMobile } = useSidebar();
   const isSidebarCollapsed = mode === 'standalone' && sidebarState === 'collapsed';
 
   return (
@@ -290,7 +290,12 @@ export function DashboardHeader({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => setChatOpen(true)}
+                      onClick={() => {
+                        setChatOpen(true);
+                        if (isMobile) {
+                          setOpenMobile(false);
+                        }
+                      }}
                       aria-label="Messages"
                       className={cn(
                         "group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none",
