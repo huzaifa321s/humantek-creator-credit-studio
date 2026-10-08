@@ -347,7 +347,7 @@ export function StudioCardLayout({
 
         {/* Dedicated Horizontal Stepper Bar */}
         {!hideStepper && (
-          <div className="w-full border-b border-border/70 bg-background/95 backdrop-blur-md py-3 sm:py-3.5 px-4 sm:px-6 transition-all">
+          <div className="w-full border-b border-border/70 bg-background/95 backdrop-blur-md py-2.5 sm:py-3.5 px-3 sm:px-4 md:px-6 transition-all">
             <div className="w-full max-w-[1200px] mx-auto flex items-center justify-center">
               <div className="w-full max-w-[880px]">
                 <HorizontalStepper
@@ -369,7 +369,7 @@ export function StudioCardLayout({
         )}
 
         {/* Main Step / Page Content */}
-        <div className={cn("flex-1 p-3.5 sm:p-4 lg:p-5 w-full mx-auto relative z-10 max-w-[1200px]", footerActions && "pb-32 sm:pb-36 lg:pb-40")}>
+        <div className={cn("flex-1 p-3 sm:p-4 md:p-6 lg:p-8 w-full mx-auto relative z-10 max-w-[1200px]", footerActions && "pb-28 sm:pb-32 lg:pb-36")}>
           {children}
         </div>
 
@@ -377,7 +377,7 @@ export function StudioCardLayout({
         {footerActions && (
           <footer
             id="studio-footer-actions"
-            className="border-t border-border/80 px-4 py-3 sm:px-6 sm:py-3.5 bg-background/95 backdrop-blur-md shrink-0 sticky bottom-0 z-20"
+            className="border-t border-border/80 px-3.5 sm:px-6 py-2.5 sm:py-3.5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-md shrink-0 sticky bottom-0 z-20"
           >
             <div className="w-full mx-auto max-w-[1200px]">
               {footerActions}

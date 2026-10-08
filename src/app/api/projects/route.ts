@@ -37,6 +37,8 @@ function formatDbProject(p: any): ProjectRecord {
     colors: p.colors || '',
     instructions: p.instructions || '',
     uploadedFiles: Array.isArray(p.uploaded_files) ? p.uploaded_files : [],
+    lastMessageAt: p.last_message_at || null,
+    lastMessagePreview: p.last_message_preview || null,
     additions: (p.project_additions || []).map((a: any) => a.name),
     selections: (p.project_items || []).map((i: any) => ({
       id: i.service_id,
@@ -316,32 +318,20 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const { data: existing } = await adminClient.from('projects').select('status, payment_status').eq('id', id).single();
-    if (!existing) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
-
-    const updatePayload: Record<string, unknown> = {
-      status,
-      updated_at: new Date().toISOString(),
-    };
-    if (paymentStatus) {
-      updatePayload.payment_status = paymentStatus;
-    }
-
-    const { error: updateErr } = await adminClient.from('projects').update(updatePayload).eq('id', id);
-    if (updateErr) {
-      return NextResponse.json({ error: updateErr.message }, { status: 500 });
-    }
-
-    // Record status history
-    await adminClient.from('project_status_history').insert({
-      project_id: id,
-      old_status: existing.status,
-      new_status: status,
-      changed_by: user.id,
-      reason: `Status updated by admin to ${status}`,
+    const { data: rpcRes, error: rpcErr } = await adminClient.rpc('update_project_status', {
+      p_project_id: id,
+      p_new_status: status,
+      p_notes: `Status updated via admin console by ${user.email}`,
+      p_admin_id: user.id,
     });
+
+    if (rpcErr) {
+      return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+    }
+
+    if (paymentStatus) {
+      await adminClient.from('projects').update({ payment_status: paymentStatus }).eq('id', id);
+    }
 
     const { data: updatedProj } = await adminClient
       .from('projects')

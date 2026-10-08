@@ -43,10 +43,11 @@ export function ServiceCategoryTabs({
   // Responsively determine primary tabs count so tabs never get cut off
   const effectiveMax = useMemo(() => {
     if (typeof maxPrimary === 'number') return maxPrimary;
-    if (!mounted) return 5;
-    if (windowWidth < 640) return 3;
-    if (windowWidth < 1024) return 4;
-    if (windowWidth < 1440) return 5;
+    if (!mounted) return 2;
+    if (windowWidth < 520) return 2; // Under 520px (all mobile phones): 2 primary tabs + More dropdown fits perfectly without clipping
+    if (windowWidth < 768) return 3; // 520px - 767px (large phones in landscape, phablets)
+    if (windowWidth < 1024) return 4; // 768px - 1023px (tablets)
+    if (windowWidth < 1440) return 5; // 1024px - 1439px (small desktops/laptops)
     return 6;
   }, [maxPrimary, mounted, windowWidth]);
 
@@ -70,7 +71,7 @@ export function ServiceCategoryTabs({
       className={cn('w-full min-w-0', className)}
     >
       <div className="w-full min-w-0 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        <TabsList className="bg-secondary/60 p-1 rounded-xl h-10 inline-flex max-w-full gap-1 items-center flex-nowrap">
+        <TabsList className="bg-secondary/60 p-1 rounded-xl h-10 inline-flex w-auto min-w-0 justify-start gap-1 items-center flex-nowrap">
           {primaryTabs.map((cat) => {
             const count = categoryCounts?.[cat];
             const isSelectedTab = cat === 'Selected';
@@ -81,7 +82,7 @@ export function ServiceCategoryTabs({
                 key={cat}
                 value={cat}
                 className={cn(
-                  'rounded-lg text-xs sm:text-sm font-semibold px-3 h-8 shrink-0 transition-all select-none flex items-center gap-1.5 cursor-pointer',
+                  'rounded-lg text-xs sm:text-sm font-semibold px-2.5 sm:px-3 h-8 shrink-0 transition-all select-none flex items-center gap-1 sm:gap-1.5 cursor-pointer',
                   'data-active:bg-card data-active:text-foreground data-active:shadow-2xs',
                   hasSelectedItems
                     ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold border border-amber-500/40 shadow-xs'
@@ -92,7 +93,7 @@ export function ServiceCategoryTabs({
                 {count !== undefined && (
                   <span
                     className={cn(
-                      'text-xs px-2 py-0.5 rounded-full font-bold font-mono tabular-nums shrink-0',
+                      'text-2xs sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold font-mono tabular-nums shrink-0',
                       hasSelectedItems
                         ? 'bg-amber-500 text-white shadow-xs'
                         : 'bg-muted/70 text-muted-foreground'
@@ -110,15 +111,15 @@ export function ServiceCategoryTabs({
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  'inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-semibold px-2.5 h-8 shrink-0 gap-1.5 cursor-pointer transition-all border border-transparent select-none outline-none',
+                  'inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-semibold px-2 sm:px-2.5 h-8 shrink-0 gap-1 sm:gap-1.5 cursor-pointer transition-all border border-transparent select-none outline-none',
                   isMoreActive
                     ? 'bg-card text-foreground shadow-2xs font-bold ring-1 ring-border'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
                 )}
               >
-                <span>{isMoreActive ? activeCategory : 'More'}</span>
+                <span className="truncate max-w-[85px] sm:max-w-none">{isMoreActive ? activeCategory : 'More'}</span>
                 {isMoreActive && categoryCounts?.[activeCategory] !== undefined ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold font-mono tabular-nums bg-amber-500 text-white shadow-xs shrink-0">
+                  <span className="text-2xs sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold font-mono tabular-nums bg-amber-500 text-white shadow-xs shrink-0">
                     {categoryCounts[activeCategory]}
                   </span>
                 ) : (

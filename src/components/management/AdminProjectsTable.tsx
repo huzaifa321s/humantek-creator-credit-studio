@@ -607,6 +607,19 @@ export function AdminProjectsTable({
                 </div>
               </div>
 
+              {/* Latest Discussion Preview */}
+              {selectedProject.lastMessagePreview && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <MessageSquare className="w-4 h-4 text-amber-600" />
+                    <span>Latest Client Message</span>
+                  </span>
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground/90 leading-relaxed italic">
+                    &ldquo;{selectedProject.lastMessagePreview}&rdquo;
+                  </div>
+                </div>
+              )}
+
               {/* Creative Instructions */}
               <div className="space-y-1.5">
                 <span className="text-xs font-bold text-foreground flex items-center gap-1.5">

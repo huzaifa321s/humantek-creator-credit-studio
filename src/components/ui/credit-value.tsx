@@ -71,7 +71,7 @@ export function CreditValue({
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono font-bold tracking-tight border shadow-2xs select-none',
+          'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono font-bold tracking-tight border shadow-2xs select-none whitespace-nowrap shrink-0',
           'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30',
           sizeStyles.root,
           className

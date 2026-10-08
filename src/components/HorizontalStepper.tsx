@@ -121,18 +121,18 @@ export function HorizontalStepper({
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <StepperTrigger className="group gap-2.5 rounded-xl px-2.5 py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed" />
+                      <StepperTrigger className="group gap-1.5 sm:gap-2 md:gap-2.5 rounded-xl px-1.5 sm:px-2 md:px-2.5 py-1 sm:py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed" />
                     }
                   >
                     <StepperIndicator
                       className={cn(
-                        'size-8 rounded-full border-2 text-xs font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
+                        'size-7.5 sm:size-8 rounded-full border-2 text-xs font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
                         // Inactive / Upcoming step: crisp and legible
                         'border-border/90 bg-card text-foreground/80 font-bold group-hover:border-amber-400/60 group-hover:text-foreground',
                         // Completed step: clean emerald green with white checkmark
                         'data-[state=completed]:border-emerald-500 data-[state=completed]:bg-emerald-500 data-[state=completed]:text-white data-[state=completed]:shadow-xs data-[state=completed]:shadow-emerald-500/20',
                         // Active step: slightly larger size, rich gradient, elevated shadow & vibrant amber ring
-                        'data-[state=active]:size-9 data-[state=active]:scale-105 data-[state=active]:border-amber-500 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-500/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-500/25'
+                        'data-[state=active]:size-8.5 sm:data-[state=active]:size-9 data-[state=active]:scale-105 data-[state=active]:border-amber-500 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-500/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-500/25'
                       )}
                     >
                       {stepNum}
@@ -140,7 +140,7 @@ export function HorizontalStepper({
 
                     <StepperTitle className="whitespace-nowrap text-xs font-medium tracking-tight text-foreground/75 group-hover:text-foreground transition-colors duration-200 data-[state=completed]:font-semibold data-[state=completed]:text-foreground/90 data-[state=active]:font-extrabold data-[state=active]:text-foreground">
                       <span className="hidden xl:inline">{step.name}</span>
-                      <span className="inline xl:hidden">{step.shortName}</span>
+                      <span className="hidden md:inline xl:hidden">{step.shortName}</span>
                     </StepperTitle>
                   </TooltipTrigger>
 
@@ -238,7 +238,7 @@ export function HorizontalStepper({
 
                 {/* Substantial, high-contrast connecting line (3px height with rounded caps) */}
                 {stepNum < STUDIO_STEPS.length && (
-                  <StepperSeparator className="mx-2 min-w-8 sm:min-w-10 h-[3px] rounded-full bg-border transition-colors duration-300 group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-emerald-500/20" />
+                  <StepperSeparator className="mx-1 sm:mx-1.5 md:mx-2 min-w-3 sm:min-w-4 md:min-w-6 lg:min-w-10 h-[3px] rounded-full bg-border transition-colors duration-300 group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-emerald-500/20" />
                 )}
               </StepperItem>
             );
@@ -247,22 +247,22 @@ export function HorizontalStepper({
       </Stepper>
 
       {/* Mobile Streamlined View (< 640px) */}
-      <div className="flex sm:hidden flex-col items-center justify-center w-full max-w-xs mx-auto gap-2 py-0.5 select-none">
+      <div className="flex sm:hidden flex-col items-center justify-center w-full max-w-md mx-auto gap-2.5 py-0.5 select-none">
         <div className="flex items-center justify-between w-full px-0.5">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white text-xs font-bold font-mono tabular-nums shadow-xs shadow-amber-500/30">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white text-xs font-bold font-mono tabular-nums shadow-xs shadow-amber-500/30 shrink-0">
               {currentStep}
             </span>
-            <span className="text-xs font-bold text-foreground">
+            <span className="text-xs font-bold text-foreground truncate">
               {STUDIO_STEPS[currentStep - 1]?.name}
             </span>
           </div>
-          <span className="text-xs font-semibold text-muted-foreground font-mono tabular-nums">
+          <span className="text-xs font-semibold text-muted-foreground font-mono tabular-nums shrink-0 ml-2">
             {STUDIO_STEPS[currentStep - 1]?.stepText}
           </span>
         </div>
 
-        {/* 5-segment micro progress track */}
+        {/* 5-segment micro progress track with accessible tap target */}
         <div className="grid grid-cols-5 gap-1.5 w-full">
           {STUDIO_STEPS.map((s) => {
             const isDone = s.number < currentStep;
@@ -275,16 +275,20 @@ export function HorizontalStepper({
                 type="button"
                 disabled={!accessible}
                 onClick={() => accessible && onSelectStep(s.number)}
-                className={cn(
-                  'h-1.5 rounded-full transition-all duration-300',
-                  isDone
-                    ? 'bg-emerald-500 shadow-2xs'
-                    : isCurr
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 ring-2 ring-amber-500/25 shadow-xs'
-                    : 'bg-border dark:bg-border/80'
-                )}
+                className="py-1.5 -my-1.5 group flex items-center cursor-pointer disabled:cursor-not-allowed w-full outline-none"
                 aria-label={`Go to Step ${s.number}: ${s.name}`}
-              />
+              >
+                <span
+                  className={cn(
+                    'h-2 w-full rounded-full transition-all duration-300 block',
+                    isDone
+                      ? 'bg-emerald-500 shadow-2xs'
+                      : isCurr
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 ring-2 ring-amber-500/25 shadow-xs'
+                      : 'bg-border dark:bg-border/80 group-hover:bg-muted-foreground/40'
+                  )}
+                />
+              </button>
             );
           })}
         </div>

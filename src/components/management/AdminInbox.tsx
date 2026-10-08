@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ProjectRecord } from '@/types';
 import { useStudioChat, ChatMessage, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,8 +36,8 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   const {
     projectId,
     isGlobal,
-    messages,
-    sendMessage,
+    messages: storeMessages,
+    sendMessage: sendStoreMessage,
     toggleReaction,
     setActiveProjectId,
     unreadCounts,
@@ -57,20 +58,59 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
     }
   }, [initialProjectId, projectId, setActiveProjectId]);
 
-  // Mark messages as read when active
-  useEffect(() => {
-    markAllAsRead();
-  }, [projectId, markAllAsRead]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
-
   const activeProject = useMemo(
     () => projects.find((p) => p.id === projectId),
     [projects, projectId]
   );
+
+  // Hook into real Supabase doorbell realtime transport & messages
+  const {
+    messages: dbMessages,
+    lastReadId,
+    sendMessage: sendDbMessage,
+    markAsRead,
+  } = useProjectChat({ projectId: isGlobal ? null : projectId });
+
+  // Mark messages as read when active
+  useEffect(() => {
+    if (!isGlobal && projectId) {
+      markAsRead();
+    } else {
+      markAllAsRead();
+    }
+  }, [projectId, isGlobal, markAsRead, markAllAsRead, dbMessages]);
+
+  const displayMessages: ChatMessage[] = useMemo(() => {
+    if (isGlobal || !projectId) {
+      return storeMessages;
+    }
+    if (dbMessages && dbMessages.length > 0) {
+      return dbMessages.map((m) => ({
+        id: String(m.id),
+        projectId: m.projectId,
+        sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
+        senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'Client'),
+        senderRole: m.sender?.role === 'admin' ? 'Lead Creative Producer' : 'Client',
+        content: m.body,
+        timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isRead: m.id <= lastReadId,
+        attachments: (m.attachments || []).map((att) => ({
+          id: att.id,
+          name: att.fileName,
+          size: `${Math.round(att.fileSize / 1024)} KB`,
+          type: att.mimeType.startsWith('image/') ? 'image' : 'file',
+          url: att.url || '',
+          previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
+        })),
+      }));
+    }
+    return storeMessages;
+  }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [displayMessages.length]);
 
   const filteredProjects = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -84,16 +124,25 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
     );
   }, [projects, searchQuery]);
 
-  const handleSendReply = (e?: React.FormEvent) => {
+  const handleSendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const text = replyText.trim();
     if (!text || isSending) return;
 
     setIsSending(true);
-    sendMessage(text);
-    setReplyText('');
-    setIsSending(false);
-    toast.success('Reply sent to client');
+    try {
+      if (!isGlobal && projectId) {
+        await sendDbMessage(text);
+      } else {
+        sendStoreMessage(text);
+      }
+      setReplyText('');
+      toast.success('Reply sent to client');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send reply');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -186,14 +235,21 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                     <span className="text-xs font-bold text-foreground truncate">
                       {p.channelName || p.clientName}
                     </span>
-                    <span className="font-mono text-2xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-300/60 dark:border-amber-800/60 shrink-0">
-                      {p.projectCode}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {p.lastMessageAt && (
+                        <span className="text-3xs text-muted-foreground font-mono">
+                          {new Date(p.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                      <span className="font-mono text-2xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-300/60 dark:border-amber-800/60">
+                        {p.projectCode}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-2 mt-1">
                     <span className="text-2xs text-muted-foreground truncate">
-                      {p.clientName} · {p.packageName}
+                      {p.lastMessagePreview || `${p.clientName} · ${p.packageName}`}
                     </span>
 
                     {unread > 0 && (
@@ -261,7 +317,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
 
         {/* Message Thread */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {messages.length === 0 ? (
+          {displayMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground space-y-2">
               <MessageSquare className="w-8 h-8 text-muted-foreground/60" />
               <p className="text-sm font-semibold text-foreground">No messages in this channel</p>
@@ -270,7 +326,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
               </p>
             </div>
           ) : (
-            messages.map((msg) => (
+            displayMessages.map((msg) => (
               <ChatMessageItem
                 key={msg.id}
                 message={msg}

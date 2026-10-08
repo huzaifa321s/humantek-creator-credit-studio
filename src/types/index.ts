@@ -94,6 +94,8 @@ export interface ProjectRecord {
     credits: number;
   }[];
   uploadedFiles: UploadedFile[];
+  lastMessageAt?: string | null;
+  lastMessagePreview?: string | null;
   createdAt: string;
 }
 

@@ -118,7 +118,7 @@ export function DashboardHeader({
       <header
         className={cn(
           'dark h-13 sm:h-13.5 border-b border-zinc-800/80 flex items-center shrink-0 bg-zinc-950/95 text-zinc-100 backdrop-blur-md sticky top-0 z-40 shadow-xs',
-          mode === 'standalone' ? 'px-0' : 'px-3.5 sm:px-5 lg:px-6 justify-between'
+          mode === 'standalone' ? 'px-0' : 'px-2.5 sm:px-5 lg:px-6 justify-between'
         )}
       >
         {/* =================================================================== */}
@@ -228,7 +228,10 @@ export function DashboardHeader({
         {/* Center Section: Interactive Command Search Pill (hidden in auth)    */}
         {/* =================================================================== */}
         {mode !== 'auth' ? (
-          <div className="flex items-center justify-center flex-1 px-2 sm:px-4 max-w-sm mx-auto">
+          <div className={cn(
+            "items-center justify-center max-w-sm mx-auto",
+            mode === 'wizard' ? "hidden sm:flex flex-1 px-2 sm:px-4" : "flex flex-1 px-2 sm:px-4"
+          )}>
             {/* Desktop & Tablet Search Bar Pill */}
             <Button
               type="button"
@@ -246,17 +249,19 @@ export function DashboardHeader({
               </Kbd>
             </Button>
 
-            {/* Mobile Search Icon Button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setSearchOpen(true)}
-              aria-label="Search"
-              className="sm:hidden size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
-            >
-              <Search className="size-4" />
-            </Button>
+            {/* Mobile Search Icon Button (Standalone mode only; omitted in wizard to make room for scope pill) */}
+            {mode !== 'wizard' && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search"
+                className="sm:hidden size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer"
+              >
+                <Search className="size-4" />
+              </Button>
+            )}
           </div>
         ) : (
           <div className="flex-1" />
@@ -265,7 +270,7 @@ export function DashboardHeader({
         {/* =================================================================== */}
         {/* Right Section: Producer Chat, Notifications, Balance & User Profile */}
         {/* =================================================================== */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {mode === 'auth' ? (
             <div className="flex items-center gap-3">
               <a
@@ -287,7 +292,10 @@ export function DashboardHeader({
                       size="icon-sm"
                       onClick={() => setChatOpen(true)}
                       aria-label="Messages"
-                      className="group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none"
+                      className={cn(
+                        "group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none",
+                        mode === 'wizard' ? "hidden min-[380px]:inline-flex" : ""
+                      )}
                     />
                   }
                 >

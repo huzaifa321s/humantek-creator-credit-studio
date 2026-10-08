@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useStudioChat, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META } from '@/lib/chatStore';
+import { useStudioChat, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
+import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
+import { toast } from 'sonner';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInputBar } from './ChatInputBar';
 import { ChatAttachmentModal } from './ChatAttachmentModal';
@@ -38,12 +40,12 @@ export function ChatFullView() {
     isGlobal,
     projectMeta,
     projectMessages,
-    messages,
+    messages: storeMessages,
     agent,
     isTyping,
     unreadCounts,
     setActiveProjectId,
-    sendMessage,
+    sendMessage: sendStoreMessage,
     toggleReaction,
     markAllAsRead,
   } = useStudioChat();
@@ -58,6 +60,14 @@ export function ChatFullView() {
     () => projects.find((p) => p.id === projectId),
     [projects, projectId]
   );
+
+  // Hook into real Supabase doorbell realtime transport & messages
+  const {
+    messages: dbMessages,
+    lastReadId,
+    sendMessage: sendDbMessage,
+    markAsRead,
+  } = useProjectChat({ projectId: isGlobal ? null : projectId });
 
   const displayMeta = isGlobal
     ? GLOBAL_META
@@ -75,12 +85,56 @@ export function ChatFullView() {
 
   // Mark active project as read
   useEffect(() => {
-    markAllAsRead();
-  }, [projectId, markAllAsRead]);
+    if (!isGlobal && projectId) {
+      markAsRead();
+    } else {
+      markAllAsRead();
+    }
+  }, [projectId, isGlobal, markAsRead, markAllAsRead, dbMessages]);
+
+  const displayMessages: ChatMessage[] = useMemo(() => {
+    if (isGlobal || !projectId) {
+      return storeMessages;
+    }
+    if (dbMessages && dbMessages.length > 0) {
+      return dbMessages.map((m) => ({
+        id: String(m.id),
+        projectId: m.projectId,
+        sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
+        senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
+        senderRole: m.sender?.role === 'admin' ? 'Senior Creative Producer' : 'Creator',
+        content: m.body,
+        timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isRead: m.id <= lastReadId,
+        attachments: (m.attachments || []).map((att) => ({
+          id: att.id,
+          name: att.fileName,
+          size: `${Math.round(att.fileSize / 1024)} KB`,
+          type: att.mimeType.startsWith('image/') ? 'image' : 'file',
+          url: att.url || '',
+          previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
+        })),
+      }));
+    }
+    return storeMessages;
+  }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
+
+  const handleSendMessage = async (text: string, attachments?: ChatAttachment[]) => {
+    if (!isGlobal && projectId) {
+      try {
+        await sendDbMessage(text);
+        return;
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to send message');
+        return;
+      }
+    }
+    sendStoreMessage(text, attachments);
+  };
 
   // Extract unique attachments from the currently active project chat
   const displayAttachments = useMemo(() => {
-    const rawAttachments: ChatAttachment[] = messages.flatMap((m) => m.attachments || []);
+    const rawAttachments: ChatAttachment[] = displayMessages.flatMap((m) => m.attachments || []);
     const source = rawAttachments.length > 0 ? rawAttachments : SAMPLE_REFERENCES;
 
     const seen = new Set<string>();
@@ -93,7 +147,7 @@ export function ChatFullView() {
       }
     }
     return unique;
-  }, [messages]);
+  }, [displayMessages]);
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -327,7 +381,7 @@ export function ChatFullView() {
             {/* Chat Messages Body */}
             <div className="flex-1 min-h-0 bg-card/60">
               <ChatMessageList
-                messages={messages}
+                messages={displayMessages}
                 isTyping={isTyping}
                 agentName={agent.name}
                 isGlobal={isGlobal}
@@ -345,7 +399,7 @@ export function ChatFullView() {
             {/* Input Bar Footer */}
             <div className="px-4 py-3 border-t border-border/70 bg-card/90 shrink-0">
               <ChatInputBar
-                onSendMessage={sendMessage}
+                onSendMessage={handleSendMessage}
                 isTyping={isTyping}
                 isGlobal={isGlobal}
                 activeProjectCode={isGlobal ? undefined : displayMeta.projectCode}

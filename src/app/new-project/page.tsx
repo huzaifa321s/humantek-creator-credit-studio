@@ -873,11 +873,12 @@ export default function CreatorStudioPage() {
 
   // Determine top right badge on header while in wizard: "Scope: 608 / 660 CR"
   const headerBadge = currentPackage ? (
-    <div className="flex items-center gap-1.5 px-3 h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-xs font-medium shadow-2xs select-none">
+    <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-7 sm:h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-2xs sm:text-xs font-medium shadow-2xs select-none shrink-0">
       <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-      <span className="text-zinc-300 font-medium">Scope:</span>
+      <span className="text-zinc-300 font-medium hidden md:inline">Scope:</span>
       <span className="font-bold text-amber-300 tabular-nums font-mono">
-        {remainingCredits} / {totalPackageCredits} CR
+        <span className="hidden sm:inline">{remainingCredits} / {totalPackageCredits} CR</span>
+        <span className="sm:hidden">{remainingCredits} CR</span>
       </span>
     </div>
   ) : null;
@@ -887,7 +888,7 @@ export default function CreatorStudioPage() {
     if (submittedProject) return null;
 
     return (
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3 sm:gap-4 w-full">
         {/* Left Side: Back button or status info */}
         <div>
           {currentStep > 1 ? (
@@ -896,7 +897,7 @@ export default function CreatorStudioPage() {
               variant="outline"
               size="default"
               onClick={() => goToStep(currentStep - 1)}
-              className="gap-1.5 text-xs font-semibold cursor-pointer"
+              className="gap-1.5 text-xs font-semibold cursor-pointer h-9 px-3.5 sm:px-4"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back
             </Button>
@@ -919,9 +920,9 @@ export default function CreatorStudioPage() {
         </div>
 
         {/* Right Side: Primary Next Button matching reference image */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto sm:ml-0">
           {currentStep === 1 && (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5">
               {!isStep1Valid && (
                 <span className="text-xs text-muted-foreground hidden md:inline">
                   Select wallet or package to continue
@@ -934,10 +935,10 @@ export default function CreatorStudioPage() {
                 disabled={!isStep1Valid}
                 onClick={() => goToStep(2)}
                 title={!isStep1Valid ? 'Select wallet or package to continue' : 'Continue to Step 2: Pick your services'}
-                className={cn('font-semibold px-6 gap-2', !isStep1Valid && 'opacity-60 cursor-not-allowed')}
+                className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm', !isStep1Valid && 'opacity-60 cursor-not-allowed')}
               >
                 <span>Next</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Button>
             </div>
           )}
@@ -949,10 +950,10 @@ export default function CreatorStudioPage() {
               size="default"
               aria-disabled={!isStep2Valid}
               onClick={() => goToStep(3)}
-              className={cn('font-semibold px-6 gap-2', !isStep2Valid && 'opacity-60')}
+              className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm', !isStep2Valid && 'opacity-60')}
             >
               <span>Next</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
           )}
 
@@ -963,10 +964,10 @@ export default function CreatorStudioPage() {
               size="default"
               aria-disabled={!isStep3Valid}
               onClick={() => goToStep(4)}
-              className={cn('font-semibold px-6 gap-2', !isStep3Valid && 'opacity-60')}
+              className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm', !isStep3Valid && 'opacity-60')}
             >
               <span>Next</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
           )}
 
@@ -977,10 +978,25 @@ export default function CreatorStudioPage() {
               size="default"
               aria-disabled={!isStep4Valid}
               onClick={() => goToStep(5)}
-              className={cn('font-semibold px-6 gap-2', !isStep4Valid && 'opacity-60')}
+              className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm', !isStep4Valid && 'opacity-60')}
             >
               <span>Review & Pay</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </Button>
+          )}
+
+          {currentStep === 5 && (
+            <Button
+              type="button"
+              variant="default"
+              size="default"
+              onClick={() => {
+                document.getElementById('studio-checkout-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="lg:hidden font-semibold px-4 sm:px-5 h-9 gap-1.5 text-xs sm:text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-xs cursor-pointer"
+            >
+              <span>{isWalletFunding ? 'Confirm & Launch' : 'Pay & Submit'}</span>
+              <ArrowDown className="w-3.5 h-3.5" />
             </Button>
           )}
         </div>
@@ -1576,11 +1592,11 @@ export default function CreatorStudioPage() {
                         )}
                       </div>
 
-                      {/* Card Bottom Drawer (Ultra-Compact Single-Row Action Bar) */}
+                      {/* Card Bottom Drawer (Ultra-Compact Responsive Action Bar) */}
                       {isSelected && choice && (
-                        <div className="bg-secondary/40 border-t border-border/80 px-3.5 py-2.5 flex items-center justify-between gap-2.5">
+                        <div className="bg-secondary/40 border-t border-border/80 px-3 sm:px-3.5 py-2 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-2.5">
                           {/* Tier Selector */}
-                          <div className="flex-1 min-w-0 max-w-[170px] sm:max-w-[200px]">
+                          <div className="flex-1 min-w-[125px] sm:max-w-[200px]">
                             <Select
                               value={choice.level === 2 ? 'elite' : choice.level === 1 ? 'standard' : 'basic'}
                               onValueChange={(val) => {
@@ -1590,7 +1606,7 @@ export default function CreatorStudioPage() {
                                 }
                               }}
                             >
-                              <SelectTrigger className="w-full h-8 text-xs font-semibold bg-card rounded-lg border-border py-0 px-2.5 shadow-2xs">
+                              <SelectTrigger className="w-full h-8 text-xs font-semibold bg-card rounded-lg border-border py-0 px-2 sm:px-2.5 shadow-2xs">
                                 <SelectValue placeholder="Tier">
                                   {TIER_NAMES[choice.level]} ({svc.prices[choice.level]} CR)
                                 </SelectValue>
@@ -1609,40 +1625,41 @@ export default function CreatorStudioPage() {
                             </Select>
                           </div>
 
-                          {/* Quantity — ReUI Number Field with Clamped 1-20 range */}
-                          <NumberField
-                            size="sm"
-                            min={1}
-                            max={20}
-                            value={currentQty}
-                            onValueChange={(val) => updateServiceQuantity(svc.id, Math.max(1, Math.min(20, val ?? 1)))}
-                            className="w-auto shrink-0 gap-0"
-                            aria-label={`${svc.name} quantity`}
-                          >
-                            <NumberFieldGroup className="w-[84px] rounded-lg border-border/80 bg-card shadow-2xs">
-                              <NumberFieldDecrement className="text-muted-foreground hover:text-foreground disabled:opacity-30" />
-                              <NumberFieldInput className="px-0 text-xs font-bold" />
-                              <NumberFieldIncrement className="text-muted-foreground hover:text-foreground" />
-                            </NumberFieldGroup>
-                          </NumberField>
-
-                          {/* Quick Remove Action Button */}
-                          <AlertDialog>
-                            <AlertDialogTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 px-2 shrink-0 rounded-lg transition-colors ml-auto gap-1"
-                                  aria-label="Remove from scope"
-                                />
-                              }
+                          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
+                            {/* Quantity — ReUI Number Field with Clamped 1-20 range */}
+                            <NumberField
+                              size="sm"
+                              min={1}
+                              max={20}
+                              value={currentQty}
+                              onValueChange={(val) => updateServiceQuantity(svc.id, Math.max(1, Math.min(20, val ?? 1)))}
+                              className="w-auto shrink-0 gap-0"
+                              aria-label={`${svc.name} quantity`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span className="text-xs font-semibold hidden sm:inline">Remove</span>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent size="sm">
+                              <NumberFieldGroup className="w-[78px] sm:w-[84px] rounded-lg border-border/80 bg-card shadow-2xs">
+                                <NumberFieldDecrement className="text-muted-foreground hover:text-foreground disabled:opacity-30" />
+                                <NumberFieldInput className="px-0 text-xs font-bold" />
+                                <NumberFieldIncrement className="text-muted-foreground hover:text-foreground" />
+                              </NumberFieldGroup>
+                            </NumberField>
+
+                            {/* Quick Remove Action Button */}
+                            <AlertDialog>
+                              <AlertDialogTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2 shrink-0 rounded-lg transition-colors gap-1 cursor-pointer"
+                                    aria-label="Remove from scope"
+                                  />
+                                }
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="text-xs font-semibold hidden md:inline">Remove</span>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent size="sm">
                               <AlertDialogHeader>
                                 <AlertDialogMedia className="bg-destructive/10 text-destructive">
                                   <Trash2 />
@@ -1661,6 +1678,7 @@ export default function CreatorStudioPage() {
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
+                      </div>
                       )}
                     </Card>
                   );
@@ -1730,7 +1748,7 @@ export default function CreatorStudioPage() {
 
           {/* Mobile Floating Cart Summary Pill (Only visible on < 1024px screens when services are selected) */}
           {selectedEntries.length > 0 && (
-            <div className="lg:hidden fixed bottom-18 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-none">
+            <div className="lg:hidden fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-none">
               <div className="flex items-center justify-between p-2.5 pl-3.5 rounded-xl bg-zinc-950/95 dark:bg-zinc-900/95 text-white border border-amber-500/40 shadow-xl backdrop-blur-md pointer-events-auto">
                 <div className="flex items-center gap-2 min-w-0">
                   <Coins className="w-4 h-4 text-amber-400 shrink-0" />
@@ -1973,8 +1991,8 @@ export default function CreatorStudioPage() {
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         Every creative service includes 2–3 structured revision rounds within the approved direction. Modifications after approvals or outside scope adhere to the following rates:
                       </p>
-                      <div className="rounded-xl border border-border/70 overflow-hidden bg-background">
-                        <Table className="w-full text-xs">
+                      <div className="rounded-xl border border-border/70 overflow-hidden overflow-x-auto bg-background [scrollbar-width:thin]">
+                        <Table className="w-full min-w-[340px] text-xs">
                           <TableHeader className="bg-muted/40">
                             <TableRow className="border-b border-border/70 hover:bg-transparent">
                               <TableHead className="font-semibold text-foreground py-2.5 px-3.5">Modification Scope</TableHead>
@@ -2453,10 +2471,10 @@ export default function CreatorStudioPage() {
                   onDragLeave={() => setIsDragOver(false)}
                   onDrop={handleFileDrop}
                   data-dragging={isDragOver || undefined}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-50/40 focus-visible:ring-2 focus-visible:ring-amber-500/40 data-[dragging]:border-amber-500 data-[dragging]:bg-amber-50/70 data-[dragging]:text-amber-700 dark:hover:bg-amber-500/5 dark:data-[dragging]:bg-amber-500/10"
+                  className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground text-center sm:text-left cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-50/40 focus-visible:ring-2 focus-visible:ring-amber-500/40 data-[dragging]:border-amber-500 data-[dragging]:bg-amber-50/70 data-[dragging]:text-amber-700 dark:hover:bg-amber-500/5 dark:data-[dragging]:bg-amber-500/10"
                 >
                   <ImageIcon className="size-3.5 shrink-0 text-amber-600" />
-                  <span>
+                  <span className="leading-snug">
                     <span className="font-semibold text-foreground">Drag &amp; drop</span>{' '}
                     images here, or click to browse
                   </span>
@@ -2542,7 +2560,7 @@ export default function CreatorStudioPage() {
                       setRedeemCodeInput(e.target.value.toUpperCase());
                       setRedeemCodeAttached(false);
                     }}
-                    className="h-9 text-xs font-mono rounded-lg bg-card"
+                    className="h-9 text-xs font-mono rounded-lg bg-card flex-1 min-w-0"
                   />
                   <Button
                     type="button"
@@ -2841,19 +2859,19 @@ export default function CreatorStudioPage() {
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-secondary/40 border border-border/60 text-center">
-                      <div>
-                        <span className="text-xs text-muted-foreground uppercase font-bold block">Selected Plan</span>
-                        <b className="text-xs sm:text-sm text-foreground mt-0.5 block truncate">{currentPackage.name}</b>
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2 p-2.5 sm:p-3 rounded-lg bg-secondary/40 border border-border/60 text-center">
+                      <div className="min-w-0">
+                        <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">Selected Plan</span>
+                        <b className="text-2xs sm:text-sm text-foreground mt-0.5 block truncate">{currentPackage.name}</b>
                       </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground uppercase font-bold block">Package Value</span>
-                        <b className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 font-black mt-0.5 block font-mono tabular-nums">
+                      <div className="min-w-0">
+                        <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">Package Value</span>
+                        <b className="text-2xs sm:text-sm text-amber-600 dark:text-amber-400 font-black mt-0.5 block font-mono tabular-nums truncate">
                           ${currentPackage.price.toLocaleString()} USD
                         </b>
                       </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground uppercase font-bold block">Total Credits</span>
+                      <div className="min-w-0">
+                        <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">Total Credits</span>
                         <div className="mt-0.5 flex items-center justify-center">
                           <CreditValue value={totalPackageCredits} size="sm" />
                         </div>
@@ -2863,14 +2881,14 @@ export default function CreatorStudioPage() {
 
                   {/* Configured Assets / Deliverables List */}
                   <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
-                    <CardHeader className="p-4 sm:p-5 pb-2.5 border-b border-border/60 flex flex-row items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <CardHeader className="p-4 sm:p-5 pb-2.5 border-b border-border/60 flex flex-row items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <Layers className="w-4 h-4 text-amber-600 shrink-0" />
-                        <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
-                          Configured Deliverables ({selectedEntries.length})
+                        <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider truncate">
+                          Deliverables ({selectedEntries.length})
                         </CardTitle>
                       </div>
-                      <CreditValue value={usedCredits} size="sm" variant="pill" suffix="CR Used" />
+                      <CreditValue value={usedCredits} size="sm" variant="pill" suffix="CR Used" className="shrink-0" />
                     </CardHeader>
 
                     <CardContent className="p-4 sm:p-5 pt-3">
@@ -2908,7 +2926,7 @@ export default function CreatorStudioPage() {
                             <TableBody>
                               {selectedEntries.map(({ service, choice, credits }) => (
                                 <TableRow key={service.id} className="hover:bg-secondary/30 border-b border-border/40">
-                                  <TableCell className="py-2 text-xs font-bold text-foreground">
+                                  <TableCell className="py-2 text-xs font-bold text-foreground max-w-[130px] sm:max-w-none truncate sm:whitespace-normal">
                                     {service.name}
                                   </TableCell>
                                   <TableCell className="py-2 text-xs text-muted-foreground">
@@ -2934,15 +2952,15 @@ export default function CreatorStudioPage() {
 
                   {/* Client & Production Brief Details (Clean Structured Unclipped Display) */}
                   <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 space-y-3.5 shadow-2xs">
-                    <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
                         <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                          Client & Production Brief
+                        <span className="text-xs font-bold text-foreground uppercase tracking-wider truncate">
+                          Production Brief
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs font-medium">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-2xs sm:text-xs font-medium px-2 py-0.5 max-w-[110px] truncate">
                           {platform || 'Multi-Platform'}
                         </Badge>
                         <Button
@@ -2951,7 +2969,7 @@ export default function CreatorStudioPage() {
                           variant="link"
                           size="xs"
                           onClick={() => goToStep(4)}
-                          className="h-auto px-0 text-xs font-semibold text-amber-600 dark:text-amber-400"
+                          className="h-auto px-0 text-xs font-semibold text-amber-600 dark:text-amber-400 shrink-0"
                         >
                           Edit Brief
                         </Button>
@@ -3009,7 +3027,7 @@ export default function CreatorStudioPage() {
                 </div>
 
                 {/* Right Column: Checkout & Actions */}
-                <div className="lg:col-span-6 space-y-4">
+                <div id="studio-checkout-section" className="lg:col-span-6 space-y-4">
                   <Card className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-5">
                     <div>
                       <h3 className="text-base sm:text-lg font-bold text-foreground">
@@ -3221,12 +3239,12 @@ export default function CreatorStudioPage() {
                     </div>
 
                     {/* Security & SLA Badges */}
-                    <div className="pt-2.5 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
+                    <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1 shrink-0">
                         <Lock className="w-3.5 h-3.5 text-emerald-600" /> 256-Bit SSL
                       </span>
-                      <span>PayPal Protection</span>
-                      <span>Verified Studio SLA</span>
+                      <span className="shrink-0">PayPal Protection</span>
+                      <span className="shrink-0">Verified Studio SLA</span>
                     </div>
 
                     {errorMessage && (

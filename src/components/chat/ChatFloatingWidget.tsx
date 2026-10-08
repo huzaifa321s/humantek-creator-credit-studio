@@ -13,8 +13,10 @@ import {
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META } from '@/lib/chatStore';
+import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
+import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
+import { toast } from 'sonner';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInputBar } from './ChatInputBar';
 import { ChatAttachmentModal } from './ChatAttachmentModal';
@@ -30,7 +32,7 @@ export function ChatFloatingWidget() {
     isGlobal,
     projectMeta,
     projectMessages,
-    messages,
+    messages: storeMessages,
     agent,
     isOpen,
     isTyping,
@@ -38,7 +40,7 @@ export function ChatFloatingWidget() {
     unreadCounts,
     setIsOpen,
     setActiveProjectId,
-    sendMessage,
+    sendMessage: sendStoreMessage,
     toggleReaction,
   } = useStudioChat();
 
@@ -66,6 +68,14 @@ export function ChatFloatingWidget() {
     [projects, projectId]
   );
 
+  // Hook into real Supabase doorbell realtime transport & messages
+  const {
+    messages: dbMessages,
+    lastReadId,
+    sendMessage: sendDbMessage,
+    markAsRead,
+  } = useProjectChat({ projectId: isGlobal ? null : projectId });
+
   const displayMeta = isGlobal
     ? GLOBAL_META
     : activeProject
@@ -79,6 +89,53 @@ export function ChatFloatingWidget() {
         credits: activeProject.packageCredits,
       }
     : projectMeta;
+
+  // Mark active project as read
+  useEffect(() => {
+    if (isOpen && !isGlobal && projectId) {
+      markAsRead();
+    }
+  }, [isOpen, projectId, isGlobal, markAsRead, dbMessages]);
+
+  const displayMessages: ChatMessage[] = useMemo(() => {
+    if (isGlobal || !projectId) {
+      return storeMessages;
+    }
+    if (dbMessages && dbMessages.length > 0) {
+      return dbMessages.map((m) => ({
+        id: String(m.id),
+        projectId: m.projectId,
+        sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
+        senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
+        senderRole: m.sender?.role === 'admin' ? 'Senior Creative Producer' : 'Creator',
+        content: m.body,
+        timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isRead: m.id <= lastReadId,
+        attachments: (m.attachments || []).map((att) => ({
+          id: att.id,
+          name: att.fileName,
+          size: `${Math.round(att.fileSize / 1024)} KB`,
+          type: att.mimeType.startsWith('image/') ? 'image' : 'file',
+          url: att.url || '',
+          previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
+        })),
+      }));
+    }
+    return storeMessages;
+  }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
+
+  const handleSendMessage = async (text: string, attachments?: ChatAttachment[]) => {
+    if (!isGlobal && projectId) {
+      try {
+        await sendDbMessage(text);
+        return;
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to send message');
+        return;
+      }
+    }
+    sendStoreMessage(text, attachments);
+  };
 
   // Mount drawer contents when opened
   useEffect(() => {
@@ -396,7 +453,7 @@ export function ChatFloatingWidget() {
                 {/* Message Scroller Feed */}
                 <div className="flex-1 min-h-0 bg-card/60">
                   <ChatMessageList
-                    messages={messages}
+                    messages={displayMessages}
                     isTyping={isTyping}
                     agentName={agent.name}
                     isGlobal={isGlobal}
@@ -415,7 +472,7 @@ export function ChatFloatingWidget() {
                 {/* Input Bar Footer */}
                 <div className="px-4 py-3 border-t border-border/70 bg-card shrink-0">
                   <ChatInputBar
-                    onSendMessage={sendMessage}
+                    onSendMessage={handleSendMessage}
                     isTyping={isTyping}
                     compact
                     isGlobal={isGlobal}

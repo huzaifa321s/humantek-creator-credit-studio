@@ -11,9 +11,11 @@ import { AdminProjectsTable } from '@/components/management/AdminProjectsTable';
 import { AdminInbox } from '@/components/management/AdminInbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { MessageSquare, FolderKanban, Receipt } from 'lucide-react';
+import { MessageSquare, FolderKanban, Receipt, ShieldAlert, Landmark } from 'lucide-react';
 import { useProjectsQuery, useUpdateProjectStatus } from '@/lib/queries/projects';
 import { useStudioChat } from '@/lib/chatStore';
+import { AdminAlertsList } from '@/components/management/AdminAlertsList';
+import { AdminManualOrders } from '@/components/management/AdminManualOrders';
 
 const EMPTY_PROJECTS: ProjectRecord[] = [];
 
@@ -24,7 +26,11 @@ function InnerManagementContent() {
 
   const { setActiveProjectId } = useStudioChat();
 
-  const [activeTab, setActiveTab] = useState<'projects' | 'ledger' | 'messages'>(() => {
+  const [alertCount, setAlertCount] = useState<number>(0);
+
+  const [activeTab, setActiveTab] = useState<'projects' | 'ledger' | 'messages' | 'alerts' | 'wire-orders'>(() => {
+    if (tabParam === 'wire-orders') return 'wire-orders';
+    if (tabParam === 'alerts') return 'alerts';
     if (tabParam === 'messages') return 'messages';
     if (tabParam === 'ledger') return 'ledger';
     return 'projects';
@@ -32,7 +38,11 @@ function InnerManagementContent() {
 
   // Keep state in sync with URL search params on Back / Forward navigation
   useEffect(() => {
-    if (tabParam === 'messages' && activeTab !== 'messages') {
+    if (tabParam === 'wire-orders' && activeTab !== 'wire-orders') {
+      setActiveTab('wire-orders');
+    } else if (tabParam === 'alerts' && activeTab !== 'alerts') {
+      setActiveTab('alerts');
+    } else if (tabParam === 'messages' && activeTab !== 'messages') {
       setActiveTab('messages');
     } else if (tabParam === 'ledger' && activeTab !== 'ledger') {
       setActiveTab('ledger');
@@ -41,7 +51,7 @@ function InnerManagementContent() {
     }
   }, [tabParam, activeTab]);
 
-  const handleTabChange = (val: 'projects' | 'ledger' | 'messages') => {
+  const handleTabChange = (val: 'projects' | 'ledger' | 'messages' | 'alerts' | 'wire-orders') => {
     setActiveTab(val);
     const url = val === 'projects' ? '/management' : `/management?tab=${val}`;
     if (typeof window !== 'undefined') {
@@ -209,6 +219,17 @@ function InnerManagementContent() {
               icon: Receipt,
               count: ledgerTransactions.length,
             },
+            {
+              value: 'wire-orders',
+              label: 'Wire & Manual Orders',
+              icon: Landmark,
+            },
+            {
+              value: 'alerts',
+              label: 'Security & Alerts',
+              icon: ShieldAlert,
+              count: alertCount > 0 ? alertCount : undefined,
+            },
           ]}
         />
 
@@ -236,6 +257,20 @@ function InnerManagementContent() {
         {activeTab === 'ledger' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <AgencyDataGrid transactions={ledgerTransactions} />
+          </div>
+        )}
+
+        {/* TAB 4: Wire & Manual Bank Orders */}
+        {activeTab === 'wire-orders' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <AdminManualOrders />
+          </div>
+        )}
+
+        {/* TAB 5: Security & Settlement Alerts */}
+        {activeTab === 'alerts' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <AdminAlertsList onAlertCountChange={setAlertCount} />
           </div>
         )}
       </div>

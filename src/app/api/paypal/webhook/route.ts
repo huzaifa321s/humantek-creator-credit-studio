@@ -40,8 +40,11 @@ export async function POST(req: NextRequest) {
 
   const adminClient = createAdminClient();
 
-  // 2. Ingestion & Idempotency: Record in webhook_events
-  // A duplicate event_id returns 200 and does nothing (retries do not duplicate actions)
+  // 2. Ingestion & Retry-Safe Deduplication
+  // A duplicate event ID returns 200 immediately ONLY IF its stored status is 'processed' or 'ignored'.
+  // If the event is in 'received' or 'failed' status (e.g. from an earlier transient error), it MUST be reprocessed.
+  let webhookDbId: number;
+
   const { data: existingEvent } = await adminClient
     .from('webhook_events')
     .select('id, status')
@@ -49,34 +52,45 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (existingEvent) {
-    return NextResponse.json({ success: true, replayed: true, status: existingEvent.status }, { status: 200 });
-  }
-
-  const { data: loggedEvent, error: insertErr } = await adminClient
-    .from('webhook_events')
-    .insert({
-      event_id: eventId,
-      event_type: eventType,
-      payload: eventPayload,
-      status: 'received',
-    })
-    .select('id')
-    .single();
-
-  if (insertErr || !loggedEvent) {
-    // If conflict on concurrent insert, return 200 immediately
-    if (insertErr?.code === '23505') {
-      return NextResponse.json({ success: true, replayed: true }, { status: 200 });
+    if (existingEvent.status === 'processed' || existingEvent.status === 'ignored') {
+      return NextResponse.json({ success: true, replayed: true, status: existingEvent.status }, { status: 200 });
     }
-    console.error('Failed to log webhook event in database:', insertErr);
-    return NextResponse.json({ error: 'Database logging failed' }, { status: 500 });
-  }
+    // Failed or received: reprocess the event
+    webhookDbId = existingEvent.id;
+  } else {
+    const { data: loggedEvent, error: insertErr } = await adminClient
+      .from('webhook_events')
+      .insert({
+        event_id: eventId,
+        event_type: eventType,
+        payload: eventPayload,
+        status: 'received',
+      })
+      .select('id')
+      .single();
 
-  const webhookDbId = loggedEvent.id;
+    if (insertErr || !loggedEvent) {
+      if (insertErr?.code === '23505') {
+        const { data: retryCheck } = await adminClient
+          .from('webhook_events')
+          .select('id, status')
+          .eq('event_id', eventId)
+          .single();
+        if (retryCheck?.status === 'processed' || retryCheck?.status === 'ignored') {
+          return NextResponse.json({ success: true, replayed: true, status: retryCheck.status }, { status: 200 });
+        }
+        webhookDbId = retryCheck?.id ?? 0;
+      } else {
+        console.error('Failed to log webhook event in database:', insertErr);
+        return NextResponse.json({ error: 'Database logging failed' }, { status: 500 });
+      }
+    } else {
+      webhookDbId = loggedEvent.id;
+    }
+  }
 
   try {
     // 3. Locate Associated Order
-    // PayPal returns custom_id, or parent_payment, or supplementary_data.related_ids.order_id
     const customId = resource.custom_id;
     const providerOrderId =
       resource.supplementary_data?.related_ids?.order_id ||
@@ -94,7 +108,7 @@ export async function POST(req: NextRequest) {
 
     const { data: order } = await orderQuery.maybeSingle();
 
-    if (order) {
+    if (order && webhookDbId) {
       await adminClient
         .from('webhook_events')
         .update({ order_id: order.id })
@@ -123,6 +137,9 @@ export async function POST(req: NextRequest) {
 
         if (fulfillErr) {
           throw new Error(`Order fulfillment error: ${fulfillErr.message}`);
+        }
+        if (!fulfillRes?.success && !fulfillRes?.already_fulfilled) {
+          throw new Error(`Order fulfillment rejected: ${fulfillRes?.error || 'unknown'}`);
         }
         break;
       }
@@ -178,6 +195,22 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case 'CUSTOMER.DISPUTE.CREATED': {
+        if (!order) break;
+
+        const disputeId = resource.id || `dispute-${Date.now()}`;
+        const { error: disputeErr } = await adminClient.rpc('handle_dispute', {
+          p_order_id: order.id,
+          p_dispute_id: disputeId,
+          p_reason: resource.dispute_reason || 'Customer dispute opened on PayPal',
+        });
+
+        if (disputeErr) {
+          throw new Error(`Dispute freeze error: ${disputeErr.message}`);
+        }
+        break;
+      }
+
       case 'CHECKOUT.ORDER.APPROVED': {
         // Spec rule: Don't fulfill on CHECKOUT.ORDER.APPROVED, because it fires before money is captured
         if (order && order.status === 'created') {
@@ -188,34 +221,40 @@ export async function POST(req: NextRequest) {
 
       default: {
         // Ignore unhandled events safely
-        await adminClient
-          .from('webhook_events')
-          .update({ status: 'ignored', processed_at: new Date().toISOString() })
-          .eq('id', webhookDbId);
+        if (webhookDbId) {
+          await adminClient
+            .from('webhook_events')
+            .update({ status: 'ignored', processed_at: new Date().toISOString() })
+            .eq('id', webhookDbId);
+        }
         return NextResponse.json({ success: true, ignored: true }, { status: 200 });
       }
     }
 
-    // 5. Update Webhook Status to 'processed'
-    await adminClient
-      .from('webhook_events')
-      .update({
-        status: 'processed',
-        processed_at: new Date().toISOString(),
-      })
-      .eq('id', webhookDbId);
+    // 5. Update Webhook Status to 'processed' ONLY after successful execution
+    if (webhookDbId) {
+      await adminClient
+        .from('webhook_events')
+        .update({
+          status: 'processed',
+          processed_at: new Date().toISOString(),
+        })
+        .eq('id', webhookDbId);
+    }
 
     return NextResponse.json({ success: true, processed: true }, { status: 200 });
   } catch (err: any) {
     console.error('[PayPal Webhook] Error during event processing:', err);
 
-    await adminClient
-      .from('webhook_events')
-      .update({
-        status: 'failed',
-        error: err.message || 'Unknown processing error',
-      })
-      .eq('id', webhookDbId);
+    if (webhookDbId) {
+      await adminClient
+        .from('webhook_events')
+        .update({
+          status: 'failed',
+          error: err.message || 'Unknown processing error',
+        })
+        .eq('id', webhookDbId);
+    }
 
     // Return 500 so PayPal will retry delivery
     return NextResponse.json({ error: 'Processing error occurred' }, { status: 500 });
