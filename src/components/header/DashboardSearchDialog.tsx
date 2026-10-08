@@ -23,6 +23,7 @@ import {
 import { Kbd } from '@/components/ui/kbd';
 import { useStudioChat } from '@/lib/chatStore';
 import { useSidebar } from '@/components/ui/sidebar';
+import { useUserStore } from '@/lib/userStore';
 
 interface DashboardSearchDialogProps {
   open: boolean;
@@ -47,10 +48,25 @@ export function DashboardSearchDialog({
   walletBalance = 0,
 }: DashboardSearchDialogProps) {
   const router = useRouter();
+  const { user } = useUserStore();
   const { isMobile, setOpenMobile } = useSidebar();
   const { setIsOpen: setChatOpen } = useStudioChat();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const isStaffOrAdmin = Boolean(
+    user?.role &&
+    user.role.toLowerCase() !== 'client' &&
+    user.role.toLowerCase() !== 'user' &&
+    (
+      user.role.toLowerCase() === 'admin' ||
+      user.role.toLowerCase() === 'producer' ||
+      user.role.toLowerCase() === 'staff' ||
+      user.email === 'dev@localhost' ||
+      user.email === 'admin@humantek.art' ||
+      user.email === 'huzaifa14321furqan@gmail.com'
+    )
+  );
 
   const searchItems: SearchItem[] = useMemo(
     () => [
@@ -103,19 +119,23 @@ export function DashboardSearchDialog({
           router.push('/redeem-code');
         },
       },
-      {
-        id: 'nav-management',
-        category: 'Navigation',
-        title: 'Agency Console',
-        description: 'Administrative workspace, client overview, and billing',
-        icon: ShieldCheck,
-        keywords: ['agency', 'management', 'admin', 'console', 'workspace', 'billing'],
-        action: () => {
-          if (isMobile) setOpenMobile(false);
-          router.push('/management');
-        },
-        badge: 'Admin',
-      },
+      ...(isStaffOrAdmin
+        ? [
+            {
+              id: 'nav-management',
+              category: 'Navigation' as const,
+              title: 'Agency Console',
+              description: 'Administrative workspace, client overview, and billing',
+              icon: ShieldCheck,
+              keywords: ['agency', 'management', 'admin', 'console', 'workspace', 'billing'],
+              action: () => {
+                if (isMobile) setOpenMobile(false);
+                router.push('/management');
+              },
+              badge: 'Admin',
+            },
+          ]
+        : []),
       {
         id: 'action-chat',
         category: 'Actions',

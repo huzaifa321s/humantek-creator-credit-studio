@@ -598,9 +598,11 @@ export default function CreatorStudioPage() {
     }
 
     if (target === 5 && email.trim()) {
+      const activeRole = useUserStore.getState().user?.role;
       useUserStore.getState().updateUser({
         email: email.trim(),
         name: clientName.trim() || undefined,
+        role: activeRole === 'admin' || activeRole === 'producer' || activeRole === 'staff' ? activeRole : 'client',
       });
     }
 
@@ -824,17 +826,21 @@ export default function CreatorStudioPage() {
         uploadedFiles,
       });
 
+      const activeRole = useUserStore.getState().user?.role;
+      const verifiedRole = activeRole === 'admin' || activeRole === 'producer' || activeRole === 'staff' ? activeRole : 'client';
       if (typeof data.newWalletBalance === 'number') {
         useUserStore.getState().updateUser({
           walletBalance: data.newWalletBalance,
           email: email.trim() || userEmail,
           name: clientName.trim() || userName,
+          role: verifiedRole,
         });
       } else {
         deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
         useUserStore.getState().updateUser({
           email: email.trim() || userEmail,
           name: clientName.trim() || userName,
+          role: verifiedRole,
         });
       }
 

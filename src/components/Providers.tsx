@@ -1,8 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
+import { useUserStore } from '@/lib/userStore';
+
+/**
+ * Authoritative session sync: queries `/api/auth/session` on mount to sync
+ * the verified user profile & role from the PostgreSQL database into the client store.
+ * This automatically corrects any stale elevated roles (e.g. 'admin') in localStorage
+ * so that client roles are strictly and reliably enforced.
+ */
+function SessionSync() {
+  const { user, isHydrated, updateUser } = useUserStore();
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    let isCancelled = false;
+
+    fetch('/api/auth/session')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isCancelled || !data) return;
+        if (data.authenticated && data.user) {
+          updateUser({
+            id: data.user.id,
+            email: data.user.email,
+            role: data.user.role || 'client',
+          });
+        } else if (!data.authenticated && user?.role && user.role !== 'client' && user.email !== 'dev@localhost') {
+          // Unauthenticated sessions should never keep lingering admin role
+          updateUser({ role: 'client' });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isHydrated, updateUser, user]);
+
+  return null;
+}
 
 /**
  * App-wide client providers. A QueryClient is created once per browser
@@ -28,7 +67,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <SessionSync />
+        {children}
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

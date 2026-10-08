@@ -197,14 +197,20 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
               </SidebarMenuButton>
             </SidebarMenuItem>
 
-            {/* 4. Management Console (Role-Aware for Admins & Staff) */}
-            {(user?.role === 'admin' ||
-              user?.role === 'producer' ||
-              user?.role === 'staff' ||
-              user?.email === 'dev@localhost' ||
-              user?.email === 'admin@humantek.art' ||
-              user?.email === 'huzaifa14321furqan@gmail.com' ||
-              pathname.startsWith('/management')) && (
+            {/* 4. Management Console (Strictly for Admins & Staff; never shown to client role) */}
+            {Boolean(
+              user?.role &&
+              user.role.toLowerCase() !== 'client' &&
+              user.role.toLowerCase() !== 'user' &&
+              (
+                user.role.toLowerCase() === 'admin' ||
+                user.role.toLowerCase() === 'producer' ||
+                user.role.toLowerCase() === 'staff' ||
+                user.email === 'dev@localhost' ||
+                user.email === 'admin@humantek.art' ||
+                user.email === 'huzaifa14321furqan@gmail.com'
+              )
+            ) && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={pathname.startsWith('/management')}
