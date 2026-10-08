@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useStudioChat, useChatStore, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
+import { useUserStore } from '@/lib/userStore';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
 import { toast } from 'sonner';
@@ -18,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Item, ItemGroup, ItemMedia, ItemContent, ItemTitle, ItemDescription } from '@/components/ui/item';
-import { cn } from '@/lib/utils';
+import { cn, formatChatTimestamp } from '@/lib/utils';
 import {
   Sparkles,
   ShieldCheck,
@@ -65,7 +66,8 @@ export function ChatFullView() {
     [projects, projectId]
   );
 
-  const targetProjectId = isGlobal || !activeProject || projectId === 'proj-demo-1' ? null : projectId;
+  const { user } = useUserStore();
+  const targetProjectId = isGlobal || !user?.email || !activeProject || projectId === 'proj-demo-1' ? null : projectId;
 
   // Hook into real Supabase doorbell realtime transport & messages
   const {
@@ -111,7 +113,7 @@ export function ChatFullView() {
         senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
         senderRole: m.sender?.role === 'admin' ? 'Senior Creative Producer' : 'Creator',
         content: m.body,
-        timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatChatTimestamp(m.createdAt),
         isRead: m.id <= lastReadId,
         status: 'sent',
         attachments: (m.attachments || []).map((att) => ({

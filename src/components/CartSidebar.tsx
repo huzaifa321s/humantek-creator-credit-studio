@@ -106,24 +106,49 @@ export function CartSidebar({
       <div className="h-1.5 w-full bg-gradient-to-r from-amber-500 to-amber-600 shrink-0" />
 
       {/* FIXED HEADER: Wallet Info, Selected Summary & Unit Limits */}
-      <div className="p-4 sm:p-5 pb-3 border-b border-border/60 bg-card shrink-0 space-y-3">
-        <div className="flex items-center justify-between">
-          <Badge variant="gold" className="text-xs tracking-wider uppercase font-bold px-2.5 py-1">
-            {isWalletFunding
-              ? 'Studio Wallet'
-              : appliedWalletCredits > 0
-              ? 'Combined Studio Budget'
-              : 'Live Credit Wallet'}
+      <div className="p-3.5 sm:p-4.5 pb-3 border-b border-border/60 bg-card shrink-0 space-y-3">
+        {/* Row 1: Budget Classification Badge & Exchange Rate */}
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <Badge
+            variant="gold"
+            className="text-3xs sm:text-2xs font-bold tracking-wide uppercase px-2 py-0.5 rounded-md shrink-0 select-none shadow-2xs"
+          >
+            {isWalletFunding ? (
+              'Studio Wallet'
+            ) : appliedWalletCredits > 0 ? (
+              <>
+                <span className="hidden min-[380px]:inline">Combined Studio Budget</span>
+                <span className="min-[380px]:hidden">Combined Budget</span>
+              </>
+            ) : (
+              'Live Credit Wallet'
+            )}
           </Badge>
-          <span className="text-xs sm:text-sm text-muted-foreground font-medium">
-            {isWalletFunding ? 'Prepaid Balance' : <span className="font-mono tabular-nums">${effectiveRate} USD / CR</span>}
-          </span>
+          <div className="text-right shrink-0">
+            {isWalletFunding ? (
+              <span className="text-2xs sm:text-xs font-medium text-muted-foreground whitespace-nowrap">
+                Prepaid Balance
+              </span>
+            ) : (
+              <span className="inline-flex items-center font-mono tabular-nums text-2xs sm:text-xs font-semibold text-muted-foreground bg-secondary/80 dark:bg-secondary/60 px-2 py-0.5 rounded-md border border-border/60 whitespace-nowrap">
+                ${effectiveRate} USD / CR
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <CreditValue value={effectiveTotal} size="lg" />
-            <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+        {/* Row 2: Total Available Credits & Live Selection Status */}
+        <div className="flex items-start justify-between gap-3 min-w-0">
+          <div className="min-w-0 flex-1">
+            <CreditValue value={effectiveTotal} size="lg" className="tracking-tight" />
+            <p
+              className="text-2xs sm:text-xs text-muted-foreground mt-0.5 font-medium leading-snug line-clamp-2"
+              title={
+                appliedWalletCredits > 0
+                  ? `${pack.name} (${pack.credits} CR) + Wallet (${appliedWalletCredits} CR)`
+                  : undefined
+              }
+            >
               {appliedWalletCredits > 0
                 ? `${pack.name} (${pack.credits} CR) + Wallet (${appliedWalletCredits} CR)`
                 : isWalletFunding
@@ -131,29 +156,33 @@ export function CartSidebar({
                 : `${pack.name} · $${pack.price.toLocaleString()} Package`}
             </p>
           </div>
-          <div className="text-right">
-            <div className="flex items-center justify-end gap-2">
+
+          <div className="text-right shrink-0 flex flex-col items-end justify-start pt-0.5">
+            <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
               <span className="text-xs font-bold text-foreground">
-                Selected ({entries.length})
+                Selected <span className="font-mono text-amber-600 dark:text-amber-400">({entries.length})</span>
               </span>
               {entries.length > 0 && onClearAll && (
-                <button
-                  type="button"
-                  onClick={onClearAll}
-                  className="text-xs text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 underline underline-offset-2 transition-colors cursor-pointer"
-                  title="Clear all selected services"
-                >
-                  Clear all
-                </button>
+                <>
+                  <span className="text-muted-foreground/30 text-3xs select-none">·</span>
+                  <button
+                    type="button"
+                    onClick={onClearAll}
+                    className="text-2xs text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 underline underline-offset-2 transition-colors cursor-pointer whitespace-nowrap font-medium"
+                    title="Clear all selected services"
+                  >
+                    Clear all
+                  </button>
+                </>
               )}
             </div>
-            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 block mt-0.5 font-mono tabular-nums">
+            <span className="text-2xs sm:text-xs font-semibold text-amber-600 dark:text-amber-400 block mt-1 font-mono tabular-nums whitespace-nowrap">
               {usedCredits.toLocaleString()} CR used
             </span>
           </div>
         </div>
 
-        {/* Tier Limit Gauges with Tooltips */}
+        {/* Row 3: Tier Limit Gauges with Tooltips */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <Tooltip>
             <TooltipTrigger
@@ -161,9 +190,9 @@ export function CartSidebar({
                 <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
               }
             >
-              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-                <span>Standard Units</span>
-                <Info className="w-3.5 h-3.5 text-muted-foreground/70" />
+              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold min-w-0 gap-1">
+                <span className="truncate">Standard Units</span>
+                <Info className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
               </div>
               <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
                 {standardUnits}
@@ -185,9 +214,9 @@ export function CartSidebar({
                 <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
               }
             >
-              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-                <span>Elite Units</span>
-                <Info className="w-3.5 h-3.5 text-muted-foreground/70" />
+              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold min-w-0 gap-1">
+                <span className="truncate">Elite Units</span>
+                <Info className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
               </div>
               <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
                 {eliteUnits}

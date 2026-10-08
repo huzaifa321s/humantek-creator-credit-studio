@@ -111,11 +111,20 @@ export function useProjectChat({
 
     fetch(`/api/projects/${projectId}/messages`)
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to load messages');
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            setError('Access denied');
+            return null;
+          }
+          throw new Error('Failed to load messages');
+        }
         return res.json();
       })
       .then((data) => {
-        if (!isMounted) return;
+        if (!isMounted || !data) {
+          setIsLoading(false);
+          return;
+        }
         setMessages(data.messages || []);
         setLastReadId(data.lastReadId || 0);
         setIsLoading(false);
@@ -157,7 +166,7 @@ export function useProjectChat({
 
   // 15-second polling fallback & online/focus listeners
   useEffect(() => {
-    if (!isRealProject) return;
+    if (!isRealProject || error === 'Access denied') return;
 
     const interval = setInterval(() => {
       fetchIncremental();

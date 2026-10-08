@@ -784,7 +784,10 @@ export default function CreatorStudioPage() {
       });
       toast.success('Project request submitted for studio review!');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Submission failed';
+      let msg = err instanceof Error ? err.message : 'Submission failed';
+      if (msg.includes('Authentication required') || msg.includes('401')) {
+        msg = 'Please sign in to submit your project brief for studio review.';
+      }
       setErrorMessage(msg);
       toast.error(msg);
     } finally {

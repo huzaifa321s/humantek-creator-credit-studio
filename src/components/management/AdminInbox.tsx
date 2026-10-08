@@ -26,7 +26,7 @@ import {
   Paperclip,
   ChevronLeft,
 } from 'lucide-react';
-import { cn, formatStudioDate, getProjectStatusLabel } from '@/lib/utils';
+import { cn, formatStudioDate, formatChatTimestamp, getProjectStatusLabel } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface AdminInboxProps {
@@ -99,7 +99,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
         senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'Client'),
         senderRole: m.sender?.role === 'admin' ? 'Lead Creative Producer' : 'Client',
         content: m.body,
-        timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatChatTimestamp(m.createdAt),
         isRead: m.id <= lastReadId,
         attachments: (m.attachments || []).map((att) => ({
           id: att.id,
@@ -254,7 +254,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                     <div className="flex items-center gap-1 shrink-0">
                       {p.lastMessageAt && (
                         <span className="text-3xs text-muted-foreground font-mono">
-                          {new Date(p.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          {formatStudioDate(p.lastMessageAt)}
                         </span>
                       )}
                       <span className="font-mono text-2xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-300/60 dark:border-amber-800/60">

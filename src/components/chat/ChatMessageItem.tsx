@@ -16,7 +16,7 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, formatChatTimestamp } from '@/lib/utils';
 
 import { ChatMessage, ChatAttachment } from '@/lib/chatStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -120,7 +120,7 @@ export const ChatMessageItem = React.memo(
             </span>
           )}
           <span className="text-2xs font-mono tabular-nums whitespace-nowrap text-muted-foreground/80 ml-1">
-            {message.timestamp.replace('Today at ', '')}
+            {formatChatTimestamp(message.timestamp)}
           </span>
 
           {/* Micro action toolbar on hover */}

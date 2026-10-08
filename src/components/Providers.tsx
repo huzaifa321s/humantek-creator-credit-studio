@@ -28,9 +28,11 @@ function SessionSync() {
             email: data.user.email,
             role: data.user.role || 'client',
           });
-        } else if (!data.authenticated && user?.role && user.role !== 'client' && user.email !== 'dev@localhost') {
-          // Unauthenticated sessions should never keep lingering admin role
-          updateUser({ role: 'client' });
+        } else if (!data.authenticated) {
+          // If server session is unauthenticated, clear stale user state to prevent 401 auth storms
+          if (user?.email && user.email !== 'dev@localhost') {
+            useUserStore.getState().signOut();
+          }
         }
       })
       .catch(() => {});

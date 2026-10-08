@@ -16,6 +16,44 @@ export function formatStudioDate(dateInput?: string | number | Date | null): str
   })
 }
 
+/**
+ * Safely formats any date/time string or timestamp for chat message displays.
+ * Defends against `null`, `undefined`, `"Invalid Date"`, ISO timestamps, and relative strings.
+ * Guarantees a valid, cleanly formatted time string like "09:15 AM".
+ */
+export function formatChatTimestamp(raw?: string | null): string {
+  if (!raw || typeof raw !== 'string') {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  const trimmed = raw.trim();
+  if (
+    trimmed === 'Invalid Date' ||
+    trimmed === 'undefined' ||
+    trimmed === 'null' ||
+    trimmed === 'NaN' ||
+    !trimmed
+  ) {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Remove "Today at " or "Yesterday at " prefix if present
+  if (trimmed.startsWith('Today at ') || trimmed.startsWith('Yesterday at ')) {
+    return trimmed.replace(/^(Today|Yesterday) at\s+/, '');
+  }
+
+  // If already formatted like "09:15 AM" or "14:30"
+  if (/^\d{1,2}:\d{2}(:\d{2})?(\s*[APap][Mm])?$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Parse as Date (handles ISO 8601 strings from Postgres like 2026-10-08T08:30:00Z)
+  const d = new Date(trimmed);
+  if (isNaN(d.getTime())) {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export const PROJECT_STATUS_LABELS: Record<string, string> = {
   pending_review: 'Pending Review',
   payment_confirmed: 'Payment Confirmed',

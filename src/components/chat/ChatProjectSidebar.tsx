@@ -13,7 +13,7 @@ import {
   Globe,
   MessageSquare,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatChatTimestamp } from '@/lib/utils';
 import { ProjectMeta, ChatMessage, GLOBAL_CHAT_ID } from '@/lib/chatStore';
 
 import { Button } from '@/components/ui/button';
@@ -164,9 +164,7 @@ export function ChatProjectSidebar({
                 ) : (
                   <span className="text-2xs font-mono tabular-nums text-muted-foreground/80 shrink-0 whitespace-nowrap">
                     {lastGlobalMsg
-                      ? lastGlobalMsg.timestamp.includes('Today at')
-                        ? lastGlobalMsg.timestamp.replace('Today at ', '')
-                        : 'Active'
+                      ? formatChatTimestamp(lastGlobalMsg.timestamp)
                       : ''}
                   </span>
                 )}
@@ -382,7 +380,7 @@ export function ChatProjectSidebar({
                     <div className="flex items-center justify-between text-2xs text-muted-foreground mb-0.5 w-full">
                       <span className="font-medium text-foreground/85 truncate text-2xs">{p.packageName}</span>
                       <span className="text-2xs shrink-0 font-mono tabular-nums text-muted-foreground/80">
-                        {lastMsg ? lastMsg.timestamp.replace('Today at ', '') : ''}
+                        {lastMsg ? formatChatTimestamp(lastMsg.timestamp) : ''}
                       </span>
                     </div>
 

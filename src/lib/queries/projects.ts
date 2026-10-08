@@ -22,8 +22,22 @@ export function useProjectsQuery() {
   return useQuery({
     queryKey: projectKeys.all,
     queryFn: async () => {
-      const data = await fetchJson<{ projects: ProjectRecord[] }>('/api/projects');
-      return data.projects;
+      const res = await fetch('/api/projects');
+      if (res.status === 401) {
+        // Unauthenticated guest user has no project records
+        return [];
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new ApiError((data as { error?: string }).error || `Request failed (${res.status})`, res.status);
+      }
+      return ((data as { projects?: ProjectRecord[] }).projects || []) as ProjectRecord[];
+    },
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        return false;
+      }
+      return failureCount < 2;
     },
     // Show cached list instantly, but always revalidate on mount so new orders appear.
     staleTime: 0,
