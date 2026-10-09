@@ -284,7 +284,18 @@ export function AuthForm({
       {errorMsg && (
         <Alert variant="destructive" className="py-2.5 px-3 text-xs animate-in fade-in-50">
           <AlertCircle className="size-4 shrink-0" />
-          <AlertDescription className="text-xs font-medium">{errorMsg}</AlertDescription>
+          <AlertDescription className="text-xs font-medium">
+            {errorMsg}
+            {errorMsg.toLowerCase().includes('already') && mode === 'signup' && (
+              <button
+                type="button"
+                onClick={() => switchMode('signin')}
+                className="ml-1.5 underline font-bold hover:text-foreground cursor-pointer"
+              >
+                Sign In now &rarr;
+              </button>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 

@@ -78,8 +78,15 @@ export async function POST(req: NextRequest) {
       });
 
       if (adminErr || !created.user) {
+        const isAlreadyRegistered =
+          adminErr?.message?.toLowerCase().includes('already') ||
+          (adminErr as any)?.code === 'email_exists';
         return NextResponse.json(
-          { error: 'Unable to complete registration. If you already have an account, please sign in.' },
+          {
+            error: isAlreadyRegistered
+              ? 'An account with this email already exists. Please sign in.'
+              : adminErr?.message || 'Unable to complete registration. Please try again.',
+          },
           { status: 400 }
         );
       }
@@ -120,9 +127,29 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      // Non-revealing generic response to prevent email harvesting
+      if (
+        (error as any)?.code === 'over_email_send_rate_limit' ||
+        error.message?.toLowerCase().includes('rate limit')
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'Email delivery rate limit reached by the email service. Please try again later or contact support.',
+          },
+          { status: 429 }
+        );
+      }
+
+      const isAlreadyRegistered =
+        error.message?.toLowerCase().includes('already') ||
+        (error as any)?.code === 'user_already_exists';
+
       return NextResponse.json(
-        { error: 'Unable to complete registration. If you already have an account, please sign in.' },
+        {
+          error: isAlreadyRegistered
+            ? 'An account with this email already exists. Please sign in.'
+            : error.message || 'Unable to complete registration. Please try again.',
+        },
         { status: 400 }
       );
     }
