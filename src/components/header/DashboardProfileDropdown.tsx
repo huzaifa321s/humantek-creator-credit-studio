@@ -245,17 +245,17 @@ export function DashboardProfileDropdown({
         {/* 4. Theme Switcher */}
         <div className="flex h-9 items-center justify-between px-2.5 text-sm font-medium text-zinc-300 select-none">
           <span>Theme</span>
-          <div className="flex items-center gap-0.5 bg-white/5 p-0.5 rounded-md border border-white/10">
+          <div className="flex items-center gap-0.5 bg-white/5 p-0.5 rounded-full border border-white/10">
             <Button
               type="button"
               variant="ghost"
               size="icon-xs"
               onClick={() => setTheme('light')}
               className={cn(
-                'size-6 rounded transition-all cursor-pointer',
+                'size-6 rounded-full transition-all cursor-pointer border',
                 mounted && theme === 'light'
-                  ? 'bg-amber-500/20 text-amber-300 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/35 font-semibold shadow-2xs'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               )}
               title="Light theme"
               aria-label="Light theme"
@@ -268,10 +268,10 @@ export function DashboardProfileDropdown({
               size="icon-xs"
               onClick={() => setTheme('dark')}
               className={cn(
-                'size-6 rounded transition-all cursor-pointer',
+                'size-6 rounded-full transition-all cursor-pointer border',
                 mounted && theme === 'dark'
-                  ? 'bg-amber-500/20 text-amber-300 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/35 font-semibold shadow-2xs'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               )}
               title="Dark theme"
               aria-label="Dark theme"
@@ -284,10 +284,10 @@ export function DashboardProfileDropdown({
               size="icon-xs"
               onClick={() => setTheme('system')}
               className={cn(
-                'size-6 rounded transition-all cursor-pointer',
+                'size-6 rounded-full transition-all cursor-pointer border',
                 mounted && theme === 'system'
-                  ? 'bg-amber-500/20 text-amber-300 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/35 font-semibold shadow-2xs'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               )}
               title="System theme"
               aria-label="System theme"
