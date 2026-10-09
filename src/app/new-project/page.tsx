@@ -1100,7 +1100,7 @@ export default function CreatorStudioPage() {
       )}
 
       {currentPackage && (
-        <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-7 sm:h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-2xs sm:text-xs font-medium shadow-2xs select-none shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-7 sm:h-7.5 rounded-full bg-amber-400/15 border border-amber-400/35 text-2xs sm:text-xs font-medium shadow-2xs select-none shrink-0">
           <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span className="text-zinc-300 font-medium hidden md:inline">Scope:</span>
           <span className="font-bold text-amber-300 tabular-nums font-mono">
@@ -1125,7 +1125,7 @@ export default function CreatorStudioPage() {
         title={label}
         aria-label={label}
       >
-        <MessageSquare className="size-3.5 text-amber-500" />
+        <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
         <span className="hidden min-[360px]:inline">{label}</span>
         <span className="min-[360px]:hidden">Chat</span>
       </Button>
@@ -1168,7 +1168,7 @@ export default function CreatorStudioPage() {
                   </>
                 ) : (
                   <>
-                    <Coins className="size-3.5 text-amber-600 inline shrink-0" />
+                    <Coins className="size-3.5 text-brand-text dark:text-amber-400 inline shrink-0" />
                     <span>Choose your Studio Wallet or a package to continue</span>
                   </>
                 )}
@@ -1390,7 +1390,7 @@ export default function CreatorStudioPage() {
                       'size-9 sm:size-12 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors',
                       isWalletFunding
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                        : 'bg-amber-400/15 text-brand-text dark:text-amber-400'
                     )}
                   >
                     <Wallet className="size-4.5 sm:size-6" />
@@ -1476,7 +1476,7 @@ export default function CreatorStudioPage() {
 
               {/* Hybrid Wallet Integration Toggle when a Package is selected */}
               {isPackageSelected && (
-                <div className="pt-2 sm:pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-amber-500/5 dark:bg-amber-950/20 -mx-3 sm:-mx-5 -mb-3 sm:-mb-5 p-2 sm:p-3 sm:px-5 rounded-b-xl">
+                <div className="pt-2 sm:pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-amber-400/5 dark:bg-amber-950/20 -mx-3 sm:-mx-5 -mb-3 sm:-mb-5 p-2 sm:p-3 sm:px-5 rounded-b-xl">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="apply-wallet-toggle"
@@ -1507,7 +1507,7 @@ export default function CreatorStudioPage() {
           ) : (
             <Card className="p-3 sm:p-4 rounded-xl border border-border/70 bg-secondary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <div className="size-8 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0">
                   <Coins className="size-4" />
                 </div>
                 <div>
@@ -1529,10 +1529,10 @@ export default function CreatorStudioPage() {
               <button
                 type="button"
                 onClick={() => useChatStore.getState().setIsOpen(true, GLOBAL_CHAT_ID)}
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-brand-text dark:hover:text-amber-400 transition-colors cursor-pointer"
               >
-                <MessageSquare className="size-3.5 text-amber-500" />
-                <span>Have questions about packages or credits? <span className="font-semibold underline decoration-amber-500/40 underline-offset-2">Chat with our team</span></span>
+                <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
+                <span>Have questions about packages or credits? <span className="font-semibold underline decoration-amber-400/40 underline-offset-2">Chat with our team</span></span>
               </button>
             </div>
           </ChatGate>

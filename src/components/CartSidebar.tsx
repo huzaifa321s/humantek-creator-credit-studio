@@ -103,7 +103,7 @@ export function CartSidebar({
   return (
     <Card className={cn('border-border bg-card shadow-xs flex flex-col h-full overflow-hidden rounded-xl', className)}>
       {/* Amber glowing header strip */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-amber-500 to-amber-600 shrink-0" />
+      <div className="h-1.5 w-full bg-gradient-to-r from-amber-400 to-amber-500 shrink-0" />
 
       {/* FIXED HEADER: Wallet Info, Selected Summary & Unit Limits */}
       <div className="p-3.5 sm:p-4.5 pb-3 border-b border-border/60 bg-card shrink-0 space-y-3">
@@ -160,7 +160,7 @@ export function CartSidebar({
           <div className="text-right shrink-0 flex flex-col items-end justify-start pt-0.5">
             <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
               <span className="text-xs font-bold text-foreground">
-                Selected <span className="font-mono text-amber-600 dark:text-amber-400">({entries.length})</span>
+                Selected <span className="font-mono text-brand-text dark:text-amber-400">({entries.length})</span>
               </span>
               {entries.length > 0 && onClearAll && (
                 <>
@@ -176,7 +176,7 @@ export function CartSidebar({
                 </>
               )}
             </div>
-            <span className="text-2xs sm:text-xs font-semibold text-amber-600 dark:text-amber-400 block mt-1 font-mono tabular-nums whitespace-nowrap">
+            <span className="text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 block mt-1 font-mono tabular-nums whitespace-nowrap">
               {usedCredits.toLocaleString('en-US')} CR used
             </span>
           </div>
@@ -288,8 +288,8 @@ export function CartSidebar({
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="pt-0.5">
-                <span className="inline-flex items-center gap-1 text-2xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                  <Sparkles className="w-3 h-3 text-amber-600" />
+                <span className="inline-flex items-center gap-1 text-2xs font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 px-2.5 py-1 rounded-lg border border-amber-400/25">
+                  <Sparkles className="w-3 h-3 text-brand-text dark:text-amber-400" />
                   Click &ldquo;Add to Scope&rdquo; on any service
                 </span>
               </EmptyContent>
