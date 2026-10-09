@@ -242,7 +242,7 @@ export function CartSidebar({
             entries.map(({ service, choice, credits }) => (
               <div
                 key={service.id}
-                className="p-3 rounded-xl bg-secondary/40 border border-border/80 flex items-center justify-between gap-3 text-xs group hover:border-amber-300 hover:bg-secondary/60 transition-all"
+                className="p-3 rounded-xl bg-secondary/40 border border-border/80 flex items-center justify-between gap-3 text-xs group hover:border-amber-400/60 hover:bg-secondary/60 transition-all"
               >
                 <div className="min-w-0 flex-1">
                   <b className="font-semibold text-xs sm:text-sm text-foreground truncate block">
@@ -302,7 +302,7 @@ export function CartSidebar({
           <div className="space-y-2.5 pt-3 border-t border-border/80">
             <div className="flex items-center justify-between pb-0.5">
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded-md bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <h4 className="text-xs font-black uppercase tracking-wider text-foreground">
@@ -310,9 +310,9 @@ export function CartSidebar({
                 </h4>
               </div>
               {additions && additions.length > 0 ? (
-                <Badge variant="gold" className="text-xs px-2 py-0.5 font-bold tabular-nums">
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold tabular-nums bg-amber-400 text-zinc-950 shadow-xs border border-amber-400">
                   {additions.length} selected
-                </Badge>
+                </span>
               ) : (
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
                   Optional
@@ -343,10 +343,10 @@ export function CartSidebar({
                     }}
                     className={cn(
                       'group flex items-center justify-between gap-3 p-2.5 sm:p-3 rounded-xl border text-xs cursor-pointer select-none transition-all duration-200 outline-none shadow-2xs',
-                      'focus-visible:ring-2 focus-visible:ring-amber-500/50',
+                      'focus-visible:ring-2 focus-visible:ring-amber-400/50',
                       isChecked
-                        ? 'border-amber-500 bg-amber-500/10 text-foreground font-semibold ring-1 ring-amber-500/30'
-                        : 'border-border/80 bg-secondary/30 hover:border-amber-500/50 hover:bg-secondary/70 text-muted-foreground hover:text-foreground'
+                        ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 text-foreground font-semibold ring-2 ring-amber-400/25 shadow-xs'
+                        : 'border-border/80 bg-secondary/30 hover:border-amber-400/50 hover:bg-secondary/70 text-muted-foreground hover:text-foreground'
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -355,14 +355,14 @@ export function CartSidebar({
                         checked={isChecked}
                         className={cn(
                           'pointer-events-none shrink-0 size-4.5 rounded-md',
-                          isChecked && 'data-checked:bg-amber-600 data-checked:border-amber-600 dark:data-checked:bg-amber-500'
+                          isChecked && 'data-checked:bg-amber-400 data-checked:border-amber-400 data-checked:text-zinc-950'
                         )}
                       />
                       <Icon
                         className={cn(
                           'w-4 h-4 shrink-0 transition-colors',
                           isChecked
-                            ? 'text-amber-600 dark:text-amber-400'
+                            ? 'text-brand-text dark:text-amber-400'
                             : 'text-muted-foreground group-hover:text-foreground'
                         )}
                       />
@@ -374,9 +374,9 @@ export function CartSidebar({
                     <div className="shrink-0 flex items-center">
                       <span
                         className={cn(
-                          'text-xs font-mono font-extrabold px-2 py-0.5 rounded-md border transition-all tabular-nums',
+                          'text-xs font-mono font-black px-2 py-0.5 rounded-md border transition-all tabular-nums',
                           isChecked
-                            ? 'bg-amber-500 text-white dark:bg-amber-500 dark:text-zinc-950 border-amber-600 dark:border-amber-400 shadow-2xs'
+                            ? 'bg-amber-400 text-zinc-950 border-amber-400 shadow-xs shadow-amber-400/25'
                             : 'bg-secondary text-muted-foreground border-border/80 group-hover:text-foreground group-hover:border-amber-400/50'
                         )}
                       >
@@ -436,7 +436,7 @@ export function CartSidebar({
 
         {/* Dynamic Contextual Upgrade Callout */}
         {isOverBudget && (
-          <Alert variant="warning" className="rounded-xl p-3 border-amber-500/30 bg-amber-500/10 animate-in fade-in [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
+          <Alert variant="warning" className="rounded-xl p-3 border-amber-400/35 bg-amber-400/[0.08] animate-in fade-in [&>svg]:text-brand-text dark:[&>svg]:text-amber-400">
             <Sparkles className="w-4 h-4" />
             <AlertTitle className="text-xs sm:text-sm font-bold text-foreground truncate">
               {recommendedPack ? `Upgrade to ${recommendedPack.name}` : 'Upgrade Required'}

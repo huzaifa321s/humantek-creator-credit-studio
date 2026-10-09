@@ -72,7 +72,7 @@ function HeaderChatButton({ mode }: { mode: 'standalone' | 'wizard' | 'auth' }) 
         >
           <MessageSquare className="size-4 text-zinc-300 group-hover:text-white group-hover:scale-105 transition-transform" />
           {totalUnreadChat > 0 ? (
-            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950" />
+            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-400 ring-2 ring-zinc-950" />
           ) : null}
         </TooltipTrigger>
         <TooltipContent side="bottom">
@@ -198,7 +198,7 @@ export function DashboardHeader({
                 isSidebarCollapsed && 'hidden'
               )}
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-white text-2xs tracking-wider shadow-xs group-hover:scale-105 transition-transform shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center font-black text-zinc-950 text-2xs tracking-wider shadow-xs shadow-amber-400/30 group-hover:scale-105 transition-transform shrink-0">
                 ART
               </div>
               <div className="hidden sm:block min-w-0 truncate">
@@ -331,7 +331,7 @@ export function DashboardHeader({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 rounded-lg border-amber-500/40 text-amber-400 hover:text-white hover:bg-amber-500/20 text-xs font-semibold cursor-pointer shadow-2xs"
+                  className="h-8 px-3 rounded-lg border-amber-400/40 text-amber-400 hover:text-white hover:bg-amber-400/20 text-xs font-semibold cursor-pointer shadow-2xs"
                 >
                   Sign In
                 </Button>
@@ -347,13 +347,13 @@ export function DashboardHeader({
 
               {/* Credit Balance Pill or Admin Badge */}
               {isManagementRoute ? (
-                <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-300 text-xs font-semibold select-none shadow-2xs">
+                <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-amber-300 text-xs font-semibold select-none shadow-2xs">
                   <ShieldCheck className="size-3.5 text-amber-400 shrink-0" />
                   <span className="font-semibold text-xs tracking-tight">Studio Admin</span>
                 </div>
               ) : !isBalanceLoaded ? (
                 <div
-                  className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-xs font-semibold select-none shadow-2xs shrink-0"
+                  className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-xs font-semibold select-none shadow-2xs shrink-0"
                   aria-label="Loading credit balance"
                 >
                   <Coins className="size-3.5 text-amber-400/60 animate-pulse shrink-0" />
@@ -366,7 +366,7 @@ export function DashboardHeader({
                   title="View credit balance and redeem codes"
                   className={cn(
                     badgeVariants({ variant: 'gold', size: 'default' }),
-                    'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
+                    'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-400/40 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25 hover:border-amber-400/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
                   )}
                 >
                   <Coins className="size-3.5 text-amber-400 shrink-0" />

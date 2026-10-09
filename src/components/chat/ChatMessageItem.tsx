@@ -102,8 +102,8 @@ export const ChatMessageItem = React.memo(
     <Message align={isClient ? 'end' : 'start'} className="group/message">
       {!isClient && (
         <MessageAvatar>
-          <Avatar className="size-7 border border-amber-500/40 bg-gradient-to-br from-amber-500/20 to-amber-600/30 shadow-2xs">
-            <AvatarFallback className="bg-transparent text-amber-800 dark:text-amber-300 font-bold text-xs">
+          <Avatar className="size-7 border border-amber-400/40 bg-amber-400/15 shadow-2xs">
+            <AvatarFallback className="bg-transparent text-brand-text dark:text-amber-300 font-bold text-xs">
               SM
             </AvatarFallback>
           </Avatar>

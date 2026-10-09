@@ -133,7 +133,7 @@ export default function ProjectsPage() {
                 placeholder="Search by code, brand, or package..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-xs bg-card border-border/80 rounded-lg focus-visible:border-amber-500"
+                className="pl-8 h-8 text-xs bg-card border-border/80 rounded-lg focus-visible:border-amber-400"
               />
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function ProjectsPage() {
             <EmptyContent>
               <Button
                 variant="default"
-                className="text-sm font-semibold h-10 px-5 gap-2 bg-amber-500 hover:bg-amber-600 text-white cursor-pointer shadow-xs"
+                className="text-sm font-bold h-10 px-5 gap-2 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground cursor-pointer shadow-xs shadow-amber-400/20"
                 render={<Link href="/new-project" />}
                 nativeButton={false}
               >
@@ -211,7 +211,7 @@ export default function ProjectsPage() {
               return (
                 <Card
                   key={proj.id}
-                  className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-500/40 transition-all overflow-hidden"
+                  className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-400/50 transition-all overflow-hidden"
                 >
                   {/* Top Header */}
                   <CardHeader className="p-4 sm:p-5 border-b border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -233,9 +233,9 @@ export default function ProjectsPage() {
                         <span
                           className={cn(
                             'size-2 rounded-full shrink-0 mt-1 sm:mt-1.5',
-                            proj.status === 'pending_review' && 'bg-amber-500 animate-pulse',
+                            proj.status === 'pending_review' && 'bg-amber-400 animate-pulse',
                             proj.status === 'payment_confirmed' && 'bg-emerald-500',
-                            proj.status === 'in_production' && 'bg-amber-500 animate-pulse',
+                            proj.status === 'in_production' && 'bg-amber-400 animate-pulse',
                             proj.status === 'review_round' && 'bg-purple-500',
                             proj.status === 'delivered' && 'bg-emerald-500',
                             !['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(proj.status) && 'bg-muted-foreground/50'

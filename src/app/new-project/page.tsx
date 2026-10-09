@@ -957,9 +957,8 @@ export default function CreatorStudioPage() {
         link: '/projects',
       });
 
-      // Navigate to dedicated confirmation route before clearing draft
+      // Navigate to dedicated confirmation route (draft is cleared upon confirmation mount)
       router.replace(`/new-project/confirmation/${data.project.id}`);
-      resetWizard();
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : 'Submission failed';
       if (msg.includes('Authentication required') || msg.includes('401')) {
@@ -1035,9 +1034,8 @@ export default function CreatorStudioPage() {
         link: '/projects',
       });
 
-      // Navigate to dedicated confirmation route before clearing draft
+      // Navigate to dedicated confirmation route (draft is cleared upon confirmation mount)
       router.replace(`/new-project/confirmation/${data.project.id}`);
-      resetWizard();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
       setErrorMessage(msg);
@@ -1773,7 +1771,7 @@ export default function CreatorStudioPage() {
                     'size-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs',
                     remainingCredits < 0
                       ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                      : 'bg-amber-400/20 text-brand-text dark:text-amber-400'
                   )}
                 >
                   <Coins className="size-4" />
@@ -1798,16 +1796,16 @@ export default function CreatorStudioPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 text-2xs sm:text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 px-2 sm:px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs">
+              <div className="flex items-center gap-1 text-2xs sm:text-xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/35 px-2 sm:px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs">
                 <span>View Scope</span>
-                <ChevronRight className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                <ChevronRight className="w-3 h-3 text-brand-text dark:text-amber-400" />
               </div>
             </button>
           </div>
 
           {isWalletFunding && remainingCredits < 0 && (
-            <Alert variant="warning" className="rounded-xl border-amber-500/30 bg-amber-500/10">
-              <Sparkles className="w-4 h-4 text-amber-600" />
+            <Alert variant="warning" className="rounded-xl border-amber-400/35 bg-amber-400/[0.08]">
+              <Sparkles className="w-4 h-4 text-brand-text dark:text-amber-400" />
               <AlertTitle className="text-xs sm:text-sm font-bold text-foreground">
                 Wallet Budget Exceeded by {Math.abs(remainingCredits)} CR
               </AlertTitle>
@@ -1846,7 +1844,7 @@ export default function CreatorStudioPage() {
                         className={cn(
                           'sm:hidden inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer',
                           priceFilter !== 'all'
-                            ? 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300 font-bold'
+                            ? 'bg-amber-400/20 border-amber-400/40 text-brand-text dark:text-amber-300 font-bold'
                             : 'bg-secondary/60 border-border/80 text-muted-foreground hover:text-foreground'
                         )}
                       >
@@ -1869,12 +1867,12 @@ export default function CreatorStudioPage() {
                             className={cn(
                               'flex items-center justify-between text-xs px-2.5 py-2 rounded-lg cursor-pointer',
                               priceFilter === opt.id &&
-                                'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold'
+                                'bg-amber-400/20 text-brand-text dark:text-amber-300 font-bold'
                             )}
                           >
                             <span>{opt.label}</span>
                             {priceFilter === opt.id && (
-                              <Check className="size-3.5 text-amber-600 shrink-0" />
+                              <Check className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                             )}
                           </DropdownMenuItem>
                         ))}
@@ -1924,7 +1922,7 @@ export default function CreatorStudioPage() {
                       <ToggleGroupItem
                         key={opt.id}
                         value={opt.id}
-                        className="h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium text-muted-foreground bg-secondary/50 border border-transparent hover:bg-secondary/80 hover:text-foreground data-[pressed]:bg-amber-500/15 data-[pressed]:text-amber-800 dark:data-[pressed]:text-amber-300 data-[pressed]:font-bold data-[pressed]:border-amber-500/35 data-[pressed]:shadow-2xs"
+                        className="h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium text-muted-foreground bg-secondary/50 border border-transparent hover:bg-secondary/80 hover:text-foreground data-[pressed]:bg-amber-400/20 data-[pressed]:text-brand-text dark:data-[pressed]:text-amber-300 data-[pressed]:font-bold data-[pressed]:border-amber-400/40 data-[pressed]:shadow-2xs"
                       >
                         {opt.label}
                       </ToggleGroupItem>
@@ -1977,8 +1975,8 @@ export default function CreatorStudioPage() {
                                 className={cn(
                                   'rounded-lg transition-all duration-200',
                                   isSelected
-                                    ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs shadow-amber-500/20'
-                                    : 'bg-secondary/80 border-border/80 text-muted-foreground group-hover:border-amber-500/40 group-hover:text-amber-600 dark:group-hover:text-amber-400'
+                                    ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-black shadow-xs shadow-amber-400/25'
+                                    : 'bg-secondary/80 border-border/80 text-muted-foreground group-hover:border-amber-400/50 group-hover:text-brand-text dark:group-hover:text-amber-400'
                                 )}
                               >
                                 <Icon />
@@ -1992,10 +1990,10 @@ export default function CreatorStudioPage() {
                             <div className="min-w-0 flex-1">
                               <ServiceImageHoverCard service={svc}>
                                 <span className="inline-flex items-center gap-1.5 cursor-pointer group/title">
-                                  <h3 className="text-sm font-bold text-foreground leading-snug truncate group-hover/title:text-amber-500 transition-colors">
+                                  <h3 className="text-sm font-bold text-foreground leading-snug truncate group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors">
                                     {svc.name}
                                   </h3>
-                                  <span className="size-4 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground group-hover/title:bg-amber-500/20 group-hover/title:text-amber-600 transition-colors" title="Hover for deliverable preview">
+                                  <span className="size-4 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground group-hover/title:bg-amber-400/20 group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors" title="Hover for deliverable preview">
                                     <Eye className="size-2.5" />
                                   </span>
                                 </span>
@@ -2030,7 +2028,7 @@ export default function CreatorStudioPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => toggleService(svc.id)}
-                            className="w-full text-xs font-semibold h-8 rounded-lg border-dashed hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 gap-1.5 cursor-pointer"
+                            className="w-full text-xs font-semibold h-8 rounded-lg border-dashed hover:border-amber-400 hover:text-brand-text dark:hover:text-amber-400 hover:bg-amber-400/[0.04] gap-1.5 cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             Add to Scope
@@ -2197,7 +2195,7 @@ export default function CreatorStudioPage() {
             <DrawerContent className="h-[88vh] max-h-[88vh] p-0 rounded-t-2xl border-t border-border flex flex-col bg-background overflow-hidden">
               <DrawerHeader className="p-3.5 pb-2.5 border-b border-border/70 flex flex-row items-center justify-between shrink-0 text-left">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="size-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <div className="size-7 rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0">
                     <Coins className="size-4" />
                   </div>
                   <div className="min-w-0">
@@ -2246,7 +2244,7 @@ export default function CreatorStudioPage() {
                       'size-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs',
                       remainingCredits < 0
                         ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                        : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                        : 'bg-amber-400/20 text-brand-text dark:text-amber-400'
                     )}
                   >
                     <Coins className="size-4" />
@@ -2944,9 +2942,9 @@ export default function CreatorStudioPage() {
                   onDragLeave={() => setIsDragOver(false)}
                   onDrop={handleFileDrop}
                   data-dragging={isDragOver || undefined}
-                  className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground text-center sm:text-left cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-50/40 focus-visible:ring-2 focus-visible:ring-amber-500/40 data-[dragging]:border-amber-500 data-[dragging]:bg-amber-50/70 data-[dragging]:text-amber-700 dark:hover:bg-amber-500/5 dark:data-[dragging]:bg-amber-500/10"
+                  className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground text-center sm:text-left cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-400/[0.04] focus-visible:ring-2 focus-visible:ring-amber-400/40 data-[dragging]:border-amber-400 data-[dragging]:bg-amber-400/15 data-[dragging]:text-brand-text dark:hover:bg-amber-400/5 dark:data-[dragging]:bg-amber-400/15"
                 >
-                  <ImageIcon className="size-3.5 shrink-0 text-amber-600" />
+                  <ImageIcon className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
                   <span className="leading-snug">
                     <span className="font-semibold text-foreground">Drag &amp; drop</span>{' '}
                     images here, or click to browse
@@ -3098,7 +3096,7 @@ export default function CreatorStudioPage() {
             {/* Collapsible Terms & Conditions */}
             <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
               <Collapsible open={isTermsExpanded} onOpenChange={setIsTermsExpanded}>
-                <CollapsibleTrigger className="w-full flex items-center justify-between p-3.5 sm:p-4 text-left font-bold text-foreground text-xs sm:text-sm hover:bg-secondary/40 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30">
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3.5 sm:p-4 text-left font-bold text-foreground text-xs sm:text-sm hover:bg-secondary/40 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-400/30">
                   <div className="flex items-center gap-2">
                     <span className="text-foreground text-xs select-none transition-transform duration-200">
                       {isTermsExpanded ? '▼' : '▶'}
@@ -3112,7 +3110,7 @@ export default function CreatorStudioPage() {
                 <CollapsibleContent>
                   <div className="border-t border-border/60 bg-muted/15 px-5 sm:px-6 py-4 space-y-2.5">
                     {TERMS_AND_CONDITIONS.map((term, idx) => (
-                      <p key={idx} className="text-xs text-muted-foreground leading-relaxed pl-3 border-l-2 border-amber-500/30">
+                      <p key={idx} className="text-xs text-muted-foreground leading-relaxed pl-3 border-l-2 border-amber-400/40">
                         {term}
                       </p>
                     ))}
@@ -3127,8 +3125,8 @@ export default function CreatorStudioPage() {
               className={cn(
                 'rounded-xl border transition-all cursor-pointer select-none scroll-mt-[140px]',
                 termsAccepted
-                  ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
-                  : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-2xs'
+                  ? 'border-amber-400/80 bg-amber-400/[0.04] ring-1 ring-amber-400/25 shadow-xs'
+                  : 'border-border/80 bg-card hover:border-amber-400/50 hover:shadow-2xs'
               )}
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest('button, input, label')) return;
@@ -3740,7 +3738,6 @@ export default function CreatorStudioPage() {
 
                                 // Navigate to dedicated confirmation route before clearing draft
                                 router.replace(`/new-project/confirmation/${proj.id}`);
-                                resetWizard();
                               } else {
                                 // PayPal succeeded and credits deposited in wallet; launch project via wallet
                                 handleLaunchWithWallet();

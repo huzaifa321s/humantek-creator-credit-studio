@@ -122,7 +122,7 @@ export default function RedeemCodePage() {
             type="button"
             variant="default"
             size="sm"
-            className="h-8 px-2.5 sm:px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
+            className="h-8 px-2.5 sm:px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground cursor-pointer shadow-amber-400/20"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden min-[400px]:inline">New Project</span>
@@ -262,7 +262,7 @@ export default function RedeemCodePage() {
               <div className="lg:col-span-5">
                 <Card className="p-4 sm:p-6 rounded-xl border border-border/80 bg-card shadow-xs space-y-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center">
                       <Wallet className="w-4 h-4" />
                     </div>
                     <div>
@@ -375,13 +375,13 @@ export default function RedeemCodePage() {
 
               {/* Luxury Card Preview */}
               <div className="lg:col-span-6">
-                <Card className="p-4 sm:p-6 md:p-8 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-gradient-to-br from-amber-50/70 via-card to-amber-100/30 dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-xs flex flex-col justify-between min-h-[260px] sm:min-h-[340px]">
+                <Card className="p-4 sm:p-6 md:p-8 rounded-xl border border-amber-400/40 dark:border-amber-700/60 bg-gradient-to-br from-amber-400/[0.08] via-card to-amber-400/[0.04] dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-xs flex flex-col justify-between min-h-[260px] sm:min-h-[340px]">
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm uppercase tracking-wider text-amber-800 dark:text-amber-300 font-extrabold">
+                      <span className="text-xs sm:text-sm uppercase tracking-wider text-brand-text dark:text-amber-300 font-extrabold">
                         Humantek Creator Pass
                       </span>
-                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      <Sparkles className="w-4 h-4 text-brand-text dark:text-amber-400" />
                     </div>
 
                     <div className="my-4 sm:my-8">
@@ -393,7 +393,7 @@ export default function RedeemCodePage() {
                     </div>
 
                     {generatedCode ? (
-                      <div className="p-3 sm:p-4 bg-amber-50/90 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 rounded-xl flex items-center justify-between gap-2 mt-4 shadow-2xs">
+                      <div className="p-3 sm:p-4 bg-amber-50/90 dark:bg-amber-950/60 border border-amber-400/40 dark:border-amber-700 rounded-xl flex items-center justify-between gap-2 mt-4 shadow-2xs">
                         <span className="font-mono tabular-nums text-xs sm:text-base font-bold text-amber-900 dark:text-amber-200 tracking-wider break-all">
                           {generatedCode}
                         </span>

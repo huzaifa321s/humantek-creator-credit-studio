@@ -141,11 +141,11 @@ export function DashboardProfileDropdown({
             variant="ghost"
             size="icon"
             aria-label="User Account Menu"
-            className="relative size-8.5 rounded-full p-0 border border-white/15 bg-zinc-900 hover:border-white/30 hover:ring-2 hover:ring-amber-500/30 focus-visible:ring-2 focus-visible:ring-amber-500/50 cursor-pointer select-none transition-all shrink-0"
+            className="relative size-8.5 rounded-full p-0 border border-white/15 bg-zinc-900 hover:border-white/30 hover:ring-2 hover:ring-amber-400/30 focus-visible:ring-2 focus-visible:ring-amber-400/50 cursor-pointer select-none transition-all shrink-0"
           />
         }
       >
-        <Avatar size="default" className="size-8.5 ring-1 ring-white/10 hover:ring-amber-500/40 transition-all">
+        <Avatar size="default" className="size-8.5 ring-1 ring-white/10 hover:ring-amber-400/40 transition-all">
           <AvatarFallback className="bg-zinc-800 text-zinc-100 font-bold text-xs p-0 overflow-hidden">
             <CharacterAvatar className="size-full object-cover" />
           </AvatarFallback>
@@ -193,7 +193,7 @@ export function DashboardProfileDropdown({
               className={cn(
                 'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
                 isProjectsActive
-                  ? 'bg-amber-500/12 text-amber-300 font-semibold'
+                  ? 'bg-amber-400/15 text-amber-300 font-semibold'
                   : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
               )}
             >
@@ -229,7 +229,7 @@ export function DashboardProfileDropdown({
                   <Badge
                     variant="gold"
                     size="xs"
-                    className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-xs border-amber-500/30 bg-amber-500/15 text-amber-300 group-hover:bg-amber-500/25 transition-colors"
+                    className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-xs border-amber-400/30 bg-amber-400/15 text-amber-300 group-hover:bg-amber-400/25 transition-colors"
                   >
                     {effectiveBalance} {effectiveBalance === 1 ? 'credit' : 'credits'}
                   </Badge>
@@ -254,7 +254,7 @@ export function DashboardProfileDropdown({
               className={cn(
                 'size-6 rounded-full transition-all cursor-pointer border',
                 mounted && theme === 'light'
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/35 font-semibold shadow-2xs'
+                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/35 font-semibold shadow-2xs'
                   : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               )}
               title="Light theme"
@@ -270,7 +270,7 @@ export function DashboardProfileDropdown({
               className={cn(
                 'size-6 rounded-full transition-all cursor-pointer border',
                 mounted && theme === 'dark'
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/35 font-semibold shadow-2xs'
+                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/35 font-semibold shadow-2xs'
                   : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               )}
               title="Dark theme"
@@ -286,7 +286,7 @@ export function DashboardProfileDropdown({
               className={cn(
                 'size-6 rounded-full transition-all cursor-pointer border',
                 mounted && theme === 'system'
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/35 font-semibold shadow-2xs'
+                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/35 font-semibold shadow-2xs'
                   : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               )}
               title="System theme"

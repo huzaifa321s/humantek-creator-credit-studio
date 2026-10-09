@@ -96,7 +96,7 @@ export function ScopeGuideModal() {
         {/* Header */}
         <DialogHeader className="pb-2.5 border-b border-border/70 space-y-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-brand-text shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-400/15 border border-amber-400/35 flex items-center justify-center text-brand-text dark:text-amber-400 shrink-0">
               <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
             <div className="min-w-0 flex-1">
@@ -196,8 +196,8 @@ export function ScopeGuideModal() {
                               className={cn(
                                 "text-xs px-2 py-0.5 font-medium h-5 rounded leading-none",
                                 idx === 0 && "text-muted-foreground border-border/60",
-                                idx === 1 && "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25",
-                                idx === 2 && "bg-amber-600/15 text-amber-800 dark:text-amber-300 border-amber-600/30 font-semibold"
+                                idx === 1 && "bg-amber-400/15 text-brand-text dark:text-amber-400 border-amber-400/30",
+                                idx === 2 && "bg-amber-400/25 text-brand-text dark:text-amber-300 border-amber-400/40 font-semibold"
                               )}
                             >
                               Tier {idx}
@@ -232,7 +232,7 @@ export function ScopeGuideModal() {
                         {s.quoteOnly ? (
                           <TableCell
                             colSpan={3}
-                            className="py-2.5 px-3 text-center font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/5 text-xs rounded-lg border border-dashed border-amber-500/25"
+                            className="py-2.5 px-3 text-center font-semibold text-brand-text dark:text-amber-400 bg-amber-400/10 text-xs rounded-lg border border-dashed border-amber-400/30"
                           >
                             Custom Scope / Studio Quote Required
                           </TableCell>
@@ -303,7 +303,7 @@ export function ScopeGuideModal() {
 
                     {/* Scope Breakdown */}
                     {s.quoteOnly ? (
-                      <div className="py-2 px-3 text-center font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 text-2xs rounded-lg border border-dashed border-amber-500/30">
+                      <div className="py-2 px-3 text-center font-semibold text-brand-text dark:text-amber-400 bg-amber-400/10 text-2xs rounded-lg border border-dashed border-amber-400/30">
                         Custom Scope / Studio Quote Required
                       </div>
                     ) : (
@@ -316,8 +316,8 @@ export function ScopeGuideModal() {
                               className={cn(
                                 "rounded-lg p-1.5 xs:p-2 flex flex-col justify-between border transition-colors min-w-0 overflow-hidden",
                                 idx === 0 && "bg-muted/30 border-border/60",
-                                idx === 1 && "bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/20",
-                                idx === 2 && "bg-amber-600/10 border-amber-600/35 dark:bg-amber-950/30"
+                                idx === 1 && "bg-amber-400/5 border-amber-400/30 dark:bg-amber-950/20",
+                                idx === 2 && "bg-amber-400/15 border-amber-400/40 dark:bg-amber-950/30"
                               )}
                             >
                               <div className="min-w-0">
@@ -326,8 +326,8 @@ export function ScopeGuideModal() {
                                     className={cn(
                                       "text-3xs font-bold uppercase tracking-wider truncate",
                                       idx === 0 && "text-muted-foreground",
-                                      idx === 1 && "text-amber-700 dark:text-amber-400 font-extrabold",
-                                      idx === 2 && "text-amber-800 dark:text-amber-300 font-extrabold"
+                                      idx === 1 && "text-brand-text dark:text-amber-400 font-extrabold",
+                                      idx === 2 && "text-brand-text dark:text-amber-300 font-extrabold"
                                     )}
                                   >
                                     {TIER_NAMES[idx]}
@@ -451,7 +451,7 @@ export function ScopeGuideModal() {
                       className={cn(
                         'h-8 w-8 text-xs font-semibold font-mono tabular-nums rounded-md p-0 cursor-pointer',
                         safeCurrentPage === pageNum
-                          ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-xs'
+                          ? 'bg-primary text-primary-foreground font-black hover:bg-[oklch(0.769_0.188_70.08)] shadow-xs shadow-amber-400/20'
                           : 'text-muted-foreground hover:text-foreground'
                       )}
                     >

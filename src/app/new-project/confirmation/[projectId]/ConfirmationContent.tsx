@@ -86,9 +86,12 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
       credits: project.packageCredits,
     });
 
+    // Clear wizard draft now that project confirmation has successfully mounted
+    resetWizard();
+
     // Accessible focus to heading
     headingRef.current?.focus();
-  }, [project, canChat]);
+  }, [project, canChat, resetWizard]);
 
   // Context-dependent copy
   let heading = 'Payment received';

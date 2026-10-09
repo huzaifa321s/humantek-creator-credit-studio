@@ -195,7 +195,7 @@ export function ChatInputBar({
               render={
                 <InputGroupButton
                   size="icon-sm"
-                  className="size-8 rounded-lg text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600"
+                  className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400"
                   aria-label="Attach reference"
                 >
                   <Paperclip className="size-4" />
@@ -207,7 +207,7 @@ export function ChatInputBar({
                 Add reference assets
               </DropdownMenuLabel>
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer gap-2 py-2">
-                <ImageIcon className="size-4 text-amber-600" />
+                <ImageIcon className="size-4 text-brand-text dark:text-amber-400" />
                 <div>
                   <span className="block font-semibold">Upload image</span>
                   <span className="text-2xs text-muted-foreground">PNG or JPG from your computer</span>
@@ -228,7 +228,7 @@ export function ChatInputBar({
                   }
                   className="cursor-pointer gap-2 py-1.5 text-2xs"
                 >
-                  <Sparkles className="size-3.5 shrink-0 text-amber-500" />
+                  <Sparkles className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
                   <span className="truncate">{sample.name}</span>
                 </DropdownMenuItem>
               ))}
@@ -241,7 +241,7 @@ export function ChatInputBar({
               toast.success('Attached creative voice memo (0:24)');
               setText((prev) => (prev ? `${prev} 🎙️ [Voice memo: 0:24]` : '🎙️ Recorded brief audio note (0:24)'));
             }}
-            className="size-8 rounded-lg text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600"
+            className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400"
             aria-label="Record creative voice memo"
             title="Record creative voice memo"
           >
@@ -268,7 +268,7 @@ export function ChatInputBar({
             disabled={!canSend}
             onClick={handleSend}
             aria-label="Send message"
-            className="ml-auto size-9 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs hover:from-amber-600 hover:to-amber-700 disabled:opacity-40 active:scale-95 flex items-center justify-center p-0 shrink-0"
+            className="ml-auto size-9 rounded-full bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black shadow-xs shadow-amber-400/25 disabled:opacity-40 active:scale-95 flex items-center justify-center p-0 shrink-0"
           >
             <ArrowUp className="size-4" />
           </InputGroupButton>

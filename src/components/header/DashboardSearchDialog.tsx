@@ -279,7 +279,7 @@ export function DashboardSearchDialog({
                     <div
                       className={`p-2 rounded-md shrink-0 transition-colors ${
                         isSelected
-                          ? 'bg-amber-500/20 text-amber-400'
+                          ? 'bg-amber-400/20 text-amber-400'
                           : 'bg-zinc-900 text-zinc-400'
                       }`}
                     >
@@ -291,7 +291,7 @@ export function DashboardSearchDialog({
                           {item.title}
                         </span>
                         {item.badge && (
-                          <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold uppercase tracking-wider">
+                          <span className="text-3xs px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-400 border border-amber-400/30 font-semibold uppercase tracking-wider">
                             {item.badge}
                           </span>
                         )}

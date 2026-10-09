@@ -69,7 +69,7 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
     >
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 w-full">
         <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-10 h-10 rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div className="space-y-1">
@@ -86,15 +86,15 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
             </AlertDescription>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-0.5 text-xs text-foreground font-medium">
               <div className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <Check className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                 <span>2–3 revision rounds included</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <Check className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                 <span>Stream-ready PNG, WebM & master files</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <Check className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                 <span>12-month credit validity & rollover</span>
               </div>
             </div>

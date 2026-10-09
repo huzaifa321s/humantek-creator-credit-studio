@@ -92,7 +92,7 @@ export function DashboardNotificationDropdown() {
       >
         <Bell className="size-4 text-zinc-300 group-hover:text-white transition-colors" />
         {mounted && unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950 animate-pulse" />
+          <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-400 ring-2 ring-zinc-950 animate-pulse" />
         )}
       </DropdownMenuTrigger>
 
@@ -109,7 +109,7 @@ export function DashboardNotificationDropdown() {
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-100">Notifications</span>
             {mounted && unreadCount > 0 && (
-              <Badge variant="gold" size="xs" className="font-bold border border-amber-500/30 font-mono tabular-nums">
+              <Badge variant="gold" size="xs" className="font-bold border border-amber-400/30 font-mono tabular-nums">
                 {unreadCount} new
               </Badge>
             )}
@@ -161,7 +161,7 @@ export function DashboardNotificationDropdown() {
                     className={cn(
                       'shrink-0 mt-0.5',
                       item.unread
-                        ? 'text-amber-400 bg-amber-500/10'
+                        ? 'text-amber-400 bg-amber-400/15'
                         : 'text-zinc-400 border-white/10 bg-white/5'
                     )}
                   >
@@ -184,7 +184,7 @@ export function DashboardNotificationDropdown() {
                     </p>
                   </div>
                   {item.unread && (
-                    <span className="size-1.5 rounded-full bg-amber-500 shrink-0 mt-2" />
+                    <span className="size-1.5 rounded-full bg-amber-400 shrink-0 mt-2" />
                   )}
                 </DropdownMenuItem>
               );

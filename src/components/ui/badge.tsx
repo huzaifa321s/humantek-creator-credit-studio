@@ -19,11 +19,11 @@ const badgeVariants = cva(
           "border-transparent hover:bg-accent hover:text-accent-foreground",
         link: "border-transparent text-primary underline-offset-4 hover:underline",
         gold:
-          "border-amber-400/40 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300 font-semibold",
+          "border-amber-400/40 bg-amber-400/10 text-amber-900 dark:border-amber-400/40 dark:bg-amber-400/15 dark:text-amber-300 font-semibold",
         "gold-solid":
-          "border-transparent bg-amber-500 text-white font-semibold [a&]:hover:bg-amber-600",
+          "border-amber-400 bg-amber-400 text-zinc-950 font-black shadow-xs [a&]:hover:bg-amber-300",
         amber:
-          "border-amber-400/40 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300 font-semibold",
+          "border-amber-400/40 bg-amber-400/10 text-amber-900 dark:border-amber-400/40 dark:bg-amber-400/15 dark:text-amber-300 font-semibold",
         accent:
           "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
         success:
@@ -31,7 +31,7 @@ const badgeVariants = cva(
         warning:
           "border-amber-300/80 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300 font-semibold",
         "warning-light":
-          "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold",
+          "border-amber-400/25 bg-amber-400/10 text-amber-800 dark:text-amber-300 font-semibold",
         info:
           "border-sky-200/80 bg-sky-50 text-sky-800 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-300 font-semibold",
         "info-light":
