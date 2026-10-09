@@ -229,44 +229,51 @@ export default function ProjectsPage() {
                       </CardTitle>
 
                       {/* Client-friendly Status & Context note */}
-                      <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
-                        {proj.status === 'pending_review' ? (
-                          <>
-                            <span className="size-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                            <span>Pending Studio Review · Creative brief submitted for review</span>
-                          </>
-                        ) : proj.status === 'payment_confirmed' ? (
-                          <>
-                            <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
-                            <span>Payment Confirmed · Preparing production assets</span>
-                          </>
-                        ) : proj.status === 'in_production' ? (
-                          <>
-                            <span className="size-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                            <span>In Production · Creative work in progress</span>
-                          </>
-                        ) : proj.status === 'review_round' ? (
-                          <>
-                            <span className="size-1.5 rounded-full bg-purple-500 shrink-0" />
-                            <span>Review Round Open · Deliverables awaiting your review</span>
-                          </>
-                        ) : proj.status === 'delivered' ? (
-                          <>
-                            <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
-                            <span>Delivered · All project assets completed</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="size-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
-                            <span>Project {proj.status.replace(/_/g, ' ')}</span>
-                          </>
-                        )}
-                        {proj.platform && proj.platform.toLowerCase() !== 'general' && (
-                          <>
-                            <span className="text-muted-foreground/40">·</span>
-                            <span>Platform: <b className="text-foreground font-semibold">{proj.platform}</b></span>
-                          </>
-                        )}
+                      <div className="text-xs sm:text-sm text-muted-foreground mt-1.5 flex items-start gap-2">
+                        <span
+                          className={cn(
+                            'size-2 rounded-full shrink-0 mt-1 sm:mt-1.5',
+                            proj.status === 'pending_review' && 'bg-amber-500 animate-pulse',
+                            proj.status === 'payment_confirmed' && 'bg-emerald-500',
+                            proj.status === 'in_production' && 'bg-amber-500 animate-pulse',
+                            proj.status === 'review_round' && 'bg-purple-500',
+                            proj.status === 'delivered' && 'bg-emerald-500',
+                            !['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(proj.status) && 'bg-muted-foreground/50'
+                          )}
+                        />
+                        <p className="min-w-0 flex-1 leading-snug">
+                          <span className="font-semibold text-foreground/90">
+                            {proj.status === 'pending_review'
+                              ? 'Pending Studio Review'
+                              : proj.status === 'payment_confirmed'
+                              ? 'Payment Confirmed'
+                              : proj.status === 'in_production'
+                              ? 'In Production'
+                              : proj.status === 'review_round'
+                              ? 'Review Round Open'
+                              : proj.status === 'delivered'
+                              ? 'Delivered'
+                              : `Project ${proj.status.replace(/_/g, ' ')}`}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {proj.status === 'pending_review'
+                              ? ' · Creative brief submitted for review'
+                              : proj.status === 'payment_confirmed'
+                              ? ' · Preparing production assets'
+                              : proj.status === 'in_production'
+                              ? ' · Creative work in progress'
+                              : proj.status === 'review_round'
+                              ? ' · Deliverables awaiting your review'
+                              : proj.status === 'delivered'
+                              ? ' · All project assets completed'
+                              : ''}
+                          </span>
+                          {proj.platform && proj.platform.toLowerCase() !== 'general' && (
+                            <span className="text-muted-foreground">
+                              {' '}· Platform: <b className="text-foreground font-semibold">{proj.platform}</b>
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
 
