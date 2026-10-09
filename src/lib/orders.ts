@@ -1,7 +1,46 @@
-import type { ProjectRecord } from '@/types';
+import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import type { OrderQuote } from '@/lib/pricing';
 import type { OrderRequest } from '@/lib/validation';
 import { addLedgerEntry, addProject, adjustUserBalance } from '@/lib/store';
+
+export function formatDbProject(p: any): ProjectRecord {
+  return {
+    id: p.id,
+    userId: p.user_id,
+    projectCode: p.project_code,
+    packageId: p.package_id || 'studio-wallet',
+    packageName: p.package_name || '',
+    packagePrice: Number(p.package_price_usd) || 0,
+    packageCredits: p.package_credits || 0,
+    usedCredits: p.total_credits || 0,
+    remainingCredits: 0,
+    status: p.status,
+    paymentStatus: p.payment_status,
+    paymentMethod: p.payment_method,
+    fundingSource: p.funding_source,
+    appliedWalletCredits: p.applied_wallet_credits || 0,
+    clientName: p.client_name,
+    channelName: p.channel_name || '',
+    email: p.email,
+    platform: p.platform || '',
+    style: p.style || '',
+    colors: p.colors || '',
+    instructions: p.instructions || '',
+    uploadedFiles: Array.isArray(p.uploaded_files) ? p.uploaded_files : [],
+    lastMessageAt: p.last_message_at || null,
+    lastMessagePreview: p.last_message_preview || null,
+    additions: (p.project_additions || []).map((a: any) => a.name),
+    selections: (p.project_items || []).map((i: any) => ({
+      id: i.service_id,
+      name: i.service_name,
+      level: i.tier_level as ServiceTierLevel,
+      quantity: i.quantity,
+      credits: i.total_credits,
+    })),
+    createdAt: p.created_at,
+  };
+}
+
 
 /**
  * Builds a ProjectRecord exclusively from server-validated input and the

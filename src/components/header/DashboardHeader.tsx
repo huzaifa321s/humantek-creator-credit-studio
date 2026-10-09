@@ -324,7 +324,8 @@ export function DashboardHeader({
               </a>
             </div>
           ) : !effectiveEmail ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {!isManagementRoute && topRightBadge}
               <Link href="/login">
                 <Button
                   type="button"

@@ -81,7 +81,7 @@ export function CreditValue({
         <span className={cn('tabular-nums', sizeStyles.num)}>
           {prefix}{formattedValue}
         </span>
-        <span className={cn('text-amber-600 dark:text-amber-400 tracking-wide', sizeStyles.unit)}>
+        <span className={cn('text-brand-text tracking-wide', sizeStyles.unit)}>
           {suffix}
         </span>
         {showUsd && usdEquivalent && (
@@ -147,7 +147,7 @@ export function CreditValue({
           'uppercase tracking-wider ml-0.5',
           variant === 'subtle'
             ? 'text-muted-foreground/80'
-            : 'text-amber-600 dark:text-amber-500 font-bold',
+            : 'text-brand-text font-bold',
           sizeStyles.unit
         )}
       >

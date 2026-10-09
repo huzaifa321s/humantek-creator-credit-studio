@@ -319,7 +319,7 @@ export function AuthForm({
               </Label>
               <Link
                 href="/login?forgot=true"
-                className="text-xs font-medium text-muted-foreground hover:text-primary hover:underline transition-colors"
+                className="text-xs font-medium text-muted-foreground hover:text-brand-text hover:underline transition-colors"
                 tabIndex={0}
               >
                 Forgot password?
@@ -363,7 +363,7 @@ export function AuthForm({
             <button
               type="button"
               onClick={() => switchMode('signup')}
-              className="text-primary hover:underline font-semibold cursor-pointer"
+              className="text-brand-text hover:underline font-bold cursor-pointer"
             >
               Sign up
             </button>
@@ -454,7 +454,7 @@ export function AuthForm({
             <button
               type="button"
               onClick={() => switchMode('signin')}
-              className="text-primary hover:underline font-semibold cursor-pointer"
+              className="text-brand-text hover:underline font-bold cursor-pointer"
             >
               Sign in
             </button>
@@ -503,7 +503,7 @@ export function AuthForm({
               type="button"
               onClick={handleResendOtp}
               disabled={isResendingOtp}
-              className="text-primary hover:underline font-medium cursor-pointer disabled:opacity-50"
+              className="text-brand-text hover:underline font-semibold cursor-pointer disabled:opacity-50"
             >
               {isResendingOtp ? 'Resending...' : 'Resend code'}
             </button>

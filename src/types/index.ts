@@ -65,6 +65,7 @@ export interface UploadedFile {
 
 export interface ProjectRecord {
   id: string;
+  userId?: string;
   projectCode: string;
   packageId: string;
   packageName: string;
@@ -73,7 +74,7 @@ export interface ProjectRecord {
   usedCredits: number;
   remainingCredits?: number;
   status: 'pending_review' | 'payment_confirmed' | 'in_production' | 'review_round' | 'delivered' | 'declined' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid' | 'refunded';
+  paymentStatus: 'unpaid' | 'paid' | 'refunded' | 'pending';
   paymentMethod?: 'credits' | 'paypal' | 'unpaid' | 'manual' | string;
   fundingSource?: 'wallet' | 'package' | 'hybrid';
   appliedWalletCredits?: number;

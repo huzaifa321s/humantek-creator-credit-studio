@@ -181,3 +181,35 @@ if (typeof window !== 'undefined') {
     }
   });
 }
+
+/**
+ * Authoritative session refresh: sets canChat, hasProjects, and role strictly
+ * from the server session (/api/auth/session). Never hardcodes or fakes permissions client-side.
+ */
+export async function refreshUserSession(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const res = await fetch('/api/auth/session', { cache: 'no-store' });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.authenticated && data.user) {
+      useUserStore.getState().updateUser({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role || 'client',
+        emailVerified: Boolean(data.user.emailConfirmed),
+        hasProjects: Boolean(data.user.hasProjects),
+        canChat: Boolean(data.user.canChat),
+      });
+      return true;
+    } else if (!data.authenticated) {
+      const current = useUserStore.getState().user;
+      if (current?.email && current.email !== 'dev@localhost') {
+        useUserStore.getState().signOut();
+      }
+    }
+  } catch (err) {
+    console.error('Failed to refresh user session from server:', err);
+  }
+  return false;
+}

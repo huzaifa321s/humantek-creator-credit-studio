@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { MessageSquareDashed, ArrowDown } from 'lucide-react';
+import { MessageSquareDashed, ArrowDown, Sparkles } from 'lucide-react';
 
 import { ChatMessage, useChatStore, GLOBAL_CHAT_ID } from '@/lib/chatStore';
 import { cn } from '@/lib/utils';
@@ -157,6 +157,23 @@ export function ChatMessageList({
       <MessageScroller className={className}>
         <MessageScrollerViewport aria-label="Conversation with studio producer">
           <MessageScrollerContent className={cn('gap-3 pb-4', contentClassName)}>
+            {/* Subtle Studio Welcome / Context Card when conversation is starting */}
+            {messages.length <= 3 && (
+              <MessageScrollerItem messageId="conversation-starter-intro">
+                <div className="py-2.5 px-3.5 rounded-xl bg-secondary/35 border border-border/60 text-center space-y-1 mx-auto max-w-sm my-1 animate-in fade-in duration-200">
+                  <div className="inline-flex items-center gap-1.5 text-2xs font-semibold text-amber-700 dark:text-amber-400">
+                    <Sparkles className="size-3 text-amber-500 shrink-0" />
+                    <span>{isGlobal ? 'Studio Advisory & Support' : 'Dedicated Project Workspace'}</span>
+                  </div>
+                  <p className="text-2xs text-muted-foreground leading-relaxed">
+                    {isGlobal
+                      ? 'Ask about packages, scope recommendations, credit rollovers, or custom requests.'
+                      : 'Share references, track milestones, or discuss production directly with Sarah Miller.'}
+                  </p>
+                </div>
+              </MessageScrollerItem>
+            )}
+
             {messages.map((msg) => (
               <MessageScrollerItem key={msg.id} messageId={msg.id}>
                 {renderMessage(msg)}

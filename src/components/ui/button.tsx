@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 hover:shadow-sm",
+          "bg-primary text-primary-foreground font-bold shadow-xs hover:bg-[oklch(0.769_0.188_70.08)] hover:shadow-sm active:scale-[0.98] shadow-amber-400/20",
         outline:
           "border-border/80 bg-background shadow-2xs hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
@@ -19,8 +19,8 @@ const buttonVariants = cva(
           "hover:bg-accent/80 hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive dark:hover:bg-destructive/90 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline active:scale-100",
-        gold: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 hover:shadow-sm",
+        link: "text-brand-text underline-offset-4 hover:underline active:scale-100",
+        gold: "bg-primary text-primary-foreground font-bold shadow-xs hover:bg-[oklch(0.769_0.188_70.08)] hover:shadow-sm active:scale-[0.98] shadow-amber-400/20",
       },
       size: {
         default:

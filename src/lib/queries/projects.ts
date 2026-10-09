@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ProjectRecord } from '@/types';
 import { ApiError } from '@/components/Providers';
-import { useUserStore } from '@/lib/userStore';
+import { useUserStore, refreshUserSession } from '@/lib/userStore';
 
 export const projectKeys = {
   all: ['projects'] as const,
@@ -112,7 +112,7 @@ export function useCreateProject() {
           if (!old) return [data.project];
           return [data.project, ...old.filter((p) => p.id !== data.project.id)];
         });
-        useUserStore.getState().updateUser({ hasProjects: true, canChat: true });
+        void refreshUserSession();
       }
       void queryClient.invalidateQueries({ queryKey: projectKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['wallet'] });

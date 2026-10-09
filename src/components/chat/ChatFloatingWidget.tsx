@@ -9,6 +9,7 @@ import {
   PanelLeft,
   ExternalLink,
   ChevronLeft,
+  Sparkles,
 } from 'lucide-react';
 import { cn, formatChatTimestamp } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -426,26 +427,34 @@ function ChatFloatingWidgetInner() {
                 {/* 3. CONTEXT BAR: Global Header vs Project Context Bar      */}
                 {/* ========================================================= */}
                 {isGlobal ? (
-                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs sm:text-sm font-semibold tracking-tight text-foreground">Global Chat</span>
-                        <span className="flex size-1.5 rounded-full bg-emerald-500 inline-block align-middle" />
+                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 shadow-2xs">
+                        <Sparkles className="size-3.5" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs sm:text-sm font-bold tracking-tight text-foreground">Global Chat</span>
+                          <span className="flex size-1.5 rounded-full bg-emerald-500 inline-block align-middle" />
+                          <span className="text-3xs uppercase tracking-wider font-semibold text-amber-700/80 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-500/20">
+                            Concierge
+                          </span>
+                        </div>
+                        <p className="text-2xs text-muted-foreground mt-0.5 leading-normal truncate">
+                          Replies in ~2 mins · Packages, credits & studio support
+                        </p>
                       </div>
-                      <p className="text-2xs text-muted-foreground mt-0.5 leading-normal">
-                        Replies in ~2 mins · Packages, credits & studio support
-                      </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1.5">
+                  <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1">
                     {/* Line 1: Code + Package + Status Badge (Left) & Milestone Tracker (Right) */}
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                         <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
                           {displayMeta.projectCode}
                         </span>
-                        <span className="text-foreground/90 font-semibold text-xs truncate max-w-[130px] sm:max-w-[220px]">
+                        <span className="text-foreground/90 font-semibold text-xs truncate max-w-[110px] sm:max-w-[200px]">
                           {displayMeta.packageName}
                         </span>
                         <Badge
@@ -462,14 +471,14 @@ function ChatFloatingWidgetInner() {
                         className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-500/10 dark:bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/20 transition-colors"
                       >
                         <span className="hidden min-[380px]:inline">Milestone Tracker</span>
-                        <span className="min-[380px]:hidden">Milestones</span>
+                        <span className="min-[380px]:hidden">Tracker</span>
                         <ExternalLink className="size-3 shrink-0" />
                       </Link>
                     </div>
 
-                    {/* Line 2: Client Info · Credits Badge · Price */}
-                    <div className="flex items-center gap-1.5 text-2xs text-muted-foreground flex-wrap min-w-0">
-                      <span className="inline-flex items-center gap-1 truncate max-w-[160px] sm:max-w-[240px]">
+                    {/* Line 2: Client Info · Credits Badge · Price (graceful wrapping on small screens) */}
+                    <div className="flex items-center gap-x-1.5 gap-y-0.5 text-2xs text-muted-foreground flex-wrap min-w-0">
+                      <span className="inline-flex items-center gap-1 truncate max-w-[130px] sm:max-w-[220px]">
                         Client: <b className="text-foreground font-medium truncate">{displayMeta.clientName}</b>
                       </span>
                       <span className="text-muted-foreground/50">·</span>
@@ -478,8 +487,8 @@ function ChatFloatingWidgetInner() {
                       </span>
                       {displayMeta.price && (
                         <>
-                          <span className="text-muted-foreground/50">·</span>
-                          <span className="font-mono tabular-nums text-foreground/80 font-medium shrink-0">
+                          <span className="text-muted-foreground/50 hidden xs:inline">·</span>
+                          <span className="font-mono tabular-nums text-foreground/80 font-medium shrink-0 hidden xs:inline">
                             ${displayMeta.price.toLocaleString()} USD
                           </span>
                         </>

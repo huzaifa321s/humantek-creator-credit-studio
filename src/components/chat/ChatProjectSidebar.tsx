@@ -120,7 +120,7 @@ export function ChatProjectSidebar({
               isActive={isGlobalSelected}
               onClick={() => onSelectProject(GLOBAL_CHAT_ID)}
               className={cn(
-                'group/global-item cursor-pointer px-2.5 py-1.5 min-h-[44px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
+                'group/global-item cursor-pointer px-2.5 py-2 h-auto min-h-[50px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
                 isGlobalSelected
                   ? 'border-amber-500 bg-amber-500/15 dark:bg-amber-500/25 shadow-xs ring-1 ring-amber-500/40'
                   : 'border-amber-500/30 dark:border-amber-500/35 bg-amber-500/[0.06] dark:bg-amber-500/[0.10] hover:bg-amber-500/12 hover:border-amber-500/50 shadow-2xs'
@@ -130,13 +130,13 @@ export function ChatProjectSidebar({
                 <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-500 rounded-r-xs" />
               )}
 
-              <div className="flex items-center justify-between gap-2 mb-0.5 w-full">
-                <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center justify-between gap-1.5 mb-1 w-full">
+                <div className="flex items-center gap-1.5 shrink-0 min-w-0">
                   <span
                     className={cn(
-                      'flex size-4.5 shrink-0 items-center justify-center rounded-md transition-colors',
+                      'flex size-5 shrink-0 items-center justify-center rounded-md transition-all shadow-2xs',
                       isGlobalSelected
-                        ? 'bg-amber-500 text-white shadow-xs'
+                        ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-amber-500/20'
                         : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
                     )}
                   >
@@ -144,13 +144,16 @@ export function ChatProjectSidebar({
                   </span>
                   <span
                     className={cn(
-                      'text-xs font-semibold tracking-tight whitespace-nowrap',
+                      'text-xs font-bold tracking-tight whitespace-nowrap',
                       isGlobalSelected
                         ? 'text-amber-900 dark:text-amber-200'
                         : 'text-amber-950 dark:text-amber-100'
                     )}
                   >
                     Global Chat
+                  </span>
+                  <span className="text-3xs uppercase tracking-wider font-semibold text-amber-700/80 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20 px-1 py-0.2 rounded border border-amber-500/20">
+                    Concierge
                   </span>
                 </div>
 
@@ -172,7 +175,7 @@ export function ChatProjectSidebar({
 
               <p
                 className={cn(
-                  'text-2xs truncate leading-normal pl-6 w-full',
+                  'text-2xs line-clamp-2 leading-relaxed pl-6.5 w-full break-words',
                   globalUnread > 0
                     ? 'font-medium text-foreground dark:text-amber-200'
                     : 'text-muted-foreground'
@@ -337,7 +340,7 @@ export function ChatProjectSidebar({
                     isActive={isSelected}
                     onClick={() => onSelectProject(p.id)}
                     className={cn(
-                      'group/project-item cursor-pointer py-1.5 px-2.5 h-auto rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
+                      'group/project-item cursor-pointer py-2 px-2.5 h-auto min-h-[52px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
                       isSelected
                         ? 'border-amber-500/80 bg-amber-500/10 shadow-xs ring-1 ring-amber-500/30'
                         : 'border-border/70 bg-card/60 hover:border-amber-400/50 hover:bg-secondary/40'
@@ -369,7 +372,7 @@ export function ChatProjectSidebar({
                         ) : (
                           <Badge
                             variant="outline"
-                            className="text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                            className="text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
                           >
                             {p.status.replace('_', ' ').toLowerCase()}
                           </Badge>
@@ -377,16 +380,16 @@ export function ChatProjectSidebar({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-2xs text-muted-foreground mb-0.5 w-full">
+                    <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1 w-full">
                       <span className="font-medium text-foreground/85 truncate text-2xs">{p.packageName}</span>
-                      <span className="text-2xs shrink-0 font-mono tabular-nums text-muted-foreground/80">
+                      <span className="text-3xs shrink-0 font-mono tabular-nums text-muted-foreground/80">
                         {lastMsg ? formatChatTimestamp(lastMsg.timestamp) : ''}
                       </span>
                     </div>
 
                     <p
                       className={cn(
-                        'text-2xs truncate leading-normal w-full',
+                        'text-2xs line-clamp-2 leading-relaxed w-full break-words',
                         pUnread > 0
                           ? 'font-medium text-foreground dark:text-amber-200'
                           : 'text-muted-foreground'

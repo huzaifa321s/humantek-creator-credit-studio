@@ -81,7 +81,7 @@ export async function getRequestUser(): Promise<RequestUser | null> {
       const { count } = await admin
         .from('projects')
         .select('id', { count: 'exact', head: true })
-        .or(`user_id.eq.${user.id},email.ilike.${email}`);
+        .eq('user_id', user.id);
       hasProjects = (count ?? 0) > 0;
     }
 

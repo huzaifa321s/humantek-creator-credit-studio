@@ -12,45 +12,11 @@ import {
   recordWalletFundedProject,
 } from '@/lib/store';
 import { computeOrderQuote } from '@/lib/pricing';
-import { buildProjectRecord } from '@/lib/orders';
+import { buildProjectRecord, formatDbProject } from '@/lib/orders';
 import { PACKAGES, SERVICES } from '@/lib/catalog';
 
-function formatDbProject(p: any): ProjectRecord {
-  return {
-    id: p.id,
-    projectCode: p.project_code,
-    packageId: p.package_id || 'studio-wallet',
-    packageName: p.package_name || '',
-    packagePrice: Number(p.package_price_usd) || 0,
-    packageCredits: p.package_credits || 0,
-    usedCredits: p.total_credits || 0,
-    remainingCredits: 0,
-    status: p.status,
-    paymentStatus: p.payment_status,
-    paymentMethod: p.payment_method,
-    fundingSource: p.funding_source,
-    appliedWalletCredits: p.applied_wallet_credits || 0,
-    clientName: p.client_name,
-    channelName: p.channel_name || '',
-    email: p.email,
-    platform: p.platform || '',
-    style: p.style || '',
-    colors: p.colors || '',
-    instructions: p.instructions || '',
-    uploadedFiles: Array.isArray(p.uploaded_files) ? p.uploaded_files : [],
-    lastMessageAt: p.last_message_at || null,
-    lastMessagePreview: p.last_message_preview || null,
-    additions: (p.project_additions || []).map((a: any) => a.name),
-    selections: (p.project_items || []).map((i: any) => ({
-      id: i.service_id,
-      name: i.service_name,
-      level: i.tier_level as ServiceTierLevel,
-      quantity: i.quantity,
-      credits: i.total_credits,
-    })),
-    createdAt: p.created_at,
-  };
-}
+
+
 
 /** Admins see every project; signed-in creators only see their own. */
 export async function GET() {
@@ -69,7 +35,7 @@ export async function GET() {
         .order('created_at', { ascending: false });
 
       if (!user.isAdmin) {
-        query = query.or(`user_id.eq.${user.id},email.ilike.${user.email}`);
+        query = query.eq('user_id', user.id);
       }
 
       const { data, error } = await query;
@@ -88,15 +54,9 @@ export async function GET() {
 
   // 2. Dev Mock Fallback
   const all = getProjects();
-  const DEMO_EMAILS = ['creator@humantek.art', 'kira@example.com'];
   const projects = user.isAdmin
     ? all
-    : all.filter((p) => {
-        const pEmail = (p.email || '').toLowerCase().trim();
-        if (pEmail === user.email) return true;
-        if (DEMO_EMAILS.includes(user.email) && DEMO_EMAILS.includes(pEmail)) return true;
-        return false;
-      });
+    : all.filter((p) => (p.userId ? p.userId === user.id : false));
 
   return NextResponse.json({ projects });
 }
@@ -225,7 +185,29 @@ export async function POST(req: NextRequest) {
           0
         );
 
+        // Check if unpaid project was already submitted (idempotency replay)
+        const { data: existingUnpaid } = await adminClient
+          .from('projects')
+          .select('*, project_items(*), project_additions(*)')
+          .or(`id.eq.${parsed.data.projectId},idempotency_key.eq.${parsed.data.projectId}`)
+          .maybeSingle();
+
+        if (existingUnpaid) {
+          if (existingUnpaid.user_id !== user.id && !user.isAdmin) {
+            return NextResponse.json({ error: 'Idempotency key belongs to another user' }, { status: 403 });
+          }
+          return NextResponse.json({
+            success: true,
+            replayed: true,
+            project: formatDbProject(existingUnpaid),
+            fundingSource: existingUnpaid.funding_source,
+            notificationStatus: 'sent',
+            message: 'Project brief already submitted for manual studio review!',
+          });
+        }
+
         const { data: insertedProj, error: insertErr } = await adminClient
+
           .from('projects')
           .insert({
             id: parsed.data.projectId,
@@ -308,6 +290,27 @@ export async function POST(req: NextRequest) {
       }
 
       // B. Paid Settlement via Studio Wallet Credits
+      // Pre-check for existing project with this idempotency key
+      const { data: existingWalletProj } = await adminClient
+        .from('projects')
+        .select('*, project_items(*), project_additions(*)')
+        .or(`id.eq.${parsed.data.projectId},idempotency_key.eq.${parsed.data.projectId}`)
+        .maybeSingle();
+
+      if (existingWalletProj) {
+        if (existingWalletProj.user_id !== user.id && !user.isAdmin) {
+          return NextResponse.json({ error: 'Idempotency key belongs to another user' }, { status: 403 });
+        }
+        return NextResponse.json({
+          success: true,
+          replayed: true,
+          project: formatDbProject(existingWalletProj),
+          fundingSource: existingWalletProj.funding_source,
+          notificationStatus: 'sent',
+          message: 'Project already submitted.',
+        });
+      }
+
       const { data: rpcRes, error: rpcErr } = await adminClient.rpc('create_project_and_spend_credits', {
         p_project_id: parsed.data.projectId,
         p_project_code: projectCode,
@@ -334,6 +337,28 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
+        if (
+          rpcErr.message.includes('duplicate key') ||
+          rpcErr.message.includes('unique constraint') ||
+          rpcErr.message.includes('idempotency_key')
+        ) {
+          const { data: committedProj } = await adminClient
+            .from('projects')
+            .select('*, project_items(*), project_additions(*)')
+            .eq('id', parsed.data.projectId)
+            .maybeSingle();
+
+          if (committedProj) {
+            return NextResponse.json({
+              success: true,
+              replayed: true,
+              project: formatDbProject(committedProj),
+              fundingSource: committedProj.funding_source,
+              notificationStatus: 'sent',
+              message: 'Project already submitted.',
+            });
+          }
+        }
         return NextResponse.json({ error: rpcErr.message }, { status: 400 });
       }
 
@@ -347,9 +372,10 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
+        replayed: Boolean(rpcRes?.replayed),
         project,
         fundingSource: parsed.data.fundingSource,
-        newWalletBalance: rpcRes.new_wallet_balance,
+        newWalletBalance: rpcRes?.new_wallet_balance,
         notificationStatus: 'sent',
         message: parsed.data.fundingSource === 'wallet' ? 'Project launched successfully using Studio Wallet credits!' : undefined,
       });
@@ -360,9 +386,19 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Dev Mock Fallback
-  if (getProjectById(parsed.data.projectId)) {
-    return NextResponse.json({ error: 'This project was already submitted.' }, { status: 409 });
+  const existingDevProj = getProjectById(parsed.data.projectId);
+  if (existingDevProj) {
+    if (existingDevProj.userId && existingDevProj.userId !== user.id && !user.isAdmin) {
+      return NextResponse.json({ error: 'Idempotency key belongs to another user' }, { status: 403 });
+    }
+    return NextResponse.json({
+      success: true,
+      replayed: true,
+      project: existingDevProj,
+      message: 'Project already submitted.',
+    });
   }
+
 
   const isWalletFunding = parsed.data.fundingSource === 'wallet' || parsed.data.packageId === 'studio-wallet';
   const normEmail = ownerEmail;
@@ -499,6 +535,12 @@ export async function PATCH(req: NextRequest) {
     });
 
     if (rpcErr) {
+      if (rpcErr.message.includes('unpaid_project_cannot_enter_production')) {
+        return NextResponse.json(
+          { error: 'Cannot start production: Project has not been paid. Payment confirmation required before entering production.' },
+          { status: 400 }
+        );
+      }
       return NextResponse.json({ error: rpcErr.message }, { status: 400 });
     }
 
@@ -518,6 +560,17 @@ export async function PATCH(req: NextRequest) {
   // 2. Dev Mock Fallback
   if (!user.isAdmin && status !== 'cancelled') {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+
+  const devTargetProj = getProjectById(id);
+  if (devTargetProj && ['in_production', 'review_round', 'delivered'].includes(status)) {
+    const effectivePayment = paymentStatus || devTargetProj.paymentStatus;
+    if (effectivePayment !== 'paid') {
+      return NextResponse.json(
+        { error: 'Cannot start production: Project has not been paid. Payment confirmation required before entering production.' },
+        { status: 400 }
+      );
+    }
   }
 
   const updated = updateProjectStatus(id, status as any, paymentStatus);

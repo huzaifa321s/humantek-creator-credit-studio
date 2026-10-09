@@ -91,6 +91,10 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  /* Brand Text Token (WCAG AA/AAA compliant across themes) */
+  --color-brand-text: var(--brand-text);
+  --color-brand: var(--brand-text);
+
   /* ReUI semantic tokens */
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
@@ -134,16 +138,20 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
 
-  /* Humantek Golden Amber - high contrast & vibrant on light background */
-  --primary: oklch(0.68 0.18 55);
-  --primary-foreground: oklch(1 0 0);
+  /* Brand Text Token: Amber-800 on light mode for WCAG AA/AAA legibility (>= 7:1) */
+  --brand-text: oklch(0.48 0.11 55);
+
+  /* Humantek Amber-400 Brand Primary (exact color of navbar project title description) */
+  --primary: oklch(0.828 0.189 84.429);
+  --primary-foreground: oklch(0.145 0 0);
 
   /* Soft modern secondary */
   --secondary: oklch(0.965 0.005 260);
   --secondary-foreground: oklch(0.20 0 0);
 
   --muted: oklch(0.965 0.005 260);
-  --muted-foreground: oklch(0.33 0.015 260);
+  /* Warm stone for descriptions: stone-600 with >= 7:1 contrast on white */
+  --muted-foreground: oklch(0.44 0.02 60);
 
   --accent: oklch(0.96 0.03 70);
   --accent-foreground: oklch(0.35 0.12 55);
@@ -154,19 +162,19 @@
   /* Crisp standard borders - slightly stronger contrast for cards & empty states */
   --border: oklch(0.89 0.005 260);
   --input: oklch(0.89 0.005 260);
-  --ring: oklch(0.68 0.18 55);
+  --ring: oklch(0.828 0.189 84.429);
 
   --radius: 0.85rem;
 
   /* Sidebar tinted one step below page background: sidebar (0.965) < page (0.985) < card (1.0) */
   --sidebar: oklch(0.965 0.005 260);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.68 0.18 55);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary: oklch(0.828 0.189 84.429);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.94 0.035 70);
   --sidebar-accent-foreground: oklch(0.35 0.12 55);
   --sidebar-border: oklch(0.89 0.005 260);
-  --sidebar-ring: oklch(0.68 0.18 55);
+  --sidebar-ring: oklch(0.828 0.189 84.429);
 
   /* ReUI semantic palette (harmonised with Humantek amber) */
   --success: oklch(0.62 0.15 155);
@@ -180,34 +188,40 @@
 }
 
 /* Optional Dark theme fallback */
-.dark {
+:root.dark, .dark {
   --background: oklch(0.12 0.02 260);
   --foreground: oklch(0.98 0.01 260);
   --card: oklch(0.15 0.025 260);
   --card-foreground: oklch(0.98 0.01 260);
   --popover: oklch(0.15 0.025 260);
   --popover-foreground: oklch(0.98 0.01 260);
-  --primary: oklch(0.80 0.17 76);
-  --primary-foreground: oklch(0.12 0.04 76);
+
+  /* Brand Text Token: Amber-300/400 on dark mode (>= 10:1) */
+  --brand-text: oklch(0.83 0.16 85);
+
+  /* Brand Primary in Dark Mode: Amber-400 (#fbbf24) matching navbar */
+  --primary: oklch(0.828 0.189 84.429);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.20 0.02 260);
   --secondary-foreground: oklch(0.95 0.01 260);
   --muted: oklch(0.20 0.02 260);
-  --muted-foreground: oklch(0.76 0.02 260);
+  /* Warm stone for descriptions in dark mode: stone-400 with >= 7.5:1 contrast */
+  --muted-foreground: oklch(0.72 0.02 65);
   --accent: oklch(0.24 0.03 260);
   --accent-foreground: oklch(0.98 0.01 260);
   --destructive: oklch(0.62 0.22 25);
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.25 0.02 260);
   --input: oklch(0.25 0.02 260);
-  --ring: oklch(0.80 0.17 76);
+  --ring: oklch(0.828 0.189 84.429);
   --sidebar: oklch(0.14 0.022 260);
   --sidebar-foreground: oklch(0.98 0.01 260);
-  --sidebar-primary: oklch(0.80 0.17 76);
-  --sidebar-primary-foreground: oklch(0.12 0.04 76);
+  --sidebar-primary: oklch(0.828 0.189 84.429);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.24 0.04 65);
   --sidebar-accent-foreground: oklch(0.95 0.05 75);
   --sidebar-border: oklch(0.25 0.02 260);
-  --sidebar-ring: oklch(0.80 0.17 76);
+  --sidebar-ring: oklch(0.828 0.189 84.429);
   --success: oklch(0.68 0.15 155);
   --success-foreground: oklch(0.14 0.02 155);
   --warning: oklch(0.78 0.16 70);

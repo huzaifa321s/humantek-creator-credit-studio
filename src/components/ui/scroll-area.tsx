@@ -12,7 +12,7 @@ function ScrollArea({
       className={cn("relative overflow-auto", className)}
       {...props}
     >
-      <div className="h-full w-full rounded-[inherit]">{children}</div>
+      <div className="min-h-full w-full rounded-[inherit]">{children}</div>
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   PACKAGES,
   SERVICES,
@@ -157,6 +158,7 @@ import {
   FolderKanban,
   Trash2,
   Lock,
+  RotateCcw,
   RefreshCw,
   Clock,
   Coins,
@@ -196,7 +198,7 @@ import {
 import confetti from 'canvas-confetti';
 import { useChatStore, GLOBAL_CHAT_ID } from '@/lib/chatStore';
 import { ChatGate } from '@/components/chat/ChatGate';
-import { useUserStore } from '@/lib/userStore';
+import { useUserStore, refreshUserSession } from '@/lib/userStore';
 import { useWalletQuery, useRedeemPromoCode } from '@/lib/queries/wallet';
 import { useCreateProject } from '@/lib/queries/projects';
 import { STUDIO_WALLET_PACKAGE } from '@/lib/pricing';
@@ -317,6 +319,7 @@ export default function CreatorStudioPage() {
   const userBalance = user?.walletBalance ?? 0;
   const userEmail = user?.email || '';
   const userName = user?.name || '';
+  const router = useRouter();
   const walletQuery = useWalletQuery(userEmail);
   const isWalletLoading = !isHydrated || walletQuery.isPending;
   const createProjectMutation = useCreateProject();
@@ -431,6 +434,7 @@ export default function CreatorStudioPage() {
   useUnsavedChangesWarning(hasUnsavedProgress);
 
   const isStepMountedRef = useRef(false);
+  const hasRestoredToastShownRef = useRef(false);
 
   // 1. Initial URL Step Synchronization & Prerequisite Guard on mount
   useEffect(() => {
@@ -439,6 +443,27 @@ export default function CreatorStudioPage() {
     // Ensure wizard store is rehydrated from localStorage
     if (!useWizardStore.persist.hasHydrated()) {
       void useWizardStore.persist.rehydrate();
+    }
+
+    // Quiet restoration feedback toast: show only once when an existing draft is restored
+    if (!hasRestoredToastShownRef.current) {
+      try {
+        const stored = localStorage.getItem('humantek_wizard_cart');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const state = parsed?.state;
+          const hasExistingDraft = Boolean(
+            state?.selectedPackageId ||
+            (state?.selections && Object.keys(state.selections).length > 0) ||
+            state?.brief?.channelName?.trim() ||
+            state?.brief?.instructions?.trim()
+          );
+          if (hasExistingDraft) {
+            hasRestoredToastShownRef.current = true;
+            toast.info('Restored your draft from earlier session', { duration: 3000 });
+          }
+        }
+      } catch {}
     }
 
     const url = new URL(window.location.href);
@@ -472,7 +497,29 @@ export default function CreatorStudioPage() {
           }
         } catch {}
       }
+      let savedSelections = useWizardStore.getState().selections;
+      if (!savedSelections || Object.keys(savedSelections).length === 0) {
+        try {
+          const stored = localStorage.getItem('humantek_wizard_cart');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            savedSelections = parsed?.state?.selections || savedSelections;
+          }
+        } catch {}
+      }
       const hasPkg = Boolean(savedPkg || savedFunding === 'wallet');
+      const hasSelections = Boolean(savedSelections && Object.keys(savedSelections).length > 0);
+      const isCartEmpty = !hasPkg || !hasSelections;
+
+      // Empty-cart rule: If someone opens ?step=5 with an empty cart, redirect to /projects
+      if (clamped === 5 && isCartEmpty) {
+        router.replace('/projects');
+        if (typeof window !== 'undefined') {
+          window.location.replace('/projects');
+        }
+        return;
+      }
+
       if (clamped > 1 && !hasPkg) {
         setCurrentStep(1);
         url.searchParams.set('step', '1');
@@ -487,8 +534,22 @@ export default function CreatorStudioPage() {
         setFundingSource(savedFunding as any);
       }
 
+      let activeUserEmail = user?.email || useUserStore.getState().user?.email;
+      if (!activeUserEmail) {
+        try {
+          const storedUser = localStorage.getItem('humantek_studio_user');
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            activeUserEmail = parsed?.state?.user?.email;
+            if (activeUserEmail && !useUserStore.getState().user) {
+              useUserStore.setState({ user: parsed.state.user, isHydrated: true });
+            }
+          }
+        } catch {}
+      }
+
       // Prerequisite: if target is step 5 and user is unauthenticated, bounce to step 4 & open auth modal
-      if (clamped === 5 && !user?.email) {
+      if (clamped === 5 && !activeUserEmail) {
         setCurrentStep(4);
         url.searchParams.set('step', '4');
         window.history.replaceState({}, '', url.pathname + url.search);
@@ -523,6 +584,15 @@ export default function CreatorStudioPage() {
       window.history.replaceState({}, '', url.pathname + url.search);
     }
   }, [currentStep]);
+
+  // Guard: If currentStep is 5 and there is no package selected (empty cart), redirect to /projects
+  useEffect(() => {
+    if (!isStepMountedRef.current) return;
+    if (currentStep === 5 && !selectedPackageId && fundingSource !== 'wallet') {
+      router.replace('/projects');
+    }
+  }, [currentStep, selectedPackageId, fundingSource, router]);
+
 
   // Derived package & credit calculations
   const isWalletFunding = selectedPackageId === 'studio-wallet' || fundingSource === 'wallet';
@@ -839,7 +909,7 @@ export default function CreatorStudioPage() {
   };
 
   const handleSubmitForReview = async () => {
-    if (!currentPackage) return;
+    if (!currentPackage || isSubmitting) return;
     setIsSubmitting(true);
     setErrorMessage('');
 
@@ -870,9 +940,7 @@ export default function CreatorStudioPage() {
         status: 'pending_review',
       });
 
-      setSubmittedProject(data.project);
-      useUserStore.getState().updateUser({ hasProjects: true, canChat: true });
-      resetWizard();
+      void refreshUserSession();
       useChatStore.getState().registerProject({
         id: data.project.id,
         projectCode: data.project.projectCode,
@@ -888,7 +956,10 @@ export default function CreatorStudioPage() {
         iconType: 'sparkles',
         link: '/projects',
       });
-      toast.success('Project request submitted for studio review!');
+
+      // Navigate to dedicated confirmation route before clearing draft
+      router.replace(`/new-project/confirmation/${data.project.id}`);
+      resetWizard();
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : 'Submission failed';
       if (msg.includes('Authentication required') || msg.includes('401')) {
@@ -902,7 +973,7 @@ export default function CreatorStudioPage() {
   };
 
   const handleLaunchWithWallet = async () => {
-    if (!currentPackage) return;
+    if (!currentPackage || isSubmitting) return;
     if (userBalance < usedCredits) {
       toast.error(`Insufficient credits. You need ${usedCredits} CR but only have ${userBalance} CR.`);
       return;
@@ -947,9 +1018,7 @@ export default function CreatorStudioPage() {
         origin: { y: 0.6 },
       });
 
-      setSubmittedProject(data.project);
-      useUserStore.getState().updateUser({ hasProjects: true, canChat: true });
-      resetWizard();
+      void refreshUserSession();
       useChatStore.getState().registerProject({
         id: data.project.id,
         projectCode: data.project.projectCode,
@@ -966,7 +1035,9 @@ export default function CreatorStudioPage() {
         link: '/projects',
       });
 
-      toast.success(`Success! Project launched instantly with ${usedCredits} Studio Wallet credits.`);
+      // Navigate to dedicated confirmation route before clearing draft
+      router.replace(`/new-project/confirmation/${data.project.id}`);
+      resetWizard();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
       setErrorMessage(msg);
@@ -976,17 +1047,70 @@ export default function CreatorStudioPage() {
     }
   };
 
-  // Determine top right badge on header while in wizard: "Scope: 608 / 660 CR"
-  const headerBadge = currentPackage ? (
-    <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-7 sm:h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-2xs sm:text-xs font-medium shadow-2xs select-none shrink-0">
-      <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-      <span className="text-zinc-300 font-medium hidden md:inline">Scope:</span>
-      <span className="font-bold text-amber-300 tabular-nums font-mono">
-        <span className="hidden sm:inline">{remainingCredits} / {totalPackageCredits} CR</span>
-        <span className="sm:hidden">{remainingCredits} CR</span>
-      </span>
+  // Global action to reset draft and start fresh from Step 1
+  const handleResetDraft = () => {
+    resetWizard();
+    setCurrentStep(1);
+    const url = new URL(window.location.href);
+    url.searchParams.set('step', '1');
+    window.history.replaceState({}, '', url.pathname + url.search);
+    toast.success('Draft reset. Starting fresh from Step 1.', { duration: 2500 });
+  };
+
+  // Determine top right actions on header while in wizard: "Reset draft" + "Scope: 608 / 660 CR"
+  const headerActions = (
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      {hasUnsavedProgress && !submittedProject && (
+        <AlertDialog>
+          <AlertDialogTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 sm:h-7.5 px-2 sm:px-2.5 rounded-full text-2xs sm:text-xs font-medium text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 border border-zinc-800 hover:border-rose-500/30 transition-all cursor-pointer select-none gap-1 shrink-0"
+                title="Discard draft and start fresh"
+              >
+                <RotateCcw className="size-3" />
+                <span className="hidden sm:inline">Reset draft</span>
+              </Button>
+            }
+          />
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                <RotateCcw className="size-5" />
+              </AlertDialogMedia>
+              <AlertDialogTitle>Reset your draft?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will clear your selected package, chosen services, and creative brief, returning you to Step 1. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep draft</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={handleResetDraft}
+              >
+                Reset draft
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {currentPackage && (
+        <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-7 sm:h-7.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-2xs sm:text-xs font-medium shadow-2xs select-none shrink-0">
+          <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="text-zinc-300 font-medium hidden md:inline">Scope:</span>
+          <span className="font-bold text-amber-300 tabular-nums font-mono">
+            <span className="hidden sm:inline">{remainingCredits} / {totalPackageCredits} CR</span>
+            <span className="sm:hidden">{remainingCredits} CR</span>
+          </span>
+        </div>
+      )}
     </div>
-  ) : null;
+  );
 
   // Dedicated mobile chat launcher button, strictly gated by <ChatGate>
   const renderMobileChat = (label = 'Chat with Team') => (
@@ -1140,6 +1264,53 @@ export default function CreatorStudioPage() {
               </Button>
             </div>
           )}
+
+          {currentStep === 5 && currentPackage && (
+            <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-end">
+              {isWalletFunding ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="default"
+                  loading={isSubmitting}
+                  loadingText="Launching..."
+                  disabled={userBalance < usedCredits}
+                  onClick={handleLaunchWithWallet}
+                  className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
+                >
+                  <span>Confirm &amp; Launch</span>
+                  <Sparkles className="w-3.5 h-3.5" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="default"
+                  loading={isSubmitting}
+                  loadingText="Submitting..."
+                  onClick={() => {
+                    const rawClientId = (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '').trim();
+                    const isOffline =
+                      !rawClientId ||
+                      rawClientId === 'sb' ||
+                      rawClientId === 'your-paypal-client-id' ||
+                      rawClientId.includes('your-') ||
+                      rawClientId === 'placeholder' ||
+                      rawClientId.length < 10;
+                    if (isOffline) {
+                      handleSubmitForReview();
+                    } else {
+                      document.getElementById('studio-checkout-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                  className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
+                >
+                  <span>Review &amp; Pay (${currentPackage.price.toLocaleString('en-US')})</span>
+                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1160,7 +1331,7 @@ export default function CreatorStudioPage() {
       isPolicyAccepted={policyAccepted}
       isBriefCompleted={brief.isValid && termsAccepted}
       userEmail={user?.email || null}
-      topRightBadge={submittedProject ? null : headerBadge}
+      topRightBadge={submittedProject ? null : headerActions}
       hideStepper={Boolean(submittedProject)}
       showBack={!submittedProject}
       footerActions={renderFooterActions()}
@@ -1397,7 +1568,7 @@ export default function CreatorStudioPage() {
                   className={cn(
                     'relative flex flex-col justify-between rounded-xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0',
                     isSelected
-                      ? 'border-2 border-amber-500 bg-amber-500/[0.04] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-500/20'
+                      ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400/25'
                       : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
                   )}
                 >
@@ -1407,7 +1578,7 @@ export default function CreatorStudioPage() {
                         className={cn(
                           'font-bold text-2xs uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg transition-colors',
                           isSelected
-                            ? 'bg-amber-500 text-white'
+                            ? 'bg-amber-400 text-zinc-950 font-black'
                             : 'bg-secondary text-muted-foreground border-b border-l border-border/70'
                         )}
                       >
@@ -1511,9 +1682,9 @@ export default function CreatorStudioPage() {
                         handleSelectPackage(pkg.id);
                       }}
                       className={cn(
-                        'w-full text-xs font-semibold gap-1.5 h-9 rounded-lg cursor-pointer transition-colors',
+                        'w-full text-xs font-bold gap-1.5 h-9 rounded-lg cursor-pointer transition-colors',
                         isSelected
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                          ? 'bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground shadow-xs'
                           : 'hover:bg-secondary/80 text-foreground'
                       )}
                     >
@@ -1790,8 +1961,8 @@ export default function CreatorStudioPage() {
                       className={cn(
                         'group rounded-xl transition-all duration-200 overflow-hidden flex flex-col justify-between py-0 gap-0 shadow-2xs',
                         isSelected
-                          ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
-                          : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-xs'
+                          ? 'border-amber-400/80 bg-amber-400/[0.04] ring-1 ring-amber-400/25 shadow-xs'
+                          : 'border-border/80 bg-card hover:border-amber-400/40 hover:shadow-xs'
                       )}
                     >
                       {/* Card Top / Header Area */}
@@ -2540,8 +2711,8 @@ export default function CreatorStudioPage() {
             className={cn(
               'rounded-xl border transition-all cursor-pointer select-none scroll-mt-[140px]',
               policyAccepted
-                ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
-                : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-2xs'
+                ? 'border-amber-400/80 bg-amber-400/[0.04] ring-1 ring-amber-400/25 shadow-xs'
+                : 'border-border/80 bg-card hover:border-amber-400/40 hover:shadow-2xs'
             )}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('button, input, label')) return;
@@ -2999,131 +3170,6 @@ export default function CreatorStudioPage() {
       {/* ============================================================ */}
       {currentStep === 5 && currentPackage && (
         <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16">
-          {submittedProject ? (
-            /* Order Confirmed Screen */
-            <Card className="max-w-lg w-full mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-sm text-center animate-in fade-in zoom-in-95 duration-200">
-              {/* Green Check Icon */}
-              <div className="size-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto ring-8 ring-emerald-500/10">
-                <Check className="size-6 stroke-[2.5]" />
-              </div>
-
-              {/* Title & Subtitle */}
-              <div className="space-y-1.5">
-                <h2
-                  ref={headingRef}
-                  tabIndex={-1}
-                  className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground outline-none"
-                >
-                  Order confirmed
-                </h2>
-                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                  We&apos;ve received your order. Our team will review your details and message you if they need anything.
-                </p>
-              </div>
-
-              {/* Order Spec Snapshot Card */}
-              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5 text-left text-xs divide-y divide-border/60 shadow-2xs space-y-3">
-                {/* 1. Project Code with Copy */}
-                <div className="flex items-center justify-between pt-0 first:pt-0">
-                  <span className="text-muted-foreground font-medium">Project code</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-bold text-foreground text-xs sm:text-sm tracking-wide">
-                      {submittedProject.projectCode}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => {
-                        navigator.clipboard.writeText(submittedProject.projectCode);
-                        toast.success('Project code copied to clipboard');
-                      }}
-                      className="size-6 text-muted-foreground hover:text-foreground rounded cursor-pointer"
-                      title="Copy project code"
-                    >
-                      <Copy className="size-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* 2. Package */}
-                <div className="flex items-center justify-between pt-3">
-                  <span className="text-muted-foreground font-medium">Package</span>
-                  <span className="font-semibold text-foreground text-xs sm:text-sm">
-                    {submittedProject.packageName}
-                  </span>
-                </div>
-
-                {/* 3. Credits */}
-                <div className="flex items-center justify-between pt-3">
-                  <span className="text-muted-foreground font-medium">Credits</span>
-                  <span className="font-semibold text-foreground text-xs sm:text-sm">
-                    {submittedProject.fundingSource === 'wallet'
-                      ? `${submittedProject.usedCredits} credits used`
-                      : `${submittedProject.usedCredits} of ${submittedProject.packageCredits} used`}
-                  </span>
-                </div>
-
-                {/* 4. Status */}
-                <div className="flex items-center justify-between pt-3">
-                  <span className="text-muted-foreground font-medium">Status</span>
-                  <span className="inline-flex items-center gap-1.5 font-medium text-xs sm:text-sm text-foreground">
-                    <span className="size-2 rounded-full bg-emerald-500" />
-                    Brief review
-                  </span>
-                </div>
-              </div>
-
-              {/* Payment & Receipt Note */}
-              <p className="text-xs text-muted-foreground leading-normal">
-                {submittedProject.fundingSource === 'wallet'
-                  ? `Funded with ${submittedProject.usedCredits} credits`
-                  : `Paid $${submittedProject.packagePrice.toLocaleString('en-US')} USD`}
-                {submittedProject.email ? ` · Receipt sent to ${submittedProject.email}` : ''}
-              </p>
-
-              {/* Actions: Flat Primary Button & Text Link */}
-              <div className="space-y-2 pt-1 w-full">
-                <Link href="/projects" className="block w-full">
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="lg"
-                    className="w-full h-10 font-semibold text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-xs cursor-pointer transition-colors"
-                  >
-                    <span>View my project</span>
-                    <ArrowRight className="size-4 ml-1" />
-                  </Button>
-                </Link>
-
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <ChatGate>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      data-chat-entry="confirmation-chat"
-                      onClick={() => useChatStore.getState().setIsOpen(true, submittedProject.id)}
-                      className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
-                    >
-                      <MessageSquare className="size-3.5" />
-                      <span>Message our team</span>
-                    </Button>
-                  </ChatGate>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={() => resetWizard()}
-                    className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
-                  >
-                    <Plus className="size-3.5" />
-                    <span>Start another project</span>
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ) : (
             /* Order Review and Payment View */
             <>
               {/* Step Top Header */}
@@ -3189,7 +3235,7 @@ export default function CreatorStudioPage() {
 
                   {/* Configured Assets / Deliverables List */}
                   <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
-                    <CardHeader className="p-4 sm:p-5 pb-2.5 border-b border-border/60 flex flex-row items-center justify-between gap-2">
+                    <CardHeader className="p-3.5 sm:p-5 pb-2.5 border-b border-border/60 flex flex-row items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <Layers className="w-4 h-4 text-amber-600 shrink-0" />
                         <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider truncate">
@@ -3199,7 +3245,71 @@ export default function CreatorStudioPage() {
                       <CreditValue value={usedCredits} size="sm" variant="pill" suffix="CR Used" className="shrink-0" />
                     </CardHeader>
 
-                    <CardContent className="p-4 sm:p-5 pt-3">
+                    {/* Mobile View: Collapsed by default */}
+                    <div className="block md:hidden">
+                      {selectedEntries.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-muted-foreground">
+                          No specific services pre-allocated · Full balance in wallet
+                        </div>
+                      ) : (
+                        <>
+                          {!deliverablesExpandedMobile && (
+                            <div className="px-3.5 py-2 text-2xs text-muted-foreground truncate bg-secondary/15">
+                              {selectedEntries.map((e) => e.service.name).join(', ')}
+                            </div>
+                          )}
+
+                          {deliverablesExpandedMobile && (
+                            <div className="p-3 pt-2">
+                              <ScrollArea className="max-h-56">
+                                <Table containerClassName="overflow-visible">
+                                  <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-xs z-10 border-b border-border/70 shadow-2xs">
+                                    <TableRow className="hover:bg-transparent border-b border-border/60">
+                                      <TableHead className="text-xs font-semibold py-2 bg-card/95">Service</TableHead>
+                                      <TableHead className="text-xs font-semibold py-2 bg-card/95">Scope</TableHead>
+                                      <TableHead className="text-xs font-semibold py-2 text-right bg-card/95">Credits</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {selectedEntries.map(({ service, choice, credits }) => (
+                                      <TableRow key={service.id} className="hover:bg-secondary/30 border-b border-border/40">
+                                        <TableCell className="py-2 text-xs font-bold text-foreground max-w-[130px] truncate">
+                                          {service.name}
+                                        </TableCell>
+                                        <TableCell className="py-2 text-xs text-muted-foreground">
+                                          {service.quoteOnly
+                                            ? 'Custom Scope'
+                                            : `${TIER_NAMES[choice.level]} × ${choice.quantity}`}
+                                        </TableCell>
+                                        <TableCell className="py-2 text-xs text-right">
+                                          {service.quoteOnly ? (
+                                            <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">TBC</span>
+                                          ) : (
+                                            <CreditValue value={credits} size="sm" />
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </ScrollArea>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setDeliverablesExpandedMobile(!deliverablesExpandedMobile)}
+                            className="w-full py-2 px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center justify-between border-t border-border/50 bg-secondary/20 cursor-pointer transition-colors"
+                          >
+                            <span>{deliverablesExpandedMobile ? 'Hide deliverables' : `View all ${selectedEntries.length} deliverables`}</span>
+                            <ChevronDown className={cn("size-3.5 transition-transform text-muted-foreground", deliverablesExpandedMobile && "rotate-180")} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Desktop View: Always expanded */}
+                    <CardContent className="hidden md:block p-4 sm:p-5 pt-3">
                       {selectedEntries.length === 0 ? (
                         <div className="py-6 px-4 text-center rounded-xl bg-secondary/20 border border-dashed border-border/80 space-y-2">
                           <Sparkles className="w-5 h-5 text-amber-600/80 mx-auto" />
@@ -3259,8 +3369,8 @@ export default function CreatorStudioPage() {
                   </Card>
 
                   {/* Client & Production Brief Details (Clean Structured Unclipped Display) */}
-                  <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 space-y-3.5 shadow-2xs">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                  <Card className="rounded-xl border border-border/80 bg-card p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2 sm:pb-2.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="w-4 h-4 text-amber-600 shrink-0" />
                         <span className="text-xs font-bold text-foreground uppercase tracking-wider truncate">
@@ -3277,54 +3387,100 @@ export default function CreatorStudioPage() {
                           variant="link"
                           size="xs"
                           onClick={() => goToStep(4)}
-                          className="h-auto px-0 text-xs font-semibold text-amber-600 dark:text-amber-400 shrink-0"
+                          className="h-auto px-0 text-xs font-semibold text-primary shrink-0"
                         >
                           Edit Brief
                         </Button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                      <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
-                        <span className="text-xs font-medium text-muted-foreground block">Channel / Brand</span>
-                        <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
-                          {channelName || 'Not specified'}
-                        </p>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
-                        <span className="text-xs font-medium text-muted-foreground block">Primary Platform</span>
-                        <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
-                          {platform || 'Multi-Platform'}
-                        </p>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50 sm:col-span-2">
-                        <span className="text-xs font-medium text-muted-foreground block">Art Style &amp; Palette</span>
-                        <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
+                    {/* Mobile View: Collapsed by default */}
+                    <div className="block md:hidden space-y-2">
+                      <div className="p-2.5 rounded-lg bg-secondary/25 border border-border/50 text-2xs text-muted-foreground space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-foreground truncate max-w-[180px]">{channelName || 'Brand not specified'}</span>
+                          <span className="shrink-0">{platform || 'Multi-Platform'}</span>
+                        </div>
+                        <div className="text-muted-foreground truncate">
                           {style || 'Studio Selected'}{colors ? ` · ${colors}` : ''}
-                        </p>
+                        </div>
                       </div>
+
+                      {briefExpandedMobile && (
+                        <div className="space-y-2 pt-1 animate-in fade-in duration-150">
+                          {instructions && (
+                            <div className="p-2.5 rounded-lg bg-secondary/30 border border-border/60 space-y-1 text-xs">
+                              <span className="text-2xs font-semibold text-muted-foreground block">Production Notes:</span>
+                              <p className="text-xs text-foreground/90 italic leading-relaxed whitespace-pre-wrap">
+                                &ldquo;{instructions}&rdquo;
+                              </p>
+                            </div>
+                          )}
+                          {uploadedFiles.length > 0 && (
+                            <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground border-t border-border/40">
+                              <Upload className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <span>{uploadedFiles.length} reference file(s) attached</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {(instructions || uploadedFiles.length > 0) && (
+                        <button
+                          type="button"
+                          onClick={() => setBriefExpandedMobile(!briefExpandedMobile)}
+                          className="w-full py-1.5 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center justify-between pt-1 border-t border-border/40 cursor-pointer transition-colors"
+                        >
+                          <span>{briefExpandedMobile ? 'Hide brief details' : 'View full notes & files'}</span>
+                          <ChevronDown className={cn("size-3.5 transition-transform text-muted-foreground", briefExpandedMobile && "rotate-180")} />
+                        </button>
+                      )}
                     </div>
 
-                    {instructions && (
-                      <div className="p-3 rounded-xl bg-secondary/30 border border-border/60 space-y-1 text-xs">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-muted-foreground">Production Notes & Direction:</span>
-                          <span className="text-xs text-muted-foreground">Attached to brief</span>
+                    {/* Desktop View: Always expanded */}
+                    <div className="hidden md:block space-y-3.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                        <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
+                          <span className="text-xs font-medium text-muted-foreground block">Channel / Brand</span>
+                          <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
+                            {channelName || 'Not specified'}
+                          </p>
                         </div>
-                        <div className="max-h-24 overflow-y-auto pr-1">
-                          <p className="text-xs text-foreground/90 italic leading-relaxed whitespace-pre-wrap">
-                            &ldquo;{instructions}&rdquo;
+                        <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50">
+                          <span className="text-xs font-medium text-muted-foreground block">Primary Platform</span>
+                          <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
+                            {platform || 'Multi-Platform'}
+                          </p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50 sm:col-span-2">
+                          <span className="text-xs font-medium text-muted-foreground block">Art Style &amp; Palette</span>
+                          <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
+                            {style || 'Studio Selected'}{colors ? ` · ${colors}` : ''}
                           </p>
                         </div>
                       </div>
-                    )}
 
-                    {uploadedFiles.length > 0 && (
-                      <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground border-t border-border/40">
-                        <Upload className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span>{uploadedFiles.length} reference file(s) attached to brief</span>
-                      </div>
-                    )}
+                      {instructions && (
+                        <div className="p-3 rounded-xl bg-secondary/30 border border-border/60 space-y-1 text-xs">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-muted-foreground">Production Notes & Direction:</span>
+                            <span className="text-xs text-muted-foreground">Attached to brief</span>
+                          </div>
+                          <div className="max-h-24 overflow-y-auto pr-1">
+                            <p className="text-xs text-foreground/90 italic leading-relaxed whitespace-pre-wrap">
+                              &ldquo;{instructions}&rdquo;
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {uploadedFiles.length > 0 && (
+                        <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground border-t border-border/40">
+                          <Upload className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span>{uploadedFiles.length} reference file(s) attached to brief</span>
+                        </div>
+                      )}
+                    </div>
                   </Card>
                 </div>
 
@@ -3346,76 +3502,161 @@ export default function CreatorStudioPage() {
                     <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/60 space-y-2 text-xs">
                       {isWalletFunding ? (
                         <>
-                          <div className="flex items-center justify-between text-muted-foreground">
-                            <span>Funding Source</span>
-                            <span className="font-semibold text-foreground flex items-center gap-1.5">
-                              <Wallet className="w-3.5 h-3.5 text-amber-500" /> Global Studio Wallet
-                            </span>
+                          {/* Mobile View: Concise wallet debits */}
+                          <div className="space-y-2 md:hidden">
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Funding Source</span>
+                              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                <Wallet className="w-3.5 h-3.5 text-amber-500" /> Wallet Balance
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
+                              <span>Scope Debited</span>
+                              <span className="font-mono tabular-nums">-{usedCredits} CR</span>
+                            </div>
+                            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span>Remaining Wallet</span>
+                              <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} CR</span>
+                            </div>
+                            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
+                              <span>Total Due</span>
+                              <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
+                                $0.00 USD
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between text-muted-foreground">
-                            <span>Current Available Balance</span>
-                            <span className="font-semibold text-foreground">{userBalance} CR</span>
-                          </div>
-                          <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
-                            <span>Service Scope Total</span>
-                            <span>{usedCredits} CR</span>
-                          </div>
-                          <div className="flex items-center justify-between text-muted-foreground">
-                            <span>Wallet Deduction</span>
-                            <span className="font-semibold text-foreground font-mono tabular-nums">-{usedCredits} CR</span>
-                          </div>
-                          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                            <span>Remaining Balance After Launch</span>
-                            <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} CR</span>
-                          </div>
-                          <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
-                            <span>Total Due Today</span>
-                            <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
-                              $0.00 USD
-                            </span>
+
+                          {/* Desktop View: Full itemized wallet details */}
+                          <div className="hidden md:block space-y-2">
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Funding Source</span>
+                              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                <Wallet className="w-3.5 h-3.5 text-amber-500" /> Global Studio Wallet
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Current Available Balance</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">{userBalance} CR</span>
+                            </div>
+                            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
+                              <span>Service Scope Total</span>
+                              <span className="font-mono tabular-nums">{usedCredits} CR</span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Wallet Deduction</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">-{usedCredits} CR</span>
+                            </div>
+                            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span>Remaining Balance After Launch</span>
+                              <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} CR</span>
+                            </div>
+                            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
+                              <span>Total Due Today</span>
+                              <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
+                                $0.00 USD
+                              </span>
+                            </div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="flex items-center justify-between text-muted-foreground">
-                            <span>{currentPackage.name} Package</span>
-                            <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString('en-US')} USD</span>
-                          </div>
-                          <div className="flex items-center justify-between text-muted-foreground">
-                            <span>Package Allocation</span>
-                            <span className="font-semibold text-foreground font-mono tabular-nums">+{currentPackage.credits} CR</span>
-                          </div>
-                          {appliedWalletCredits > 0 && (
+                          {/* Mobile View: Clean, non-repetitive essential numbers */}
+                          <div className="space-y-2 md:hidden">
                             <div className="flex items-center justify-between text-muted-foreground">
-                              <span>Applied from Studio Wallet</span>
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} CR</span>
+                              <span>{currentPackage.name} Package</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString('en-US')} USD</span>
                             </div>
-                          )}
-                          <div className="flex items-center justify-between text-muted-foreground font-medium pt-1 border-t border-border/40">
-                            <span>Total Usable Project Budget</span>
-                            <span className="font-semibold text-foreground font-mono tabular-nums">{totalUsableCredits} CR</span>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Scope Used</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">{usedCredits} of {totalUsableCredits} CR</span>
+                            </div>
+                            {appliedWalletCredits > 0 && (
+                              <div className="flex items-center justify-between text-muted-foreground">
+                                <span>Applied from Wallet</span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} CR</span>
+                              </div>
+                            )}
+                            {totalUsableCredits > usedCredits && (
+                              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span>Rollover to Wallet</span>
+                                <span className="font-semibold font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
+                              </div>
+                            )}
+                            {redeemCodeAttached && (
+                              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span>Promo: {redeemCodeInput}</span>
+                                <span>Applied</span>
+                              </div>
+                            )}
+                            {costBreakdownExpandedMobile && (
+                              <div className="pt-1.5 border-t border-border/40 space-y-1 text-2xs text-muted-foreground animate-in fade-in duration-150">
+                                <div className="flex items-center justify-between">
+                                  <span>Base Package Allocation</span>
+                                  <span className="font-mono tabular-nums">+{currentPackage.credits} CR</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span>Total Usable Budget</span>
+                                  <span className="font-mono tabular-nums">{totalUsableCredits} CR</span>
+                                </div>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setCostBreakdownExpandedMobile(!costBreakdownExpandedMobile)}
+                              className="w-full pt-1 text-2xs font-medium text-muted-foreground hover:text-foreground text-left cursor-pointer transition-colors"
+                            >
+                              {costBreakdownExpandedMobile ? 'Hide calculation details' : 'View full credit breakdown'}
+                            </button>
+                            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
+                              <span>Total Due</span>
+                              <span className="text-base font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums">
+                                ${currentPackage.price.toLocaleString('en-US')} USD
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
-                            <span>Service Scope Used</span>
-                            <span className="font-semibold font-mono tabular-nums">-{usedCredits} CR</span>
-                          </div>
-                          {totalUsableCredits > usedCredits && (
-                            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                              <span>Rollover to Global Wallet</span>
-                              <span className="font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
+
+                          {/* Desktop View: Full itemized calculation */}
+                          <div className="hidden md:block space-y-2">
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>{currentPackage.name} Package</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString('en-US')} USD</span>
                             </div>
-                          )}
-                          {redeemCodeAttached && (
-                            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                              <span>Promo Code: {redeemCodeInput}</span>
-                              <span>Applied</span>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Package Allocation</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">+{currentPackage.credits} CR</span>
                             </div>
-                          )}
-                          <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
-                            <span>Total Due</span>
-                            <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums">
-                              ${currentPackage.price.toLocaleString('en-US')} USD
-                            </span>
+                            {appliedWalletCredits > 0 && (
+                              <div className="flex items-center justify-between text-muted-foreground">
+                                <span>Applied from Studio Wallet</span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} CR</span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between text-muted-foreground font-medium pt-1 border-t border-border/40">
+                              <span>Total Usable Project Budget</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">{totalUsableCredits} CR</span>
+                            </div>
+                            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
+                              <span>Service Scope Used</span>
+                              <span className="font-semibold font-mono tabular-nums">-{usedCredits} CR</span>
+                            </div>
+                            {totalUsableCredits > usedCredits && (
+                              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span>Rollover to Global Wallet</span>
+                                <span className="font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
+                              </div>
+                            )}
+                            {redeemCodeAttached && (
+                              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                                <span>Promo Code: {redeemCodeInput}</span>
+                                <span>Applied</span>
+                              </div>
+                            )}
+                            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
+                              <span>Total Due</span>
+                              <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums">
+                                ${currentPackage.price.toLocaleString('en-US')} USD
+                              </span>
+                            </div>
                           </div>
                         </>
                       )}
@@ -3479,10 +3720,8 @@ export default function CreatorStudioPage() {
                               uploadedFiles,
                             }}
                             onSuccess={(proj) => {
-                              resetWizard();
                               if (proj && proj.id) {
-                                setSubmittedProject(proj);
-                                useUserStore.getState().updateUser({ hasProjects: true, canChat: true });
+                                void refreshUserSession();
                                 useChatStore.getState().registerProject({
                                   id: proj.id,
                                   projectCode: proj.projectCode,
@@ -3498,11 +3737,10 @@ export default function CreatorStudioPage() {
                                   iconType: 'check',
                                   link: '/projects',
                                 });
-                                toast.success(
-                                  appliedWalletCredits > 0
-                                    ? `Success! Project launched with ${proj.packageName} + ${appliedWalletCredits} CR applied from your Studio Wallet!`
-                                    : `Success! Project HT-${proj.projectCode} payment confirmed!`
-                                );
+
+                                // Navigate to dedicated confirmation route before clearing draft
+                                router.replace(`/new-project/confirmation/${proj.id}`);
+                                resetWizard();
                               } else {
                                 // PayPal succeeded and credits deposited in wallet; launch project via wallet
                                 handleLaunchWithWallet();
@@ -3575,7 +3813,6 @@ export default function CreatorStudioPage() {
                 </div>
               </div>
             </>
-          )}
         </div>
       )}
 

@@ -131,8 +131,8 @@ export function HorizontalStepper({
                         'border-border/90 bg-card text-foreground/80 font-bold group-hover:border-amber-400/60 group-hover:text-foreground',
                         // Completed step: clean emerald green with white checkmark
                         'data-[state=completed]:border-emerald-500 data-[state=completed]:bg-emerald-500 data-[state=completed]:text-white data-[state=completed]:shadow-xs data-[state=completed]:shadow-emerald-500/20',
-                        // Active step: slightly larger size, rich gradient, elevated shadow & vibrant amber ring
-                        'data-[state=active]:size-8.5 sm:data-[state=active]:size-9 data-[state=active]:scale-105 data-[state=active]:border-amber-500 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-500/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-500/25'
+                        // Active step: slightly larger size, rich gradient, elevated shadow & vibrant amber-400 ring
+                        'data-[state=active]:size-8.5 sm:data-[state=active]:size-9 data-[state=active]:scale-105 data-[state=active]:border-amber-400 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-400 data-[state=active]:to-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-400/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-400/25'
                       )}
                     >
                       {stepNum}
@@ -250,7 +250,7 @@ export function HorizontalStepper({
       <div className="flex sm:hidden flex-col items-center justify-center w-full max-w-md mx-auto gap-2.5 py-0.5 select-none">
         <div className="flex items-center justify-between w-full px-0.5">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white text-xs font-bold font-mono tabular-nums shadow-xs shadow-amber-500/30 shrink-0">
+            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 text-xs font-black font-mono tabular-nums shadow-xs shadow-amber-400/30 shrink-0">
               {currentStep}
             </span>
             <span className="text-xs font-bold text-foreground truncate">

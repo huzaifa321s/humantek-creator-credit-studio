@@ -17,7 +17,6 @@ import { CreditValue } from '@/components/ui/credit-value';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Slider } from '@/components/ui/slider';
 import { FilterTabs } from '@/components/ui/filter-tabs';
-import { TabsContent } from '@/components/ui/tabs';
 import {
   InputOTP,
   InputOTPGroup,
@@ -132,15 +131,15 @@ export default function RedeemCodePage() {
         </Link>
       }
     >
-      <div className="space-y-6 animate-in fade-in duration-200">
+      <div className="space-y-6 animate-in fade-in duration-200 pb-24 sm:pb-12">
         {/* Step Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-              PROMO CODE
+              CREATOR WALLET &amp; PASSES
             </div>
             <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
-              Promo Code
+              Promo Code &amp; Passes
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
               Redeem promo codes directly into your wallet, or generate passes for partners and creators.
@@ -148,25 +147,26 @@ export default function RedeemCodePage() {
           </div>
         </div>
 
-        {/* Mode Tabs */}
+        {/* Mode Tabs (Responsive Segmented Control) */}
         <FilterTabs
           value={tab}
           onValueChange={(val) => setTab(val as string)}
           size="sm"
           className="w-full"
-          listClassName="w-full sm:w-auto"
+          listClassName="w-full sm:w-auto grid grid-cols-2 sm:inline-flex"
           tabs={[
-            { value: 'redeem', label: 'Redeem Promo Code', icon: Gift },
-            { value: 'generate', label: 'Generate Promo Code', icon: Ticket },
+            { value: 'redeem', label: 'Redeem Code', icon: Gift },
+            { value: 'generate', label: 'Generate Pass', icon: Ticket },
           ]}
-        >
+        />
 
-          {/* TAB 1: Redeem Existing Code */}
-          <TabsContent value="redeem" className="pt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* TAB 1: Redeem Existing Code */}
+        {tab === 'redeem' ? (
+          <div className="pt-1 sm:pt-2 animate-in fade-in duration-150">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-start">
               <div className="lg:col-span-7 space-y-4">
                 <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
-                  <CardHeader className="p-5 sm:p-6 pb-3">
+                  <CardHeader className="p-4 sm:p-6 pb-2.5 sm:pb-3">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                       <Gift className="w-4 h-4 text-amber-600" /> Claim Creator Credits
                     </CardTitle>
@@ -175,8 +175,8 @@ export default function RedeemCodePage() {
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="p-5 sm:p-6 pt-2">
-                    <form onSubmit={handleRedeem} className="space-y-5">
+                  <CardContent className="p-4 sm:p-6 pt-2">
+                    <form onSubmit={handleRedeem} className="space-y-4 sm:space-y-5">
                       <Field>
                         <FieldLabel className="text-sm font-bold text-foreground">
                           Promotional Pass Code
@@ -185,7 +185,7 @@ export default function RedeemCodePage() {
                           Type or paste the authorization pass code.
                         </FieldDescription>
 
-                        <div className="pt-2 flex flex-col items-center sm:items-start gap-3">
+                        <div className="pt-2 flex flex-col items-center sm:items-start gap-3 w-full">
                           <InputOTP
                             maxLength={6}
                             value={redeemCode}
@@ -194,21 +194,22 @@ export default function RedeemCodePage() {
                               const cleaned = val.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase();
                               setRedeemCode(cleaned);
                             }}
+                            className="max-w-full"
                           >
                             <InputOTPGroup>
-                              <InputOTPSlot index={0} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={1} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={2} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={0} className="size-8 xs:size-9 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-400 data-[active=true]:ring-amber-400/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={1} className="size-8 xs:size-9 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-400 data-[active=true]:ring-amber-400/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={2} className="size-8 xs:size-9 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-400 data-[active=true]:ring-amber-400/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
                             </InputOTPGroup>
                             <InputOTPSeparator />
                             <InputOTPGroup>
-                              <InputOTPSlot index={3} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={4} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
-                              <InputOTPSlot index={5} className="size-8 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-500 data-[active=true]:ring-amber-500/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={3} className="size-8 xs:size-9 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-400 data-[active=true]:ring-amber-400/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={4} className="size-8 xs:size-9 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-400 data-[active=true]:ring-amber-400/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
+                              <InputOTPSlot index={5} className="size-8 xs:size-9 sm:size-10 text-xs sm:text-sm font-mono font-bold bg-card border-border/80 rounded-lg data-[active=true]:border-amber-400 data-[active=true]:ring-amber-400/25 data-[active=true]:ring-2 shadow-2xs transition-all" />
                             </InputOTPGroup>
                           </InputOTP>
 
-                          <div className="flex gap-2 w-full max-w-sm mt-1">
+                          <div className="flex flex-col xs:flex-row gap-2 w-full max-w-sm mt-1">
                             <Input
                               type="text"
                               placeholder="Or paste code e.g. HT-9428"
@@ -217,14 +218,14 @@ export default function RedeemCodePage() {
                                 const cleaned = e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase();
                                 setRedeemCode(cleaned);
                               }}
-                              className="h-9 text-xs font-mono uppercase rounded-lg border-border/80 focus-visible:border-amber-500"
+                              className="h-9 text-xs font-mono uppercase rounded-lg border-border/80 focus-visible:border-amber-400 focus-visible:ring-amber-400/25 w-full"
                             />
                             <Button
                               type="submit"
                               loading={isRedeeming}
                               loadingText="Applying…"
                               disabled={!redeemCode}
-                              className="shrink-0 h-9 px-3.5 text-xs font-semibold gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-xs cursor-pointer"
+                              className="shrink-0 h-9 px-3.5 text-xs font-bold gap-1.5 rounded-lg bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground shadow-xs cursor-pointer w-full xs:w-auto justify-center"
                             >
                               <span>Redeem</span>
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -259,7 +260,7 @@ export default function RedeemCodePage() {
 
               {/* Sidebar Quick Card */}
               <div className="lg:col-span-5">
-                <Card className="p-5 sm:p-6 rounded-xl border border-border/80 bg-card shadow-xs space-y-4">
+                <Card className="p-4 sm:p-6 rounded-xl border border-border/80 bg-card shadow-xs space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center">
                       <Wallet className="w-4 h-4" />
@@ -281,24 +282,24 @@ export default function RedeemCodePage() {
                 </Card>
               </div>
             </div>
-          </TabsContent>
-
-          {/* TAB 2: Generate Partner Pass */}
-          <TabsContent value="generate" className="pt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          </div>
+        ) : (
+          /* TAB 2: Generate Partner Pass */
+          <div className="pt-1 sm:pt-2 animate-in fade-in duration-150">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-start">
               {/* Form */}
               <div className="lg:col-span-6 space-y-4">
-                <Card className="rounded-xl border-border bg-card shadow-xs">
-                  <CardHeader className="p-6 pb-2">
+                <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
+                  <CardHeader className="p-4 sm:p-6 pb-2">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                       <Ticket className="w-4 h-4 text-amber-600" /> Promo Code Parameters
                     </CardTitle>
-                    <CardDescription className="text-sm text-muted-foreground">
+                    <CardDescription className="text-xs sm:text-sm text-muted-foreground">
                       Configure credit value and recipient assignment for this promo code.
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="p-6 pt-2">
+                  <CardContent className="p-4 sm:p-6 pt-2">
                     <form onSubmit={handleGenerate} className="space-y-4">
                       <FieldGroup>
                         <Field>
@@ -356,7 +357,7 @@ export default function RedeemCodePage() {
                         </Field>
                       </FieldGroup>
 
-                      <Button type="submit" variant="default" className="w-full h-9 rounded-lg text-sm font-semibold">
+                      <Button type="submit" variant="default" className="w-full h-9 rounded-lg text-sm font-semibold cursor-pointer">
                         Generate Promo Code
                       </Button>
                     </form>
@@ -374,7 +375,7 @@ export default function RedeemCodePage() {
 
               {/* Luxury Card Preview */}
               <div className="lg:col-span-6">
-                <Card className="p-4 sm:p-6 md:p-8 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-gradient-to-br from-amber-50/70 via-card to-amber-100/30 dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-xs flex flex-col justify-between min-h-[300px] sm:min-h-[340px]">
+                <Card className="p-4 sm:p-6 md:p-8 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-gradient-to-br from-amber-50/70 via-card to-amber-100/30 dark:from-amber-950/30 dark:via-card dark:to-amber-950/20 shadow-xs flex flex-col justify-between min-h-[260px] sm:min-h-[340px]">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs sm:text-sm uppercase tracking-wider text-amber-800 dark:text-amber-300 font-extrabold">
@@ -383,8 +384,9 @@ export default function RedeemCodePage() {
                       <Sparkles className="w-4 h-4 text-amber-600" />
                     </div>
 
-                    <div className="my-6 sm:my-8">
-                      <CreditValue value={credits} size="hero" className="block" />
+                    <div className="my-4 sm:my-8">
+                      <CreditValue value={credits} size="lg" className="block sm:hidden" />
+                      <CreditValue value={credits} size="hero" className="hidden sm:block" />
                       <small className="text-muted-foreground text-xs sm:text-sm block mt-1">
                         Redeemable against any approved Humantek Art creative services.
                       </small>
@@ -392,7 +394,7 @@ export default function RedeemCodePage() {
 
                     {generatedCode ? (
                       <div className="p-3 sm:p-4 bg-amber-50/90 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 rounded-xl flex items-center justify-between gap-2 mt-4 shadow-2xs">
-                        <span className="font-mono tabular-nums text-sm sm:text-base font-bold text-amber-900 dark:text-amber-200 tracking-wider break-all">
+                        <span className="font-mono tabular-nums text-xs sm:text-base font-bold text-amber-900 dark:text-amber-200 tracking-wider break-all">
                           {generatedCode}
                         </span>
                         <Button
@@ -423,8 +425,8 @@ export default function RedeemCodePage() {
                 </Card>
               </div>
             </div>
-          </TabsContent>
-        </FilterTabs>
+          </div>
+        )}
       </div>
     </StudioCardLayout>
   );

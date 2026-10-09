@@ -44,8 +44,8 @@ export function ServiceCategoryTabs({
   const effectiveMax = useMemo(() => {
     if (typeof maxPrimary === 'number') return maxPrimary;
     if (!mounted) return 2;
-    if (windowWidth < 520) return 2; // Under 520px (all mobile phones): 2 primary tabs + More dropdown fits perfectly without clipping
-    if (windowWidth < 768) return 3; // 520px - 767px (large phones in landscape, phablets)
+    if (windowWidth < 460) return 2; // Under 460px (mobile phones): 2 primary tabs + More dropdown fits comfortably without clipping the dropdown arrow
+    if (windowWidth < 768) return 3; // 460px - 767px (large phones in landscape, phablets)
     if (windowWidth < 1024) return 4; // 768px - 1023px (tablets)
     if (windowWidth < 1700) return 5; // 1024px - 1699px (laptops, standard 1080p desktop): 5 primary tabs + More dropdown fits with generous room so Chevron is ALWAYS fully visible
     return 6; // Ultrawide screens >= 1700px
@@ -85,7 +85,7 @@ export function ServiceCategoryTabs({
                   'rounded-lg text-xs sm:text-sm font-semibold px-2 sm:px-2.5 h-8 shrink-0 transition-all select-none flex items-center gap-1 sm:gap-1.5 cursor-pointer',
                   'data-active:bg-card data-active:text-foreground data-active:shadow-2xs',
                   hasSelectedItems
-                    ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold border border-amber-500/40 shadow-xs'
+                    ? 'bg-amber-400/15 text-amber-800 dark:text-amber-300 font-bold border border-amber-400/40 shadow-xs'
                     : 'text-muted-foreground'
                 )}
               >
@@ -95,7 +95,7 @@ export function ServiceCategoryTabs({
                     className={cn(
                       'text-2xs sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold font-mono tabular-nums shrink-0',
                       hasSelectedItems
-                        ? 'bg-amber-500 text-white shadow-xs'
+                        ? 'bg-amber-400 text-zinc-950 font-black shadow-xs'
                         : 'bg-muted/70 text-muted-foreground'
                     )}
                   >

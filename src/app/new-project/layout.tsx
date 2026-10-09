@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/userStore';
 
 export default function NewProjectLayout({
@@ -10,18 +10,22 @@ export default function NewProjectLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isHydrated, isAdmin } = useUserStore();
+
+  const isConfirmationPage = pathname?.includes('/confirmation/');
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (isAdmin()) {
+    if (isAdmin() && !isConfirmationPage) {
       router.replace('/management');
     }
-  }, [isHydrated, isAdmin, router]);
+  }, [isHydrated, isAdmin, router, isConfirmationPage]);
 
-  if (isHydrated && isAdmin()) {
+  if (isHydrated && isAdmin() && !isConfirmationPage) {
     return null;
   }
 
   return <>{children}</>;
 }
+
