@@ -551,6 +551,15 @@ export default function CreatorStudioPage() {
         } catch {}
       }
 
+      // Prerequisite: if target is step 5 and user is unauthenticated, place on step 4 and open auth modal/drawer
+      if (clamped === 5 && !activeUserEmail) {
+        setCurrentStep(4);
+        url.searchParams.set('step', '4');
+        window.history.replaceState({}, '', url.pathname + url.search);
+        setShowAuthModal(true);
+        return;
+      }
+
       setCurrentStep(clamped);
       url.searchParams.set('step', String(clamped));
       window.history.replaceState({}, '', url.pathname + url.search);
@@ -771,6 +780,12 @@ export default function CreatorStudioPage() {
         }
         return;
       }
+    }
+
+    const activeAuthEmail = user?.email || useUserStore.getState().user?.email;
+    if (target === 5 && !activeAuthEmail) {
+      setShowAuthModal(true);
+      return;
     }
 
     setCurrentStep(target);
@@ -3854,9 +3869,7 @@ export default function CreatorStudioPage() {
         open={showAuthModal}
         onOpenChange={setShowAuthModal}
         onSuccess={() => {
-          if (currentStep === 4) {
-            goToStep(5);
-          }
+          setCurrentStep(5);
         }}
       />
     </StudioCardLayout>
