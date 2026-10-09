@@ -3201,7 +3201,6 @@ export default function CreatorStudioPage() {
       {/* ============================================================ */}
       {currentStep === 5 && currentPackage && (
         <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16">
-            /* Order Review and Payment View */
             <>
               {/* Step Top Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
