@@ -39,6 +39,7 @@ export default async function RootLayout({
       className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body
+        suppressHydrationWarning
         className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-500/20 selection:text-amber-900 font-sans"
       >
         <NextTopLoader
