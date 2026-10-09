@@ -119,7 +119,7 @@ export function ServiceCategoryTabs({
               >
                 <span className="truncate max-w-[85px] sm:max-w-none">{isMoreActive ? activeCategory : 'More'}</span>
                 {isMoreActive && categoryCounts?.[activeCategory] !== undefined ? (
-                  <span className="text-2xs sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold font-mono tabular-nums bg-amber-500 text-white shadow-xs shrink-0">
+                  <span className="text-2xs sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-black font-mono tabular-nums bg-amber-400 text-zinc-950 shadow-xs shadow-amber-400/25 shrink-0">
                     {categoryCounts[activeCategory]}
                   </span>
                 ) : (
@@ -140,20 +140,20 @@ export function ServiceCategoryTabs({
                       className={cn(
                         'flex items-center justify-between text-xs sm:text-sm px-2.5 py-2 rounded-lg cursor-pointer transition-colors',
                         isActive
-                          ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold'
+                          ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold'
                           : 'hover:bg-secondary/70'
                       )}
                     >
                       <span className="flex items-center gap-2">
-                        {isActive && <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
+                        {isActive && <Check className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />}
                         <span>{cat}</span>
                       </span>
                       {count !== undefined && (
                         <span
                           className={cn(
-                            'text-xs px-2 py-0.5 rounded-full font-bold tabular-nums',
+                            'text-xs px-2 py-0.5 rounded-full font-black tabular-nums',
                             isActive
-                              ? 'bg-amber-500 text-white shadow-xs'
+                              ? 'bg-amber-400 text-zinc-950 shadow-xs shadow-amber-400/25'
                               : 'bg-muted text-muted-foreground'
                           )}
                         >

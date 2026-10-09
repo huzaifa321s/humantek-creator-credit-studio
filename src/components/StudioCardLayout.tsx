@@ -115,19 +115,19 @@ function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
         className={cn(
           'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
           isActive
-            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+            ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
             : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
         )}
       >
         <MessageSquare
           className={cn(
             'size-4 shrink-0 transition-colors',
-            isActive ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+            isActive ? 'text-brand-text dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
           )}
         />
         <span className="truncate group-data-[collapsible=icon]:hidden">Communications</span>
         {totalUnreadChat > 0 && (
-          <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+          <SidebarMenuBadge className="bg-amber-400 text-zinc-950 font-black font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1 shadow-xs shadow-amber-400/25">
             {totalUnreadChat}
           </SidebarMenuBadge>
         )}
@@ -160,19 +160,19 @@ function SidebarClientMessagesItem() {
           className={cn(
             'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
             isOpen
-              ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+              ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
               : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
           )}
         >
           <MessageSquare
             className={cn(
               'size-4 shrink-0 transition-colors',
-              isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+              isOpen ? 'text-brand-text dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
             )}
           />
           <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
           {totalUnreadChat > 0 && (
-            <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+            <SidebarMenuBadge className="bg-amber-400 text-zinc-950 font-black font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1 shadow-xs shadow-amber-400/25">
               {totalUnreadChat}
             </SidebarMenuBadge>
           )}
@@ -224,7 +224,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                       pathname === '/management'
-                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
                         : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                     )}
                   >
@@ -232,7 +232,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                       className={cn(
                         'size-4 shrink-0 transition-colors',
                         pathname === '/management'
-                          ? 'text-amber-600 dark:text-amber-400'
+                          ? 'text-brand-text dark:text-amber-400'
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
                     />
@@ -292,7 +292,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                       pathname === '/projects'
-                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
                         : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                     )}
                   >
@@ -300,7 +300,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                       className={cn(
                         'size-4 shrink-0 transition-colors',
                         pathname === '/projects'
-                          ? 'text-amber-600 dark:text-amber-400'
+                          ? 'text-brand-text dark:text-amber-400'
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
                     />
@@ -321,7 +321,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                       pathname === '/redeem-code'
-                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
                         : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                     )}
                   >
@@ -329,7 +329,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                       className={cn(
                         'size-4 shrink-0 transition-colors',
                         pathname === '/redeem-code'
-                          ? 'text-amber-600 dark:text-amber-400'
+                          ? 'text-brand-text dark:text-amber-400'
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
                     />

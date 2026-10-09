@@ -97,6 +97,7 @@ export const useUserStore = create<UserStoreState>()(
             walletBalance: typeof walletBalance === 'number' ? walletBalance : 0,
             role,
           },
+          isHydrated: true,
         }),
       addCredits: (amount: number, _description?: string) => {
         void _description;
