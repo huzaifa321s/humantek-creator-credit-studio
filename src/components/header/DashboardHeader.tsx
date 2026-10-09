@@ -96,6 +96,7 @@ interface DashboardHeaderProps {
   userName?: string | null;
   topRightBadge?: React.ReactNode;
   currentStep?: number;
+  onSignInClick?: () => void;
 }
 
 export function DashboardHeader({
@@ -110,6 +111,7 @@ export function DashboardHeader({
   userName = null,
   topRightBadge,
   currentStep = 1,
+  onSignInClick,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
   const { isSearchOpen, setSearchOpen, toggleSearch } = useUIStore();
@@ -326,16 +328,28 @@ export function DashboardHeader({
           ) : !effectiveEmail ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
               {!isManagementRoute && topRightBadge}
-              <Link href="/login">
+              {onSignInClick ? (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  onClick={onSignInClick}
                   className="h-8 px-3 rounded-lg border-amber-400/40 text-amber-400 hover:text-white hover:bg-amber-400/20 text-xs font-semibold cursor-pointer shadow-2xs"
                 >
                   Sign In
                 </Button>
-              </Link>
+              ) : (
+                <Link href={`/login?next=${encodeURIComponent(pathname || '/projects')}`}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 rounded-lg border-amber-400/40 text-amber-400 hover:text-white hover:bg-amber-400/20 text-xs font-semibold cursor-pointer shadow-2xs"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              )}
             </div>
           ) : (
             <>

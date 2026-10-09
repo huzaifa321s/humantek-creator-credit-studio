@@ -26,6 +26,20 @@ function SignInContent() {
     ) {
       return nextParam;
     }
+    // If no explicit nextParam is set, check if client has an active wizard draft
+    if (typeof window !== 'undefined') {
+      try {
+        const storedDraft = localStorage.getItem('humantek_wizard_cart');
+        if (storedDraft) {
+          const parsed = JSON.parse(storedDraft);
+          const hasDraftPkg = parsed?.state?.selectedPackageId || parsed?.selectedPackageId;
+          const isWallet = parsed?.state?.fundingSource === 'wallet' || parsed?.fundingSource === 'wallet';
+          if (hasDraftPkg || isWallet) {
+            return '/new-project?step=5';
+          }
+        }
+      } catch {}
+    }
     return '/projects';
   };
 

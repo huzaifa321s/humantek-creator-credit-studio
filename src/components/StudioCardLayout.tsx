@@ -87,6 +87,7 @@ interface StudioCardLayoutProps {
   isPolicyAccepted?: boolean;
   isBriefCompleted?: boolean;
   hideStepper?: boolean;
+  onSignInClick?: () => void;
 }
 
 interface StudioSidebarNavigationProps {
@@ -367,6 +368,7 @@ export function StudioCardLayout({
   isPolicyAccepted,
   isBriefCompleted,
   hideStepper = false,
+  onSignInClick,
 }: StudioCardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -437,6 +439,7 @@ export function StudioCardLayout({
           userEmail={effectiveEmail}
           userName={effectiveName}
           topRightBadge={topRightBadge}
+          onSignInClick={onSignInClick}
         />
 
         <div className="flex flex-1 w-full min-h-0 relative">

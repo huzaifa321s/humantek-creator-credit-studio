@@ -119,7 +119,9 @@ export function AuthForm({
         }
 
         toast.success(`Welcome back, ${data.user.name || 'Creator'}!`);
-        router.refresh();
+        if (isPage) {
+          router.refresh();
+        }
         onSuccess?.(data.user);
         onClose?.();
       }
@@ -170,7 +172,9 @@ export function AuthForm({
           data.user.role
         );
         toast.success(`Account created! Welcome, ${data.user.name || 'Creator'}!`);
-        router.refresh();
+        if (isPage) {
+          router.refresh();
+        }
         onSuccess?.(data.user);
         onClose?.();
       }
@@ -217,7 +221,9 @@ export function AuthForm({
           data.user.role
         );
         toast.success(`Email verified! Welcome, ${data.user.name || 'Creator'}!`);
-        router.refresh();
+        if (isPage) {
+          router.refresh();
+        }
         onSuccess?.(data.user);
         onClose?.();
       }

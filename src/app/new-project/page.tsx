@@ -422,7 +422,7 @@ export default function CreatorStudioPage() {
 
   // Track if user has active unsaved draft progress
   const hasUnsavedProgress = useMemo(() => {
-    if (submittedProject) return false;
+    if (submittedProject || submittedProjectId) return false;
     return Boolean(
       selectedPackageId ||
       Object.keys(selections).length > 0 ||
@@ -430,7 +430,7 @@ export default function CreatorStudioPage() {
       instructions.trim() ||
       uploadedFiles.length > 0
     );
-  }, [submittedProject, selectedPackageId, selections, channelName, instructions, uploadedFiles.length]);
+  }, [submittedProject, submittedProjectId, selectedPackageId, selections, channelName, instructions, uploadedFiles.length]);
 
   // Standard production browser exit guard ("Leave site? Changes you made may not be saved.")
   useUnsavedChangesWarning(hasUnsavedProgress);
@@ -515,15 +515,11 @@ export default function CreatorStudioPage() {
         } catch {}
       }
       const hasPkg = Boolean(savedPkg || savedFunding === 'wallet');
-      const hasSelections = Boolean(savedSelections && Object.keys(savedSelections).length > 0);
-      const isCartEmpty = !hasPkg || !hasSelections;
+      const isCartEmpty = !hasPkg;
 
       // Empty-cart rule: If someone opens ?step=5 with an empty cart, redirect to /projects
       if (clamped === 5 && isCartEmpty && !submittedProjectId) {
         router.replace('/projects');
-        if (typeof window !== 'undefined') {
-          window.location.replace('/projects');
-        }
         return;
       }
 
@@ -553,15 +549,6 @@ export default function CreatorStudioPage() {
             }
           }
         } catch {}
-      }
-
-      // Prerequisite: if target is step 5 and user is unauthenticated, bounce to step 4 & open auth modal
-      if (clamped === 5 && !activeUserEmail) {
-        setCurrentStep(4);
-        url.searchParams.set('step', '4');
-        window.history.replaceState({}, '', url.pathname + url.search);
-        setShowAuthModal(true);
-        return;
       }
 
       setCurrentStep(clamped);
@@ -595,10 +582,10 @@ export default function CreatorStudioPage() {
   // Guard: If currentStep is 5 and there is no package selected (empty cart), redirect to /projects
   useEffect(() => {
     if (!isStepMountedRef.current) return;
-    if (currentStep === 5 && !selectedPackageId && fundingSource !== 'wallet') {
+    if (currentStep === 5 && !selectedPackageId && fundingSource !== 'wallet' && !submittedProjectId) {
       router.replace('/projects');
     }
-  }, [currentStep, selectedPackageId, fundingSource, router]);
+  }, [currentStep, selectedPackageId, fundingSource, submittedProjectId, router]);
 
 
   // Derived package & credit calculations
@@ -786,13 +773,6 @@ export default function CreatorStudioPage() {
       }
     }
 
-    if (target === 5) {
-      if (!user?.email) {
-        setShowAuthModal(true);
-        return;
-      }
-    }
-
     setCurrentStep(target);
   };
 
@@ -965,6 +945,10 @@ export default function CreatorStudioPage() {
   };
 
   const handleSubmitForReview = async () => {
+    if (!user?.email) {
+      setShowAuthModal(true);
+      return;
+    }
     if (!currentPackage || isSubmitting) return;
     setIsSubmitting(true);
     setErrorMessage('');
@@ -1042,19 +1026,21 @@ export default function CreatorStudioPage() {
         uploadedFiles,
       });
 
-      if (typeof data.newWalletBalance === 'number') {
+      if (data?.project && typeof data.newWalletBalance === 'number') {
         useUserStore.getState().updateUser({
           walletBalance: data.newWalletBalance,
         });
-      } else {
+      } else if (data?.project) {
         deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
       }
 
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-      });
+      if (data?.project) {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 },
+        });
+      }
 
       await completeCheckout(data?.project ?? null);
     } catch (err: unknown) {
@@ -1285,7 +1271,18 @@ export default function CreatorStudioPage() {
 
           {currentStep === 5 && currentPackage && (
             <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-end">
-              {isWalletFunding ? (
+              {!user?.email ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="default"
+                  onClick={() => setShowAuthModal(true)}
+                  className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
+                >
+                  <span>Sign In to Complete Order</span>
+                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </Button>
+              ) : isWalletFunding ? (
                 <Button
                   type="button"
                   variant="default"
@@ -1339,6 +1336,7 @@ export default function CreatorStudioPage() {
       mode="wizard"
       currentStep={currentStep}
       onSelectStep={goToStep}
+      onSignInClick={() => setShowAuthModal(true)}
       isPackageSelected={isStep1Valid}
       selectedPackageName={currentPackage?.name}
       selectedPackagePrice={currentPackage?.price}
@@ -3681,7 +3679,7 @@ export default function CreatorStudioPage() {
                     </div>
 
                     {/* Payment / Wallet Settlement Action */}
-                    <div className="space-y-3">
+                    <div className="space-y-3" id="studio-checkout-section">
                       {submissionError && (
                         <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
                           <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -3695,7 +3693,30 @@ export default function CreatorStudioPage() {
                           </div>
                         </div>
                       )}
-                      {isWalletFunding ? (
+                      {!user?.email ? (
+                        <div className="p-4 sm:p-5 rounded-xl border border-amber-400/40 bg-amber-400/10 space-y-3 text-center sm:text-left">
+                          <div className="flex flex-col sm:flex-row items-center gap-3">
+                            <div className="size-9 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-brand-text dark:text-amber-400 shrink-0">
+                              <Sparkles className="size-4" />
+                            </div>
+                            <div className="space-y-0.5 min-w-0">
+                              <h3 className="text-sm font-bold text-foreground">Sign in to complete your order</h3>
+                              <p className="text-xs text-muted-foreground">
+                                Sign in or create an account to activate your project and access studio communication.
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="lg"
+                            onClick={() => setShowAuthModal(true)}
+                            className="w-full h-11 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-bold rounded-xl shadow-md shadow-amber-400/25 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>Sign In or Create Account</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : isWalletFunding ? (
                         <div className="space-y-2">
                           <Button
                             type="button"
@@ -3832,7 +3853,11 @@ export default function CreatorStudioPage() {
       <AuthModal
         open={showAuthModal}
         onOpenChange={setShowAuthModal}
-        onSuccess={() => setCurrentStep(5)}
+        onSuccess={() => {
+          if (currentStep === 4) {
+            goToStep(5);
+          }
+        }}
       />
     </StudioCardLayout>
   );

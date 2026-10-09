@@ -121,8 +121,8 @@ test.describe('Confirmation Route & Checkout UX Safety Suite', () => {
 
     await page.goto('/new-project?step=5', { waitUntil: 'networkidle' });
 
-    // Click Confirm & Launch button
-    const launchBtn = page.getByRole('button', { name: /Confirm & Launch/i });
+    // Click Confirm & Launch button (exact match to target sticky footer action)
+    const launchBtn = page.getByRole('button', { name: 'Confirm & Launch', exact: true });
     await expect(launchBtn).toBeVisible({ timeout: 10000 });
     await launchBtn.click();
 
@@ -134,7 +134,7 @@ test.describe('Confirmation Route & Checkout UX Safety Suite', () => {
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page).toHaveURL(new RegExp(`/new-project/confirmation/${projectId}`));
     await expect(page.locator('h1')).toContainText(/Project started|Payment received/i);
-    await expect(page.getByText(/Creator Forge/i).first()).toBeVisible();
+    await expect(page.getByText(/Studio Wallet|Creator Forge/i).first()).toBeVisible();
   });
 
   test('2. Back button history safety: pressing Back does not reopen step 5 checkout form', async ({ page, context }) => {
@@ -195,7 +195,7 @@ test.describe('Confirmation Route & Checkout UX Safety Suite', () => {
 
     await page.goto('/new-project?step=5', { waitUntil: 'networkidle' });
 
-    const launchBtn = page.getByRole('button', { name: /Confirm & Launch/i });
+    const launchBtn = page.getByRole('button', { name: 'Confirm & Launch', exact: true });
     await expect(launchBtn).toBeVisible({ timeout: 10000 });
     await launchBtn.click();
 
