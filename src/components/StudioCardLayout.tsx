@@ -487,8 +487,8 @@ export function StudioCardLayout({
   // 2. WIZARD MODE: Dedicated Clean Stepper Brief Flow
   // =========================================================================
   return (
-    <div className="min-h-screen w-full bg-background flex flex-col font-sans antialiased">
-      <main className="flex-1 flex flex-col min-w-0 bg-background min-h-screen relative isolate">
+    <div className="min-h-screen w-full bg-background flex flex-col font-sans antialiased" suppressHydrationWarning>
+      <main className="flex-1 flex flex-col min-w-0 bg-background min-h-screen relative isolate" suppressHydrationWarning>
         <StudioBackground />
 
         {/* Top Black Dashboard Header (Shadcn Studio Style) */}

@@ -1119,7 +1119,7 @@ export default function CreatorStudioPage() {
       {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}
       {/* ============================================================ */}
       {currentStep === 1 && (
-        <div className="space-y-3 sm:space-y-5 animate-in fade-in duration-200">
+        <div className="space-y-3 sm:space-y-5 animate-in fade-in duration-200" suppressHydrationWarning>
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
@@ -1487,7 +1487,7 @@ export default function CreatorStudioPage() {
       {/* STEP 2: MULTI-ASSET CONFIGURATOR                             */}
       {/* ============================================================ */}
       {currentStep === 2 && currentPackage && (
-        <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200">
+        <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200" suppressHydrationWarning>
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
@@ -2051,7 +2051,7 @@ export default function CreatorStudioPage() {
       {/* STEP 3: CREDIT SCOPE & ELIGIBILITY                           */}
       {/* ============================================================ */}
       {currentStep === 3 && currentPackage && (
-        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
+        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200" suppressHydrationWarning>
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
@@ -2511,7 +2511,7 @@ export default function CreatorStudioPage() {
       {/* STEP 4: PROJECT DETAILS & CREATIVE BRIEF                     */}
       {/* ============================================================ */}
       {currentStep === 4 && currentPackage && (
-        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
+        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200" suppressHydrationWarning>
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
@@ -2932,7 +2932,7 @@ export default function CreatorStudioPage() {
       {/* STEP 5: REVIEW & CHECKOUT                                    */}
       {/* ============================================================ */}
       {currentStep === 5 && currentPackage && (
-        <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16">
+        <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16" suppressHydrationWarning>
           {submittedProject ? (
             /* Order Confirmed Screen */
             <Card className="max-w-lg w-full mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-sm text-center animate-in fade-in zoom-in-95 duration-200">
