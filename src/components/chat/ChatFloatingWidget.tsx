@@ -335,8 +335,8 @@ function ChatFloatingWidgetInner() {
                 )}
 
                 <div className="relative shrink-0">
-                  <Avatar className="size-8 sm:size-8.5 border border-amber-500/50 bg-gradient-to-br from-amber-500/20 to-amber-600/30 shadow-2xs">
-                    <AvatarFallback className="bg-transparent text-amber-800 dark:text-amber-300 font-semibold text-xs">
+                  <Avatar className="size-8 sm:size-8.5 border border-amber-400/40 bg-amber-400/15 shadow-2xs">
+                    <AvatarFallback className="bg-transparent text-brand-text dark:text-amber-300 font-semibold text-xs">
                       {agent.avatarInitials}
                     </AvatarFallback>
                   </Avatar>
@@ -429,14 +429,14 @@ function ChatFloatingWidgetInner() {
                 {isGlobal ? (
                   <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 shadow-2xs">
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs">
                         <Sparkles className="size-3.5" />
                       </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs sm:text-sm font-bold tracking-tight text-foreground">Global Chat</span>
                           <span className="flex size-1.5 rounded-full bg-emerald-500 inline-block align-middle" />
-                          <span className="text-3xs uppercase tracking-wider font-semibold text-amber-700/80 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-500/20">
+                          <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/20">
                             Concierge
                           </span>
                         </div>
@@ -468,7 +468,7 @@ function ChatFloatingWidgetInner() {
                       <Link
                         href="/projects"
                         onClick={() => setIsOpen(false)}
-                        className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-500/10 dark:bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/20 transition-colors"
+                        className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                       >
                         <span className="hidden min-[380px]:inline">Milestone Tracker</span>
                         <span className="min-[380px]:hidden">Tracker</span>
@@ -482,7 +482,7 @@ function ChatFloatingWidgetInner() {
                         Client: <b className="text-foreground font-medium truncate">{displayMeta.clientName}</b>
                       </span>
                       <span className="text-muted-foreground/50">·</span>
-                      <span className="inline-flex items-center font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/25 shrink-0">
+                      <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
                         {displayMeta.credits || 660} CR
                       </span>
                       {displayMeta.price && (

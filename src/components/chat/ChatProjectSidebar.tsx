@@ -122,12 +122,12 @@ export function ChatProjectSidebar({
               className={cn(
                 'group/global-item cursor-pointer px-2.5 py-2 h-auto min-h-[50px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
                 isGlobalSelected
-                  ? 'border-amber-500 bg-amber-500/15 dark:bg-amber-500/25 shadow-xs ring-1 ring-amber-500/40'
-                  : 'border-amber-500/30 dark:border-amber-500/35 bg-amber-500/[0.06] dark:bg-amber-500/[0.10] hover:bg-amber-500/12 hover:border-amber-500/50 shadow-2xs'
+                  ? 'border-amber-400 bg-amber-400/15 dark:bg-amber-400/25 shadow-xs ring-1 ring-amber-400/40'
+                  : 'border-amber-400/30 dark:border-amber-400/35 bg-amber-400/[0.06] dark:bg-amber-400/[0.10] hover:bg-amber-400/12 hover:border-amber-400/50 shadow-2xs'
               )}
             >
               {isGlobalSelected && (
-                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-500 rounded-r-xs" />
+                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 rounded-r-xs" />
               )}
 
               <div className="flex items-center justify-between gap-1.5 mb-1 w-full">
@@ -136,8 +136,8 @@ export function ChatProjectSidebar({
                     className={cn(
                       'flex size-5 shrink-0 items-center justify-center rounded-md transition-all shadow-2xs',
                       isGlobalSelected
-                        ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-amber-500/20'
-                        : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                        ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-black shadow-amber-400/20'
+                        : 'bg-amber-400/20 text-brand-text dark:text-amber-300'
                     )}
                   >
                     <Globe className="size-3" />
@@ -152,7 +152,7 @@ export function ChatProjectSidebar({
                   >
                     Global Chat
                   </span>
-                  <span className="text-3xs uppercase tracking-wider font-semibold text-amber-700/80 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20 px-1 py-0.2 rounded border border-amber-500/20">
+                  <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1 py-0.2 rounded border border-amber-400/20">
                     Concierge
                   </span>
                 </div>
@@ -194,7 +194,7 @@ export function ChatProjectSidebar({
       <div className="p-2 pb-1.5 border-b border-border/70 space-y-1.5 shrink-0 bg-background/40 mb-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="flex size-4 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <span className="flex size-4 items-center justify-center rounded-md bg-amber-400/15 text-brand-text dark:text-amber-400">
               <FolderKanban className="size-3" />
             </span>
             <span className="text-2xs font-bold tracking-wider uppercase text-muted-foreground/80">
@@ -210,7 +210,7 @@ export function ChatProjectSidebar({
               type="button"
               variant="ghost"
               size="xs"
-              className="h-6 px-1.5 text-2xs font-semibold gap-1 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 rounded-md cursor-pointer"
+              className="h-6 px-1.5 text-2xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:bg-amber-400/15 rounded-md cursor-pointer"
             >
               <Plus className="size-3" />
               <span>+ New Brief</span>
@@ -281,7 +281,7 @@ export function ChatProjectSidebar({
         ) : projects.length === 0 ? (
           <Empty className="py-6 border-0">
             <EmptyHeader>
-              <EmptyMedia variant="icon" className="bg-amber-500/10 text-amber-600 size-8">
+              <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400 size-8">
                 <FolderKanban className="size-4" />
               </EmptyMedia>
               <EmptyTitle className="text-xs font-semibold tracking-tight">No project channels yet</EmptyTitle>
@@ -299,7 +299,7 @@ export function ChatProjectSidebar({
         ) : filteredProjects.length === 0 ? (
           <Empty className="py-6 border-0">
             <EmptyHeader>
-              <EmptyMedia variant="icon" className="bg-amber-500/10 text-amber-600 size-8">
+              <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400 size-8">
                 <Inbox className="size-4" />
               </EmptyMedia>
               <EmptyTitle className="text-xs font-semibold tracking-tight">No projects match</EmptyTitle>
@@ -342,13 +342,13 @@ export function ChatProjectSidebar({
                     className={cn(
                       'group/project-item cursor-pointer py-2 px-2.5 h-auto min-h-[52px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
                       isSelected
-                        ? 'border-amber-500/80 bg-amber-500/10 shadow-xs ring-1 ring-amber-500/30'
+                        ? 'border-amber-400/80 bg-amber-400/10 shadow-xs ring-1 ring-amber-400/30'
                         : 'border-border/70 bg-card/60 hover:border-amber-400/50 hover:bg-secondary/40'
                     )}
                   >
                     {/* Left active accent bar indicator */}
                     {isSelected && (
-                      <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-500 rounded-r-xs" />
+                      <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 rounded-r-xs" />
                     )}
 
                     <div className="flex items-center justify-between gap-1 mb-0.5 w-full">
