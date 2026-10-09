@@ -30,7 +30,7 @@ import {
   EmptyDescription,
 } from '@/components/ui/empty';
 import { useNotificationStore, type StudioNotification, type NotificationIconType } from '@/lib/notificationStore';
-import { useStudioChat } from '@/lib/chatStore';
+import { useChatStore } from '@/lib/chatStore';
 import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
@@ -45,7 +45,6 @@ const ICON_MAP: Record<NotificationIconType, React.ComponentType<{ className?: s
 export function DashboardNotificationDropdown() {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { setIsOpen: setChatOpen } = useStudioChat();
   const { notifications, markAsRead, markAllAsRead } = useNotificationStore();
 
   const unreadCount = notifications.filter((n) => n.unread).length;
@@ -58,7 +57,7 @@ export function DashboardNotificationDropdown() {
   const handleItemClick = (item: StudioNotification) => {
     markAsRead(item.id);
     if (item.actionId === 'open-chat') {
-      setChatOpen(true);
+      useChatStore.getState().setIsOpen(true);
       if (isMobile) {
         setOpenMobile(false);
       }
@@ -146,6 +145,7 @@ export function DashboardNotificationDropdown() {
               return (
                 <DropdownMenuItem
                   key={item.id}
+                  data-chat-entry={item.actionId === 'open-chat' ? 'notification-chat' : undefined}
                   onClick={() => handleItemClick(item)}
                   className="group flex items-start gap-2.5 rounded-lg p-2 text-xs cursor-pointer transition-colors hover:bg-white/5 focus-visible:bg-white/5 outline-none w-full"
                 >

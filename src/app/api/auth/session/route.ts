@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const user = await getRequestUser();
     if (!user) {
-      return NextResponse.json({ authenticated: false, user: null }, { status: 200 });
+      return NextResponse.json({ authenticated: false, user: null, canChat: false }, { status: 200 });
     }
     return NextResponse.json(
       {
@@ -17,7 +17,11 @@ export async function GET() {
           email: user.email,
           role: user.role,
           isAdmin: user.isAdmin,
+          emailConfirmed: user.emailConfirmed,
+          hasProjects: user.hasProjects,
+          canChat: user.canChat,
         },
+        canChat: user.canChat,
       },
       { status: 200 }
     );

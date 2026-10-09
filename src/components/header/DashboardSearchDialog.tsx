@@ -14,16 +14,12 @@ import {
   Sliders,
   X,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
-import { useStudioChat } from '@/lib/chatStore';
+import { useChatStore } from '@/lib/chatStore';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useUserStore } from '@/lib/userStore';
+import { useChatGate } from '@/components/chat/ChatGate';
 
 interface DashboardSearchDialogProps {
   open: boolean;
@@ -50,7 +46,7 @@ export function DashboardSearchDialog({
   const router = useRouter();
   const { user } = useUserStore();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { setIsOpen: setChatOpen } = useStudioChat();
+  const { canChat } = useChatGate();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -72,7 +68,7 @@ export function DashboardSearchDialog({
     () => [
       {
         id: 'nav-projects',
-        category: 'Navigation',
+        category: 'Navigation' as const,
         title: 'My Projects',
         description: 'See where each project is and how many credits it uses',
         icon: FolderKanban,
@@ -84,7 +80,7 @@ export function DashboardSearchDialog({
       },
       {
         id: 'nav-wizard',
-        category: 'Navigation',
+        category: 'Navigation' as const,
         title: 'New Project',
         description: 'Configure and start your next creative media project',
         icon: Sparkles,
@@ -94,22 +90,26 @@ export function DashboardSearchDialog({
           router.push('/new-project');
         },
       },
-      {
-        id: 'nav-messages',
-        category: 'Navigation',
-        title: 'Messages',
-        description: 'Direct chat with our team for project updates, feedback, and questions',
-        icon: MessageSquare,
-        keywords: ['chat', 'messages', 'team', 'feedback', 'support', 'talk', 'producer'],
-        action: () => {
-          setChatOpen(true);
-          if (isMobile) setOpenMobile(false);
-        },
-        badge: 'Chat',
-      },
+      ...(canChat
+        ? [
+            {
+              id: 'nav-messages',
+              category: 'Navigation' as const,
+              title: 'Messages',
+              description: 'Direct chat with our team for project updates, feedback, and questions',
+              icon: MessageSquare,
+              keywords: ['chat', 'messages', 'team', 'feedback', 'support', 'talk', 'producer'],
+              action: () => {
+                useChatStore.getState().setIsOpen(true);
+                if (isMobile) setOpenMobile(false);
+              },
+              badge: 'Chat',
+            },
+          ]
+        : []),
       {
         id: 'nav-redeem',
-        category: 'Navigation',
+        category: 'Navigation' as const,
         title: 'Promo Code',
         description: 'Enter promotional codes to claim instant studio credits',
         icon: Ticket,
@@ -136,19 +136,26 @@ export function DashboardSearchDialog({
             },
           ]
         : []),
-      {
-        id: 'action-chat',
-        category: 'Actions',
-        title: 'Chat with Our Team',
-        description: 'Instant live briefing, revisions, and creative feedback',
-        icon: MessageSquare,
-        keywords: ['chat', 'team', 'producer', 'support', 'message', 'help'],
-        action: () => setChatOpen(true),
-        badge: 'Live',
-      },
+      ...(canChat
+        ? [
+            {
+              id: 'action-chat',
+              category: 'Actions' as const,
+              title: 'Chat with Our Team',
+              description: 'Instant live briefing, revisions, and creative feedback',
+              icon: MessageSquare,
+              keywords: ['chat', 'team', 'producer', 'support', 'message', 'help'],
+              action: () => {
+                useChatStore.getState().setIsOpen(true);
+                if (isMobile) setOpenMobile(false);
+              },
+              badge: 'Live',
+            },
+          ]
+        : []),
       {
         id: 'action-balance',
-        category: 'Actions',
+        category: 'Actions' as const,
         title: `Credit balance (${walletBalance} CR)`,
         description: 'Review credit utilization, top-ups, and balance breakdown',
         icon: Coins,
@@ -156,7 +163,7 @@ export function DashboardSearchDialog({
         action: () => router.push('/redeem-code'),
       },
     ],
-    [router, setChatOpen, walletBalance]
+    [router, isMobile, setOpenMobile, canChat, isStaffOrAdmin, walletBalance]
   );
 
   const filteredItems = useMemo(() => {
@@ -259,6 +266,7 @@ export function DashboardSearchDialog({
               return (
                 <button
                   key={item.id}
+                  data-chat-entry={item.id === 'nav-messages' ? 'search-messages' : undefined}
                   onClick={() => handleSelect(item)}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors cursor-pointer ${

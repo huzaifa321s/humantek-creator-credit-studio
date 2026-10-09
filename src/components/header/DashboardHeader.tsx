@@ -35,9 +35,53 @@ import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
 import { useUIStore } from '@/lib/uiStore';
 import { useWalletQuery } from '@/lib/queries/wallet';
+import { ChatGate } from '@/components/chat/ChatGate';
 import { DashboardSearchDialog } from './DashboardSearchDialog';
 import { DashboardNotificationDropdown } from './DashboardNotificationDropdown';
 import { DashboardProfileDropdown } from './DashboardProfileDropdown';
+
+function HeaderChatButton({ mode }: { mode: 'standalone' | 'wizard' | 'auth' }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { setIsOpen: setChatOpen, unreadCounts } = useStudioChat();
+  const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
+
+  return (
+    <ChatGate>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              data-chat-entry="header-icon"
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                setChatOpen(true);
+                if (isMobile) {
+                  setOpenMobile(false);
+                }
+              }}
+              aria-label="Messages"
+              className={cn(
+                "group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none",
+                mode === 'wizard' ? "hidden min-[380px]:inline-flex" : ""
+              )}
+            />
+          }
+        >
+          <MessageSquare className="size-4 text-zinc-300 group-hover:text-white group-hover:scale-105 transition-transform" />
+          {totalUnreadChat > 0 ? (
+            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950" />
+          ) : null}
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p className="font-semibold text-white">Messages</p>
+          <p className="text-zinc-400 text-2xs">Chat with our team</p>
+        </TooltipContent>
+      </Tooltip>
+    </ChatGate>
+  );
+}
 
 interface DashboardHeaderProps {
   mode?: 'standalone' | 'wizard' | 'auth';
@@ -68,10 +112,8 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const pathname = usePathname();
   const { isSearchOpen, setSearchOpen, toggleSearch } = useUIStore();
-  const { setIsOpen: setChatOpen, unreadCounts } = useStudioChat();
   const { user, isHydrated } = useUserStore();
   const isManagementRoute = Boolean(pathname?.startsWith('/management'));
-  const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
   const resolveEffectiveName = () => {
     if (userName && userName.trim().toLowerCase() !== 'client') return userName.trim();
@@ -296,37 +338,7 @@ export function DashboardHeader({
           ) : (
             <>
               {/* Quick Producer Chat Trigger with Reusable Tooltip */}
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => {
-                        setChatOpen(true);
-                        if (isMobile) {
-                          setOpenMobile(false);
-                        }
-                      }}
-                      aria-label="Messages"
-                      className={cn(
-                        "group relative size-8 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors cursor-pointer select-none",
-                        mode === 'wizard' ? "hidden min-[380px]:inline-flex" : ""
-                      )}
-                    />
-                  }
-                >
-                  <MessageSquare className="size-4 text-zinc-300 group-hover:text-white group-hover:scale-105 transition-transform" />
-                  {totalUnreadChat > 0 ? (
-                    <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950" />
-                  ) : null}
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="font-semibold text-white">Messages</p>
-                  <p className="text-zinc-400 text-2xs">Chat with our team</p>
-                </TooltipContent>
-              </Tooltip>
+              <HeaderChatButton mode={mode} />
 
               {/* Notification Popover Dropdown */}
               <DashboardNotificationDropdown />

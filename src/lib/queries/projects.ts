@@ -18,9 +18,10 @@ async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
 }
 
 /** Projects visible to the current user (admins see all). */
-export function useProjectsQuery() {
+export function useProjectsQuery(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: projectKeys.all,
+    enabled: options?.enabled,
     queryFn: async () => {
       const res = await fetch('/api/projects');
       if (res.status === 401) {

@@ -12,6 +12,9 @@ export interface StudioUser {
   channelName?: string;
   platform?: string;
   role?: string;
+  emailVerified?: boolean;
+  hasProjects?: boolean;
+  canChat?: boolean;
 }
 
 interface UserStoreState {
@@ -67,6 +70,11 @@ export const useUserStore = create<UserStoreState>()(
         if (typeof window !== 'undefined') {
           try {
             localStorage.removeItem('humantek_wizard_cart');
+            localStorage.removeItem('humantek_project_chat_v6');
+            localStorage.removeItem('humantek_client_chat_v2');
+            localStorage.removeItem('humantek_client_chat_messages_v1');
+            sessionStorage.removeItem('humantek_project_chat_v6');
+            sessionStorage.removeItem('humantek_client_chat_v2');
           } catch {}
         }
         set({

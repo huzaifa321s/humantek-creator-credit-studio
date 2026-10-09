@@ -63,6 +63,7 @@ import { DashboardHeader } from '@/components/header/DashboardHeader';
 import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
+import { ChatGate } from '@/components/chat/ChatGate';
 
 interface StudioCardLayoutProps {
   children: React.ReactNode;
@@ -93,13 +94,12 @@ interface StudioSidebarNavigationProps {
   user: any;
 }
 
-function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProps) {
+function SidebarAdminCommunicationsItem() {
   const { isMobile, setOpenMobile } = useSidebar();
   const { setIsOpen: setChatOpen, unreadCounts, isOpen } = useStudioChat();
   const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
   const handleMessagesClick = () => {
-    // When clicking messages in mobile view, auto-close the dashboard sidebar sheet because the right messages drawer will open
     if (isMobile) {
       setChatOpen(true);
       setOpenMobile(false);
@@ -107,6 +107,85 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
       setChatOpen(!isOpen);
     }
   };
+
+  return (
+    <SidebarMenuItem data-chat-entry="admin-communications">
+      <SidebarMenuButton
+        isActive={isOpen}
+        onClick={handleMessagesClick}
+        tooltip="Client Communications"
+        className={cn(
+          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+          isOpen
+            ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+        )}
+      >
+        <MessageSquare
+          className={cn(
+            'size-4 shrink-0 transition-colors',
+            isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+          )}
+        />
+        <span className="truncate group-data-[collapsible=icon]:hidden">Communications</span>
+        {totalUnreadChat > 0 && (
+          <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+            {totalUnreadChat}
+          </SidebarMenuBadge>
+        )}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function SidebarClientMessagesItem() {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { setIsOpen: setChatOpen, unreadCounts, isOpen } = useStudioChat();
+  const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
+
+  const handleMessagesClick = () => {
+    if (isMobile) {
+      setChatOpen(true);
+      setOpenMobile(false);
+    } else {
+      setChatOpen(!isOpen);
+    }
+  };
+
+  return (
+    <ChatGate>
+      <SidebarMenuItem data-chat-entry="sidebar-link">
+        <SidebarMenuButton
+          isActive={isOpen}
+          onClick={handleMessagesClick}
+          tooltip="Messages"
+          className={cn(
+            'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+            isOpen
+              ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+              : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+          )}
+        >
+          <MessageSquare
+            className={cn(
+              'size-4 shrink-0 transition-colors',
+              isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+            )}
+          />
+          <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
+          {totalUnreadChat > 0 && (
+            <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+              {totalUnreadChat}
+            </SidebarMenuBadge>
+          )}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </ChatGate>
+  );
+}
+
+function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProps) {
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const handleNavClick = () => {
     if (isMobile) {
@@ -164,32 +243,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                 </SidebarMenuItem>
 
                 {/* 2. Client Communications (Realtime Doorbell Chat) */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={isOpen}
-                    onClick={handleMessagesClick}
-                    tooltip="Client Communications"
-                    className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      isOpen
-                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                    )}
-                  >
-                    <MessageSquare
-                      className={cn(
-                        'size-4 shrink-0 transition-colors',
-                        isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                      )}
-                    />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Communications</span>
-                    {totalUnreadChat > 0 && (
-                      <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
-                        {totalUnreadChat}
-                      </SidebarMenuBadge>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarAdminCommunicationsItem />
 
                 {/* 3. Manual Payment Orders */}
                 <SidebarMenuItem>
@@ -257,32 +311,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                 </SidebarMenuItem>
 
                 {/* 2. Messages */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={isOpen}
-                    onClick={handleMessagesClick}
-                    tooltip="Messages"
-                    className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      isOpen
-                        ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                    )}
-                  >
-                    <MessageSquare
-                      className={cn(
-                        'size-4 shrink-0 transition-colors',
-                        isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                      )}
-                    />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Messages</span>
-                    {totalUnreadChat > 0 && (
-                      <SidebarMenuBadge className="bg-amber-500 text-white font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
-                        {totalUnreadChat}
-                      </SidebarMenuBadge>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarClientMessagesItem />
 
                 {/* 3. Promo Code */}
                 <SidebarMenuItem>

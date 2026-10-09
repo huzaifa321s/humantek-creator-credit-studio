@@ -26,8 +26,9 @@ import { ChatProjectSidebar } from './ChatProjectSidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { ChatGate } from '@/components/chat/ChatGate';
 
-export function ChatFloatingWidget() {
+function ChatFloatingWidgetInner() {
   const {
     projectId,
     isGlobal,
@@ -237,6 +238,7 @@ export function ChatFloatingWidget() {
         )}
       >
         <Button
+          data-chat-entry="floating-launcher"
           ref={launcherRef}
           type="button"
           variant="outline"
@@ -295,6 +297,7 @@ export function ChatFloatingWidget() {
       />
 
       <aside
+        data-chat-entry="floating-drawer"
         role="dialog"
         aria-modal="true"
         aria-label="Studio Messages & Project Discussion"
@@ -531,5 +534,13 @@ export function ChatFloatingWidget() {
       {/* Lightbox Preview Modal */}
       <ChatAttachmentModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
     </>
+  );
+}
+
+export function ChatFloatingWidget() {
+  return (
+    <ChatGate>
+      <ChatFloatingWidgetInner />
+    </ChatGate>
   );
 }

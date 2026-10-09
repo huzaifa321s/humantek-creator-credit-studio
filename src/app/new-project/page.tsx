@@ -193,7 +193,8 @@ import {
   Wallet,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { useStudioChat, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { useChatStore, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { ChatGate } from '@/components/chat/ChatGate';
 import { useUserStore } from '@/lib/userStore';
 import { useWalletQuery, useRedeemPromoCode } from '@/lib/queries/wallet';
 import { useCreateProject } from '@/lib/queries/projects';
@@ -365,8 +366,6 @@ export default function CreatorStudioPage() {
     setSubmittedProject,
     resetWizard,
   } = wizard;
-
-  const { setIsOpen: setChatOpen, registerProject } = useStudioChat();
 
   // Brief fields & ergonomic setters mapped to wizardStore
   const { channelName, platform, style, colors, instructions } = wizardBrief;
@@ -818,7 +817,7 @@ export default function CreatorStudioPage() {
 
       setSubmittedProject(data.project);
       resetWizard();
-      registerProject({
+      useChatStore.getState().registerProject({
         id: data.project.id,
         projectCode: data.project.projectCode,
         packageName: data.project.packageName,
@@ -894,7 +893,7 @@ export default function CreatorStudioPage() {
 
       setSubmittedProject(data.project);
       resetWizard();
-      registerProject({
+      useChatStore.getState().registerProject({
         id: data.project.id,
         projectCode: data.project.projectCode,
         packageName: data.project.packageName,
@@ -932,6 +931,26 @@ export default function CreatorStudioPage() {
     </div>
   ) : null;
 
+  // Dedicated mobile chat launcher button, strictly gated by <ChatGate>
+  const renderMobileChat = (label = 'Chat with Team') => (
+    <ChatGate>
+      <Button
+        data-chat-entry="mobile-footer"
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => useChatStore.getState().setIsOpen(true, GLOBAL_CHAT_ID)}
+        className="md:hidden h-9 px-2.5 sm:px-3 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+        title={label}
+        aria-label={label}
+      >
+        <MessageSquare className="size-3.5 text-amber-500" />
+        <span className="hidden min-[360px]:inline">{label}</span>
+        <span className="min-[360px]:hidden">Chat</span>
+      </Button>
+    </ChatGate>
+  );
+
   // Footer navigation actions
   const renderFooterActions = () => {
     if (submittedProject) return null;
@@ -939,7 +958,10 @@ export default function CreatorStudioPage() {
     return (
       <div className="flex items-center justify-between gap-3 sm:gap-4 w-full">
         {/* Left Side: Back button, Mobile Chat, or status info */}
-        <div>
+        <div className={cn(
+          "flex items-center gap-2",
+          currentStep === 1 && "hidden sm:flex"
+        )}>
           {currentStep > 1 ? (
             <div className="flex items-center gap-2">
               <Button
@@ -947,38 +969,15 @@ export default function CreatorStudioPage() {
                 variant="outline"
                 size="default"
                 onClick={() => goToStep(currentStep - 1)}
-                className="gap-1.5 text-xs font-semibold cursor-pointer h-9 px-3.5 sm:px-4"
+                className="gap-1.5 text-xs font-semibold cursor-pointer h-10 sm:h-9 px-3.5 sm:px-4 shrink-0"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setChatOpen(true, GLOBAL_CHAT_ID)}
-                className="md:hidden h-9 px-2.5 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
-                title="Chat with Our Team"
-                aria-label="Chat with Our Team"
-              >
-                <MessageSquare className="size-3.5 text-amber-500" />
-                <span className="hidden min-[380px]:inline">Chat</span>
-              </Button>
+              {renderMobileChat('Chat')}
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setChatOpen(true, GLOBAL_CHAT_ID)}
-                className="md:hidden h-9 px-2.5 sm:px-3 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
-                title="Chat with Producer (Sarah Miller)"
-                aria-label="Chat with Producer"
-              >
-                <MessageSquare className="size-3.5 text-amber-500" />
-                <span className="hidden min-[360px]:inline">Chat with Team</span>
-                <span className="min-[360px]:hidden">Chat</span>
-              </Button>
+              {renderMobileChat('Chat with Team')}
               <span className="text-xs text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
                 {currentPackage && isStep1Valid ? (
                   <>
@@ -998,9 +997,12 @@ export default function CreatorStudioPage() {
         </div>
 
         {/* Right Side: Primary Next Button matching reference image */}
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto sm:ml-0">
+        <div className={cn(
+          "flex items-center gap-2 sm:gap-3",
+          currentStep === 1 ? "w-full sm:w-auto sm:ml-auto" : "flex-1 sm:flex-none justify-end"
+        )}>
           {currentStep === 1 && (
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
               {!isStep1Valid && (
                 <span className="text-xs text-muted-foreground hidden md:inline">
                   Select wallet or package to continue
@@ -1013,7 +1015,10 @@ export default function CreatorStudioPage() {
                 disabled={!isStep1Valid}
                 onClick={() => goToStep(2)}
                 title={!isStep1Valid ? 'Select wallet or package to continue' : 'Continue to Step 2: Pick your services'}
-                className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm', !isStep1Valid && 'opacity-60 cursor-not-allowed')}
+                className={cn(
+                  'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
+                  !isStep1Valid && 'opacity-60 cursor-not-allowed'
+                )}
               >
                 <span>Next</span>
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1028,7 +1033,10 @@ export default function CreatorStudioPage() {
               size="default"
               aria-disabled={!isStep2Valid}
               onClick={() => goToStep(3)}
-              className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm', !isStep2Valid && 'opacity-60')}
+              className={cn(
+                'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
+                !isStep2Valid && 'opacity-60'
+              )}
             >
               <span>Next</span>
               <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1042,7 +1050,10 @@ export default function CreatorStudioPage() {
               size="default"
               aria-disabled={!isStep3Valid}
               onClick={() => goToStep(4)}
-              className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm', !isStep3Valid && 'opacity-60')}
+              className={cn(
+                'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
+                !isStep3Valid && 'opacity-60'
+              )}
             >
               <span>Next</span>
               <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1050,7 +1061,7 @@ export default function CreatorStudioPage() {
           )}
 
           {currentStep === 4 && (
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-end">
               {!userEmail && (
                 <span className="text-2xs sm:text-xs text-muted-foreground hidden sm:inline">
                   You&apos;ll sign in on the next step
@@ -1062,7 +1073,10 @@ export default function CreatorStudioPage() {
                 size="default"
                 aria-disabled={!isStep4Valid}
                 onClick={() => goToStep(5)}
-                className={cn('font-semibold px-5 sm:px-6 h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer', !isStep4Valid && 'opacity-60')}
+                className={cn(
+                  'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center',
+                  !isStep4Valid && 'opacity-60'
+                )}
               >
                 <span>Review & Pay</span>
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1282,16 +1296,18 @@ export default function CreatorStudioPage() {
           )}
 
           {/* Contextual chat link (desktop only, mobile has sticky bottom button) */}
-          <div className="hidden sm:flex items-center justify-end px-1 -mt-1 sm:-mt-2">
-            <button
-              type="button"
-              onClick={() => setChatOpen(true, GLOBAL_CHAT_ID)}
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
-            >
-              <MessageSquare className="size-3.5 text-amber-500" />
-              <span>Have questions about packages or credits? <span className="font-semibold underline decoration-amber-500/40 underline-offset-2">Chat with our team</span></span>
-            </button>
-          </div>
+          <ChatGate>
+            <div className="hidden sm:flex items-center justify-end px-1 -mt-1 sm:-mt-2" data-chat-entry="package-questions-chat">
+              <button
+                type="button"
+                onClick={() => useChatStore.getState().setIsOpen(true, GLOBAL_CHAT_ID)}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
+              >
+                <MessageSquare className="size-3.5 text-amber-500" />
+                <span>Have questions about packages or credits? <span className="font-semibold underline decoration-amber-500/40 underline-offset-2">Chat with our team</span></span>
+              </button>
+            </div>
+          </ChatGate>
 
           {userBalance > 0 && (
             <div className="relative py-0.5 sm:py-1">
@@ -3013,16 +3029,19 @@ export default function CreatorStudioPage() {
                 </Link>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={() => setChatOpen(true, submittedProject.id)}
-                    className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
-                  >
-                    <MessageSquare className="size-3.5" />
-                    <span>Message our team</span>
-                  </Button>
+                  <ChatGate>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      data-chat-entry="confirmation-chat"
+                      onClick={() => useChatStore.getState().setIsOpen(true, submittedProject.id)}
+                      className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
+                    >
+                      <MessageSquare className="size-3.5" />
+                      <span>Message our team</span>
+                    </Button>
+                  </ChatGate>
                   <Button
                     type="button"
                     variant="link"
@@ -3395,7 +3414,7 @@ export default function CreatorStudioPage() {
                               resetWizard();
                               if (proj && proj.id) {
                                 setSubmittedProject(proj);
-                                registerProject({
+                                useChatStore.getState().registerProject({
                                   id: proj.id,
                                   projectCode: proj.projectCode,
                                   packageName: proj.packageName,
@@ -3457,19 +3476,21 @@ export default function CreatorStudioPage() {
                     </div>
 
                     {/* Direct Producer Chat Trigger */}
-                    <div className="pt-1.5 text-center">
-                      <Button
-                        id="chat-with-producer-button"
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setChatOpen(true)}
-                        className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Have questions about this brief? Chat with our team →</span>
-                      </Button>
-                    </div>
+                    <ChatGate>
+                      <div className="pt-1.5 text-center" data-chat-entry="brief-questions-chat">
+                        <Button
+                          id="chat-with-producer-button"
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => useChatStore.getState().setIsOpen(true)}
+                          className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Have questions about this brief? Chat with our team →</span>
+                        </Button>
+                      </div>
+                    </ChatGate>
 
                     {/* Security & SLA Badges */}
                     <div className="pt-2 border-t border-border/50 flex items-center justify-center gap-2 text-2xs text-muted-foreground/70">

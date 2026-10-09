@@ -24,11 +24,41 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { useProjectsQuery } from '@/lib/queries/projects';
+import { ChatGate } from '@/components/chat/ChatGate';
+
+function ProjectCardChatButton({ projectId }: { projectId: string }) {
+  const { setIsOpen, unreadCounts } = useStudioChat();
+  const unread = unreadCounts[projectId] ?? 0;
+
+  return (
+    <ChatGate>
+      <Button
+        data-chat-entry="project-card-chat"
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setIsOpen(true, projectId)}
+        className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer w-full md:w-auto justify-center"
+      >
+        <MessageSquare className="size-3.5 text-amber-600" />
+        <span>Messages</span>
+        {unread > 0 && (
+          <Badge
+            variant="destructive"
+            size="xs"
+            className="size-4 p-0 font-bold font-mono tabular-nums text-2xs rounded-full"
+          >
+            {unread}
+          </Badge>
+        )}
+      </Button>
+    </ChatGate>
+  );
+}
 
 const EMPTY_PROJECTS: ProjectRecord[] = [];
 
 export default function ProjectsPage() {
-  const { setIsOpen, unreadCounts } = useStudioChat();
   const projectsQuery = useProjectsQuery();
   const projects = projectsQuery.data ?? EMPTY_PROJECTS;
   const isLoading = projectsQuery.isPending;
@@ -266,25 +296,7 @@ export default function ProjectsPage() {
                         )}
                       </div>
                       <div className="flex items-center md:justify-end gap-2 w-full md:w-auto">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsOpen(true, proj.id)}
-                          className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer w-full md:w-auto justify-center"
-                        >
-                          <MessageSquare className="size-3.5 text-amber-600" />
-                          <span>Messages</span>
-                          {(unreadCounts[proj.id] ?? 0) > 0 && (
-                            <Badge
-                              variant="destructive"
-                              size="xs"
-                              className="size-4 p-0 font-bold font-mono tabular-nums text-2xs rounded-full"
-                            >
-                              {unreadCounts[proj.id]}
-                            </Badge>
-                          )}
-                        </Button>
+                        <ProjectCardChatButton projectId={proj.id} />
                       </div>
                     </div>
                   </CardHeader>

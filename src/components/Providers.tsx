@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useUserStore } from '@/lib/userStore';
+import { ChatGateProvider } from '@/components/chat/ChatGate';
 
 /**
  * Authoritative session sync: queries `/api/auth/session` on mount to sync
@@ -29,13 +30,19 @@ function SessionSync() {
             !currentUser ||
             currentUser.id !== data.user.id ||
             currentUser.email !== data.user.email ||
-            currentUser.role !== (data.user.role || 'client');
+            currentUser.role !== (data.user.role || 'client') ||
+            currentUser.emailVerified !== Boolean(data.user.emailConfirmed) ||
+            currentUser.hasProjects !== Boolean(data.user.hasProjects) ||
+            currentUser.canChat !== Boolean(data.user.canChat);
 
           if (needsUpdate) {
             useUserStore.getState().updateUser({
               id: data.user.id,
               email: data.user.email,
               role: data.user.role || 'client',
+              emailVerified: Boolean(data.user.emailConfirmed),
+              hasProjects: Boolean(data.user.hasProjects),
+              canChat: Boolean(data.user.canChat),
             });
           }
         } else if (!data.authenticated) {
@@ -81,7 +88,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
       <QueryClientProvider client={queryClient}>
         <SessionSync />
-        {children}
+        <ChatGateProvider>
+          {children}
+        </ChatGateProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

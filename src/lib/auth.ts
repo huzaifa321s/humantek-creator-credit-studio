@@ -9,6 +9,9 @@ export interface RequestUser {
   role: string;
   isAdmin: boolean;
   isDevFallback: boolean;
+  emailConfirmed: boolean;
+  hasProjects: boolean;
+  canChat: boolean;
 }
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -39,6 +42,9 @@ export async function getRequestUser(): Promise<RequestUser | null> {
         role: 'admin',
         isAdmin: true,
         isDevFallback: true,
+        emailConfirmed: true,
+        hasProjects: false,
+        canChat: false,
       };
     }
     return null;
@@ -68,12 +74,28 @@ export async function getRequestUser(): Promise<RequestUser | null> {
     const role = profile?.role || (isSystemAdminEmail(email) ? 'admin' : 'client');
     const isAdmin = role === 'admin' || isSystemAdminEmail(email);
 
+    const emailConfirmed = Boolean(user.email_confirmed_at || process.env.DEV_AUTO_CONFIRM === 'true');
+
+    let hasProjects = false;
+    if (!isAdmin && role === 'client') {
+      const { count } = await admin
+        .from('projects')
+        .select('id', { count: 'exact', head: true })
+        .or(`user_id.eq.${user.id},email.ilike.${email}`);
+      hasProjects = (count ?? 0) > 0;
+    }
+
+    const canChat = !isAdmin && role === 'client' && emailConfirmed && hasProjects;
+
     return {
       id: user.id,
       email,
       role: isAdmin ? 'admin' : 'client',
       isAdmin,
       isDevFallback: false,
+      emailConfirmed,
+      hasProjects,
+      canChat,
     };
   } catch {
     return null;
