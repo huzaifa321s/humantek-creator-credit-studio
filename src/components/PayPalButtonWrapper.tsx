@@ -214,16 +214,14 @@ export function PayPalButtonWrapper({
 
   if (isPlaceholderClientId) {
     return (
-      <div className="space-y-3">
-        <div className="p-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 text-center space-y-1.5">
-          <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-            <AlertCircle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <span>PayPal Gateway Offline</span>
-          </div>
-          <p className="text-2xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
-            Live PayPal checkout is unconfigured in this environment. You can submit your project without upfront payment using the <b className="text-foreground">&quot;Request review (no payment yet)&quot;</b> option below.
-          </p>
+      <div className="p-2.5 sm:p-3 rounded-xl border border-amber-500/25 bg-amber-500/5 text-center text-xs space-y-0.5">
+        <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+          <AlertCircle className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span>PayPal is currently offline in this environment</span>
         </div>
+        <p className="text-2xs text-muted-foreground">
+          You can still submit for review without payment.
+        </p>
       </div>
     );
   }

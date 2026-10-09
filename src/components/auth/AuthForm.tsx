@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { Sparkles, AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useUserStore, StudioUser } from '@/lib/userStore';
 import { toast } from 'sonner';
 
@@ -255,40 +256,22 @@ export function AuthForm({
 
   return (
     <div className="w-full space-y-4">
-      {/* Tab Switcher (Visible in Sign In and Sign Up modes) */}
+      {/* Reusable Tab Switcher from @/components/ui/tabs */}
       {mode !== 'otp' && (
-        <div
-          role="tablist"
-          aria-label="Authentication Options"
-          className="flex rounded-xl bg-secondary/50 p-1 border border-border/60"
+        <Tabs
+          value={mode}
+          onValueChange={(val) => switchMode(val as AuthFormMode)}
+          className="w-full"
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'signin'}
-            onClick={() => switchMode('signin')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              mode === 'signin'
-                ? 'bg-card text-foreground shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'signup'}
-            onClick={() => switchMode('signup')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              mode === 'signup'
-                ? 'bg-card text-foreground shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Create Account
-          </button>
-        </div>
+          <TabsList className="grid w-full grid-cols-2 p-1 bg-secondary/60">
+            <TabsTrigger value="signin" className="text-xs font-semibold py-1.5">
+              Sign In
+            </TabsTrigger>
+            <TabsTrigger value="signup" className="text-xs font-semibold py-1.5">
+              Create Account
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       )}
 
       {/* Inline Notifications */}
@@ -313,7 +296,7 @@ export function AuthForm({
         <form onSubmit={handleSignIn} className="space-y-3.5" noValidate={false}>
           <div className="space-y-1.5">
             <Label htmlFor="auth-signin-email" className="text-xs font-semibold text-foreground">
-              Email Address
+              Email
             </Label>
             <Input
               ref={emailInputRef}
@@ -322,7 +305,7 @@ export function AuthForm({
               type="email"
               autoComplete="email"
               required
-              placeholder="creator@channel.com"
+              placeholder="name@example.com"
               value={sharedEmail}
               onChange={(e) => setSharedEmail(e.target.value)}
               className="h-10 text-base md:text-sm bg-background/50 rounded-lg"
@@ -336,10 +319,10 @@ export function AuthForm({
               </Label>
               <Link
                 href="/login?forgot=true"
-                className="text-xs text-amber-500 hover:text-amber-400 hover:underline"
+                className="text-xs font-medium text-muted-foreground hover:text-primary hover:underline transition-colors"
                 tabIndex={0}
               >
-                Forgot?
+                Forgot password?
               </Link>
             </div>
             <div className="relative">
@@ -367,30 +350,22 @@ export function AuthForm({
 
           <Button
             type="submit"
-            disabled={isLoading}
-            className="w-full h-10 font-bold bg-amber-500 hover:bg-amber-600 text-zinc-950 rounded-xl shadow-md transition-all cursor-pointer"
+            size="lg"
+            loading={isLoading}
+            loadingText="Signing in..."
+            className="w-full font-bold shadow-xs cursor-pointer"
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
-                Signing in...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                Sign In & Continue
-                <ArrowRight className="size-4" />
-              </span>
-            )}
+            Sign In
           </Button>
 
-          <p className="text-2xs text-center text-muted-foreground pt-1">
-            Need an account?{' '}
+          <p className="text-xs text-center text-muted-foreground pt-0.5">
+            Don&apos;t have an account?{' '}
             <button
               type="button"
               onClick={() => switchMode('signup')}
-              className="text-amber-500 hover:underline font-semibold cursor-pointer"
+              className="text-primary hover:underline font-semibold cursor-pointer"
             >
-              Create one in 10 seconds
+              Sign up
             </button>
           </p>
         </form>
@@ -403,7 +378,7 @@ export function AuthForm({
         <form onSubmit={handleSignUp} className="space-y-3.5" noValidate={false}>
           <div className="space-y-1.5">
             <Label htmlFor="auth-signup-name" className="text-xs font-semibold text-foreground">
-              Your Name or Creator Handle
+              Name or Brand
             </Label>
             <Input
               ref={nameInputRef}
@@ -421,7 +396,7 @@ export function AuthForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="auth-signup-email" className="text-xs font-semibold text-foreground">
-              Email Address
+              Email
             </Label>
             <Input
               id="auth-signup-email"
@@ -429,7 +404,7 @@ export function AuthForm({
               type="email"
               autoComplete="email"
               required
-              placeholder="creator@channel.com"
+              placeholder="name@example.com"
               value={sharedEmail}
               onChange={(e) => setSharedEmail(e.target.value)}
               className="h-10 text-base md:text-sm bg-background/50 rounded-lg"
@@ -438,7 +413,7 @@ export function AuthForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="auth-signup-password" className="text-xs font-semibold text-foreground">
-              Password (min. 8 characters)
+              Password
             </Label>
             <div className="relative">
               <Input
@@ -448,7 +423,7 @@ export function AuthForm({
                 autoComplete="new-password"
                 required
                 minLength={8}
-                placeholder="••••••••"
+                placeholder="Min. 8 characters"
                 value={signUpPassword}
                 onChange={(e) => setSignUpPassword(e.target.value)}
                 className="h-10 text-base md:text-sm bg-background/50 pr-10 rounded-lg"
@@ -466,30 +441,22 @@ export function AuthForm({
 
           <Button
             type="submit"
-            disabled={isLoading}
-            className="w-full h-10 font-bold bg-amber-500 hover:bg-amber-600 text-zinc-950 rounded-xl shadow-md transition-all cursor-pointer"
+            size="lg"
+            loading={isLoading}
+            loadingText="Creating account..."
+            className="w-full font-bold shadow-xs cursor-pointer"
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
-                Creating Account...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                Create Account & Proceed
-                <ArrowRight className="size-4" />
-              </span>
-            )}
+            Create Account
           </Button>
 
-          <p className="text-2xs text-center text-muted-foreground pt-1">
+          <p className="text-xs text-center text-muted-foreground pt-0.5">
             Already have an account?{' '}
             <button
               type="button"
               onClick={() => switchMode('signin')}
-              className="text-amber-500 hover:underline font-semibold cursor-pointer"
+              className="text-primary hover:underline font-semibold cursor-pointer"
             >
-              Sign In
+              Sign in
             </button>
           </p>
         </form>
@@ -502,7 +469,7 @@ export function AuthForm({
         <form onSubmit={handleVerifyOtp} className="space-y-4 pt-1">
           <div className="text-center space-y-1">
             <p className="text-xs text-muted-foreground">
-              We sent a 6-digit confirmation code to{' '}
+              Enter the 6-digit code sent to{' '}
               <span className="font-semibold text-foreground">{sharedEmail}</span>
             </p>
           </div>
@@ -522,17 +489,13 @@ export function AuthForm({
 
           <Button
             type="submit"
-            disabled={isLoading || otpCode.length < 6}
-            className="w-full h-10 font-bold bg-amber-500 hover:bg-amber-600 text-zinc-950 rounded-xl shadow-md transition-all cursor-pointer"
+            size="lg"
+            disabled={otpCode.length < 6}
+            loading={isLoading}
+            loadingText="Verifying..."
+            className="w-full font-bold shadow-xs cursor-pointer"
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" />
-                Verifying Code...
-              </span>
-            ) : (
-              'Verify & Continue to Review'
-            )}
+            Verify Code
           </Button>
 
           <div className="flex items-center justify-between text-xs pt-1">
@@ -540,17 +503,17 @@ export function AuthForm({
               type="button"
               onClick={handleResendOtp}
               disabled={isResendingOtp}
-              className="text-amber-500 hover:underline font-medium cursor-pointer"
+              className="text-primary hover:underline font-medium cursor-pointer disabled:opacity-50"
             >
-              {isResendingOtp ? 'Resending...' : 'Resend Code'}
+              {isResendingOtp ? 'Resending...' : 'Resend code'}
             </button>
 
             <button
               type="button"
               onClick={() => switchMode('signup')}
-              className="text-muted-foreground hover:text-foreground cursor-pointer"
+              className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
             >
-              Change Email
+              Change email
             </button>
           </div>
         </form>

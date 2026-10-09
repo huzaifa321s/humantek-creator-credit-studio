@@ -323,79 +323,69 @@ export function DashboardHeader({
                 Need help?
               </a>
             </div>
+          ) : !effectiveEmail ? (
+            <div className="flex items-center gap-2">
+              <Link href="/login">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 rounded-lg border-amber-500/40 text-amber-400 hover:text-white hover:bg-amber-500/20 text-xs font-semibold cursor-pointer shadow-2xs"
+                >
+                  Sign In
+                </Button>
+              </Link>
+            </div>
           ) : (
-            <ClientOnly
-              fallback={
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-20 rounded-lg bg-zinc-850/80 animate-pulse border border-zinc-800" />
+            <>
+              {/* Quick Producer Chat Trigger with Reusable Tooltip */}
+              <HeaderChatButton mode={mode} />
+
+              {/* Notification Popover Dropdown */}
+              <DashboardNotificationDropdown />
+
+              {/* Credit Balance Pill or Admin Badge */}
+              {isManagementRoute ? (
+                <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-300 text-xs font-semibold select-none shadow-2xs">
+                  <ShieldCheck className="size-3.5 text-amber-400 shrink-0" />
+                  <span className="font-semibold text-xs tracking-tight">Studio Admin</span>
                 </div>
-              }
-            >
-              {!effectiveEmail ? (
-                <div className="flex items-center gap-2">
-                  <Link href="/login">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-3 rounded-lg border-amber-500/40 text-amber-400 hover:text-white hover:bg-amber-500/20 text-xs font-semibold cursor-pointer shadow-2xs"
-                    >
-                      Sign In
-                    </Button>
-                  </Link>
+              ) : !isBalanceLoaded ? (
+                <div
+                  className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-xs font-semibold select-none shadow-2xs shrink-0"
+                  aria-label="Loading credit balance"
+                >
+                  <Coins className="size-3.5 text-amber-400/60 animate-pulse shrink-0" />
+                  <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
+                  <div className="skeleton h-3.5 w-11 rounded-xs bg-amber-400/25" />
                 </div>
               ) : (
-                <>
-                  {/* Quick Producer Chat Trigger with Reusable Tooltip */}
-                  <HeaderChatButton mode={mode} />
-
-                  {/* Notification Popover Dropdown */}
-                  <DashboardNotificationDropdown />
-
-                  {/* Credit Balance Pill or Admin Badge */}
-                  {isManagementRoute ? (
-                    <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-300 text-xs font-semibold select-none shadow-2xs">
-                      <ShieldCheck className="size-3.5 text-amber-400 shrink-0" />
-                      <span className="font-semibold text-xs tracking-tight">Studio Admin</span>
-                    </div>
-                  ) : !isBalanceLoaded ? (
-                    <div
-                      className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-500/40 bg-amber-500/15 text-xs font-semibold select-none shadow-2xs shrink-0"
-                      aria-label="Loading credit balance"
-                    >
-                      <Coins className="size-3.5 text-amber-400/60 animate-pulse shrink-0" />
-                      <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
-                      <div className="skeleton h-3.5 w-11 rounded-xs bg-amber-400/25" />
-                    </div>
-                  ) : (
-                    <Link
-                      href="/redeem-code"
-                      title="View credit balance and redeem codes"
-                      className={cn(
-                        badgeVariants({ variant: 'gold', size: 'default' }),
-                        'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
-                      )}
-                    >
-                      <Coins className="size-3.5 text-amber-400 shrink-0" />
-                      <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
-                      <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">
-                        {effectiveBalance} CR
-                      </span>
-                    </Link>
+                <Link
+                  href="/redeem-code"
+                  title="View credit balance and redeem codes"
+                  className={cn(
+                    badgeVariants({ variant: 'gold', size: 'default' }),
+                    'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
                   )}
-
-                  {/* Optional Top-Right Action Badge (hidden on management console) */}
-                  {!isManagementRoute && topRightBadge}
-
-                  {/* User Profile Avatar Dropdown */}
-                  <DashboardProfileDropdown
-                    userEmail={effectiveEmail}
-                    userName={effectiveName}
-                    walletBalance={effectiveBalance}
-                  />
-                </>
+                >
+                  <Coins className="size-3.5 text-amber-400 shrink-0" />
+                  <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
+                  <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">
+                    {effectiveBalance} CR
+                  </span>
+                </Link>
               )}
-            </ClientOnly>
+
+              {/* Optional Top-Right Action Badge (hidden on management console) */}
+              {!isManagementRoute && topRightBadge}
+
+              {/* User Profile Avatar Dropdown */}
+              <DashboardProfileDropdown
+                userEmail={effectiveEmail}
+                userName={effectiveName}
+                walletBalance={effectiveBalance}
+              />
+            </>
           )}
         </div>
       </div>

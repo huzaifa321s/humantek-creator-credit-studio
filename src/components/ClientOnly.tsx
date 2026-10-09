@@ -1,8 +1,6 @@
 'use client';
 
-import { useSyncExternalStore, type ReactNode } from 'react';
-
-const subscribe = () => () => {};
+import { useState, useEffect, type ReactNode } from 'react';
 
 /**
  * Universal ClientOnly wrapper for browser-dependent UI components.
@@ -17,6 +15,15 @@ export function ClientOnly({
   children: ReactNode;
   fallback?: ReactNode;
 }) {
-  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
-  return hydrated ? <>{children}</> : <>{fallback}</>;
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  if (!hasMounted) {
+    return <>{fallback}</>;
+  }
+
+  return <>{children}</>;
 }

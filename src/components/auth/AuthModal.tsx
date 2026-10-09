@@ -15,9 +15,9 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerDescription,
-  DrawerSwipeHandle,
+  DrawerClose,
 } from '@/components/ui/drawer';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { AuthForm } from './AuthForm';
 import { StudioUser } from '@/lib/userStore';
 import { ClientOnly } from '@/components/ClientOnly';
@@ -53,9 +53,8 @@ function ResponsiveAuthModalContent({
 }: AuthModalProps) {
   const isMobile = useIsMobile();
 
-  const titleText = 'Sign in to review & launch';
-  const descriptionText =
-    'Sign in or create an account to save your brief and continue to Step 5 (Review & Pay). Your selected package, services, and brief are kept completely intact.';
+  const titleText = 'Sign in to continue';
+  const descriptionText = 'Save your brief and continue to review your project.';
 
   // 1. Mobile Phone Viewport -> Bottom Drawer
   if (isMobile) {
@@ -68,25 +67,34 @@ function ResponsiveAuthModalContent({
       >
         <DrawerContent
           data-testid="auth-drawer"
-          className="max-h-[90dvh] bg-card border-t border-border px-5 pb-8 pt-2 rounded-t-3xl shadow-2xl flex flex-col"
+          className="max-h-[92dvh] bg-card border-t border-border p-0 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
         >
-          <div className="mx-auto w-12 h-1.5 rounded-full bg-muted-foreground/20 my-2 shrink-0" />
+          <div className="mx-auto w-12 h-1 rounded-full bg-muted-foreground/20 my-2 shrink-0" />
           
-          <DrawerHeader className="px-0 pt-1 pb-3 text-left shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="size-7 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
-                <Sparkles className="size-4" />
+          <DrawerHeader className="px-4 py-2.5 border-b border-border/70 flex flex-row items-center justify-between shrink-0 text-left">
+            <div className="flex items-center gap-2.5 min-w-0 text-left">
+              <div className="size-7 rounded-lg bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                <Sparkles className="size-3.5" />
               </div>
-              <DrawerTitle className="text-base font-extrabold text-foreground">
-                {titleText}
-              </DrawerTitle>
+              <div className="min-w-0 text-left">
+                <DrawerTitle className="text-sm font-bold text-foreground text-left tracking-tight">
+                  {titleText}
+                </DrawerTitle>
+                <DrawerDescription className="text-2xs text-muted-foreground text-left mt-0.5">
+                  {descriptionText}
+                </DrawerDescription>
+              </div>
             </div>
-            <DrawerDescription className="text-xs text-muted-foreground mt-1">
-              {descriptionText}
-            </DrawerDescription>
+
+            <DrawerClose
+              className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer shrink-0"
+              aria-label="Close drawer"
+            >
+              <X className="size-4" />
+            </DrawerClose>
           </DrawerHeader>
 
-          <div className="overflow-y-auto overscroll-contain flex-1 pr-0.5">
+          <div className="overflow-y-auto overscroll-contain flex-1 px-4 py-3.5 pb-8">
             <AuthForm
               initialMode={initialMode}
               defaultEmail={defaultEmail}
@@ -107,33 +115,33 @@ function ResponsiveAuthModalContent({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         data-testid="auth-dialog"
-        className="sm:max-w-md p-6 rounded-2xl bg-card border border-border shadow-2xl"
+        className="sm:max-w-md p-5 sm:p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4"
       >
-        <DialogHeader className="space-y-1.5 text-left">
-          <div className="flex items-center gap-2">
-            <div className="size-7 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0 font-bold text-xs">
+        <DialogHeader className="space-y-0 text-left pb-1">
+          <div className="flex items-center gap-2.5 text-left">
+            <div className="size-8 rounded-lg bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
               <Sparkles className="size-4" />
             </div>
-            <DialogTitle className="text-lg font-extrabold text-foreground">
-              {titleText}
-            </DialogTitle>
+            <div className="min-w-0 text-left">
+              <DialogTitle className="text-base sm:text-lg font-bold text-foreground text-left tracking-tight">
+                {titleText}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground text-left mt-0.5 leading-normal">
+                {descriptionText}
+              </DialogDescription>
+            </div>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-            {descriptionText}
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="pt-1">
-          <AuthForm
-            initialMode={initialMode}
-            defaultEmail={defaultEmail}
-            onSuccess={(user) => {
-              onOpenChange(false);
-              onSuccess(user);
-            }}
-            onClose={() => onOpenChange(false)}
-          />
-        </div>
+        <AuthForm
+          initialMode={initialMode}
+          defaultEmail={defaultEmail}
+          onSuccess={(user) => {
+            onOpenChange(false);
+            onSuccess(user);
+          }}
+          onClose={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -396,6 +396,9 @@ export default function CreatorStudioPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mobileScopeOpen, setMobileScopeOpen] = useState(false);
+  const [deliverablesExpandedMobile, setDeliverablesExpandedMobile] = useState(false);
+  const [briefExpandedMobile, setBriefExpandedMobile] = useState(false);
+  const [costBreakdownExpandedMobile, setCostBreakdownExpandedMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -427,32 +430,61 @@ export default function CreatorStudioPage() {
   // Standard production browser exit guard ("Leave site? Changes you made may not be saved.")
   useUnsavedChangesWarning(hasUnsavedProgress);
 
+  const isStepMountedRef = useRef(false);
+
   // 1. Initial URL Step Synchronization & Prerequisite Guard on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Ensure wizard store is rehydrated from localStorage
+    if (!useWizardStore.persist.hasHydrated()) {
+      void useWizardStore.persist.rehydrate();
+    }
+
     const url = new URL(window.location.href);
     const stepParam = url.searchParams.get('step');
-    const parsedStep = stepParam ? parseInt(stepParam, 10) : null;
+    let parsedStep = stepParam ? parseInt(stepParam, 10) : null;
+
+    if (!parsedStep || isNaN(parsedStep)) {
+      try {
+        const stored = localStorage.getItem('humantek_wizard_cart');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.state?.currentStep) {
+            parsedStep = parsed.state.currentStep;
+          }
+        }
+      } catch {}
+    }
 
     if (parsedStep && !isNaN(parsedStep)) {
       const clamped = Math.max(1, Math.min(5, parsedStep));
       // Prerequisite: if target step > 1 and no package/wallet selected, bounce to step 1
-      let savedPkg = selectedPackageId;
+      let savedPkg = useWizardStore.getState().selectedPackageId;
+      let savedFunding = useWizardStore.getState().fundingSource;
       if (!savedPkg) {
         try {
           const stored = localStorage.getItem('humantek_wizard_cart');
           if (stored) {
             const parsed = JSON.parse(stored);
             savedPkg = parsed?.state?.selectedPackageId;
+            savedFunding = parsed?.state?.fundingSource || savedFunding;
           }
         } catch {}
       }
-      const hasPkg = Boolean(savedPkg || fundingSource === 'wallet');
+      const hasPkg = Boolean(savedPkg || savedFunding === 'wallet');
       if (clamped > 1 && !hasPkg) {
         setCurrentStep(1);
         url.searchParams.set('step', '1');
         window.history.replaceState({}, '', url.pathname + url.search);
         return;
+      }
+
+      if (savedPkg && !useWizardStore.getState().selectedPackageId) {
+        setSelectedPackageId(savedPkg);
+      }
+      if (savedFunding && useWizardStore.getState().fundingSource !== savedFunding) {
+        setFundingSource(savedFunding as any);
       }
 
       // Prerequisite: if target is step 5 and user is unauthenticated, bounce to step 4 & open auth modal
@@ -465,16 +497,26 @@ export default function CreatorStudioPage() {
       }
 
       setCurrentStep(clamped);
+      url.searchParams.set('step', String(clamped));
+      window.history.replaceState({}, '', url.pathname + url.search);
     } else {
       url.searchParams.set('step', String(currentStep));
       window.history.replaceState({}, '', url.pathname + url.search);
     }
+
+    return () => {
+      isStepMountedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 2. Keep URL searchParam synchronized when currentStep changes
+  // 2. Keep URL searchParam synchronized when currentStep changes (only after initial mount sync)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!isStepMountedRef.current) {
+      isStepMountedRef.current = true;
+      return;
+    }
     const url = new URL(window.location.href);
     if (url.searchParams.get('step') !== String(currentStep)) {
       url.searchParams.set('step', String(currentStep));
@@ -1132,7 +1174,7 @@ export default function CreatorStudioPage() {
       {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}
       {/* ============================================================ */}
       {currentStep === 1 && (
-        <div className="space-y-3 sm:space-y-5 animate-in fade-in duration-200">
+        <div className="space-y-3 sm:space-y-5 animate-in fade-in duration-200" data-hydrated={mounted ? "true" : undefined}>
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
@@ -1464,6 +1506,10 @@ export default function CreatorStudioPage() {
                       type="button"
                       variant={isSelected ? 'default' : 'secondary'}
                       size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectPackage(pkg.id);
+                      }}
                       className={cn(
                         'w-full text-xs font-semibold gap-1.5 h-9 rounded-lg cursor-pointer transition-colors',
                         isSelected
@@ -2497,7 +2543,10 @@ export default function CreatorStudioPage() {
                 ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
                 : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-2xs'
             )}
-            onClick={() => setPolicyAccepted(!policyAccepted)}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('button, input, label')) return;
+              setPolicyAccepted(!policyAccepted);
+            }}
           >
             <CardContent className="p-4 sm:p-4.5 flex items-start gap-3">
               <Checkbox
@@ -2524,7 +2573,7 @@ export default function CreatorStudioPage() {
       {/* STEP 4: PROJECT DETAILS & CREATIVE BRIEF                     */}
       {/* ============================================================ */}
       {currentStep === 4 && currentPackage && (
-        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
+        <div className="w-full space-y-4 md:space-y-6 pb-28 md:pb-10 animate-in fade-in duration-200">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
@@ -2543,9 +2592,10 @@ export default function CreatorStudioPage() {
               </p>
             </div>
 
-            <Badge variant="outline" className="w-fit text-xs font-semibold px-3 py-1 rounded-xl">
-              Project ID: {mounted && projectId ? projectId : 'Pending'}
-            </Badge>
+            <span className="hidden md:inline-flex items-center gap-1.5 text-2xs font-mono text-muted-foreground/60 bg-muted/40 px-2.5 py-1 rounded-lg border border-border/40 select-all tracking-tight">
+              <span className="text-muted-foreground/40 font-sans uppercase text-[10px] tracking-wider">ID</span>
+              <span>{mounted && projectId ? projectId : 'Pending'}</span>
+            </span>
           </div>
 
           {/* Centered Main Form Card (Compact Layout Skeleton to Minimize Scrolling) */}
@@ -2634,7 +2684,7 @@ export default function CreatorStudioPage() {
               <div className="space-y-1 sm:col-span-2 scroll-mt-[140px]">
                 <div className="flex items-center justify-between">
                   <Label htmlFor={briefFieldId('instructions')} className="text-xs font-semibold text-foreground">
-                    Creative Brief & Asset Instructions <span className="text-destructive font-semibold">*</span>
+                    Project Brief & Instructions <span className="text-destructive font-semibold">*</span>
                   </Label>
                   <span
                     className={cn(
@@ -2653,8 +2703,8 @@ export default function CreatorStudioPage() {
                   placeholder="Detail exact text, expressions for emotes, character poses, references, and delivery formats..."
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
-                  rows={3}
-                  className="rounded-lg text-xs sm:text-sm leading-relaxed bg-background/50 py-2 resize-y scroll-mt-[140px]"
+                  rows={4}
+                  className="rounded-lg text-xs sm:text-sm leading-relaxed bg-background/50 py-2.5 min-h-[120px] md:min-h-[160px] resize-y scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('instructions')} message={brief.getError('instructions')} />
               </div>
@@ -2665,7 +2715,7 @@ export default function CreatorStudioPage() {
               {/* Reference Art & Files Panel */}
               <div className="p-3 sm:p-3.5 rounded-xl bg-secondary/30 border border-border/70 flex flex-col justify-between gap-2">
                 <div>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <Upload className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <b className="text-xs font-bold text-foreground">
@@ -2688,14 +2738,14 @@ export default function CreatorStudioPage() {
                       size="xs"
                       disabled={isUploading}
                       onClick={() => fileInputRef.current?.click()}
-                      className="shrink-0 rounded-lg font-semibold shadow-2xs"
+                      className="w-full sm:w-auto mt-1 sm:mt-0 shrink-0 rounded-lg font-semibold shadow-2xs h-8 sm:h-7"
                     >
                       {isUploading ? (
                         <Spinner className="size-3" />
                       ) : (
                         <Upload className="size-3 text-amber-600" />
                       )}
-                      Upload
+                      Upload Files
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug mt-0.5">
@@ -2909,7 +2959,10 @@ export default function CreatorStudioPage() {
                   ? 'border-amber-500/80 bg-amber-500/[0.03] ring-1 ring-amber-500/25 shadow-xs'
                   : 'border-border/80 bg-card hover:border-amber-500/40 hover:shadow-2xs'
               )}
-              onClick={() => setTermsAccepted(!termsAccepted)}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('button, input, label')) return;
+                setTermsAccepted(!termsAccepted);
+              }}
             >
               <CardContent className="p-4 sm:p-4.5 flex items-start gap-3">
                 <Checkbox
