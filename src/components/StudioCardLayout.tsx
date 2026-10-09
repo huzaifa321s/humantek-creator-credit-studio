@@ -94,29 +94,27 @@ interface StudioSidebarNavigationProps {
   user: any;
 }
 
-function SidebarAdminCommunicationsItem() {
+function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
   const { isMobile, setOpenMobile } = useSidebar();
-  const { setIsOpen: setChatOpen, unreadCounts, isOpen } = useStudioChat();
+  const { unreadCounts } = useStudioChat();
   const totalUnreadChat = Object.values(unreadCounts || {}).reduce((acc, count) => acc + count, 0);
 
-  const handleMessagesClick = () => {
-    if (isMobile) {
-      setChatOpen(true);
-      setOpenMobile(false);
-    } else {
-      setChatOpen(!isOpen);
-    }
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
   };
+
+  const isActive = pathname === '/management' && typeof window !== 'undefined' && window.location.search.includes('tab=messages');
 
   return (
     <SidebarMenuItem data-chat-entry="admin-communications">
       <SidebarMenuButton
-        isActive={isOpen}
-        onClick={handleMessagesClick}
+        isActive={isActive}
+        onClick={handleNavClick}
+        render={<Link href="/management?tab=messages" onClick={handleNavClick} />}
         tooltip="Client Communications"
         className={cn(
           'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-          isOpen
+          isActive
             ? 'bg-amber-500/18 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
             : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
         )}
@@ -124,7 +122,7 @@ function SidebarAdminCommunicationsItem() {
         <MessageSquare
           className={cn(
             'size-4 shrink-0 transition-colors',
-            isOpen ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+            isActive ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
           )}
         />
         <span className="truncate group-data-[collapsible=icon]:hidden">Communications</span>
@@ -243,7 +241,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                 </SidebarMenuItem>
 
                 {/* 2. Client Communications (Realtime Doorbell Chat) */}
-                <SidebarAdminCommunicationsItem />
+                <SidebarAdminCommunicationsItem pathname={pathname} />
 
                 {/* 3. Manual Payment Orders */}
                 <SidebarMenuItem>

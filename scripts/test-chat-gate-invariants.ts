@@ -83,8 +83,12 @@ async function runChatGateAudit() {
       'ChatGate tracks and purges all active and legacy chat storage keys'
     );
     assert(
-      chatGateCode.includes('if (!canChat) return <>{fallback}</>;'),
-      'ChatGate renders nothing (fallback null) when canChat is false'
+      chatGateCode.includes('if (isLoading || !canChat) return <>{fallback}</>;'),
+      'ChatGate renders fallback (null) when canChat is false or flags are loading'
+    );
+    assert(
+      chatGateCode.includes('!isAdmin()'),
+      'ChatGate preserves chat storage for admins and only purges guests/non-chat clients'
     );
     assert(
       chatGateCode.includes('return <>{children}</>;'),

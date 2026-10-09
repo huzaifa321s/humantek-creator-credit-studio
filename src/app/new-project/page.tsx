@@ -816,6 +816,7 @@ export default function CreatorStudioPage() {
       });
 
       setSubmittedProject(data.project);
+      useUserStore.getState().updateUser({ hasProjects: true, canChat: true });
       resetWizard();
       useChatStore.getState().registerProject({
         id: data.project.id,
@@ -892,6 +893,7 @@ export default function CreatorStudioPage() {
       });
 
       setSubmittedProject(data.project);
+      useUserStore.getState().updateUser({ hasProjects: true, canChat: true });
       resetWizard();
       useChatStore.getState().registerProject({
         id: data.project.id,
@@ -3414,6 +3416,7 @@ export default function CreatorStudioPage() {
                               resetWizard();
                               if (proj && proj.id) {
                                 setSubmittedProject(proj);
+                                useUserStore.getState().updateUser({ hasProjects: true, canChat: true });
                                 useChatStore.getState().registerProject({
                                   id: proj.id,
                                   projectCode: proj.projectCode,

@@ -52,9 +52,9 @@ export function ChatGateProvider({
     hasProjects
   );
 
-  // Automatically purge any chat storage keys whenever canChat is false
+  // Automatically purge any chat storage keys whenever user is a guest or non-chat client (never purge admins)
   useEffect(() => {
-    if (!canChat && typeof window !== 'undefined') {
+    if (!canChat && !isAdmin() && typeof window !== 'undefined') {
       try {
         localStorage.removeItem('humantek_project_chat_v6');
         localStorage.removeItem('humantek_client_chat_v2');
@@ -63,7 +63,9 @@ export function ChatGateProvider({
         sessionStorage.removeItem('humantek_client_chat_v2');
       } catch {}
     }
-  }, [canChat]);
+  }, [canChat, isAdmin]);
+
+  const isLoading = !isHydrated || (Boolean(effectiveEmail) && isClient && projectsQuery.isPending && !hasProjects);
 
   const value = useMemo(
     () => ({
@@ -71,9 +73,9 @@ export function ChatGateProvider({
       isClient,
       isEmailVerified,
       hasProjects,
-      isLoading: !isHydrated || (Boolean(effectiveEmail) && projectsQuery.isPending),
+      isLoading,
     }),
-    [canChat, isClient, isEmailVerified, hasProjects, isHydrated, effectiveEmail, projectsQuery.isPending]
+    [canChat, isClient, isEmailVerified, hasProjects, isLoading]
   );
 
   return <ChatGateContext.Provider value={value}>{children}</ChatGateContext.Provider>;
@@ -90,7 +92,7 @@ export function ChatGate({
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }) {
-  const { canChat } = useChatGate();
-  if (!canChat) return <>{fallback}</>;
+  const { canChat, isLoading } = useChatGate();
+  if (isLoading || !canChat) return <>{fallback}</>;
   return <>{children}</>;
 }
