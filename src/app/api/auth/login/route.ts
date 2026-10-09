@@ -6,6 +6,9 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 const loginRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(ip: string, maxAttempts = 10, windowMs = 15 * 60 * 1000): boolean {
+  if (process.env.NODE_ENV !== 'production' && (ip === 'unknown-ip' || ip === '127.0.0.1' || ip === '::1')) {
+    return false;
+  }
   const now = Date.now();
   const record = loginRateLimitMap.get(ip);
   if (!record || now > record.resetAt) {

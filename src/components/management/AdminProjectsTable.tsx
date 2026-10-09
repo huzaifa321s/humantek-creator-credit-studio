@@ -148,7 +148,7 @@ export function AdminProjectsTable({
     switch (status) {
       case 'pending_review':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-400/15 text-brand-text dark:text-amber-300 border border-amber-400/30">
             <Clock className="w-3.5 h-3.5 shrink-0" />
             <span>Pending Review</span>
           </span>
@@ -214,8 +214,8 @@ export function AdminProjectsTable({
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-        <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-400/15 text-brand-text dark:text-amber-300 border border-amber-400/30">
+        <Clock className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
         <span>Unpaid</span>
       </span>
     );
@@ -467,12 +467,12 @@ export function AdminProjectsTable({
               <div className="p-4 rounded-xl bg-secondary/35 border border-border/80 space-y-3.5">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    <ShieldCheck className="w-4 h-4 text-brand-text dark:text-amber-400" />
                     <span>Production Management</span>
                   </div>
                   {isDirty && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-amber-400/15 text-brand-text dark:text-amber-300 border border-amber-400/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                       <span>Unsaved Changes</span>
                     </span>
                   )}
@@ -533,7 +533,7 @@ export function AdminProjectsTable({
                         </SelectItem>
                         <SelectItem value="unpaid" className="text-xs">
                           <span className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <Clock className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" />
                             <span>Unpaid</span>
                           </span>
                         </SelectItem>
@@ -552,7 +552,7 @@ export function AdminProjectsTable({
                 <div className="pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-1.5 text-2xs min-w-0">
                     {isDirty ? (
-                      <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-medium truncate">
+                      <span className="inline-flex items-center gap-1.5 text-brand-text dark:text-amber-300 font-medium truncate">
                         <span className="truncate">
                           Pending: {getProjectStatusLabel(selectedProject.status)} → {getProjectStatusLabel(draftStatus || selectedProject.status)}
                         </span>
@@ -585,9 +585,9 @@ export function AdminProjectsTable({
                       disabled={!isDirty || isUpdating}
                       onClick={handleSaveStatus}
                       className={cn(
-                        'h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg transition-all cursor-pointer shadow-xs',
+                        'h-8 px-3 text-xs font-bold gap-1.5 rounded-lg transition-all cursor-pointer shadow-xs',
                         isDirty
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                          ? 'bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground shadow-amber-400/20'
                           : 'bg-muted text-muted-foreground opacity-60 cursor-not-allowed'
                       )}
                     >
@@ -611,10 +611,10 @@ export function AdminProjectsTable({
               {selectedProject.lastMessagePreview && (
                 <div className="space-y-1.5">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <MessageSquare className="w-4 h-4 text-amber-600" />
+                    <MessageSquare className="w-4 h-4 text-brand-text dark:text-amber-400" />
                     <span>Latest Client Message</span>
                   </span>
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground/90 leading-relaxed italic">
+                  <div className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/25 text-xs text-foreground/90 leading-relaxed italic">
                     &ldquo;{selectedProject.lastMessagePreview}&rdquo;
                   </div>
                 </div>
@@ -623,14 +623,14 @@ export function AdminProjectsTable({
               {/* Creative Instructions */}
               <div className="space-y-1.5">
                 <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-amber-600" />
+                  <FileText className="w-4 h-4 text-brand-text dark:text-amber-400" />
                   <span>Creative Instructions</span>
                 </span>
                 <div className="p-3.5 rounded-xl bg-secondary/25 border border-border/80 text-muted-foreground leading-relaxed whitespace-pre-wrap">
                   {selectedProject.instructions || 'No specific creative notes submitted.'}
                 </div>
                 {selectedProject.redeemCode && (
-                  <p className="text-2xs text-amber-800 dark:text-amber-300 font-semibold pt-1">
+                  <p className="text-2xs text-brand-text dark:text-amber-300 font-semibold pt-1">
                     Promo code attached: <span className="font-mono tabular-nums">{selectedProject.redeemCode}</span>
                   </p>
                 )}
@@ -640,7 +640,7 @@ export function AdminProjectsTable({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <Package className="w-4 h-4 text-amber-600" />
+                    <Package className="w-4 h-4 text-brand-text dark:text-amber-400" />
                     <span>
                       Deliverable Items ({selectedProject.selections?.length || 0})
                     </span>
@@ -692,7 +692,7 @@ export function AdminProjectsTable({
                     setSelectedProjectId(null);
                     onOpenChat(id);
                   }}
-                  className="h-9 text-xs font-semibold gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white cursor-pointer shadow-2xs"
+                  className="h-9 text-xs font-bold gap-1.5 rounded-lg bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground cursor-pointer shadow-xs shadow-amber-400/20"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>Open Client Discussion</span>

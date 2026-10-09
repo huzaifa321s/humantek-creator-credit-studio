@@ -151,10 +151,10 @@ export function AdminManualOrders() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs font-bold text-amber-700 dark:text-amber-300">
+                        <span className="font-mono text-xs font-bold text-brand-text dark:text-amber-300">
                           HT-MANUAL-{order.id.slice(0, 8).toUpperCase()}
                         </span>
-                        <Badge variant="outline" className="text-2xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">
+                        <Badge variant="outline" className="text-2xs bg-amber-400/15 text-brand-text dark:text-amber-300 border-amber-400/30">
                           Awaiting Bank Wire
                         </Badge>
                       </div>
@@ -171,7 +171,7 @@ export function AdminManualOrders() {
                         <div className="text-sm font-semibold text-foreground">
                           ${(order.expected_amount_cents / 100).toFixed(2)} {order.currency}
                         </div>
-                        <div className="text-xs text-amber-600 dark:text-amber-400 font-mono font-bold">
+                        <div className="text-xs text-brand-text dark:text-amber-400 font-mono font-bold">
                           +{order.credits_to_grant} CR
                         </div>
                       </div>
@@ -183,7 +183,7 @@ export function AdminManualOrders() {
                             setConfirmingId(order.id);
                             setBankRef(`WIRE-${order.id.slice(0, 6).toUpperCase()}`);
                           }}
-                          className="bg-amber-500 hover:bg-amber-600 text-white text-xs cursor-pointer shadow-xs"
+                          className="bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-bold text-xs cursor-pointer shadow-xs shadow-amber-400/20"
                         >
                           Verify & Deposit
                         </Button>
@@ -193,8 +193,8 @@ export function AdminManualOrders() {
 
                   {/* Confirmation Inline Form */}
                   {isConfirming && (
-                    <div className="p-3.5 sm:p-4 rounded-lg bg-secondary/30 border border-amber-500/30 space-y-3 animate-in fade-in duration-150">
-                      <div className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    <div className="p-3.5 sm:p-4 rounded-lg bg-secondary/30 border border-amber-400/30 space-y-3 animate-in fade-in duration-150">
+                      <div className="text-xs font-medium text-brand-text dark:text-amber-400 flex items-center gap-1.5">
                         <Landmark className="w-3.5 h-3.5" />
                         <span>Confirm Bank Transfer Settlement</span>
                       </div>

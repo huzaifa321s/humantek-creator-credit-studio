@@ -200,11 +200,11 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
             className={cn(
               'w-full text-left p-3 transition-colors flex items-start gap-2.5 cursor-pointer',
               isGlobal
-                ? 'bg-amber-500/15 border-l-2 border-amber-500'
+                ? 'bg-amber-400/15 border-l-2 border-amber-400'
                 : 'hover:bg-muted/50'
             )}
           >
-            <Avatar className="w-8 h-8 rounded-lg border border-border bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold text-xs shrink-0 mt-0.5">
+            <Avatar className="w-8 h-8 rounded-lg border border-border bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold text-xs shrink-0 mt-0.5">
               <AvatarFallback>HQ</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
@@ -236,7 +236,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                 className={cn(
                   'w-full text-left p-3 transition-colors flex items-start gap-2.5 cursor-pointer',
                   isSelected
-                    ? 'bg-amber-500/15 border-l-2 border-amber-500'
+                    ? 'bg-amber-400/15 border-l-2 border-amber-400'
                     : 'hover:bg-muted/50'
                 )}
               >
@@ -371,7 +371,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
         {/* Direct Admin Reply Composer */}
         <div className="p-3 sm:p-4 border-t border-border/80 bg-card/40 shrink-0">
           <form onSubmit={handleSendReply} className="space-y-2">
-            <div className="relative rounded-xl border border-border/80 bg-background focus-within:border-amber-500/80 focus-within:ring-2 focus-within:ring-amber-500/20 transition-all p-2">
+            <div className="relative rounded-xl border border-border/80 bg-background focus-within:border-amber-400/80 focus-within:ring-2 focus-within:ring-amber-400/20 transition-all p-2">
               <Textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
@@ -383,7 +383,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
 
               <div className="flex items-center justify-between pt-1 border-t border-border/40">
                 <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
-                  <span className="font-semibold text-amber-700 dark:text-amber-400">Replying as:</span>
+                  <span className="font-semibold text-brand-text dark:text-amber-400">Replying as:</span>
                   <span>Senior Creative Producer</span>
                 </div>
 
@@ -391,7 +391,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                   type="submit"
                   size="sm"
                   disabled={!replyText.trim() || isSending}
-                  className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white cursor-pointer shadow-2xs"
+                  className="h-8 px-3 text-xs font-bold gap-1.5 rounded-lg bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground cursor-pointer shadow-xs shadow-amber-400/20"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Send Reply</span>
