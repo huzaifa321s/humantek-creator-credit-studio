@@ -250,11 +250,11 @@ function ChatFloatingWidgetInner() {
             setIsOpen(true, isWizardRoute ? GLOBAL_CHAT_ID : undefined);
           }}
           aria-label="Open studio chat"
-          className="group/chat-trigger h-9 sm:h-9.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg bg-card hover:bg-amber-500/5 dark:bg-card border-border hover:border-amber-500/40 text-foreground shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none flex items-center gap-1.5 sm:gap-2"
+          className="group/chat-trigger h-9 sm:h-9.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg bg-card hover:bg-amber-400/[0.04] dark:bg-card border-border hover:border-amber-400/50 text-foreground shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none flex items-center gap-1.5 sm:gap-2"
         >
           {/* Brand Orange Chat Icon */}
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover/chat-trigger:bg-amber-500/25 transition-colors">
-            <MessageSquare className="size-3 text-amber-600 dark:text-amber-400" />
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-400/15 text-brand-text dark:text-amber-400 group-hover/chat-trigger:bg-amber-400/25 transition-colors">
+            <MessageSquare className="size-3 text-brand-text dark:text-amber-400" />
           </span>
 
           {/* Label: Chat with Our Team on wizard flow, or Messages on tracking views */}
@@ -278,7 +278,7 @@ function ChatFloatingWidgetInner() {
           {totalUnreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="ml-0.5 h-4.5 px-1.5 text-2xs font-mono tabular-nums font-bold rounded-full bg-amber-500 text-white animate-pulse shadow-xs"
+              className="ml-0.5 h-4.5 px-1.5 text-2xs font-mono tabular-nums font-black rounded-full bg-amber-400 text-zinc-950 animate-pulse shadow-xs shadow-amber-400/30"
             >
               {totalUnreadCount}
             </Badge>

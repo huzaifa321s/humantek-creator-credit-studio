@@ -53,7 +53,7 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
     }
     if (type.includes('DISPUTE') || type.includes('REVERSAL')) {
       return {
-        bg: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+        bg: 'bg-amber-400/15 text-brand-text dark:text-amber-300 border-amber-400/30',
         icon: ShieldAlert,
       };
     }

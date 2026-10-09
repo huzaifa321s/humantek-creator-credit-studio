@@ -195,14 +195,14 @@ export function ChatFullView() {
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/new-project">
             <Button variant="outline" size="sm" className="h-8.5 text-xs font-semibold gap-1.5 rounded-lg sm:rounded-xl cursor-pointer">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <Sparkles className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" />
               <span className="hidden sm:inline">New Project</span>
               <span className="sm:hidden">New</span>
             </Button>
           </Link>
           <Link href="/projects">
             <Button variant="secondary" size="sm" className="h-8.5 text-xs font-semibold gap-1.5 rounded-lg sm:rounded-xl cursor-pointer">
-              <FolderKanban className="w-3.5 h-3.5 text-amber-600" />
+              <FolderKanban className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" />
               <span>Projects</span>
             </Button>
           </Link>
@@ -219,7 +219,7 @@ export function ChatFullView() {
           <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
             <div className="flex items-start gap-3.5">
               <div className="relative">
-                <Avatar className="w-12 h-12 rounded-xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/20 to-amber-600/30 text-amber-800 dark:text-amber-300 font-extrabold text-sm shadow-md">
+                <Avatar className="w-12 h-12 rounded-xl border-2 border-amber-400/40 bg-gradient-to-br from-amber-400/20 to-amber-500/30 text-brand-text dark:text-amber-300 font-extrabold text-sm shadow-md">
                   <AvatarFallback>{agent.avatarInitials}</AvatarFallback>
                 </Avatar>
                 <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-background flex items-center justify-center">
@@ -236,7 +236,7 @@ export function ChatFullView() {
                 </div>
                 <p className="text-xs text-muted-foreground truncate">{agent.role}</p>
                 <span className="inline-flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  <CheckCircle2 className="w-3 h-3" /> Online & Dedicated
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Online & Dedicated
                 </span>
               </div>
             </div>
@@ -250,9 +250,9 @@ export function ChatFullView() {
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Response Time
+                  <Sparkles className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" /> Response Time
                 </span>
-                <span className="font-semibold text-amber-600 dark:text-amber-400">~2 minutes</span>
+                <span className="font-semibold text-brand-text dark:text-amber-400">~2 minutes</span>
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -280,7 +280,7 @@ export function ChatFullView() {
           {isGlobal ? (
             <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-3">
               <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
-                <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                <Sparkles className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                 <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                   Studio Concierge
                 </span>
@@ -309,7 +309,7 @@ export function ChatFullView() {
             <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-amber-600 shrink-0" />
+                  <ImageIcon className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                   <span className="text-2xs font-bold text-foreground uppercase tracking-wider">
                     Project Moodboards ({displayAttachments.length})
                   </span>
@@ -322,7 +322,7 @@ export function ChatFullView() {
                   <div
                     key={`${att.id || 'att'}-${idx}`}
                     onClick={() => setPreviewAttachment(att)}
-                    className="group relative rounded-lg overflow-hidden border border-border/70 bg-black/20 cursor-pointer aspect-video hover:border-amber-500/60 transition-all"
+                    className="group relative rounded-lg overflow-hidden border border-border/70 bg-black/20 cursor-pointer aspect-video hover:border-amber-400/60 transition-all"
                   >
                     {att.previewUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -354,14 +354,14 @@ export function ChatFullView() {
             {isGlobal ? (
               <div className="px-3.5 sm:px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 shadow-2xs">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs">
                     <Sparkles className="size-3.5" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm sm:text-base font-bold tracking-tight text-foreground">Global Chat</span>
                       <span className="flex size-2 rounded-full bg-emerald-500 inline-block align-middle" />
-                      <span className="text-3xs uppercase tracking-wider font-semibold text-amber-700/80 dark:text-amber-400 bg-amber-500/15 dark:bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-500/20">
+                      <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/25">
                         Concierge
                       </span>
                     </div>
@@ -392,7 +392,7 @@ export function ChatFullView() {
 
                   <Link
                     href="/projects"
-                    className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-500/10 dark:bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/20 transition-colors"
+                    className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                   >
                     <span className="hidden min-[380px]:inline">Milestone Tracker</span>
                     <span className="min-[380px]:hidden">Tracker</span>
@@ -406,7 +406,7 @@ export function ChatFullView() {
                     Client: <b className="text-foreground font-medium truncate">{displayMeta.clientName}</b>
                   </span>
                   <span className="text-muted-foreground/50">·</span>
-                  <span className="inline-flex items-center font-mono tabular-nums font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/25 shrink-0">
+                  <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
                     {displayMeta.credits || 660} CR
                   </span>
                   {displayMeta.price && (

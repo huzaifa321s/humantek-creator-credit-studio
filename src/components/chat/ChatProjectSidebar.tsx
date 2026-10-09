@@ -225,7 +225,7 @@ export function ChatProjectSidebar({
             placeholder="Search code or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7.5 pl-7 pr-6 text-xs bg-card/90 rounded-md border-border/70 focus-visible:border-amber-500/60 placeholder:text-muted-foreground/70"
+            className="h-7.5 pl-7 pr-6 text-xs bg-card/90 rounded-md border-border/70 focus-visible:border-amber-400 placeholder:text-muted-foreground/70"
           />
           {searchQuery && (
             <button

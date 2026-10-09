@@ -135,7 +135,7 @@ export function ChatInputBar({
       {!compact && (
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
           <span className="flex shrink-0 items-center gap-1 text-2xs font-semibold text-muted-foreground">
-            <Sparkles className="size-3 text-amber-500" /> Quick ask:
+            <Sparkles className="size-3 text-brand-text dark:text-amber-400" /> Quick ask:
           </span>
           {quickPrompts.map((prompt) => (
             <Button
@@ -144,7 +144,7 @@ export function ChatInputBar({
               variant="outline"
               size="xs"
               onClick={() => onSendMessage(prompt)}
-              className="shrink-0 rounded-full text-xs font-normal hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-400"
+              className="shrink-0 rounded-full text-xs font-normal hover:border-amber-400/60 hover:bg-amber-400/10 hover:text-brand-text dark:hover:text-amber-400"
             >
               {prompt}
             </Button>
@@ -155,16 +155,16 @@ export function ChatInputBar({
       <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
 
       {/* Composer — official shadcn InputGroup */}
-      <InputGroup className="rounded-xl border-border/80 bg-secondary/20 shadow-2xs has-[[data-slot=input-group-control]:focus-visible]:border-amber-500/60 has-[[data-slot=input-group-control]:focus-visible]:ring-amber-500/20">
+      <InputGroup className="rounded-xl border-border/80 bg-secondary/20 shadow-2xs has-[[data-slot=input-group-control]:focus-visible]:border-amber-400/80 has-[[data-slot=input-group-control]:focus-visible]:ring-amber-400/20">
         {draft && (
           <InputGroupAddon align="block-start" className="pt-2.5">
-            <Attachment size="sm" className="max-w-full rounded-xl border-amber-500/30 bg-amber-500/5">
+            <Attachment size="sm" className="max-w-full rounded-xl border-amber-400/30 bg-amber-400/5">
               <AttachmentMedia variant="image" className="rounded-lg">
                 {draft.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={draft.previewUrl} alt={draft.name} />
                 ) : (
-                  <ImageIcon className="text-amber-600" />
+                  <ImageIcon className="text-brand-text dark:text-amber-400" />
                 )}
               </AttachmentMedia>
               <AttachmentContent>

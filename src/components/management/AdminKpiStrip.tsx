@@ -83,7 +83,7 @@ export function AdminKpiStrip({
             className={cn(
               'w-6 h-6 shrink-0 rounded-md flex items-center justify-center',
               pendingReviewCount > 0
-                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                ? 'bg-amber-400/15 text-brand-text dark:text-amber-400'
                 : 'bg-secondary/80 text-muted-foreground'
             )}
           >
@@ -99,7 +99,7 @@ export function AdminKpiStrip({
               className={cn(
                 'text-lg sm:text-2xl font-black font-mono tabular-nums leading-tight truncate',
                 pendingReviewCount > 0
-                  ? 'text-amber-600 dark:text-amber-400'
+                  ? 'text-brand-text dark:text-amber-400'
                   : 'text-foreground'
               )}
             >
