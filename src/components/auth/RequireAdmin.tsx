@@ -26,7 +26,7 @@ export function RequireAdmin({ children }: RequireAdminProps) {
     return (
       <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-100">
         <div className="flex flex-col items-center gap-3">
-          <div className="size-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+          <div className="size-6 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
           <p className="text-xs font-mono text-zinc-400">Verifying administrator credentials...</p>
         </div>
       </div>

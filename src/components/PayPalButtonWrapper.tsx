@@ -26,13 +26,13 @@ export function PaymentButtonsSkeleton() {
   return (
     <div className="space-y-2.5 animate-pulse" aria-label="Loading secure payment options...">
       {/* 1. Pay with PayPal slot */}
-      <div className="h-11 w-full rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
-        <div className="h-4 w-28 bg-amber-500/30 rounded-md" />
+      <div className="h-11 w-full rounded-lg bg-amber-400/15 border border-amber-400/25 flex items-center justify-center">
+        <div className="h-4 w-28 bg-amber-400/30 rounded-md" />
       </div>
 
       {/* 2. Pay Later slot */}
-      <div className="h-11 w-full rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-        <div className="h-4 w-20 bg-amber-500/20 rounded-md" />
+      <div className="h-11 w-full rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+        <div className="h-4 w-20 bg-amber-400/20 rounded-md" />
       </div>
 
       {/* 3. Debit or Credit Card slot */}
@@ -214,9 +214,9 @@ export function PayPalButtonWrapper({
 
   if (isPlaceholderClientId) {
     return (
-      <div className="p-2.5 sm:p-3 rounded-xl border border-amber-500/25 bg-amber-500/5 text-center text-xs space-y-0.5">
-        <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-          <AlertCircle className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+      <div className="p-2.5 sm:p-3 rounded-xl border border-amber-400/30 bg-amber-400/5 text-center text-xs space-y-0.5">
+        <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-brand-text dark:text-amber-300">
+          <AlertCircle className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
           <span>PayPal is currently offline in this environment</span>
         </div>
         <p className="text-2xs text-muted-foreground">

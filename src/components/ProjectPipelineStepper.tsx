@@ -170,13 +170,13 @@ export function ProjectPipelineStepper({
                         type="button"
                         aria-label={`${stage.name}: ${isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Upcoming'}`}
                         className={cn(
-                          'size-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500',
+                          'size-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400',
                           // Completed: Emerald green with white checkmark
                           isCompleted &&
                             'border-2 border-emerald-500 bg-emerald-500 text-white shadow-emerald-500/20 hover:bg-emerald-600',
-                          // Current: Amber with distinct in-progress animated mark
+                          // Current: Amber-400 with dark high-contrast animated mark
                           isCurrent &&
-                            'border-2 border-amber-500 bg-amber-500 text-white ring-4 ring-amber-500/25 shadow-amber-500/30 scale-105',
+                            'border-2 border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 ring-4 ring-amber-400/30 shadow-amber-400/30 scale-105',
                           // Upcoming: Neutral clean circle with step number
                           isUpcoming &&
                             'border-2 border-border bg-card text-muted-foreground hover:border-amber-400/50'
@@ -185,7 +185,7 @@ export function ProjectPipelineStepper({
                         {isCompleted ? (
                           <Check className="size-4 stroke-[3] text-white" />
                         ) : isCurrent ? (
-                          <Loader2 className="size-4 animate-spin text-white" />
+                          <Loader2 className="size-4 animate-spin text-zinc-950 stroke-[3]" />
                         ) : (
                           <span className="text-xs font-mono font-bold tabular-nums">
                             {stepNum}
@@ -209,7 +209,7 @@ export function ProjectPipelineStepper({
                         className={cn(
                           'text-3xs font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider',
                           isCompleted && 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-                          isCurrent && 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+                          isCurrent && 'bg-amber-400/15 text-amber-400 border border-amber-400/30',
                           isUpcoming && 'bg-zinc-800 text-zinc-400 border border-zinc-700'
                         )}
                       >
@@ -250,10 +250,10 @@ export function ProjectPipelineStepper({
 
                 {/* Status indicator / Date (only shown for completed or active) */}
                 {isCurrent ? (
-                  <span className="inline-flex items-center gap-1 mt-1 text-2xs font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1 mt-1 text-2xs font-semibold text-brand-text dark:text-amber-400 whitespace-nowrap">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
                     </span>
                     In Progress
                   </span>
@@ -298,14 +298,14 @@ export function ProjectPipelineStepper({
                   className={cn(
                     'size-8 rounded-full flex items-center justify-center shrink-0 border-2 font-bold text-xs transition-colors shadow-2xs',
                     isCompleted && 'border-emerald-500 bg-emerald-500 text-white',
-                    isCurrent && 'border-amber-500 bg-amber-500 text-white ring-4 ring-amber-500/25',
+                    isCurrent && 'border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-black ring-4 ring-amber-400/30 shadow-amber-400/25',
                     isUpcoming && 'border-border bg-card text-muted-foreground'
                   )}
                 >
                   {isCompleted ? (
                     <Check className="size-3.5 stroke-[3] text-white" />
                   ) : isCurrent ? (
-                    <Loader2 className="size-3.5 animate-spin text-white" />
+                    <Loader2 className="size-3.5 animate-spin text-zinc-950 stroke-[3]" />
                   ) : (
                     <span className="text-2xs font-mono font-bold tabular-nums">
                       {stepNum}
@@ -336,10 +336,10 @@ export function ProjectPipelineStepper({
                   </div>
 
                   {isCurrent && (
-                    <div className="inline-flex items-center gap-1.5 mt-1 text-2xs font-semibold text-amber-600 dark:text-amber-400">
+                    <div className="inline-flex items-center gap-1.5 mt-1 text-2xs font-semibold text-brand-text dark:text-amber-400">
                       <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
                       </span>
                       In Progress
                     </div>

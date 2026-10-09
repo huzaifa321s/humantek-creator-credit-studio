@@ -26,7 +26,7 @@ export function RequireClient({ children }: RequireClientProps) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="size-6 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+          <div className="size-6 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
           <p className="text-xs text-muted-foreground font-mono">Loading studio workspace...</p>
         </div>
       </div>

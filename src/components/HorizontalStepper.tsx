@@ -284,7 +284,7 @@ export function HorizontalStepper({
                     isDone
                       ? 'bg-emerald-500 shadow-2xs'
                       : isCurr
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 ring-2 ring-amber-500/25 shadow-xs'
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 ring-2 ring-amber-400/30 shadow-xs shadow-amber-400/25'
                       : 'bg-border dark:bg-border/80 group-hover:bg-muted-foreground/40'
                   )}
                 />

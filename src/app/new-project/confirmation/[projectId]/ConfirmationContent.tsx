@@ -162,7 +162,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
             className={cn(
               'size-12 rounded-full flex items-center justify-center mx-auto ring-8',
               isPendingOrManual
-                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-amber-500/10'
+                ? 'bg-amber-400/15 text-brand-text dark:text-amber-400 ring-amber-400/10'
                 : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/10'
             )}
           >
@@ -245,7 +245,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                 <span
                   className={cn(
                     'size-2 rounded-full',
-                    isPendingOrManual ? 'bg-amber-500' : 'bg-emerald-500'
+                    isPendingOrManual ? 'bg-amber-400' : 'bg-emerald-500'
                   )}
                 />
                 {statusBadgeText}
@@ -263,8 +263,8 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
 
           {/* Manual Bank / PO Instructions (Only for manual_order) */}
           {confirmationState === 'manual_order' && (
-            <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 text-left space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+            <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-text dark:text-amber-400">
                 <Building2 className="size-3.5" />
                 <span>How to complete payment</span>
               </div>
@@ -291,7 +291,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                 type="button"
                 variant="default"
                 size="lg"
-                className="w-full h-10 font-semibold text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-xs cursor-pointer transition-colors"
+                className="w-full h-10 font-bold text-sm bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground rounded-lg shadow-xs shadow-amber-400/20 cursor-pointer transition-colors"
               >
                 <span>View my project</span>
                 <ArrowRight className="size-4 ml-1" />
