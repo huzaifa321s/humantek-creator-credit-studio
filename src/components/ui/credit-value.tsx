@@ -72,7 +72,7 @@ export function CreditValue({
       <span
         className={cn(
           'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono font-bold tracking-tight border shadow-2xs select-none whitespace-nowrap shrink-0',
-          'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30',
+          'bg-amber-400/15 text-brand-text dark:text-amber-300 border-amber-400/30',
           sizeStyles.root,
           className
         )}
@@ -85,7 +85,7 @@ export function CreditValue({
           {suffix}
         </span>
         {showUsd && usdEquivalent && (
-          <span className={cn('text-amber-700/70 dark:text-amber-400/70 font-normal ml-0.5', sizeStyles.usd)}>
+          <span className={cn('text-brand-text/80 dark:text-amber-400/70 font-normal ml-0.5', sizeStyles.usd)}>
             (${usdEquivalent})
           </span>
         )}

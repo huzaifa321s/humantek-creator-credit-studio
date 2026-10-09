@@ -46,7 +46,7 @@ function SignInContent() {
   if (!isHydrated || (user && user.email)) {
     return (
       <div className="w-full max-w-md mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[380px] space-y-3">
-        <div className="size-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="size-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
         <span className="text-xs text-muted-foreground font-mono">
           {user?.email ? 'Opening dashboard...' : 'Loading studio session...'}
         </span>
@@ -65,7 +65,7 @@ function SignInContent() {
               <div className="flex items-center justify-between mb-3.5">
                 <Badge
                   variant="outline"
-                  className="text-3xs font-semibold text-brand-text border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5"
+                  className="text-3xs font-semibold text-brand-text border-amber-400/35 bg-amber-400/15 px-2.5 py-0.5"
                 >
                   <Sparkles className="size-2.5 mr-1 text-brand-text" />
                   Creator Portal
@@ -83,7 +83,7 @@ function SignInContent() {
               </div>
 
               {/* Mobile Rate Pill (< md only) */}
-              <div className="flex md:hidden items-center justify-between px-3 py-2 mb-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+              <div className="flex md:hidden items-center justify-between px-3 py-2 mb-4 rounded-xl bg-amber-400/15 border border-amber-400/25 text-xs">
                 <span className="font-semibold text-brand-text flex items-center gap-1.5">
                   <Coins className="size-3.5 text-brand-text shrink-0" />
                   1 CR = $2.50 USD
@@ -115,13 +115,13 @@ function SignInContent() {
           {/* Right Column: Calm, Truthful Studio Operational Showcase (5 cols on md+, hidden on mobile) */}
           <div className="hidden md:flex md:col-span-5 relative bg-muted/30 dark:bg-zinc-900/40 border-l border-border/70 p-6 lg:p-8 flex-col justify-between overflow-hidden text-foreground">
             {/* Subtle ambient warm studio glow */}
-            <div className="absolute -top-20 -right-20 size-60 rounded-full bg-amber-500/5 dark:bg-amber-500/10 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 size-60 rounded-full bg-amber-500/5 dark:bg-amber-500/5 blur-3xl pointer-events-none" />
+            <div className="absolute -top-20 -right-20 size-60 rounded-full bg-amber-400/5 dark:bg-amber-400/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 size-60 rounded-full bg-amber-400/5 dark:bg-amber-400/5 blur-3xl pointer-events-none" />
 
             {/* Top Studio Credits Overview */}
             <div className="relative z-10 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-brand-text border border-amber-500/25 text-2xs font-semibold">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/15 text-brand-text border border-amber-400/30 text-2xs font-semibold">
                   <Coins className="size-3 text-brand-text shrink-0" />
                   Studio Credits
                 </span>
@@ -142,13 +142,13 @@ function SignInContent() {
             <div className="relative z-10 space-y-3 my-auto py-5">
               {/* Pillar 1: Fixed Rate */}
               <div className="flex items-start gap-3 p-3 rounded-xl bg-background/70 dark:bg-zinc-950/40 border border-border/60 shadow-2xs">
-                <div className="size-7 rounded-lg bg-amber-500/15 text-brand-text flex items-center justify-center shrink-0 mt-0.5">
+                <div className="size-7 rounded-lg bg-amber-400/15 text-brand-text flex items-center justify-center shrink-0 mt-0.5">
                   <Coins className="size-3.5" />
                 </div>
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <div className="text-xs font-semibold text-foreground flex items-center justify-between gap-2">
                     <span>1 CR = $2.50 USD</span>
-                    <span className="font-mono text-3xs font-medium text-brand-text bg-amber-500/10 px-1.5 py-0.5 rounded">
+                    <span className="font-mono text-3xs font-medium text-brand-text bg-amber-400/15 px-1.5 py-0.5 rounded">
                       Fixed Rate
                     </span>
                   </div>
@@ -191,7 +191,7 @@ function SignInContent() {
 
             {/* Bottom: Commercial Rights note without extra links */}
             <div className="relative z-10 pt-3 border-t border-border/60 flex items-center gap-2 text-3xs text-muted-foreground">
-              <Sparkles className="size-3.5 text-amber-500 shrink-0" />
+              <Sparkles className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
               <span>Full commercial usage rights included on all approved deliverables.</span>
             </div>
           </div>

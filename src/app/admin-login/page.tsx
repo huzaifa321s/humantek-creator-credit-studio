@@ -104,21 +104,21 @@ export default function AdminLoginPage() {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 bg-zinc-950 text-zinc-100 overflow-hidden select-none">
       {/* Background Ambient Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/10 via-zinc-950 to-zinc-950 pointer-events-none" />
-      <div className="absolute -top-40 -right-40 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-400/10 via-zinc-950 to-zinc-950 pointer-events-none" />
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-zinc-800/20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md space-y-6">
         {/* Header Branding */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-zinc-900 border border-amber-500/30 shadow-inner mb-2">
-            <ShieldCheck className="size-8 text-amber-500" />
+          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-zinc-900 border border-amber-400/30 shadow-inner mb-2">
+            <ShieldCheck className="size-8 text-amber-400" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
             Operations Console
           </h1>
           <div className="flex items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-semibold uppercase tracking-wider bg-amber-400/15 text-amber-400 border border-amber-400/30">
               <Lock className="size-2.5" />
               Restricted · Staff Only
             </span>
@@ -166,7 +166,7 @@ export default function AdminLoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@humantek.art"
                     disabled={isLoading}
-                    className="bg-zinc-950/80 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500/20 text-sm h-10"
+                    className="bg-zinc-950/80 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:ring-amber-400/20 text-sm h-10"
                   />
                 </Field>
 
@@ -184,7 +184,7 @@ export default function AdminLoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
                       disabled={isLoading}
-                      className="bg-zinc-950/80 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500/20 text-sm h-10 pr-10"
+                      className="bg-zinc-950/80 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:ring-amber-400/20 text-sm h-10 pr-10"
                     />
                     <button
                       type="button"
@@ -201,7 +201,7 @@ export default function AdminLoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-zinc-950 font-semibold h-10 shadow-lg shadow-amber-600/20 border-none transition-all cursor-pointer mt-2"
+                className="w-full bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black h-10 shadow-lg shadow-amber-400/25 border-none transition-all cursor-pointer mt-2"
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2 text-xs">

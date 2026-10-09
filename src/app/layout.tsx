@@ -40,10 +40,10 @@ export default async function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-500/20 selection:text-amber-900 font-sans"
+        className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-400/25 selection:text-amber-950 font-sans"
       >
         <NextTopLoader
-          color="#f59e0b"
+          color="#fbbf24"
           initialPosition={0.08}
           crawlSpeed={200}
           height={2.5}

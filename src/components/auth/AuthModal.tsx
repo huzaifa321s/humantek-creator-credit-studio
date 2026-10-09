@@ -73,7 +73,7 @@ function ResponsiveAuthModalContent({
           
           <DrawerHeader className="px-4 py-2.5 border-b border-border/70 flex flex-row items-center justify-between shrink-0 text-left">
             <div className="flex items-center gap-2.5 min-w-0 text-left">
-              <div className="size-7 rounded-lg bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <div className="size-7 rounded-lg bg-amber-400/15 border border-amber-400/35 flex items-center justify-center text-brand-text dark:text-amber-400 shrink-0">
                 <Sparkles className="size-3.5" />
               </div>
               <div className="min-w-0 text-left">
@@ -119,7 +119,7 @@ function ResponsiveAuthModalContent({
       >
         <DialogHeader className="space-y-0 text-left pb-1">
           <div className="flex items-center gap-2.5 text-left">
-            <div className="size-8 rounded-lg bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <div className="size-8 rounded-lg bg-amber-400/15 border border-amber-400/35 flex items-center justify-center text-brand-text dark:text-amber-400 shrink-0">
               <Sparkles className="size-4" />
             </div>
             <div className="min-w-0 text-left">

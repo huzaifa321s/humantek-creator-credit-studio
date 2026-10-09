@@ -71,7 +71,7 @@ const tabsTriggerVariants = cva(
         default:
           "text-muted-foreground hover:text-foreground hover:bg-background/40 data-active:bg-card data-active:text-foreground data-active:shadow-2xs data-active:font-bold data-active:ring-1 data-active:ring-border/60",
         line:
-          "rounded-none bg-transparent pb-3 pt-2 text-muted-foreground hover:text-foreground data-active:bg-transparent data-active:text-foreground data-active:font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-amber-500 after:opacity-0 data-active:after:opacity-100",
+          "rounded-none bg-transparent pb-3 pt-2 text-muted-foreground hover:text-foreground data-active:bg-transparent data-active:text-foreground data-active:font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-amber-400 after:opacity-0 data-active:after:opacity-100",
         soft:
           "text-muted-foreground hover:text-foreground data-active:bg-background data-active:text-foreground data-active:shadow-xs data-active:font-bold",
       },
@@ -120,7 +120,7 @@ function TabsBadge({
       data-slot="tabs-badge"
       className={cn(
         "tabular-nums font-mono transition-colors ml-1 border-0 text-2xs font-bold px-1.5 py-0",
-        "bg-muted/80 text-muted-foreground group-data-active/tabs-trigger:bg-amber-500/15 group-data-active/tabs-trigger:text-amber-800 dark:group-data-active/tabs-trigger:text-amber-300 group-data-active/tabs-trigger:ring-1 group-data-active/tabs-trigger:ring-amber-500/30",
+        "bg-muted/80 text-muted-foreground group-data-active/tabs-trigger:bg-amber-400/15 group-data-active/tabs-trigger:text-brand-text dark:group-data-active/tabs-trigger:text-amber-300 group-data-active/tabs-trigger:ring-1 group-data-active/tabs-trigger:ring-amber-400/30",
         className
       )}
       {...props}
