@@ -9,6 +9,7 @@
     "build:turbo": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "test:hydration": "playwright test tests/hydration.spec.ts",
     "clean": "node -e \"try{fs.rmSync('.next',{recursive:true,force:true});fs.rmSync('node_modules/.cache',{recursive:true,force:true})}catch(e){}\""
   },
   "engines": {
@@ -47,6 +48,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.8"
   }

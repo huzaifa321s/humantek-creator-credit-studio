@@ -81,11 +81,13 @@ export function ChatGateProvider({
   return <ChatGateContext.Provider value={value}>{children}</ChatGateContext.Provider>;
 }
 
+import { ClientOnly } from '@/components/ClientOnly';
+
 export function useChatGate() {
   return useContext(ChatGateContext);
 }
 
-export function ChatGate({
+function ChatGateContent({
   children,
   fallback = null,
 }: {
@@ -95,4 +97,18 @@ export function ChatGate({
   const { canChat, isLoading } = useChatGate();
   if (isLoading || !canChat) return <>{fallback}</>;
   return <>{children}</>;
+}
+
+export function ChatGate({
+  children,
+  fallback = null,
+}: {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
+  return (
+    <ClientOnly fallback={<>{fallback}</>}>
+      <ChatGateContent fallback={fallback}>{children}</ChatGateContent>
+    </ClientOnly>
+  );
 }

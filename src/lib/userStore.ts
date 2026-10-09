@@ -145,6 +145,8 @@ export const useUserStore = create<UserStoreState>()(
     {
       name: 'humantek_studio_user',
       storage: createJSONStorage(() => localStorage),
+      version: 1,
+      skipHydration: true,
       onRehydrateStorage: () => (state) => {
         if (state) {
           // Purge any stale client-guest from previous dev sessions

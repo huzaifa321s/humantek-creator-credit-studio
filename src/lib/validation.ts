@@ -113,7 +113,7 @@ export const briefFieldsSchema = z.object({
     )
     .max(
       BRIEF_LIMITS.instructions.max,
-      `Keep the brief under ${BRIEF_LIMITS.instructions.max.toLocaleString()} characters`
+      `Keep the brief under ${BRIEF_LIMITS.instructions.max.toLocaleString('en-US')} characters`
     )
     .refine(
       (v) => countWords(v) >= BRIEF_LIMITS.instructions.minWords,

@@ -55,9 +55,11 @@ export interface WizardStoreState {
   errorMessage: string;
   submittedProject: ProjectRecord | null;
   savedAt?: number;
+  isHydrated: boolean;
 
   // Actions
   generateNewProjectId: () => string;
+  setHydrated: (hydrated: boolean) => void;
   setStep: (step: number) => void;
   setSelectedPackageId: (id: string) => void;
   setFundingSource: (source: 'wallet' | 'package' | 'hybrid') => void;
@@ -108,7 +110,7 @@ export interface WizardStoreState {
 export const useWizardStore = create<WizardStoreState>()(
   persist(
     (set) => ({
-      projectId: createProjectId(),
+      projectId: '',
       currentStep: 1,
       selectedPackageId: '',
       fundingSource: 'package',
@@ -132,13 +134,15 @@ export const useWizardStore = create<WizardStoreState>()(
       isSubmitting: false,
       errorMessage: '',
       submittedProject: null,
-      savedAt: Date.now(),
+      savedAt: 0,
+      isHydrated: false,
 
       generateNewProjectId: () => {
         const id = createProjectId();
         set({ projectId: id });
         return id;
       },
+      setHydrated: (hydrated) => set({ isHydrated: hydrated }),
       setStep: (step) => set({ currentStep: Math.max(1, Math.min(5, step)) }),
       setSelectedPackageId: (id) => set({ selectedPackageId: id }),
       setFundingSource: (source) => set({ fundingSource: source }),
@@ -282,7 +286,7 @@ export const useWizardStore = create<WizardStoreState>()(
           isSubmitting: false,
           errorMessage: '',
           submittedProject: null,
-          savedAt: Date.now(),
+          savedAt: typeof window !== 'undefined' ? Date.now() : 0,
         });
       },
     }),
@@ -290,6 +294,7 @@ export const useWizardStore = create<WizardStoreState>()(
       name: 'humantek_wizard_cart',
       storage: createJSONStorage(() => localStorage),
       version: 1,
+      skipHydration: true,
       partialize: (state) => ({
         projectId: state.projectId,
         selectedPackageId: state.selectedPackageId,
@@ -315,6 +320,10 @@ export const useWizardStore = create<WizardStoreState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        if (!state.projectId) {
+          state.projectId = createProjectId();
+        }
+        state.isHydrated = true;
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
         if (state.savedAt && Date.now() - state.savedAt > SEVEN_DAYS_MS) {
           state.resetWizard();

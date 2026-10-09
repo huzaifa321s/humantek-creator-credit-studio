@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useUserStore } from '@/lib/userStore';
+import { useWizardStore } from '@/lib/wizardStore';
+import { useNotificationStore } from '@/lib/notificationStore';
 import { ChatGateProvider } from '@/components/chat/ChatGate';
 
 /**
@@ -14,6 +16,13 @@ import { ChatGateProvider } from '@/components/chat/ChatGate';
  */
 function SessionSync() {
   const isHydrated = useUserStore((s) => s.isHydrated);
+
+  // Rehydrate persisted client stores safely in client useEffect
+  useEffect(() => {
+    useUserStore.persist.rehydrate();
+    useWizardStore.persist.rehydrate();
+    useNotificationStore.persist.rehydrate();
+  }, []);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -62,11 +71,57 @@ function SessionSync() {
   return null;
 }
 
+export interface AuthProviderProps {
+  children: React.ReactNode;
+  initialUser?: {
+    id: string;
+    email: string;
+    role: string;
+    isAdmin: boolean;
+    emailConfirmed: boolean;
+    hasProjects: boolean;
+    canChat: boolean;
+  } | null;
+}
+
+export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
+  // Synchronously seed initialUser into userStore during initial SSR and client creation
+  useState(() => {
+    if (initialUser && initialUser.email) {
+      const current = useUserStore.getState().user;
+      if (!current || current.id !== initialUser.id || current.email !== initialUser.email) {
+        useUserStore.setState({
+          user: {
+            id: initialUser.id,
+            name: current?.name || initialUser.email.split('@')[0],
+            email: initialUser.email,
+            avatarInitials: (current?.name ? current.name.slice(0, 2) : initialUser.email.slice(0, 2)).toUpperCase(),
+            walletBalance: current?.walletBalance ?? 0,
+            role: initialUser.role || 'client',
+            emailVerified: initialUser.emailConfirmed,
+            hasProjects: initialUser.hasProjects,
+            canChat: initialUser.canChat,
+          },
+          isHydrated: true,
+        });
+      }
+    }
+  });
+
+  return <>{children}</>;
+}
+
 /**
  * App-wide client providers. A QueryClient is created once per browser
  * session (inside state) so it is never shared between server requests.
  */
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  initialUser = null,
+}: {
+  children: React.ReactNode;
+  initialUser?: AuthProviderProps['initialUser'];
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -87,10 +142,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
       <QueryClientProvider client={queryClient}>
-        <SessionSync />
-        <ChatGateProvider>
-          {children}
-        </ChatGateProvider>
+        <AuthProvider initialUser={initialUser}>
+          <SessionSync />
+          <ChatGateProvider>
+            {children}
+          </ChatGateProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

@@ -158,7 +158,7 @@ export function HorizontalStepper({
                         </p>
                         <p className="text-zinc-300 text-xs font-mono tabular-nums">
                           {selectedPackageCredits ? `${selectedPackageCredits} CR` : ''}
-                          {selectedPackagePrice ? ` · $${selectedPackagePrice.toLocaleString()} USD` : ''}
+                          {selectedPackagePrice ? ` · $${selectedPackagePrice.toLocaleString('en-US')} USD` : ''}
                         </p>
                         <p className="text-amber-400 text-2xs font-semibold pt-0.5">
                           Click step 1 to switch package

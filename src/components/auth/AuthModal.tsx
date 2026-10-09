@@ -20,6 +20,7 @@ import {
 import { Sparkles } from 'lucide-react';
 import { AuthForm } from './AuthForm';
 import { StudioUser } from '@/lib/userStore';
+import { ClientOnly } from '@/components/ClientOnly';
 
 export interface AuthModalProps {
   open: boolean;
@@ -33,9 +34,17 @@ export interface AuthModalProps {
  * Responsive Auth Dialog:
  * - Renders a centered modal (`Dialog`) on desktop viewports.
  * - Renders a native bottom drawer (`Drawer`) on mobile viewports.
- * Both host the unified, accessible `AuthForm`.
+ * Wrapped with ClientOnly to guarantee deterministic SSR without viewport mismatch.
  */
-export function AuthModal({
+export function AuthModal(props: AuthModalProps) {
+  return (
+    <ClientOnly fallback={null}>
+      <ResponsiveAuthModalContent {...props} />
+    </ClientOnly>
+  );
+}
+
+function ResponsiveAuthModalContent({
   open,
   onOpenChange,
   onSuccess,

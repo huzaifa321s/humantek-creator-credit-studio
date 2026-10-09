@@ -153,7 +153,7 @@ export function CartSidebar({
                 ? `${pack.name} (${pack.credits} CR) + Wallet (${appliedWalletCredits} CR)`
                 : isWalletFunding
                 ? 'Account Balance ($0 USD Due)'
-                : `${pack.name} · $${pack.price.toLocaleString()} Package`}
+                : `${pack.name} · $${pack.price.toLocaleString('en-US')} Package`}
             </p>
           </div>
 
@@ -177,7 +177,7 @@ export function CartSidebar({
               )}
             </div>
             <span className="text-2xs sm:text-xs font-semibold text-amber-600 dark:text-amber-400 block mt-1 font-mono tabular-nums whitespace-nowrap">
-              {usedCredits.toLocaleString()} CR used
+              {usedCredits.toLocaleString('en-US')} CR used
             </span>
           </div>
         </div>
@@ -444,7 +444,7 @@ export function CartSidebar({
             <AlertDescription className="text-xs text-muted-foreground leading-snug">
               <span className="block">
                 {recommendedPack
-                  ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString()}`
+                  ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString('en-US')}`
                   : 'Contact us for a larger custom creator package.'}
               </span>
               {recommendedPack && (

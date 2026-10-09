@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
 import { Providers } from "@/components/Providers";
 import NextTopLoader from "nextjs-toploader";
+import { getRequestUser } from "@/lib/auth";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -24,11 +25,13 @@ export const metadata: Metadata = {
   description: "Plan approved Humantek Art creative services with scope-based credits, package balances, revisions, and project tracking.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getRequestUser();
+
   return (
     <html
       lang="en"
@@ -36,7 +39,6 @@ export default function RootLayout({
       className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body
-        suppressHydrationWarning
         className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-amber-500/20 selection:text-amber-900 font-sans"
       >
         <NextTopLoader
@@ -50,7 +52,7 @@ export default function RootLayout({
           speed={200}
           shadow="0 0 10px #f59e0b,0 0 5px #f59e0b"
         />
-        <Providers>
+        <Providers initialUser={user}>
           <TooltipProvider>
             {children}
             <ChatFloatingWidget />

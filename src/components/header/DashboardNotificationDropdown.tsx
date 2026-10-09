@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -46,6 +46,11 @@ export function DashboardNotificationDropdown() {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const { notifications, markAsRead, markAllAsRead } = useNotificationStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
@@ -86,7 +91,7 @@ export function DashboardNotificationDropdown() {
         }
       >
         <Bell className="size-4 text-zinc-300 group-hover:text-white transition-colors" />
-        {unreadCount > 0 && (
+        {mounted && unreadCount > 0 && (
           <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-zinc-950 animate-pulse" />
         )}
       </DropdownMenuTrigger>
@@ -103,7 +108,7 @@ export function DashboardNotificationDropdown() {
         <div className="flex items-center justify-between px-2.5 py-1.5 select-none">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-100">Notifications</span>
-            {unreadCount > 0 && (
+            {mounted && unreadCount > 0 && (
               <Badge variant="gold" size="xs" className="font-bold border border-amber-500/30 font-mono tabular-nums">
                 {unreadCount} new
               </Badge>

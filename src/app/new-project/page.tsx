@@ -29,6 +29,7 @@ import { CartSidebar } from '@/components/CartSidebar';
 import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
 import { PayPalButtonWrapper } from '@/components/PayPalButtonWrapper';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { ClientOnly } from '@/components/ClientOnly';
 import { FieldError } from '@/components/ui/field-error';
 import { useBriefValidation, briefFieldId } from '@/lib/hooks/useBriefValidation';
 import { BRIEF_LIMITS, PLATFORM_OPTIONS, redeemCodeSchema } from '@/lib/validation';
@@ -395,6 +396,18 @@ export default function CreatorStudioPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mobileScopeOpen, setMobileScopeOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Ensure deterministic, client-only generation of projectId if not yet assigned
+  useEffect(() => {
+    if (mounted && !projectId) {
+      wizard.generateNewProjectId();
+    }
+  }, [mounted, projectId, wizard]);
 
   // Step focus & accessibility navigation hook (scrolls to top on step or confirmation change)
   const headingRef = useStepFocus(currentStep, Boolean(submittedProject));
@@ -1119,7 +1132,7 @@ export default function CreatorStudioPage() {
       {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}
       {/* ============================================================ */}
       {currentStep === 1 && (
-        <div className="space-y-3 sm:space-y-5 animate-in fade-in duration-200" suppressHydrationWarning>
+        <div className="space-y-3 sm:space-y-5 animate-in fade-in duration-200">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
@@ -1374,7 +1387,7 @@ export default function CreatorStudioPage() {
                     </CardTitle>
                     <div className="flex items-baseline gap-1 mt-1">
                       <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
-                        ${pkg.price.toLocaleString()}
+                        ${pkg.price.toLocaleString('en-US')}
                       </span>
                       <span className="text-xs text-muted-foreground font-semibold">USD</span>
                     </div>
@@ -1487,7 +1500,7 @@ export default function CreatorStudioPage() {
       {/* STEP 2: MULTI-ASSET CONFIGURATOR                             */}
       {/* ============================================================ */}
       {currentStep === 2 && currentPackage && (
-        <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200" suppressHydrationWarning>
+        <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
@@ -1562,8 +1575,8 @@ export default function CreatorStudioPage() {
                     )}
                   >
                     {remainingCredits >= 0
-                      ? `${remainingCredits.toLocaleString()} CR left`
-                      : `${Math.abs(remainingCredits).toLocaleString()} CR over`}
+                      ? `${remainingCredits.toLocaleString('en-US')} CR left`
+                      : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
                   </span>
                 </div>
               </div>
@@ -1975,7 +1988,7 @@ export default function CreatorStudioPage() {
                       Project Scope &amp; Budget
                     </DrawerTitle>
                     <DrawerDescription className="text-2xs text-muted-foreground truncate">
-                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} selected · {remainingCredits >= 0 ? `${remainingCredits.toLocaleString()} CR remaining` : `${Math.abs(remainingCredits).toLocaleString()} CR over budget`}
+                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} selected · {remainingCredits >= 0 ? `${remainingCredits.toLocaleString('en-US')} CR remaining` : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over budget`}
                     </DrawerDescription>
                   </div>
                 </div>
@@ -2028,8 +2041,8 @@ export default function CreatorStudioPage() {
                       remainingCredits >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive font-black'
                     )}>
                       {remainingCredits >= 0
-                        ? `${remainingCredits.toLocaleString()} CR`
-                        : `${Math.abs(remainingCredits).toLocaleString()} CR over`}
+                        ? `${remainingCredits.toLocaleString('en-US')} CR`
+                        : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
                     </strong>
                   </div>
                 </div>
@@ -2051,7 +2064,7 @@ export default function CreatorStudioPage() {
       {/* STEP 3: CREDIT SCOPE & ELIGIBILITY                           */}
       {/* ============================================================ */}
       {currentStep === 3 && currentPackage && (
-        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200" suppressHydrationWarning>
+        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
@@ -2511,7 +2524,7 @@ export default function CreatorStudioPage() {
       {/* STEP 4: PROJECT DETAILS & CREATIVE BRIEF                     */}
       {/* ============================================================ */}
       {currentStep === 4 && currentPackage && (
-        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200" suppressHydrationWarning>
+        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
@@ -2531,7 +2544,7 @@ export default function CreatorStudioPage() {
             </div>
 
             <Badge variant="outline" className="w-fit text-xs font-semibold px-3 py-1 rounded-xl">
-              Project ID: {projectId}
+              Project ID: {mounted && projectId ? projectId : 'Pending'}
             </Badge>
           </div>
 
@@ -2631,7 +2644,7 @@ export default function CreatorStudioPage() {
                         : 'text-emerald-600 dark:text-emerald-400'
                     )}
                   >
-                    {instructions.trim().length.toLocaleString()} / {BRIEF_LIMITS.instructions.max.toLocaleString()}
+                    {instructions.trim().length.toLocaleString('en-US')} / {BRIEF_LIMITS.instructions.max.toLocaleString('en-US')}
                   </span>
                 </div>
                 <Textarea
@@ -2932,7 +2945,7 @@ export default function CreatorStudioPage() {
       {/* STEP 5: REVIEW & CHECKOUT                                    */}
       {/* ============================================================ */}
       {currentStep === 5 && currentPackage && (
-        <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16" suppressHydrationWarning>
+        <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16">
           {submittedProject ? (
             /* Order Confirmed Screen */
             <Card className="max-w-lg w-full mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-sm text-center animate-in fade-in zoom-in-95 duration-200">
@@ -3012,7 +3025,7 @@ export default function CreatorStudioPage() {
               <p className="text-xs text-muted-foreground leading-normal">
                 {submittedProject.fundingSource === 'wallet'
                   ? `Funded with ${submittedProject.usedCredits} credits`
-                  : `Paid $${submittedProject.packagePrice.toLocaleString()} USD`}
+                  : `Paid $${submittedProject.packagePrice.toLocaleString('en-US')} USD`}
                 {submittedProject.email ? ` · Receipt sent to ${submittedProject.email}` : ''}
               </p>
 
@@ -3079,7 +3092,7 @@ export default function CreatorStudioPage() {
                 </div>
 
                 <Badge variant="gold" className="text-sm font-mono font-bold px-3.5 py-1.5">
-                  TOTAL: ${currentPackage.price.toLocaleString()} USD
+                  TOTAL: ${currentPackage.price.toLocaleString('en-US')} USD
                 </Badge>
               </div>
 
@@ -3109,7 +3122,7 @@ export default function CreatorStudioPage() {
                       <div className="min-w-0">
                         <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">Package Value</span>
                         <b className="text-2xs sm:text-sm text-amber-600 dark:text-amber-400 font-black mt-0.5 block font-mono tabular-nums truncate">
-                          ${currentPackage.price.toLocaleString()} USD
+                          ${currentPackage.price.toLocaleString('en-US')} USD
                         </b>
                       </div>
                       <div className="min-w-0">
@@ -3313,7 +3326,7 @@ export default function CreatorStudioPage() {
                         <>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>{currentPackage.name} Package</span>
-                            <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString()} USD</span>
+                            <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString('en-US')} USD</span>
                           </div>
                           <div className="flex items-center justify-between text-muted-foreground">
                             <span>Package Allocation</span>
@@ -3348,7 +3361,7 @@ export default function CreatorStudioPage() {
                           <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                             <span>Total Due</span>
                             <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums">
-                              ${currentPackage.price.toLocaleString()} USD
+                              ${currentPackage.price.toLocaleString('en-US')} USD
                             </span>
                           </div>
                         </>

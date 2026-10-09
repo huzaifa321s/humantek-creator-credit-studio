@@ -95,6 +95,8 @@ export const useNotificationStore = create<NotificationStoreState>()(
     {
       name: 'humantek_studio_notifications',
       storage: createJSONStorage(() => localStorage),
+      version: 1,
+      skipHydration: true,
     }
   )
 );

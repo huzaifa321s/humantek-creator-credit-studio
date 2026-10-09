@@ -411,8 +411,8 @@ export function StudioCardLayout({
     }
   }, [isHydrated, user?.email, user?.role, pathname, router]);
 
-  const effectiveName = user?.name || '';
-  const effectiveEmail = userEmail || user?.email || '';
+  const effectiveName = isHydrated ? (user?.name || '') : '';
+  const effectiveEmail = isHydrated ? (userEmail || user?.email || '') : (userEmail || '');
   const effectiveBalance =
     walletBalance !== undefined
       ? walletBalance
@@ -487,8 +487,8 @@ export function StudioCardLayout({
   // 2. WIZARD MODE: Dedicated Clean Stepper Brief Flow
   // =========================================================================
   return (
-    <div className="min-h-screen w-full bg-background flex flex-col font-sans antialiased" suppressHydrationWarning>
-      <main className="flex-1 flex flex-col min-w-0 bg-background min-h-screen relative isolate" suppressHydrationWarning>
+    <div className="min-h-screen w-full bg-background flex flex-col font-sans antialiased">
+      <main className="flex-1 flex flex-col min-w-0 bg-background min-h-screen relative isolate">
         <StudioBackground />
 
         {/* Top Black Dashboard Header (Shadcn Studio Style) */}
