@@ -11,7 +11,7 @@ const alertVariants = cva(
         destructive:
           "bg-red-50/80 border-red-200 text-red-900 *:data-[slot=alert-description]:text-red-800 *:[svg]:text-red-600 dark:bg-red-950/20 dark:border-red-850/50 dark:text-red-200 dark:*:data-[slot=alert-description]:text-red-300 dark:*:[svg]:text-red-400",
         warning:
-          "bg-amber-50/90 border-amber-200/90 text-amber-950 *:data-[slot=alert-description]:text-amber-900 *:[svg]:text-amber-600 dark:bg-amber-950/20 dark:border-amber-800/40 dark:text-amber-200 dark:*:data-[slot=alert-description]:text-amber-300 dark:*:[svg]:text-amber-400",
+          "bg-amber-50/90 border-amber-200/90 text-amber-950 *:data-[slot=alert-description]:text-amber-900 *:[svg]:text-amber-700 dark:bg-amber-950/20 dark:border-amber-800/40 dark:text-amber-200 dark:*:data-[slot=alert-description]:text-amber-300 dark:*:[svg]:text-amber-400",
         info:
           "bg-blue-50/80 border-blue-200 text-blue-950 *:data-[slot=alert-description]:text-blue-900 *:[svg]:text-blue-600 dark:bg-blue-950/20 dark:border-blue-800/40 dark:text-blue-200 dark:*:data-[slot=alert-description]:text-blue-300 dark:*:[svg]:text-blue-400",
         success:

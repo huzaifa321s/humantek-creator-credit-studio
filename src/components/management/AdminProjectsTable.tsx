@@ -360,8 +360,8 @@ export function AdminProjectsTable({
                   className="cursor-pointer hover:bg-muted/40 transition-colors group"
                 >
                   {/* Code */}
-                  <TableCell className="py-3 px-4 font-mono text-xs font-bold text-amber-800 dark:text-amber-300">
-                    <span className="bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300/80 dark:border-amber-800/80">
+                  <TableCell className="py-3 px-4 font-mono text-xs font-bold text-brand-text dark:text-amber-300">
+                    <span className="bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/30">
                       {p.projectCode}
                     </span>
                   </TableCell>
@@ -369,7 +369,7 @@ export function AdminProjectsTable({
                   {/* Client / Channel */}
                   <TableCell className="py-3 px-4">
                     <div className="flex items-center gap-2.5">
-                      <Avatar className="w-8 h-8 rounded-lg border border-border text-2xs bg-amber-100 text-amber-800 font-bold shrink-0">
+                      <Avatar className="w-8 h-8 rounded-lg border border-border text-2xs bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shrink-0">
                         <AvatarFallback>
                           {(p.channelName || p.clientName || 'C').slice(0, 2).toUpperCase()}
                         </AvatarFallback>
@@ -446,7 +446,7 @@ export function AdminProjectsTable({
             {/* Drawer Header */}
             <SheetHeader className="p-5 border-b border-border/80 bg-secondary/20 shrink-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800">
+                <span className="font-mono text-xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/30">
                   {selectedProject.projectCode}
                 </span>
                 <Badge variant="outline" className="text-xs font-medium">

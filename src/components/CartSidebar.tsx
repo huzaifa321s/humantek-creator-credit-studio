@@ -256,7 +256,7 @@ export function CartSidebar({
                 </div>
                 <div className="text-right shrink-0">
                   {service.quoteOnly ? (
-                    <span className="font-bold text-amber-700 text-sm">TBC</span>
+                    <span className="font-bold text-brand-text dark:text-amber-400 text-sm">TBC</span>
                   ) : (
                     <CreditValue value={credits} size="sm" />
                   )}

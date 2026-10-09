@@ -267,7 +267,7 @@ export function AdminManualOrders() {
                 className="p-3 rounded-lg bg-card border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-2xs"
               >
                 <div className="min-w-0">
-                  <span className="font-mono text-amber-700 dark:text-amber-400 font-medium mr-2">
+                  <span className="font-mono text-brand-text dark:text-amber-400 font-medium mr-2">
                     HT-MANUAL-{o.id.slice(0, 8).toUpperCase()}
                   </span>
                   <span className="text-muted-foreground break-all">{o.profiles?.email}</span>

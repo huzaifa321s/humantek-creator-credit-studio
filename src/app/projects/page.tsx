@@ -40,7 +40,7 @@ function ProjectCardChatButton({ projectId }: { projectId: string }) {
         onClick={() => setIsOpen(true, projectId)}
         className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer w-full md:w-auto justify-center"
       >
-        <MessageSquare className="size-3.5 text-amber-600" />
+        <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
         <span>Messages</span>
         {unread > 0 && (
           <Badge
@@ -364,7 +364,7 @@ export default function ProjectsPage() {
                                 <span className="font-medium text-foreground truncate">{item.name}</span>
                                 <span className="text-muted-foreground font-mono tabular-nums shrink-0">× {item.quantity}</span>
                               </div>
-                              <span className="font-semibold text-amber-700 dark:text-amber-400 font-mono tabular-nums shrink-0">{item.credits} CR</span>
+                              <span className="font-semibold text-brand-text dark:text-amber-400 font-mono tabular-nums shrink-0">{item.credits} CR</span>
                             </div>
                           ))}
                         </div>

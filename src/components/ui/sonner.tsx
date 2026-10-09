@@ -22,16 +22,16 @@ const Toaster = ({ position = "bottom-left", ...props }: ToasterProps) => {
           <CircleCheckIcon className="size-4.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
         ),
         info: (
-          <InfoIcon className="size-4.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <InfoIcon className="size-4.5 text-brand-text dark:text-amber-400 shrink-0" />
         ),
         warning: (
-          <TriangleAlertIcon className="size-4.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <TriangleAlertIcon className="size-4.5 text-brand-text dark:text-amber-400 shrink-0" />
         ),
         error: (
           <OctagonXIcon className="size-4.5 text-rose-600 dark:text-rose-400 shrink-0" />
         ),
         loading: (
-          <Loader2Icon className="size-4.5 animate-spin text-amber-600 dark:text-amber-400 shrink-0" />
+          <Loader2Icon className="size-4.5 animate-spin text-brand-text dark:text-amber-400 shrink-0" />
         ),
       }}
       style={

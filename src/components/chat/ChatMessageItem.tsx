@@ -58,7 +58,7 @@ function SystemMarker({ content }: { content: string }) {
     <div className="flex justify-center my-4 w-full">
       <Marker variant="separator" className="text-xs text-muted-foreground py-1">
         <MarkerIcon>
-          <Sparkles className="size-3.5 text-amber-500" />
+          <Sparkles className="size-3.5 text-brand-text dark:text-amber-400" />
         </MarkerIcon>
         <MarkerContent className="font-medium text-xs max-w-[80%] text-center">{content}</MarkerContent>
       </Marker>
@@ -115,7 +115,7 @@ export const ChatMessageItem = React.memo(
         <MessageHeader className="gap-1.5 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground/90 truncate">{message.senderName}</span>
           {message.senderRole && !isClient && !compact && (
-            <span className="text-2xs font-mono text-amber-700/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
+            <span className="text-2xs font-mono text-brand-text/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
               · {message.senderRole}
             </span>
           )}

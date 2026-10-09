@@ -146,8 +146,8 @@ export function ChatProjectSidebar({
                     className={cn(
                       'text-xs font-bold tracking-tight whitespace-nowrap',
                       isGlobalSelected
-                        ? 'text-amber-900 dark:text-amber-200'
-                        : 'text-amber-950 dark:text-amber-100'
+                        ? 'text-brand-text dark:text-amber-200'
+                        : 'text-foreground'
                     )}
                   >
                     Global Chat
@@ -355,7 +355,7 @@ export function ChatProjectSidebar({
                       <span
                         className={cn(
                           'font-mono text-xs font-bold tracking-tight truncate',
-                          isSelected ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'
+                          isSelected ? 'text-brand-text dark:text-amber-300' : 'text-foreground'
                         )}
                       >
                         {p.projectCode}

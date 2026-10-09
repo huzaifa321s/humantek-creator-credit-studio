@@ -103,11 +103,11 @@ export function ServiceImageHoverCard({
           {/* Turnaround & Revisions Info Bar */}
           <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-2xs text-muted-foreground font-medium">
             <span className="inline-flex items-center gap-1">
-              <Clock className="size-3 text-amber-500 shrink-0" />
+              <Clock className="size-3 text-brand-text dark:text-amber-400 shrink-0" />
               <span>{meta.turnaround}</span>
             </span>
             <span className="inline-flex items-center gap-1 text-foreground/85">
-              <Sparkles className="size-3 text-amber-500 shrink-0" />
+              <Sparkles className="size-3 text-brand-text dark:text-amber-400 shrink-0" />
               <span>{meta.revisions}</span>
             </span>
           </div>

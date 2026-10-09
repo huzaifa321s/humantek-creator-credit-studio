@@ -413,7 +413,7 @@ function ChatFloatingWidgetInner() {
                     variant="ghost"
                     size="xs"
                     onClick={() => setUserToggledSidebar(true)}
-                    className="h-7 text-xs font-semibold gap-1 text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 p-0 hover:bg-transparent cursor-pointer"
+                    className="h-7 text-xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:underline p-0 hover:bg-transparent cursor-pointer"
                   >
                     <ChevronLeft className="size-3.5" />
                     <span>All Project Chats</span>

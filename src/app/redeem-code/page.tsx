@@ -168,7 +168,7 @@ export default function RedeemCodePage() {
                 <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
                   <CardHeader className="p-4 sm:p-6 pb-2.5 sm:pb-3">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Gift className="w-4 h-4 text-amber-600" /> Claim Creator Credits
+                      <Gift className="w-4 h-4 text-brand-text dark:text-amber-400" /> Claim Creator Credits
                     </CardTitle>
                     <CardDescription className="text-xs sm:text-sm text-muted-foreground">
                       Enter the 6-character promotional code received from your sponsorship manager, event, or partner grant.
@@ -292,7 +292,7 @@ export default function RedeemCodePage() {
                 <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
                   <CardHeader className="p-4 sm:p-6 pb-2">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Ticket className="w-4 h-4 text-amber-600" /> Promo Code Parameters
+                      <Ticket className="w-4 h-4 text-brand-text dark:text-amber-400" /> Promo Code Parameters
                     </CardTitle>
                     <CardDescription className="text-xs sm:text-sm text-muted-foreground">
                       Configure credit value and recipient assignment for this promo code.
@@ -402,7 +402,7 @@ export default function RedeemCodePage() {
                           variant="ghost"
                           size="sm"
                           onClick={copyToClipboard}
-                          className="h-8 sm:h-9 px-2.5 sm:px-3 text-amber-800 dark:text-amber-200 hover:text-amber-900 hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer rounded-lg shrink-0"
+                          className="h-8 sm:h-9 px-2.5 sm:px-3 text-brand-text dark:text-amber-300 hover:bg-amber-400/15 cursor-pointer rounded-lg shrink-0"
                         >
                           {copied ? (
                             <Check className="w-4 h-4 text-emerald-600" />

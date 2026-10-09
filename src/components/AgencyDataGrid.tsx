@@ -149,9 +149,9 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
       return <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/60 ml-1 inline" />;
     }
     return sortOrder === 'asc' ? (
-      <ArrowUp className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 ml-1 inline" />
+      <ArrowUp className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 ml-1 inline" />
     ) : (
-      <ArrowDown className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 ml-1 inline" />
+      <ArrowDown className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 ml-1 inline" />
     );
   };
 
@@ -311,7 +311,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                     className="hover:bg-muted/40 transition-colors border-b border-border/60"
                   >
                     {/* Reference */}
-                    <TableCell className="pl-5 font-mono font-bold text-amber-700 dark:text-amber-400 text-xs">
+                    <TableCell className="pl-5 font-mono font-bold text-brand-text dark:text-amber-400 text-xs">
                       {item.reference}
                     </TableCell>
 
@@ -329,7 +329,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                         </Badge>
                       )}
                       {item.type === 'service_deduction' && (
-                        <Badge variant="outline" className="text-2xs font-semibold text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 px-2 py-0.5">
+                        <Badge variant="outline" className="text-2xs font-semibold text-brand-text dark:text-amber-400 border-amber-400/30 px-2 py-0.5">
                           Service Scope
                         </Badge>
                       )}
@@ -368,7 +368,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                             <CheckCircle2 className="size-3" /> Settled
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+                          <span className="inline-flex items-center gap-1 text-brand-text dark:text-amber-400 font-medium">
                             <Clock className="size-3" /> Pending
                           </span>
                         )}

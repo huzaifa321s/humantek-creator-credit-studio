@@ -161,8 +161,8 @@ export function ChatMessageList({
             {messages.length <= 3 && (
               <MessageScrollerItem messageId="conversation-starter-intro">
                 <div className="py-2.5 px-3.5 rounded-xl bg-secondary/35 border border-border/60 text-center space-y-1 mx-auto max-w-sm my-1 animate-in fade-in duration-200">
-                  <div className="inline-flex items-center gap-1.5 text-2xs font-semibold text-amber-700 dark:text-amber-400">
-                    <Sparkles className="size-3 text-amber-500 shrink-0" />
+                  <div className="inline-flex items-center gap-1.5 text-2xs font-semibold text-brand-text dark:text-amber-400">
+                    <Sparkles className="size-3 text-brand-text dark:text-amber-400 shrink-0" />
                     <span>{isGlobal ? 'Studio Advisory & Support' : 'Dedicated Project Workspace'}</span>
                   </div>
                   <p className="text-2xs text-muted-foreground leading-relaxed">
@@ -184,7 +184,7 @@ export function ChatMessageList({
               <MessageScrollerItem messageId="typing-indicator">
                 <Marker role="status" className="pl-10 text-xs">
                   <MarkerIcon>
-                    <Spinner className="size-3.5 text-amber-500" />
+                    <Spinner className="size-3.5 text-brand-text dark:text-amber-400" />
                   </MarkerIcon>
                   <MarkerContent className="shimmer font-medium">{firstName} is typing…</MarkerContent>
                 </Marker>

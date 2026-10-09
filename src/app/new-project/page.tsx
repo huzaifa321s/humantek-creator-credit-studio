@@ -403,6 +403,8 @@ export default function CreatorStudioPage() {
   const [briefExpandedMobile, setBriefExpandedMobile] = useState(false);
   const [costBreakdownExpandedMobile, setCostBreakdownExpandedMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [submittedProjectId, setSubmittedProjectId] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<{ message: string; showProjectsLink?: boolean } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -482,6 +484,11 @@ export default function CreatorStudioPage() {
       } catch {}
     }
 
+    if (submittedProjectId) {
+      // Post-submission in flight: skip URL sync and bounce guards completely
+      return;
+    }
+
     if (parsedStep && !isNaN(parsedStep)) {
       const clamped = Math.max(1, Math.min(5, parsedStep));
       // Prerequisite: if target step > 1 and no package/wallet selected, bounce to step 1
@@ -512,7 +519,7 @@ export default function CreatorStudioPage() {
       const isCartEmpty = !hasPkg || !hasSelections;
 
       // Empty-cart rule: If someone opens ?step=5 with an empty cart, redirect to /projects
-      if (clamped === 5 && isCartEmpty) {
+      if (clamped === 5 && isCartEmpty && !submittedProjectId) {
         router.replace('/projects');
         if (typeof window !== 'undefined') {
           window.location.replace('/projects');
@@ -520,7 +527,7 @@ export default function CreatorStudioPage() {
         return;
       }
 
-      if (clamped > 1 && !hasPkg) {
+      if (clamped > 1 && !hasPkg && !submittedProjectId) {
         setCurrentStep(1);
         url.searchParams.set('step', '1');
         window.history.replaceState({}, '', url.pathname + url.search);
@@ -908,10 +915,60 @@ export default function CreatorStudioPage() {
     toast.info('Removed reference file');
   };
 
+  const completeCheckout = async (project: ProjectRecord | null) => {
+    // 1. Validate response has a project id
+    if (!project || !project.id) {
+      console.error('[Checkout] Submission response missing project id:', project);
+      const err = {
+        message: 'Your order was received, but we could not confirm the project ID. Your draft is preserved.',
+        showProjectsLink: true,
+      };
+      setSubmissionError(err);
+      toast.error('Project verification incomplete. Your draft has been kept safe.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // 2. Set submittedProjectId so all guards ignore post-submission state
+    setSubmittedProjectId(project.id);
+    setIsSubmitting(false);
+
+    // 3. Synchronize server session and register project in client stores
+    void refreshUserSession();
+    useChatStore.getState().registerProject({
+      id: project.id,
+      projectCode: project.projectCode,
+      packageName: project.packageName,
+      clientName: project.clientName,
+      status: project.status,
+      price: project.packagePrice,
+      credits: project.packageCredits,
+    });
+    useNotificationStore.getState().addNotification({
+      title: project.paymentStatus === 'paid' ? 'Project Launched' : 'Project Submitted for Review',
+      description: `Project HT-${project.projectCode} (${project.packageName}) is now in our studio system.`,
+      iconType: project.paymentStatus === 'paid' ? 'check' : 'sparkles',
+      link: `/new-project/confirmation/${project.id}`,
+    });
+
+    // 4. Navigate using router.replace to the dedicated confirmation route
+    // Note: Wizard draft is cleared ONLY by ConfirmationContent after it loads
+    try {
+      await router.replace(`/new-project/confirmation/${project.id}`);
+    } catch (navErr) {
+      console.error('[Checkout] Navigation to confirmation failed:', navErr);
+      setSubmissionError({
+        message: 'Order created successfully! Click below to view your project in My Projects.',
+        showProjectsLink: true,
+      });
+    }
+  };
+
   const handleSubmitForReview = async () => {
     if (!currentPackage || isSubmitting) return;
     setIsSubmitting(true);
     setErrorMessage('');
+    setSubmissionError(null);
 
     try {
       const data = await createProjectMutation.mutateAsync({
@@ -940,26 +997,7 @@ export default function CreatorStudioPage() {
         status: 'pending_review',
       });
 
-      void refreshUserSession();
-      useChatStore.getState().registerProject({
-        id: data.project.id,
-        projectCode: data.project.projectCode,
-        packageName: data.project.packageName,
-        clientName: data.project.clientName,
-        status: data.project.status,
-        price: data.project.packagePrice,
-        credits: data.project.packageCredits,
-      });
-      useNotificationStore.getState().addNotification({
-        title: 'Project Submitted for Review',
-        description: `Project HT-${data.project.projectCode} (${data.project.packageName}) submitted to creative operations.`,
-        iconType: 'sparkles',
-        link: '/projects',
-      });
-
-      // Navigate to dedicated confirmation route before clearing draft
-      router.replace(`/new-project/confirmation/${data.project.id}`);
-      resetWizard();
+      await completeCheckout(data?.project ?? null);
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : 'Submission failed';
       if (msg.includes('Authentication required') || msg.includes('401')) {
@@ -967,7 +1005,6 @@ export default function CreatorStudioPage() {
       }
       setErrorMessage(msg);
       toast.error(msg);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -980,6 +1017,7 @@ export default function CreatorStudioPage() {
     }
     setIsSubmitting(true);
     setErrorMessage('');
+    setSubmissionError(null);
 
     try {
       const data = await createProjectMutation.mutateAsync({
@@ -1018,31 +1056,11 @@ export default function CreatorStudioPage() {
         origin: { y: 0.6 },
       });
 
-      void refreshUserSession();
-      useChatStore.getState().registerProject({
-        id: data.project.id,
-        projectCode: data.project.projectCode,
-        packageName: data.project.packageName,
-        clientName: data.project.clientName,
-        status: data.project.status,
-        price: data.project.packagePrice,
-        credits: data.project.packageCredits,
-      });
-      useNotificationStore.getState().addNotification({
-        title: 'Project Launched with Credits',
-        description: `Project HT-${data.project.projectCode} active in production. ${usedCredits} CR deducted from wallet.`,
-        iconType: 'credits',
-        link: '/projects',
-      });
-
-      // Navigate to dedicated confirmation route before clearing draft
-      router.replace(`/new-project/confirmation/${data.project.id}`);
-      resetWizard();
+      await completeCheckout(data?.project ?? null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
       setErrorMessage(msg);
       toast.error(msg);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -1787,7 +1805,7 @@ export default function CreatorStudioPage() {
                     className={cn(
                       'font-mono font-bold tabular-nums',
                       remainingCredits >= 0
-                        ? 'text-amber-600 dark:text-amber-400'
+                        ? 'text-brand-text dark:text-amber-400'
                         : 'text-destructive font-black'
                     )}
                   >
@@ -2255,7 +2273,7 @@ export default function CreatorStudioPage() {
                     <span className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold block">Remaining</span>
                     <strong className={cn(
                       'font-mono font-bold text-xs sm:text-sm tabular-nums block leading-tight',
-                      remainingCredits >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive font-black'
+                      remainingCredits >= 0 ? 'text-brand-text dark:text-amber-400' : 'text-destructive font-black'
                     )}>
                       {remainingCredits >= 0
                         ? `${remainingCredits.toLocaleString('en-US')} CR`
@@ -2426,7 +2444,7 @@ export default function CreatorStudioPage() {
                     size="xs"
                     aria-expanded={showAllRestricted}
                     onClick={() => setShowAllRestricted(!showAllRestricted)}
-                    className="h-auto px-0 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:no-underline"
+                    className="h-auto px-0 text-xs font-semibold text-brand-text dark:text-amber-400 hover:underline cursor-pointer"
                   >
                     <span>
                       {showAllRestricted
@@ -2475,15 +2493,15 @@ export default function CreatorStudioPage() {
                 {/* Accordion Item 1: Revision & Change Rules */}
                 <AccordionItem
                   value="revisions"
-                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-500 data-[open]:border-l-amber-500"
+                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
                 >
                   <AccordionTrigger className="px-5 sm:px-6 py-4 hover:bg-secondary/40 transition-colors text-left group">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-amber-600 transition-colors flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors flex items-center justify-center shrink-0">
                         <RefreshCw className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-sm font-bold text-foreground block group-hover:text-amber-600 transition-colors">
+                        <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
                           Revision & Change Rules
                         </span>
                         <span className="text-xs text-muted-foreground font-normal">
@@ -2552,15 +2570,15 @@ export default function CreatorStudioPage() {
                 {/* Accordion Item 2: How Credits & Scopes Operate (Structured Micro-Cards) */}
                 <AccordionItem
                   value="credits"
-                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-500 data-[open]:border-l-amber-500"
+                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
                 >
                   <AccordionTrigger className="px-5 sm:px-6 py-4 hover:bg-secondary/40 transition-colors text-left group">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-amber-600 transition-colors flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors flex items-center justify-center shrink-0">
                         <Coins className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-sm font-bold text-foreground block group-hover:text-amber-600 transition-colors">
+                        <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
                           How Credits & Scopes Operate
                         </span>
                         <span className="text-xs text-muted-foreground font-normal">
@@ -2573,7 +2591,7 @@ export default function CreatorStudioPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
                       <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
                         <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <Coins className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                           <span>Credit Valuation</span>
                         </div>
                         <p className="text-muted-foreground leading-relaxed text-xs">
@@ -2583,7 +2601,7 @@ export default function CreatorStudioPage() {
 
                       <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
                         <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <Layers className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                           <span>Scope Tiers</span>
                         </div>
                         <p className="text-muted-foreground leading-relaxed text-xs">
@@ -2593,7 +2611,7 @@ export default function CreatorStudioPage() {
 
                       <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
                         <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <RefreshCw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <RefreshCw className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                           <span>Included Revisions</span>
                         </div>
                         <p className="text-muted-foreground leading-relaxed text-xs">
@@ -2603,7 +2621,7 @@ export default function CreatorStudioPage() {
 
                       <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
                         <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <Clock className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                           <span>12-Month Rollover</span>
                         </div>
                         <p className="text-muted-foreground leading-relaxed text-xs">
@@ -2617,15 +2635,15 @@ export default function CreatorStudioPage() {
                 {/* Accordion Item 3: Turnaround Timelines & Delivery Formats */}
                 <AccordionItem
                   value="turnaround"
-                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-500 data-[open]:border-l-amber-500"
+                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
                 >
                   <AccordionTrigger className="px-5 sm:px-6 py-4 hover:bg-secondary/40 transition-colors text-left group">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-amber-600 transition-colors flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors flex items-center justify-center shrink-0">
                         <Clock className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-sm font-bold text-foreground block group-hover:text-amber-600 transition-colors">
+                        <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
                           Turnaround Timelines & Delivery Formats
                         </span>
                         <span className="text-xs text-muted-foreground font-normal">
@@ -2639,17 +2657,17 @@ export default function CreatorStudioPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                         <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
                           <b className="text-foreground text-xs block mb-1">Standard Assets</b>
-                          <span className="text-amber-600 font-bold block mb-1">3–5 Business Days</span>
+                          <span className="text-brand-text dark:text-amber-400 font-bold block mb-1">3–5 Business Days</span>
                           <span className="text-xs leading-snug">Logos, emotes, badges, banners, and static screens.</span>
                         </div>
                         <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
                           <b className="text-foreground text-xs block mb-1">Motion & Video</b>
-                          <span className="text-amber-600 font-bold block mb-1">5–7 Business Days</span>
+                          <span className="text-brand-text dark:text-amber-400 font-bold block mb-1">5–7 Business Days</span>
                           <span className="text-xs leading-snug">Animated screens, alerts, video reels, and stingers.</span>
                         </div>
                         <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
                           <b className="text-foreground text-xs block mb-1">VTuber & 3D Work</b>
-                          <span className="text-amber-600 font-bold block mb-1">10–14 Business Days</span>
+                          <span className="text-brand-text dark:text-amber-400 font-bold block mb-1">10–14 Business Days</span>
                           <span className="text-xs leading-snug">Full Live2D model art & rigging with milestone reviews.</span>
                         </div>
                       </div>
@@ -2663,15 +2681,15 @@ export default function CreatorStudioPage() {
                 {/* Accordion Item 4: Commercial Rights & Terms of Service */}
                 <AccordionItem
                   value="terms"
-                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-500 data-[open]:border-l-amber-500"
+                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
                 >
                   <AccordionTrigger className="px-5 sm:px-6 py-4 hover:bg-secondary/40 transition-colors text-left group">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-amber-600 transition-colors flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors flex items-center justify-center shrink-0">
                         <FileCheck className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-sm font-bold text-foreground block group-hover:text-amber-600 transition-colors">
+                        <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
                           Commercial Rights & Terms of Service
                         </span>
                         <span className="text-xs text-muted-foreground font-normal">
@@ -2888,7 +2906,7 @@ export default function CreatorStudioPage() {
                 <div>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <Upload className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                       <b className="text-xs font-bold text-foreground">
                         Reference Art &amp; Files
                       </b>
@@ -2914,7 +2932,7 @@ export default function CreatorStudioPage() {
                       {isUploading ? (
                         <Spinner className="size-3" />
                       ) : (
-                        <Upload className="size-3 text-amber-600" />
+                        <Upload className="size-3 text-brand-text dark:text-amber-400" />
                       )}
                       Upload Files
                     </Button>
@@ -3010,7 +3028,7 @@ export default function CreatorStudioPage() {
               <div className="p-3 sm:p-3.5 rounded-xl bg-secondary/30 border border-border/70 flex flex-col justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <Coins className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                     <b className="text-xs font-bold text-foreground">
                       Promo Code
                     </b>
@@ -3203,7 +3221,7 @@ export default function CreatorStudioPage() {
                   <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <Box className="w-4 h-4 text-amber-600 shrink-0" />
+                        <Box className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                         <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                           Package Summary
                         </span>
@@ -3220,7 +3238,7 @@ export default function CreatorStudioPage() {
                       </div>
                       <div className="min-w-0">
                         <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">Package Value</span>
-                        <b className="text-2xs sm:text-sm text-amber-600 dark:text-amber-400 font-black mt-0.5 block font-mono tabular-nums truncate">
+                        <b className="text-2xs sm:text-sm text-brand-text dark:text-amber-400 font-black mt-0.5 block font-mono tabular-nums truncate">
                           ${currentPackage.price.toLocaleString('en-US')} USD
                         </b>
                       </div>
@@ -3237,7 +3255,7 @@ export default function CreatorStudioPage() {
                   <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
                     <CardHeader className="p-3.5 sm:p-5 pb-2.5 border-b border-border/60 flex flex-row items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <Layers className="w-4 h-4 text-amber-600 shrink-0" />
+                        <Layers className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                         <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider truncate">
                           Deliverables ({selectedEntries.length})
                         </CardTitle>
@@ -3283,7 +3301,7 @@ export default function CreatorStudioPage() {
                                         </TableCell>
                                         <TableCell className="py-2 text-xs text-right">
                                           {service.quoteOnly ? (
-                                            <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">TBC</span>
+                                            <span className="font-bold text-brand-text dark:text-amber-400 text-xs">TBC</span>
                                           ) : (
                                             <CreditValue value={credits} size="sm" />
                                           )}
@@ -3312,7 +3330,7 @@ export default function CreatorStudioPage() {
                     <CardContent className="hidden md:block p-4 sm:p-5 pt-3">
                       {selectedEntries.length === 0 ? (
                         <div className="py-6 px-4 text-center rounded-xl bg-secondary/20 border border-dashed border-border/80 space-y-2">
-                          <Sparkles className="w-5 h-5 text-amber-600/80 mx-auto" />
+                          <Sparkles className="w-5 h-5 text-brand-text/80 dark:text-amber-400/80 mx-auto" />
                           <b className="text-xs sm:text-sm font-semibold text-foreground block">
                             No specific services pre-allocated
                           </b>
@@ -3354,7 +3372,7 @@ export default function CreatorStudioPage() {
                                   </TableCell>
                                   <TableCell className="py-2 text-xs text-right">
                                     {service.quoteOnly ? (
-                                      <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">TBC</span>
+                                      <span className="font-bold text-brand-text dark:text-amber-400 text-xs">TBC</span>
                                     ) : (
                                       <CreditValue value={credits} size="sm" />
                                     )}
@@ -3372,7 +3390,7 @@ export default function CreatorStudioPage() {
                   <Card className="rounded-xl border border-border/80 bg-card p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 shadow-2xs">
                     <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2 sm:pb-2.5">
                       <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                        <FileText className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                         <span className="text-xs font-bold text-foreground uppercase tracking-wider truncate">
                           Production Brief
                         </span>
@@ -3476,7 +3494,7 @@ export default function CreatorStudioPage() {
 
                       {uploadedFiles.length > 0 && (
                         <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground border-t border-border/40">
-                          <Upload className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <Upload className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                           <span>{uploadedFiles.length} reference file(s) attached to brief</span>
                         </div>
                       )}
@@ -3507,10 +3525,10 @@ export default function CreatorStudioPage() {
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span>Funding Source</span>
                               <span className="font-semibold text-foreground flex items-center gap-1.5">
-                                <Wallet className="w-3.5 h-3.5 text-amber-500" /> Wallet Balance
+                                <Wallet className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" /> Wallet Balance
                               </span>
                             </div>
-                            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
+                            <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
                               <span>Scope Debited</span>
                               <span className="font-mono tabular-nums">-{usedCredits} CR</span>
                             </div>
@@ -3531,14 +3549,14 @@ export default function CreatorStudioPage() {
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span>Funding Source</span>
                               <span className="font-semibold text-foreground flex items-center gap-1.5">
-                                <Wallet className="w-3.5 h-3.5 text-amber-500" /> Global Studio Wallet
+                                <Wallet className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" /> Global Studio Wallet
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span>Current Available Balance</span>
                               <span className="font-semibold text-foreground font-mono tabular-nums">{userBalance} CR</span>
                             </div>
-                            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
+                            <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
                               <span>Service Scope Total</span>
                               <span className="font-mono tabular-nums">{usedCredits} CR</span>
                             </div>
@@ -3609,7 +3627,7 @@ export default function CreatorStudioPage() {
                             </button>
                             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                               <span>Total Due</span>
-                              <span className="text-base font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums">
+                              <span className="text-base font-black text-brand-text dark:text-amber-400 font-mono tabular-nums">
                                 ${currentPackage.price.toLocaleString('en-US')} USD
                               </span>
                             </div>
@@ -3635,7 +3653,7 @@ export default function CreatorStudioPage() {
                               <span>Total Usable Project Budget</span>
                               <span className="font-semibold text-foreground font-mono tabular-nums">{totalUsableCredits} CR</span>
                             </div>
-                            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-medium">
+                            <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
                               <span>Service Scope Used</span>
                               <span className="font-semibold font-mono tabular-nums">-{usedCredits} CR</span>
                             </div>
@@ -3653,7 +3671,7 @@ export default function CreatorStudioPage() {
                             )}
                             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                               <span>Total Due</span>
-                              <span className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums">
+                              <span className="text-base sm:text-lg font-black text-brand-text dark:text-amber-400 font-mono tabular-nums">
                                 ${currentPackage.price.toLocaleString('en-US')} USD
                               </span>
                             </div>
@@ -3664,6 +3682,19 @@ export default function CreatorStudioPage() {
 
                     {/* Payment / Wallet Settlement Action */}
                     <div className="space-y-3">
+                      {submissionError && (
+                        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <p className="font-semibold text-xs leading-snug">{submissionError.message}</p>
+                            {submissionError.showProjectsLink && (
+                              <Link href="/projects" className="inline-flex items-center text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
+                                View in My Projects &rarr;
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {isWalletFunding ? (
                         <div className="space-y-2">
                           <Button
@@ -3673,7 +3704,7 @@ export default function CreatorStudioPage() {
                             loadingText="Launching Project..."
                             disabled={userBalance < usedCredits}
                             onClick={handleLaunchWithWallet}
-                            className="w-full h-11 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full h-11 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black rounded-xl shadow-md shadow-amber-400/25 cursor-pointer flex items-center justify-center gap-2"
                           >
                             <Sparkles className="w-4 h-4" /> Confirm & Launch with {usedCredits} Credits ($0.00 USD)
                           </Button>
@@ -3721,25 +3752,7 @@ export default function CreatorStudioPage() {
                             }}
                             onSuccess={(proj) => {
                               if (proj && proj.id) {
-                                void refreshUserSession();
-                                useChatStore.getState().registerProject({
-                                  id: proj.id,
-                                  projectCode: proj.projectCode,
-                                  packageName: proj.packageName,
-                                  clientName: proj.clientName,
-                                  status: proj.status,
-                                  price: proj.packagePrice,
-                                  credits: proj.packageCredits,
-                                });
-                                useNotificationStore.getState().addNotification({
-                                  title: 'Payment Confirmed',
-                                  description: `Project HT-${proj.projectCode} payment received. Production initiated.`,
-                                  iconType: 'check',
-                                  link: '/projects',
-                                });
-
-                                // Navigate to dedicated confirmation route before clearing draft
-                                router.replace(`/new-project/confirmation/${proj.id}`);
+                                void completeCheckout(proj);
                               } else {
                                 // PayPal succeeded and credits deposited in wallet; launch project via wallet
                                 handleLaunchWithWallet();
@@ -3775,7 +3788,7 @@ export default function CreatorStudioPage() {
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer underline-offset-4 hover:underline py-1 group"
                       >
                         <span>Need sponsor or agency PO approval first?</span>
-                        <span className="font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400">
+                        <span className="font-semibold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400">
                           {isSubmitting ? 'Submitting review...' : 'Request review (no payment yet) →'}
                         </span>
                       </button>
@@ -3790,9 +3803,9 @@ export default function CreatorStudioPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => useChatStore.getState().setIsOpen(true)}
-                          className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal"
+                          className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-brand-text dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
+                          <MessageSquare className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" />
                           <span>Have questions about this brief? Chat with our team →</span>
                         </Button>
                       </div>

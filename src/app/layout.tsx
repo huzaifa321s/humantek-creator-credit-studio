@@ -51,7 +51,7 @@ export default async function RootLayout({
           showSpinner={false}
           easing="ease"
           speed={200}
-          shadow="0 0 10px #f59e0b,0 0 5px #f59e0b"
+          shadow="0 0 10px #fbbf24,0 0 5px #fbbf24"
         />
         <Providers initialUser={user}>
           <TooltipProvider>

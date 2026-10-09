@@ -240,7 +240,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                     : 'hover:bg-muted/50'
                 )}
               >
-                <Avatar className="w-8 h-8 rounded-lg border border-border bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 font-bold text-xs shrink-0 mt-0.5">
+                <Avatar className="w-8 h-8 rounded-lg border border-border bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold text-xs shrink-0 mt-0.5">
                   <AvatarFallback>
                     {(p.channelName || p.clientName || 'C').slice(0, 2).toUpperCase()}
                   </AvatarFallback>
@@ -257,7 +257,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                           {formatStudioDate(p.lastMessageAt)}
                         </span>
                       )}
-                      <span className="font-mono text-2xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-300/60 dark:border-amber-800/60">
+                      <span className="font-mono text-2xs text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-1 py-0.2 rounded border border-amber-400/30">
                         {p.projectCode}
                       </span>
                     </div>
@@ -307,7 +307,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
             >
               <ChevronLeft className="size-4" />
             </Button>
-            <Avatar className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg border border-border bg-amber-100 text-amber-800 font-bold text-xs shrink-0">
+            <Avatar className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg border border-border bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold text-xs shrink-0">
               <AvatarFallback>
                 {clientDisplayName.slice(0, 2).toUpperCase()}
               </AvatarFallback>
@@ -318,7 +318,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                   {clientDisplayName}
                 </h3>
                 {activeProject && (
-                  <span className="font-mono text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800 shrink-0">
+                  <span className="font-mono text-xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/30 shrink-0">
                     {activeProject.projectCode}
                   </span>
                 )}

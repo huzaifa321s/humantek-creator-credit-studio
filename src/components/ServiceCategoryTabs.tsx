@@ -85,7 +85,7 @@ export function ServiceCategoryTabs({
                   'rounded-lg text-xs sm:text-sm font-semibold px-2 sm:px-2.5 h-8 shrink-0 transition-all select-none flex items-center gap-1 sm:gap-1.5 cursor-pointer',
                   'data-active:bg-card data-active:text-foreground data-active:shadow-2xs',
                   hasSelectedItems
-                    ? 'bg-amber-400/15 text-amber-800 dark:text-amber-300 font-bold border border-amber-400/40 shadow-xs'
+                    ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold border border-amber-400/40 shadow-xs'
                     : 'text-muted-foreground'
                 )}
               >
