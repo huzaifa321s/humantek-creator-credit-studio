@@ -957,8 +957,9 @@ export default function CreatorStudioPage() {
         link: '/projects',
       });
 
-      // Navigate to dedicated confirmation route (draft is cleared upon confirmation mount)
+      // Navigate to dedicated confirmation route before clearing draft
       router.replace(`/new-project/confirmation/${data.project.id}`);
+      resetWizard();
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : 'Submission failed';
       if (msg.includes('Authentication required') || msg.includes('401')) {
@@ -1034,8 +1035,9 @@ export default function CreatorStudioPage() {
         link: '/projects',
       });
 
-      // Navigate to dedicated confirmation route (draft is cleared upon confirmation mount)
+      // Navigate to dedicated confirmation route before clearing draft
       router.replace(`/new-project/confirmation/${data.project.id}`);
+      resetWizard();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
       setErrorMessage(msg);

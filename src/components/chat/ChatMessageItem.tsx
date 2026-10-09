@@ -196,7 +196,7 @@ export const ChatMessageItem = React.memo(
                 isClient
                   ? message.status === 'failed'
                     ? 'rounded-xl rounded-br-sm bg-rose-500/15 border border-rose-500/30 text-foreground shadow-xs'
-                    : 'rounded-xl rounded-br-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs'
+                    : 'rounded-xl rounded-br-sm bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-medium shadow-xs'
                   : 'rounded-xl rounded-bl-sm border-border/80 bg-muted/50 dark:bg-card shadow-2xs text-foreground'
               )}
             >
@@ -219,7 +219,7 @@ export const ChatMessageItem = React.memo(
                     className={cn(
                       'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border transition-all cursor-pointer shadow-2xs',
                       r.reacted
-                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-800 dark:text-amber-300'
+                        ? 'bg-amber-400/20 border-amber-400/50 text-brand-text dark:text-amber-300'
                         : 'bg-background hover:bg-muted border-border/70 text-muted-foreground'
                     )}
                     title={`Reacted ${r.count} times`}
@@ -244,7 +244,7 @@ export const ChatMessageItem = React.memo(
             <button
               type="button"
               onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-              className="size-7 rounded-full bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center shrink-0 cursor-pointer shadow-2xs transition-transform active:scale-95"
+              className="size-7 rounded-full bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground flex items-center justify-center shrink-0 cursor-pointer shadow-xs shadow-amber-400/20 transition-transform active:scale-95"
               aria-label={isPlayingAudio ? 'Pause audio note' : 'Play audio note'}
             >
               {isPlayingAudio ? (
@@ -260,7 +260,7 @@ export const ChatMessageItem = React.memo(
                     key={i}
                     className={cn(
                       'w-1 rounded-full transition-all duration-300',
-                      isPlayingAudio ? 'bg-amber-500 animate-pulse' : 'bg-muted-foreground/40'
+                      isPlayingAudio ? 'bg-amber-400 animate-pulse' : 'bg-muted-foreground/40'
                     )}
                     style={{ height: `${h}%` }}
                   />
@@ -268,7 +268,7 @@ export const ChatMessageItem = React.memo(
               </div>
               <div className="flex items-center justify-between text-2xs text-muted-foreground">
                 <span className="flex items-center gap-1 font-mono font-medium">
-                  <Volume2 className="size-2.5 text-amber-600" /> Creative Brief Note
+                  <Volume2 className="size-2.5 text-brand-text dark:text-amber-400" /> Creative Brief Note
                 </span>
                 <span className="font-mono tabular-nums">{message.audioNote.duration}</span>
               </div>
@@ -283,7 +283,7 @@ export const ChatMessageItem = React.memo(
               <Attachment
                 key={`${message.id}-${att.id || 'att'}-${idx}`}
                 orientation="vertical"
-                className="w-40 has-data-[slot=attachment-content]:w-40 rounded-xl border-border/80 shadow-2xs hover:border-amber-500/50"
+                className="w-40 has-data-[slot=attachment-content]:w-40 rounded-xl border-border/80 shadow-2xs hover:border-amber-400/50"
               >
                 <AttachmentMedia variant="image" className="rounded-lg group/media aspect-video min-h-[85px] w-full bg-secondary/40 relative overflow-hidden">
                   {att.previewUrl ? (
@@ -332,8 +332,8 @@ export const ChatMessageItem = React.memo(
                 )}
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-amber-600/90 dark:text-amber-400/90">
-                <CheckCheck className="size-3 text-amber-600 dark:text-amber-400" />
+              <span className="flex items-center gap-1 text-brand-text/90 dark:text-amber-400/90">
+                <CheckCheck className="size-3 text-brand-text dark:text-amber-400" />
                 <span className="text-muted-foreground">Delivered to studio</span>
               </span>
             )}

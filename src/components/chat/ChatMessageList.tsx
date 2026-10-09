@@ -81,7 +81,7 @@ function ChatScrollWatcherAndPill({
       className={cn(
         'left-1/2 -translate-x-1/2 shadow-lg transition-all duration-200 cursor-pointer rounded-full z-20',
         unreadCount > 0
-          ? 'bg-amber-500 hover:bg-amber-600 text-white font-medium border border-amber-400/40 shadow-amber-500/25 px-3 py-1 h-8 w-auto'
+          ? 'bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black border border-amber-400/50 shadow-xs shadow-amber-400/25 px-3 py-1 h-8 w-auto'
           : 'border-border/80'
       )}
       onClick={() => {
@@ -134,7 +134,7 @@ export function ChatMessageList({
     return (
       <Empty className="h-full border-0">
         <EmptyHeader>
-          <EmptyMedia variant="icon" className="bg-amber-500/10 text-amber-600">
+          <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400">
             <MessageSquareDashed />
           </EmptyMedia>
           <EmptyTitle className="text-sm">
