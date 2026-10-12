@@ -15,10 +15,8 @@ import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
 import { ChatAttachmentModal } from '@/components/chat/ChatAttachmentModal';
 import {
-  ShieldCheck,
   ChevronLeft,
   ExternalLink,
-  Copy,
   MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -264,15 +262,12 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                   </div>
                 ) : (
                   activeProject && (
-                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                      <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      <span className="font-mono text-xs font-bold tracking-tight text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded border border-amber-400/30 shrink-0">
                         {activeProject.projectCode}
                       </span>
-                      <span className="text-foreground/90 font-semibold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-[260px]">
-                        {activeProject.channelName &&
-                        activeProject.channelName.toLowerCase() !== activeProject.clientName.toLowerCase()
-                          ? `${activeProject.channelName} · ${activeProject.packageName}`
-                          : activeProject.packageName || 'Project Workspace'}
+                      <span className="text-foreground font-bold text-sm truncate max-w-[200px] sm:max-w-[400px]">
+                        {activeProject.channelName || activeProject.packageName || 'Project Workspace'}
                       </span>
                       <Badge
                         variant="outline"
@@ -288,36 +283,15 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
               {/* Right Controls */}
               <div className="flex items-center gap-2 shrink-0">
                 {!isGlobal && activeProject && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(activeProject.id);
-                        toast.success(`Copied Project ID: ${activeProject.id}`);
-                      }}
-                      className="hidden sm:inline-flex items-center gap-1 font-mono text-3xs text-muted-foreground hover:text-foreground bg-secondary/80 hover:bg-secondary px-1.5 py-0.5 rounded border border-border/70 cursor-pointer transition-colors"
-                      title={`Database ID: ${activeProject.id} (Click to copy)`}
-                    >
-                      <span>ID:</span>
-                      <span className="truncate max-w-[70px]">{activeProject.id.slice(0, 8)}…</span>
-                      <Copy className="size-2.5 opacity-60" />
-                    </button>
-
-                    <Link
-                      href={`/management/projects?project=${activeProject.id}`}
-                      title="View project in management table"
-                      className="inline-flex items-center gap-1 text-2xs font-semibold text-brand-text dark:text-amber-400 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
-                    >
-                      <span>View Project</span>
-                      <ExternalLink className="size-2.5" />
-                    </Link>
-                  </>
+                  <Link
+                    href={`/management/projects?project=${activeProject.id}`}
+                    title="View project in management table"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-text dark:text-amber-400 hover:text-amber-500 bg-amber-400/10 hover:bg-amber-400/15 dark:bg-amber-400/15 dark:hover:bg-amber-400/25 px-2.5 py-1 rounded-md border border-amber-400/25 transition-colors cursor-pointer"
+                  >
+                    <span>View Project</span>
+                    <ExternalLink className="size-3" />
+                  </Link>
                 )}
-
-                <div className="flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shrink-0">
-                  <ShieldCheck className="size-3" />
-                  <span className="hidden sm:inline">Admin Mode</span>
-                </div>
               </div>
             </div>
 
@@ -332,15 +306,19 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                   <span className="font-semibold text-foreground/90 truncate">
                     Client: {activeProject.clientName}
                   </span>
-                  <span className="text-muted-foreground/60">({activeProject.email})</span>
+                  <span className="text-muted-foreground/60 hidden sm:inline">({activeProject.email})</span>
                   <span className="text-muted-foreground/40">·</span>
+                  <span className="text-muted-foreground font-medium hidden xs:inline">
+                    {activeProject.packageName}
+                  </span>
+                  <span className="text-muted-foreground/40 hidden xs:inline">·</span>
                   <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/25 shrink-0 text-3xs">
                     {activeProject.packageCredits || activeProject.usedCredits || 0} CR
                   </span>
                   {activeProject.packagePrice > 0 && (
                     <>
-                      <span className="text-muted-foreground/40 hidden xs:inline">·</span>
-                      <span className="font-mono tabular-nums text-foreground/80 font-medium shrink-0 hidden xs:inline">
+                      <span className="text-muted-foreground/40 hidden sm:inline">·</span>
+                      <span className="font-mono tabular-nums text-foreground/80 font-medium shrink-0 hidden sm:inline">
                         ${activeProject.packagePrice.toLocaleString()} USD
                       </span>
                     </>
@@ -352,7 +330,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
             )}
           </div>
 
-          {/* 3. Message Thread (Identical bg-card/60 container and MessageScroller feed) */}
+          {/* 3. Message Thread (Centered comfortable reading width) */}
           <div className="flex-1 min-h-0 bg-card/60 flex flex-col overflow-hidden">
             <ChatMessageList
               messages={displayMessages}
@@ -362,7 +340,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
               onClearUnread={clearUnreadBelowScroll}
               onIncrementUnread={incrementUnreadBelowScroll}
               className="h-full"
-              contentClassName="p-4 sm:p-5 gap-3"
+              contentClassName="p-4 sm:p-6 gap-3 max-w-4xl mx-auto w-full"
               emptyTitle={isGlobal ? 'Studio Support Desk' : 'No messages in this project yet'}
               emptyDescription={
                 isGlobal
@@ -395,23 +373,25 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
             />
           </div>
 
-          {/* 4. Admin Composer (Identical bg-card/90 container and reusable ChatInputBar) */}
+          {/* 4. Admin Composer (Centered to match message feed) */}
           <div className="px-4 py-3 border-t border-border/70 bg-card/90 shrink-0">
-            <ChatInputBar
-              onSendMessage={handleSendMessage}
-              replyingTo={replyingTo}
-              onCancelReply={() => setReplyingTo(null)}
-              editingMessage={editingMessage}
-              onCancelEdit={() => setEditingMessage(null)}
-              onSaveEdit={handleSaveEdit}
-              isGlobal={isGlobal}
-              projectId={targetProjectId || undefined}
-              activeProjectCode={isGlobal ? undefined : activeProject?.projectCode}
-              activeProjectName={
-                isGlobal ? undefined : activeProject?.channelName || activeProject?.packageName
-              }
-              viewerRole="admin"
-            />
+            <div className="max-w-4xl mx-auto w-full">
+              <ChatInputBar
+                onSendMessage={handleSendMessage}
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
+                editingMessage={editingMessage}
+                onCancelEdit={() => setEditingMessage(null)}
+                onSaveEdit={handleSaveEdit}
+                isGlobal={isGlobal}
+                projectId={targetProjectId || undefined}
+                activeProjectCode={isGlobal ? undefined : activeProject?.projectCode}
+                activeProjectName={
+                  isGlobal ? undefined : activeProject?.channelName || activeProject?.packageName
+                }
+                viewerRole="admin"
+              />
+            </div>
           </div>
         </div>
       </div>

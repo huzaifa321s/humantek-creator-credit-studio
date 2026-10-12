@@ -346,18 +346,20 @@ export function ChatInputBar({
                 )}
               </InputGroupButton>
 
-              <InputGroupButton
-                size="icon-sm"
-                onClick={() => {
-                  toast.success('Attached creative voice memo (0:24)');
-                  setText((prev) => (prev ? `${prev} 🎙️ [Voice memo: 0:24]` : '🎙️ Recorded voice note (0:24)'));
-                }}
-                className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400"
-                aria-label="Record creative voice memo"
-                title="Record creative voice memo"
-              >
-                <Mic className="size-4" />
-              </InputGroupButton>
+              {viewerRole !== 'admin' && (
+                <InputGroupButton
+                  size="icon-sm"
+                  onClick={() => {
+                    toast.success('Attached creative voice memo (0:24)');
+                    setText((prev) => (prev ? `${prev} 🎙️ [Voice memo: 0:24]` : '🎙️ Recorded voice note (0:24)'));
+                  }}
+                  className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400"
+                  aria-label="Record creative voice memo"
+                  title="Record creative voice memo"
+                >
+                  <Mic className="size-4" />
+                </InputGroupButton>
+              )}
             </>
           )}
 

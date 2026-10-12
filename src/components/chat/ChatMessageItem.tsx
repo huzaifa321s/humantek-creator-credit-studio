@@ -200,8 +200,11 @@ export const ChatMessageItem = React.memo(
                 · {message.senderRole}
               </span>
             )}
-            <span className="text-2xs font-mono tabular-nums whitespace-nowrap text-muted-foreground/80 ml-1">
-              {formatChatTimestamp(message.timestamp)}
+            <span className="text-2xs font-mono tabular-nums whitespace-nowrap text-muted-foreground/80 ml-1 inline-flex items-center gap-1">
+              <span>{formatChatTimestamp(message.timestamp)}</span>
+              {isOutgoing && !isDeleted && message.status !== 'failed' && message.status !== 'sending' && (
+                <CheckCheck className="size-3 text-brand-text/90 dark:text-amber-400/90 inline-block" />
+              )}
             </span>
             {message.isEdited && !isDeleted && (
               <span className="text-3xs font-mono text-muted-foreground/70 italic ml-1">(edited)</span>
@@ -399,15 +402,15 @@ export const ChatMessageItem = React.memo(
             </AttachmentGroup>
           )}
 
-          {/* Message Delivery Status Indicator */}
-          {isOutgoing && !isDeleted && (
+          {/* Message Delivery Status Indicator: only show for sending or failed error, removing repetitive 'Sent to client' clutter */}
+          {isOutgoing && !isDeleted && (message.status === 'sending' || message.status === 'failed') && (
             <MessageFooter className="gap-1 text-2xs">
               {message.status === 'sending' ? (
                 <span className="flex items-center gap-1 text-muted-foreground/80 animate-pulse font-mono text-3xs">
                   <Clock className="size-3 text-muted-foreground/70" />
                   <span>Sending...</span>
                 </span>
-              ) : message.status === 'failed' ? (
+              ) : (
                 <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-medium">
                   <AlertCircle className="size-3 shrink-0" />
                   <span className="text-3xs truncate max-w-[160px] sm:max-w-xs">{message.errorReason || 'Failed to send'}</span>
@@ -421,13 +424,6 @@ export const ChatMessageItem = React.memo(
                       Retry
                     </button>
                   )}
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-brand-text/90 dark:text-amber-400/90">
-                  <CheckCheck className="size-3 text-brand-text dark:text-amber-400" />
-                  <span className="text-muted-foreground">
-                    {viewerRole === 'admin' ? 'Sent to client' : 'Delivered to studio'}
-                  </span>
                 </span>
               )}
             </MessageFooter>

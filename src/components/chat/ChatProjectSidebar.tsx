@@ -228,11 +228,18 @@ export function ChatProjectSidebar({
         rawChannel?.toLowerCase() === (p.clientName || '').toLowerCase());
 
     const hasDistinctChannel = Boolean(rawChannel && !isSelfName);
-    const title = hasDistinctChannel
-      ? `${rawChannel} · ${p.packageName}`
+
+    // Primary title on Line 1 (clean, un-concatenated so it doesn't truncate)
+    const displayTitle = hasDistinctChannel
+      ? rawChannel
       : viewerRole === 'admin' && p.clientName
-      ? `${p.clientName} · ${p.packageName}`
+      ? p.clientName
       : p.packageName || 'Project Workspace';
+
+    // Secondary detail on Line 2 next to the monospace code pill
+    const secondaryDetail = hasDistinctChannel
+      ? viewerRole === 'admin' && p.clientName ? p.clientName : p.packageName
+      : viewerRole === 'admin' ? p.packageName : '';
 
     return (
       <SidebarMenuItem key={p.id}>
@@ -251,7 +258,7 @@ export function ChatProjectSidebar({
             <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 rounded-r-xs" />
           )}
 
-          {/* Line 1: Package / Channel Title + Status or Unread */}
+          {/* Line 1: Channel / Project Title + Status or Unread */}
           <div className="flex items-center justify-between gap-1 mb-0.5 w-full">
             <span
               className={cn(
@@ -259,7 +266,7 @@ export function ChatProjectSidebar({
                 isSelected ? 'text-brand-text dark:text-amber-300' : 'text-foreground'
               )}
             >
-              {title}
+              {displayTitle}
             </span>
 
             <div className="flex items-center gap-1 shrink-0">
@@ -281,15 +288,15 @@ export function ChatProjectSidebar({
             </div>
           </div>
 
-          {/* Line 2: Monospace Code Pill + Client tag (admin) + Time */}
+          {/* Line 2: Monospace Code Pill + Client/Package tag + Time */}
           <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1 w-full gap-1">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-mono text-3xs text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-1 py-0.2 rounded border border-amber-400/25 shrink-0 font-semibold">
                 {p.projectCode}
               </span>
-              {viewerRole === 'admin' && p.clientName && hasDistinctChannel && (
+              {secondaryDetail && (
                 <span className="text-3xs text-muted-foreground truncate">
-                  {p.clientName}
+                  {secondaryDetail}
                 </span>
               )}
             </div>
@@ -301,8 +308,8 @@ export function ChatProjectSidebar({
           {/* Line 3: Snippet */}
           <p
             className={cn(
-              'text-2xs line-clamp-1 leading-relaxed w-full break-words text-muted-foreground/80 italic',
-              pUnread > 0 && 'font-medium text-foreground dark:text-amber-200 not-italic'
+              'text-2xs line-clamp-1 leading-relaxed w-full break-words text-muted-foreground/80',
+              pUnread > 0 && 'font-medium text-foreground dark:text-amber-200'
             )}
           >
             {lastPreview}
