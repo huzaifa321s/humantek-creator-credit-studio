@@ -5,6 +5,29 @@ import { usePathname } from 'next/navigation';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ShieldCheck } from 'lucide-react';
 
+const ROUTE_HEADERS: Record<string, { title: string; description: string }> = {
+  '/management': {
+    title: 'Studio Overview',
+    description: 'Real-time brief pipeline, creator inquiries, and studio operations.',
+  },
+  '/management/projects': {
+    title: 'Project Briefs Queue',
+    description: 'Track client briefs, milestone approvals, and delivery status.',
+  },
+  '/management/orders': {
+    title: 'Manual Payment Orders',
+    description: 'Review and verify offline payments, wire transfers, and receipts.',
+  },
+  '/management/ledger': {
+    title: 'Studio Credit Ledger',
+    description: 'Audit credit allocations, redemptions, and package grants.',
+  },
+  '/management/alerts': {
+    title: 'Studio Alerts',
+    description: 'Review flagged transactions, refund requests, and notifications.',
+  },
+};
+
 export function ManagementLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isInbox = pathname.startsWith('/management/inbox');
@@ -29,6 +52,12 @@ export function ManagementLayoutShell({ children }: { children: React.ReactNode 
     );
   }
 
+  const currentHeader =
+    ROUTE_HEADERS[pathname] || {
+      title: 'Studio Management',
+      description: 'Manage creator briefs, workflows, and studio communications.',
+    };
+
   return (
     <StudioCardLayout
       mode="standalone"
@@ -40,17 +69,20 @@ export function ManagementLayoutShell({ children }: { children: React.ReactNode 
         </div>
       }
     >
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Agency Management Console
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Authoritative agency operations, client queues, real-time messaging, and financial audits.
-          </p>
+      <div className="space-y-6 pb-24 sm:pb-32 animate-in fade-in duration-200">
+        {/* Top Header matching the clean standard of ProjectsPage.tsx */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
+          <div>
+            <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
+              {currentHeader.title}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+              {currentHeader.description}
+            </p>
+          </div>
         </div>
 
-        <div className="min-h-[500px] animate-in fade-in duration-200">
+        <div className="min-h-[500px]">
           {children}
         </div>
       </div>

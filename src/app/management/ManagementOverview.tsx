@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -8,21 +8,25 @@ import {
   MessageSquare,
   Receipt,
   Landmark,
-  ShieldAlert,
   ArrowRight,
-  Clock,
-  Sparkles,
-  CheckCircle2,
-  AlertTriangle,
 } from 'lucide-react';
 import { AdminKpiStrip } from '@/components/management/AdminKpiStrip';
 import { useManagementSummaryQuery } from '@/lib/queries/management';
 import { useProjectsQuery } from '@/lib/queries/projects';
+import { useStudioChat } from '@/lib/chatStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditValue } from '@/components/ui/credit-value';
-import { getProjectStatusLabel, formatStudioDate } from '@/lib/utils';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
+import { cn, formatStudioDate } from '@/lib/utils';
 
 export function ManagementOverview() {
   const router = useRouter();
@@ -46,6 +50,11 @@ export function ManagementOverview() {
 
   const { data: summary, isPending: isSummaryLoading } = useManagementSummaryQuery();
   const { data: recentProjects = [], isPending: isProjectsLoading } = useProjectsQuery();
+  const { unreadCounts } = useStudioChat();
+
+  const totalUnreadMessages = useMemo(() => {
+    return Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+  }, [unreadCounts]);
 
   const kpis = summary?.kpis || {
     totalRevenue: 0,
@@ -63,10 +72,10 @@ export function ManagementOverview() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* 1. Authoritative Server-Computed KPI Strip */}
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
+      {/* 1. Authoritative Studio KPI Strip */}
       {isSummaryLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Skeleton className="h-24 w-full rounded-xl" />
           <Skeleton className="h-24 w-full rounded-xl" />
           <Skeleton className="h-24 w-full rounded-xl" />
@@ -81,213 +90,326 @@ export function ManagementOverview() {
         />
       )}
 
-      {/* 2. Action Centers: Requires Attention */}
+      {/* 2. Studio Workspaces Quick Access */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            Action Centers &bull; Attention Needed
+          <h2 className="text-2xs font-bold uppercase tracking-wider text-muted-foreground/90">
+            Studio Workspaces
           </h2>
-          <span className="text-xs text-muted-foreground font-mono">Live Pulse</span>
+          <span className="text-3xs text-muted-foreground font-mono">Operations</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Card 1: Pending Projects Review */}
-          <div className="rounded-xl border border-border/80 bg-card/60 p-4 flex flex-col justify-between hover:border-amber-400/40 transition-all shadow-xs group">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="p-2 rounded-lg bg-amber-400/10 text-amber-500">
-                  <Clock className="size-4" />
-                </span>
-                <Badge
-                  variant="outline"
-                  className={
-                    counts.pendingReview > 0
-                      ? 'border-amber-400/30 text-amber-500 font-bold bg-amber-400/10'
-                      : 'text-muted-foreground'
-                  }
-                >
-                  {counts.pendingReview} Pending
-                </Badge>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">Project Scope Reviews</h3>
-              <p className="text-xs text-muted-foreground">
-                New briefs submitted by clients awaiting review, milestone scoping, or delivery sign-off.
-              </p>
-            </div>
-            <div className="pt-4">
-              <Link href="/management/projects?status=pending_review">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full text-xs font-semibold justify-between group-hover:bg-amber-400/15 group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors cursor-pointer"
-                >
-                  <span>Review Queue</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-                </Button>
-              </Link>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Card 1: Briefs Queue */}
+          <Link href="/management/projects" className="block group">
+            <Card className="p-4 sm:p-4.5 rounded-xl border border-border/80 bg-card shadow-2xs group-hover:border-amber-400/40 transition-all flex flex-col justify-between h-full">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="size-8 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shadow-2xs">
+                    <FolderKanban className="size-4" />
+                  </span>
+                  {counts.pendingReview > 0 ? (
+                    <Badge variant="gold" className="text-3xs font-bold px-1.5 py-0 h-4">
+                      {counts.pendingReview} to review
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-3xs font-medium lowercase px-1.5 py-0 h-4 text-muted-foreground border-border/70 rounded-md"
+                    >
+                      {counts.projects} briefs
+                    </Badge>
+                  )}
+                </div>
 
-          {/* Card 2: Wire Orders Verification */}
-          <div className="rounded-xl border border-border/80 bg-card/60 p-4 flex flex-col justify-between hover:border-blue-400/40 transition-all shadow-xs group">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
-                  <Landmark className="size-4" />
-                </span>
-                <Badge
-                  variant="outline"
-                  className={
-                    counts.wireOrders > 0
-                      ? 'border-blue-400/30 text-blue-500 font-bold bg-blue-400/10'
-                      : 'text-muted-foreground'
-                  }
-                >
-                  {counts.wireOrders} Awaiting Bank
-                </Badge>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
+                    Briefs Queue
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    Manage client briefs, delivery milestones, and stage sign-offs.
+                  </p>
+                </div>
               </div>
-              <h3 className="text-sm font-semibold text-foreground">Wire & Manual Orders</h3>
-              <p className="text-xs text-muted-foreground">
-                Client wire transfers, Payoneer receipts, and manual payment confirmations needing verification.
-              </p>
-            </div>
-            <div className="pt-4">
-              <Link href="/management/orders">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full text-xs font-semibold justify-between group-hover:bg-blue-500/15 group-hover:text-blue-400 transition-colors cursor-pointer"
-                >
-                  <span>Verify Receipts</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-                </Button>
-              </Link>
-            </div>
-          </div>
 
-          {/* Card 3: Security & Settlement Alerts */}
-          <div className="rounded-xl border border-border/80 bg-card/60 p-4 flex flex-col justify-between hover:border-rose-400/40 transition-all shadow-xs group">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="p-2 rounded-lg bg-rose-500/10 text-rose-500">
-                  <ShieldAlert className="size-4" />
-                </span>
-                <Badge
-                  variant="outline"
-                  className={
-                    counts.alerts > 0
-                      ? 'border-rose-400/30 text-rose-500 font-bold bg-rose-400/10'
-                      : 'text-muted-foreground'
-                  }
-                >
-                  {counts.alerts} Unresolved
-                </Badge>
+              <div className="pt-4 flex items-center gap-1 text-xs font-semibold text-brand-text dark:text-amber-400 group-hover:underline">
+                <span>Open Queue</span>
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
               </div>
-              <h3 className="text-sm font-semibold text-foreground">Security & Settlements</h3>
-              <p className="text-xs text-muted-foreground">
-                Payment shortfalls, chargeback alerts, credit clawbacks, or payment disputes.
-              </p>
-            </div>
-            <div className="pt-4">
-              <Link href="/management/alerts">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full text-xs font-semibold justify-between group-hover:bg-rose-500/15 group-hover:text-rose-400 transition-colors cursor-pointer"
-                >
-                  <span>Investigate Alerts</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-                </Button>
-              </Link>
-            </div>
-          </div>
+            </Card>
+          </Link>
+
+          {/* Card 2: Studio Desk (Communications) */}
+          <Link href="/management/inbox" className="block group">
+            <Card className="p-4 sm:p-4.5 rounded-xl border border-border/80 bg-card shadow-2xs group-hover:border-amber-400/40 transition-all flex flex-col justify-between h-full">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="size-8 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shadow-2xs">
+                    <MessageSquare className="size-4" />
+                  </span>
+                  {totalUnreadMessages > 0 ? (
+                    <Badge variant="destructive" className="text-3xs font-mono font-bold px-1.5 py-0 h-4 animate-pulse">
+                      {totalUnreadMessages} new
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-3xs font-medium lowercase px-1.5 py-0 h-4 text-muted-foreground border-border/70 rounded-md"
+                    >
+                      live desk
+                    </Badge>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
+                    Studio Desk
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    Direct real-time conversations with creators across active briefs.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center gap-1 text-xs font-semibold text-brand-text dark:text-amber-400 group-hover:underline">
+                <span>Open Messages</span>
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Card>
+          </Link>
+
+          {/* Card 3: Manual Payments */}
+          <Link href="/management/orders" className="block group">
+            <Card className="p-4 sm:p-4.5 rounded-xl border border-border/80 bg-card shadow-2xs group-hover:border-amber-400/40 transition-all flex flex-col justify-between h-full">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="size-8 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shadow-2xs">
+                    <Landmark className="size-4" />
+                  </span>
+                  {counts.wireOrders > 0 ? (
+                    <Badge variant="gold" className="text-3xs font-bold px-1.5 py-0 h-4">
+                      {counts.wireOrders} pending
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-3xs font-medium lowercase px-1.5 py-0 h-4 text-muted-foreground border-border/70 rounded-md"
+                    >
+                      all clear
+                    </Badge>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
+                    Manual Payments
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    Review and confirm wire transfers, Payoneer receipts, and invoices.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center gap-1 text-xs font-semibold text-brand-text dark:text-amber-400 group-hover:underline">
+                <span>Review Orders</span>
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Card>
+          </Link>
+
+          {/* Card 4: Credit Ledger */}
+          <Link href="/management/ledger" className="block group">
+            <Card className="p-4 sm:p-4.5 rounded-xl border border-border/80 bg-card shadow-2xs group-hover:border-amber-400/40 transition-all flex flex-col justify-between h-full">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="size-8 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shadow-2xs">
+                    <Receipt className="size-4" />
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-3xs font-medium lowercase px-1.5 py-0 h-4 text-muted-foreground border-border/70 rounded-md"
+                  >
+                    audit log
+                  </Badge>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
+                    Credit Ledger
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    Audit package grants, balance top-ups, and studio redemptions.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center gap-1 text-xs font-semibold text-brand-text dark:text-amber-400 group-hover:underline">
+                <span>View Ledger</span>
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Card>
+          </Link>
         </div>
       </div>
 
-      {/* 3. Recent Projects Snapshot */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FolderKanban className="size-4 text-amber-500" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              Recent Agency Projects
-            </h2>
+      {/* 3. Recent Project Briefs */}
+      <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+        <CardHeader className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-border/70 bg-secondary/15 flex flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs">
+              <FolderKanban className="size-3.5" />
+            </span>
+            <div>
+              <CardTitle className="text-sm sm:text-base font-bold tracking-tight text-foreground">
+                Recent Project Briefs
+              </CardTitle>
+              <CardDescription className="text-2xs text-muted-foreground">
+                Latest client briefs submitted across all packages
+              </CardDescription>
+            </div>
           </div>
-          <Link
-            href="/management/projects"
-            className="text-xs font-semibold text-amber-500 hover:text-amber-400 inline-flex items-center gap-1 transition-colors"
-          >
-            <span>View Full Queue ({counts.projects})</span>
-            <ArrowRight className="size-3" />
+
+          <Link href="/management/projects">
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:bg-amber-400/15 rounded-md cursor-pointer"
+            >
+              <span>View All ({counts.projects})</span>
+              <ArrowRight className="size-3" />
+            </Button>
           </Link>
-        </div>
+        </CardHeader>
 
-        <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
+        <CardContent className="p-0">
           {isProjectsLoading ? (
-            <div className="p-6 space-y-3">
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-            </div>
-          ) : recentProjects.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">
-              No projects recorded in database yet.
-            </div>
-          ) : (
-            <div className="divide-y divide-border/60">
-              {recentProjects.slice(0, 5).map((project) => (
-                <div
-                  key={project.id}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-foreground">
-                        {project.projectCode || project.id.slice(0, 8)}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="text-2xs font-semibold capitalize"
-                      >
-                        {getProjectStatusLabel(project.status)}
-                      </Badge>
-                      <Badge
-                        variant="secondary"
-                        className={
-                          project.paymentStatus === 'paid'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-2xs'
-                            : 'text-2xs'
-                        }
-                      >
-                        {project.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      Client: <span className="text-foreground font-medium">{project.clientName}</span> ({project.email}) &bull; Package: {project.packageName}
-                    </div>
+            <div className="p-4 sm:p-5 space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-secondary/10">
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-32 rounded-md" />
+                    <Skeleton className="h-3 w-48 rounded-md" />
                   </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right">
-                      <div className="text-xs font-mono font-bold text-foreground">
-                        ${project.packagePrice.toLocaleString()} USD
-                      </div>
-                      <div className="text-2xs text-muted-foreground font-mono">
-                        {project.usedCredits} Credits
-                      </div>
-                    </div>
-                    <Link href={`/management/projects?project=${project.id}`}>
-                      <Button size="sm" variant="outline" className="h-8 text-xs font-semibold cursor-pointer">
-                        Manage
-                      </Button>
-                    </Link>
-                  </div>
+                  <Skeleton className="h-7 w-20 rounded-md" />
                 </div>
               ))}
             </div>
+          ) : recentProjects.length === 0 ? (
+            <Empty className="py-10 border-0">
+              <EmptyHeader>
+                <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400 size-9">
+                  <FolderKanban className="size-4.5" />
+                </EmptyMedia>
+                <EmptyTitle className="text-sm font-semibold tracking-tight">
+                  No project briefs yet
+                </EmptyTitle>
+                <EmptyDescription className="text-xs text-muted-foreground leading-normal max-w-xs">
+                  Client project briefs will appear here once submitted.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="divide-y divide-border/60">
+              {recentProjects.slice(0, 5).map((project) => {
+                const hasChannel = Boolean(
+                  project.channelName &&
+                  project.channelName.toLowerCase() !== project.clientName.toLowerCase()
+                );
+                const title = hasChannel
+                  ? `${project.channelName} · ${project.packageName}`
+                  : project.packageName || 'Creative Brief';
+
+                return (
+                  <div
+                    key={project.id}
+                    className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-secondary/20 transition-colors"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-3xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
+                          {project.projectCode || project.id.slice(0, 8)}
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-foreground truncate">
+                          {title}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                        >
+                          {project.status.replace(/_/g, ' ').toLowerCase()}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 rounded-md',
+                            project.paymentStatus === 'paid'
+                              ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                              : 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                          )}
+                        >
+                          {project.paymentStatus === 'paid' ? 'paid' : 'unpaid'}
+                        </Badge>
+                      </div>
+
+                      <div className="text-2xs text-muted-foreground truncate">
+                        <span>
+                          Client: <b className="text-foreground/90 font-medium">{project.clientName}</b>
+                        </span>
+                        <span className="mx-1.5">·</span>
+                        <span>{project.email}</span>
+                        {project.createdAt && (
+                          <>
+                            <span className="mx-1.5">·</span>
+                            <span>{formatStudioDate(project.createdAt)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                      <div className="text-right">
+                        <div className="text-xs font-mono font-bold text-foreground">
+                          ${project.packagePrice.toLocaleString()} USD
+                        </div>
+                        <div className="text-2xs text-muted-foreground flex items-center justify-end gap-1 font-mono">
+                          <CreditValue
+                            value={project.packageCredits || project.usedCredits || 0}
+                            size="xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <Link href={`/management/inbox?thread=${project.id}`}>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            className="h-7 px-2 text-2xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:bg-amber-400/15 rounded-md cursor-pointer"
+                            title="Open in studio desk"
+                          >
+                            <MessageSquare className="size-3" />
+                            <span className="hidden sm:inline">Chat</span>
+                          </Button>
+                        </Link>
+
+                        <Link href={`/management/projects?project=${project.id}`}>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="h-7 px-2.5 text-2xs font-semibold rounded-md border-border/80 hover:border-amber-400/50 hover:bg-secondary/40 cursor-pointer"
+                          >
+                            Manage
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

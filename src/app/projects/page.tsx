@@ -291,11 +291,11 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (!hasAutoSwitchedTab.current && totalCount >= 10) {
       hasAutoSwitchedTab.current = true;
-      if (activeCount > 0) {
-        setActiveTab('active');
-      } else {
-        setActiveTab('all');
-      }
+      const target = activeCount > 0 ? 'active' : 'all';
+      const timer = setTimeout(() => {
+        setActiveTab(target);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [totalCount, activeCount]);
 
@@ -494,7 +494,7 @@ export default function ProjectsPage() {
                           </span>
                           <span className="text-muted-foreground">
                             {proj.status === 'pending_review'
-                              ? ' · Sarah is reviewing your brief'
+                              ? ' · Studio team is reviewing your project'
                               : proj.status === 'payment_confirmed'
                               ? ' · Queued for production'
                               : proj.status === 'in_production'

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Check, Sparkles, Clock, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { cn, formatStudioDate } from '@/lib/utils';
 import {
   Tooltip,
@@ -39,10 +39,10 @@ export const PIPELINE_STAGES: PipelineStageInfo[] = [
   {
     number: 3,
     id: 'brief_approved',
-    name: 'Brief Approved',
-    shortName: 'Brief',
-    description: 'Sarah locked the brief and assigned artists.',
-    signoff: 'Sarah Miller',
+    name: 'Project Approved',
+    shortName: 'Approved',
+    description: 'Studio team approved project scope and assigned artists.',
+    signoff: 'Studio Team',
   },
   {
     number: 4,
@@ -58,7 +58,7 @@ export const PIPELINE_STAGES: PipelineStageInfo[] = [
     name: 'Review Round',
     shortName: 'Review',
     description: 'First draft sent for your feedback.',
-    signoff: 'Sarah + Client',
+    signoff: 'Studio + Client',
   },
   {
     number: 6,
@@ -102,10 +102,9 @@ export function ProjectPipelineStepper({
   className,
 }: ProjectPipelineStepperProps) {
   const activeIndex = getPipelineStageIndex(status);
-  const activeStep = activeIndex + 1;
-
-  const baseDate = createdAt ? new Date(createdAt).getTime() : Date.now();
-  const now = Date.now();
+  const [mountedNow] = React.useState(() => Date.now());
+  const baseDate = createdAt ? new Date(createdAt).getTime() : mountedNow;
+  const now = mountedNow;
 
   // Consistent date calculator:
   // - Completed stages: realistic historical timeline from createdAt up to today

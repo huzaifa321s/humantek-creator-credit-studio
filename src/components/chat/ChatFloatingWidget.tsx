@@ -26,7 +26,6 @@ import { ChatAttachmentModal } from './ChatAttachmentModal';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatProjectSidebar } from './ChatProjectSidebar';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ChatGate } from '@/components/chat/ChatGate';
 
@@ -386,13 +385,9 @@ function ChatFloatingWidgetInner() {
                   </Button>
                 )}
 
-                <div className="relative shrink-0">
-                  <Avatar className="size-8 sm:size-8.5 border border-amber-400/40 bg-amber-400/15 shadow-2xs">
-                    <AvatarFallback className="bg-transparent text-brand-text dark:text-amber-300 font-semibold text-xs">
-                      HT
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 shadow-2xs">
+                  <MessageSquare className="size-4" />
+                </span>
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -400,7 +395,7 @@ function ChatFloatingWidgetInner() {
                     <span className="text-xs text-muted-foreground hidden xs:inline">· Studio Team</span>
                   </div>
                   <div className="text-2xs text-muted-foreground truncate">
-                    Sarah + Studio Team
+                    Studio Support &amp; Production
                   </div>
                 </div>
               </div>
@@ -492,16 +487,12 @@ function ChatFloatingWidgetInner() {
                         onClick={() => setIsOpen(false)}
                         className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                       >
-                        <span>Milestones</span>
+                        <span>View Project</span>
                         <ExternalLink className="size-3 shrink-0" />
                       </Link>
                     </div>
 
                     <div className="flex items-center gap-x-1.5 gap-y-0.5 text-2xs text-muted-foreground flex-wrap min-w-0">
-                      <span className="inline-flex items-center gap-1 truncate max-w-[140px] sm:max-w-[220px]">
-                        Lead: <b className="text-foreground font-medium truncate">Sarah M.</b>
-                      </span>
-                      <span className="text-muted-foreground/50">·</span>
                       <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
                         {displayMeta.credits || 0} CR
                       </span>

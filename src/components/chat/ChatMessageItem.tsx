@@ -20,10 +20,8 @@ import { cn, formatChatTimestamp } from '@/lib/utils';
 
 import { ChatMessage, ChatAttachment } from '@/lib/chatStore';
 import { useMessageGestures } from '@/hooks/use-message-gestures';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Message,
-  MessageAvatar,
   MessageContent,
   MessageFooter,
   MessageHeader,
@@ -154,16 +152,6 @@ export const ChatMessageItem = React.memo(
       onLongPress: () => setIsActionDrawerOpen(true),
     });
 
-    const avatarInitials = useMemo(() => {
-      const name = message.senderName?.trim();
-      if (!name) return message.sender === 'agent' ? 'SM' : 'CL';
-      const parts = name.split(/\s+/);
-      if (parts.length >= 2) {
-        return (parts[0][0] + parts[1][0]).toUpperCase();
-      }
-      return name.slice(0, 2).toUpperCase();
-    }, [message.senderName, message.sender]);
-
     if (isSystem) {
       return <SystemMarker content={message.content} />;
     }
@@ -174,23 +162,6 @@ export const ChatMessageItem = React.memo(
         align={isOutgoing ? 'end' : 'start'}
         className="group/message relative scroll-mt-20"
       >
-        {!isOutgoing && (
-          <MessageAvatar>
-            <Avatar
-              className={cn(
-                'size-7 shadow-2xs',
-                message.sender === 'agent'
-                  ? 'border border-amber-400/40 bg-amber-400/15 text-brand-text dark:text-amber-300'
-                  : 'border border-border bg-secondary/80 text-foreground'
-              )}
-            >
-              <AvatarFallback className="bg-transparent font-bold text-xs">
-                {avatarInitials}
-              </AvatarFallback>
-            </Avatar>
-          </MessageAvatar>
-        )}
-
         <MessageContent className="gap-1.5 relative">
           {/* Header: Name · Role · Timestamp · (edited) · desktop actions */}
           <MessageHeader className="gap-1.5 text-xs text-muted-foreground items-center">

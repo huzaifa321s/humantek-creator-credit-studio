@@ -16,7 +16,6 @@ import { ChatMessageList } from './ChatMessageList';
 import { ChatProjectSidebar } from './ChatProjectSidebar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { getErrorMessage } from '@/lib/utils';
 import {
@@ -237,7 +236,7 @@ export function ChatFullView() {
             Messages &amp; Project Discussion
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-            Direct collaboration with your Lead Producer, revision notes, file sharing, and project milestones.
+            Direct collaboration with our studio team, revision notes, file sharing, and project tracking.
           </p>
         </div>
 
@@ -267,11 +266,9 @@ export function ChatFullView() {
           {/* Studio Team Card */}
           <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
             <div className="flex items-start gap-3.5">
-              <div className="relative">
-                <Avatar className="w-12 h-12 rounded-xl border-2 border-amber-400/40 bg-gradient-to-br from-amber-400/20 to-amber-500/30 text-brand-text dark:text-amber-300 font-extrabold text-sm shadow-md">
-                  <AvatarFallback>HT</AvatarFallback>
-                </Avatar>
-              </div>
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-brand-text dark:text-amber-400 shadow-xs border border-amber-400/30">
+                <MessageSquare className="size-5" />
+              </span>
 
               <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -280,7 +277,7 @@ export function ChatFullView() {
                     Team
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground truncate">Sarah Miller &amp; Production Team</p>
+                <p className="text-xs text-muted-foreground truncate">Studio Production Team</p>
                 <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground font-medium">
                   Direct Studio Line
                 </span>
@@ -325,7 +322,7 @@ export function ChatFullView() {
               </div>
               <div className="space-y-2.5 text-xs text-muted-foreground leading-relaxed">
                 <p>
-                  Message Sarah or the team about packages, credits, or your projects.
+                  Message our studio team about packages, credits, or your projects.
                 </p>
                 <div className="pt-2 border-t border-border/70 space-y-2 font-medium text-2xs text-foreground/90">
                   <a
@@ -428,16 +425,12 @@ export function ChatFullView() {
                     href="/projects"
                     className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                   >
-                    <span>Milestones</span>
+                    <span>View Project</span>
                     <ExternalLink className="size-3 shrink-0" />
                   </Link>
                 </div>
 
                 <div className="flex items-center gap-x-1.5 gap-y-0.5 text-2xs text-muted-foreground flex-wrap min-w-0">
-                  <span className="inline-flex items-center gap-1 truncate max-w-[140px] sm:max-w-[260px]">
-                    Lead: <b className="text-foreground font-medium truncate">Sarah M.</b>
-                  </span>
-                  <span className="text-muted-foreground/50">·</span>
                   <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
                     {displayMeta.credits || 0} CR
                   </span>

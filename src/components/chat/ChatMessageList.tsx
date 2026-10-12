@@ -145,7 +145,7 @@ export function ChatMessageList({
           <EmptyDescription className="text-xs max-w-sm">
             {emptyDescription ||
               (projectId === 'global'
-                ? 'Message Sarah or the team about packages, credits, or your projects.'
+                ? 'Message our studio team about packages, credits, or your projects.'
                 : 'Drop references, ask questions, or leave feedback for the team.')}
           </EmptyDescription>
         </EmptyHeader>

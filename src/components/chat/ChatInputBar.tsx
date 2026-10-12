@@ -44,7 +44,7 @@ interface ChatInputBarProps {
 }
 
 const QUICK_PROMPTS = [
-  'What is the next milestone?',
+  'What is the current project status?',
   'Can I submit revision notes?',
   'When will concept thumbnails be ready?',
 ];

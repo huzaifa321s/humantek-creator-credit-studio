@@ -78,7 +78,7 @@ if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
       projectId: 'proj-demo-1',
       sender: 'system',
       senderName: 'Humantek Studio System',
-      content: 'Project HT-9428-FORGE Workspace Initialized · Assigned to Sarah Miller (Lead Producer)',
+      content: 'Project HT-9428-FORGE Workspace Initialized · Production Team Assigned',
       timestamp: 'Yesterday at 10:14 AM',
       isRead: true,
     },
@@ -86,10 +86,10 @@ if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
       id: 'msg-proj-demo-2',
       projectId: 'proj-demo-1',
       sender: 'agent',
-      senderName: 'Sarah Miller',
-      senderRole: 'Senior Creative Producer',
+      senderName: 'Studio Production Team',
+      senderRole: 'Creative Production Team',
       content:
-        "Hi Kira! Welcome to your project workspace for Creator Forge (HT-9428-FORGE). I've reviewed your brief for the cyberpunk neon theme and custom animated emotes. Our production queue is active and Milestone 1 is in progress!",
+        "Hi Kira! Welcome to your project workspace for Creator Forge (HT-9428-FORGE). We've reviewed your project scope for the cyberpunk neon theme and custom animated emotes. Our production queue is active and work is in progress!",
       timestamp: 'Yesterday at 10:15 AM',
       isRead: true,
     },
@@ -99,7 +99,7 @@ if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
       sender: 'client',
       senderName: 'Kira Streams',
       content:
-        "Thanks Sarah! Here is the moodboard reference for the magenta/cyan neon lighting we want for the stream overlays.",
+        "Thanks! Here is the moodboard reference for the magenta/cyan neon lighting we want for the stream overlays.",
       timestamp: 'Yesterday at 10:18 AM',
       attachments: [
         {
@@ -117,10 +117,10 @@ if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
       id: 'msg-proj-demo-4',
       projectId: 'proj-demo-1',
       sender: 'agent',
-      senderName: 'Sarah Miller',
-      senderRole: 'Senior Creative Producer',
+      senderName: 'Studio Production Team',
+      senderRole: 'Creative Production Team',
       content:
-        "This neon palette is locked in! We are on track for the concept preview. Let me know if you need any adjustments to the twitch badges as well.",
+        "This neon palette is locked in! We are on track for the concept preview. Let us know if you need any adjustments to the twitch badges as well.",
       timestamp: 'Today at 09:30 AM',
       orderCard: {
         projectCode: 'HT-9428-FORGE',
