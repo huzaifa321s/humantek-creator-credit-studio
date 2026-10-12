@@ -2457,10 +2457,10 @@ export default function CreatorStudioPage() {
                       <CheckCircle className="w-4 h-4" />
                     </div>
                     <div>
-                      <CardTitle className="font-bold text-sm text-foreground">
+                      <CardTitle className="font-bold text-base text-foreground">
                         Supported Deliverables
                       </CardTitle>
-                      <CardDescription className="text-xs text-muted-foreground">
+                      <CardDescription className="text-xs sm:text-sm text-muted-foreground">
                         Assets fully covered by your studio credit balance
                       </CardDescription>
                     </div>
@@ -2471,32 +2471,32 @@ export default function CreatorStudioPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-5 pt-3.5 flex flex-col justify-between flex-1">
-                <ul className="text-xs text-foreground/90 space-y-3">
+                <ul className="text-sm text-foreground/90 space-y-3">
                   <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Stream graphics, overlays, alerts & static scenes</span>
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="leading-normal">Stream graphics, overlays, alerts & static scenes</span>
                   </li>
                   <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Custom emotes, sub badges, channel avatars & panels</span>
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="leading-normal">Custom emotes, sub badges, channel avatars & panels</span>
                   </li>
                   <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Approved character art, VTuber model designs & rigging</span>
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="leading-normal">Approved character art, VTuber model designs & rigging</span>
                   </li>
                   <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>2D/3D motion animations, stream stingers & video reels</span>
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="leading-normal">2D/3D motion animations, stream stingers & video reels</span>
                   </li>
                   <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Logo marks, typography & master source files (PSD/AI/AE)</span>
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="leading-normal">Logo marks, typography & master source files (PSD/AI/AE)</span>
                   </li>
                 </ul>
 
-                <div className="pt-3 mt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                <div className="pt-3 mt-3 border-t border-border/50 flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle className="size-3.5" />
+                    <CheckCircle className="size-4" />
                     Full commercial rights included
                   </span>
                   <span className="font-semibold text-foreground/80">39 catalog services</span>
@@ -2513,10 +2513,10 @@ export default function CreatorStudioPage() {
                       <ShieldAlert className="w-4 h-4" />
                     </div>
                     <div>
-                      <CardTitle className="font-bold text-sm text-foreground">
+                      <CardTitle className="font-bold text-base text-foreground">
                         Restricted Guidelines
                       </CardTitle>
-                      <CardDescription className="text-xs text-muted-foreground">
+                      <CardDescription className="text-xs sm:text-sm text-muted-foreground">
                         Strictly prohibited across all studio orders and briefs
                       </CardDescription>
                     </div>
@@ -2528,20 +2528,20 @@ export default function CreatorStudioPage() {
               </CardHeader>
               <CardContent className="p-4 sm:p-5 pt-3.5 flex flex-col justify-between flex-1">
                 {showAllRestricted ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-xs text-foreground/90">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-sm text-foreground/90">
                     {RESTRICTED_GUIDELINES.map((item) => (
                       <div key={item} className="flex items-start gap-2">
-                        <X className="w-3.5 h-3.5 text-rose-500/90 dark:text-rose-400 font-bold shrink-0 mt-0.5" />
-                        <span className="leading-snug text-xs">{item}</span>
+                        <X className="w-4 h-4 text-rose-500/90 dark:text-rose-400 font-bold shrink-0 mt-0.5" />
+                        <span className="leading-snug">{item}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <ul className="text-xs text-foreground/90 space-y-3">
+                  <ul className="text-sm text-foreground/90 space-y-3">
                     {CORE_RESTRICTED_ITEMS.map((item) => (
                       <li key={item} className="flex items-start gap-2.5">
-                        <X className="w-3.5 h-3.5 text-rose-500/90 dark:text-rose-400 font-bold shrink-0 mt-0.5" />
-                        <span>{item}</span>
+                        <X className="w-4 h-4 text-rose-500/90 dark:text-rose-400 font-bold shrink-0 mt-0.5" />
+                        <span className="leading-normal">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -2555,7 +2555,7 @@ export default function CreatorStudioPage() {
                     size="xs"
                     aria-expanded={showAllRestricted}
                     onClick={() => setShowAllRestricted(!showAllRestricted)}
-                    className="h-auto px-0 text-xs font-semibold text-brand-text dark:text-amber-400 hover:underline cursor-pointer"
+                    className="h-auto px-0 text-xs sm:text-sm font-semibold text-brand-text dark:text-amber-400 hover:underline cursor-pointer"
                   >
                     <span>
                       {showAllRestricted
@@ -2564,12 +2564,12 @@ export default function CreatorStudioPage() {
                     </span>
                     <ChevronDown
                       className={cn(
-                        'w-3.5 h-3.5 transition-transform duration-200',
+                        'w-4 h-4 transition-transform duration-200',
                         showAllRestricted && 'rotate-180'
                       )}
                     />
                   </Button>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     Non-compliant briefs declined
                   </span>
                 </div>
