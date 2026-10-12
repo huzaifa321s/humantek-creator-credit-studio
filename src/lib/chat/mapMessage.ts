@@ -18,6 +18,18 @@ function staffDisplayName(name?: string | null): string {
     : STUDIO_TEAM_NAME;
 }
 
+function clientDisplayName(name?: string | null, fallbackClientName?: string): string {
+  const trimmed = name?.trim();
+  if (trimmed && trimmed.toLowerCase() !== 'client' && trimmed.toLowerCase() !== 'creator') {
+    return trimmed;
+  }
+  const fallback = fallbackClientName?.trim();
+  if (fallback && fallback.toLowerCase() !== 'client' && fallback.toLowerCase() !== 'creator') {
+    return fallback;
+  }
+  return trimmed || fallback || 'Client';
+}
+
 function formatFileSize(bytes: number): string {
   if (!bytes) return '';
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -40,7 +52,9 @@ export function mapProjectChatMessage(
     clientMessageId: m.clientMessageId || undefined,
     projectId: m.projectId,
     sender: m.kind === 'system' ? 'system' : isStaff ? 'agent' : 'client',
-    senderName: isStaff ? staffDisplayName(m.sender?.name) : m.sender?.name?.trim() || options.clientName || 'Client',
+    senderName: isStaff
+      ? staffDisplayName(m.sender?.name)
+      : clientDisplayName(m.sender?.name, options.clientName),
     senderRole: isStaff ? 'Studio Team' : 'Creator',
     content: m.body,
     replyTo: m.replyTo || undefined,

@@ -99,7 +99,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   const initialProjects = projectsQuery.data ?? EMPTY_PROJECTS;
 
   const projectFromList = useMemo(
-    () => initialProjects.find((p) => p.id === projectId),
+    () => initialProjects.find((p) => p.id === projectId || p.projectCode === projectId),
     [initialProjects, projectId]
   );
 

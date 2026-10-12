@@ -151,12 +151,13 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const admin = createAdminClient();
     const isGlobal = id === 'global';
+    let projectClientName: string | null = null;
 
     if (!isGlobal) {
       // Verify membership or admin role
       const { data: project, error: projErr } = await admin
         .from('projects')
-        .select('id, user_id')
+        .select('id, user_id, client_name')
         .eq('id', id)
         .single();
 
@@ -167,6 +168,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
       if (!user.isAdmin && project.user_id !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
+
+      projectClientName = project.client_name || null;
     }
 
     const searchParams = req.nextUrl.searchParams;
@@ -270,7 +273,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         sender: profile
           ? {
               id: profile.id || row.sender_id,
-              name: profile.full_name || (profile.role === 'admin' || profile.role === 'manager' ? 'Humantek Studio' : 'Client'),
+              name: profile.full_name || (profile.role === 'admin' || profile.role === 'manager' ? 'Humantek Studio' : (projectClientName || null)),
               email: profile.email,
               role: profile.role,
             }
@@ -311,12 +314,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const admin = createAdminClient();
     const isGlobal = id === 'global';
+    let postProjectClientName: string | null = null;
 
     if (!isGlobal) {
       // Verify membership or admin
       const { data: project, error: projErr } = await admin
         .from('projects')
-        .select('id, user_id')
+        .select('id, user_id, client_name')
         .eq('id', id)
         .single();
 
@@ -327,6 +331,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       if (!user.isAdmin && project.user_id !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
+
+      postProjectClientName = project.client_name || null;
     }
 
     const body = await req.json().catch(() => null);
@@ -503,7 +509,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         sender: newSenderProfile
           ? {
               id: newSenderProfile.id || newMsg.sender_id,
-              name: newSenderProfile.full_name || (user.isAdmin ? 'Humantek Studio' : 'Creator'),
+              name: newSenderProfile.full_name || (user.isAdmin ? 'Humantek Studio' : (postProjectClientName || null)),
               email: newSenderProfile.email || user.email,
               role: newSenderProfile.role || user.role,
             }
