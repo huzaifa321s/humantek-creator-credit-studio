@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -118,6 +118,13 @@ export function DashboardHeader({
   const { user, isHydrated } = useUserStore();
   const isManagementRoute = Boolean(pathname?.startsWith('/management'));
 
+  // Ensure global search is closed in management console
+  useEffect(() => {
+    if (isManagementRoute && isSearchOpen) {
+      setSearchOpen(false);
+    }
+  }, [isManagementRoute, isSearchOpen, setSearchOpen]);
+
   const resolveEffectiveName = () => {
     if (userName && userName.trim().toLowerCase() !== 'client') return userName.trim();
     if (user?.name && user.name.trim().toLowerCase() !== 'client') return user.name.trim();
@@ -148,7 +155,17 @@ export function DashboardHeader({
       : pathname === '/messages'
       ? 'Messages'
       : pathname === '/management'
-      ? 'Agency Console'
+      ? 'Studio Overview'
+      : pathname === '/management/projects'
+      ? 'Briefs Queue'
+      : pathname === '/management/inbox'
+      ? 'Studio Desk'
+      : pathname === '/management/orders'
+      ? 'Manual Payments'
+      : pathname === '/management/ledger'
+      ? 'Credit Ledger'
+      : pathname?.startsWith('/management')
+      ? 'Studio Management'
       : pathname === '/redeem-code'
       ? 'Promo Code'
       : mode === 'wizard'
@@ -270,9 +287,9 @@ export function DashboardHeader({
           </div>
 
         {/* =================================================================== */}
-        {/* Center Section: Interactive Command Search Pill (hidden in auth)    */}
+        {/* Center Section: Interactive Command Search Pill (hidden in auth & admin management) */}
         {/* =================================================================== */}
-        {mode !== 'auth' ? (
+        {mode !== 'auth' && !isManagementRoute ? (
           <div className={cn(
             "items-center justify-center max-w-sm mx-auto",
             mode === 'wizard' ? "hidden sm:flex flex-1 px-2 sm:px-4" : "flex flex-1 px-2 sm:px-4"
@@ -406,8 +423,8 @@ export function DashboardHeader({
       </div>
     </header>
 
-      {/* Global Command / Quick Search Dialog (only in app modes) */}
-      {mode !== 'auth' && (
+      {/* Global Command / Quick Search Dialog (only in app modes outside management) */}
+      {mode !== 'auth' && !isManagementRoute && (
         <DashboardSearchDialog
           open={isSearchOpen}
           onOpenChange={setSearchOpen}

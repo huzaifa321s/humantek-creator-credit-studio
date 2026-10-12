@@ -64,27 +64,20 @@ export async function getRequestUser(): Promise<RequestUser | null> {
     const email = user.email.toLowerCase();
     const admin = createAdminClient();
 
-    // Query authoritative role from database
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    // Query authoritative role and project existence concurrently in parallel
+    const [profileRes, projectsRes] = await Promise.all([
+      admin.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      !isSystemAdminEmail(email)
+        ? admin.from('projects').select('id', { count: 'exact', head: true }).eq('user_id', user.id).limit(1)
+        : Promise.resolve({ count: 0 }),
+    ]);
 
+    const profile = profileRes.data;
     const role = profile?.role || (isSystemAdminEmail(email) ? 'admin' : 'client');
     const isAdmin = role === 'admin' || isSystemAdminEmail(email);
 
     const emailConfirmed = Boolean(user.email_confirmed_at || process.env.DEV_AUTO_CONFIRM === 'true');
-
-    let hasProjects = false;
-    if (!isAdmin && role === 'client') {
-      const { count } = await admin
-        .from('projects')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      hasProjects = (count ?? 0) > 0;
-    }
-
+    const hasProjects = !isAdmin && role === 'client' ? (projectsRes.count ?? 0) > 0 : false;
     const canChat = !isAdmin && role === 'client' && emailConfirmed && hasProjects;
 
     return {

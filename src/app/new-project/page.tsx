@@ -408,6 +408,7 @@ export default function CreatorStudioPage() {
   const [serviceSelectionError, setServiceSelectionError] = useState(false);
   const [policyError, setPolicyError] = useState(false);
   const [termsError, setTermsError] = useState(false);
+  const [isNavigatingToConfirmation, setIsNavigatingToConfirmation] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -419,6 +420,13 @@ export default function CreatorStudioPage() {
       wizard.generateNewProjectId();
     }
   }, [mounted, projectId, wizard]);
+
+  // Prefetch confirmation route so assets, chunks, and skeletons are ready instantly
+  useEffect(() => {
+    if (projectId && currentStep >= 4) {
+      router.prefetch(`/new-project/confirmation/${projectId}`);
+    }
+  }, [projectId, currentStep, router]);
 
   // Step focus & accessibility navigation hook (scrolls to top on step or confirmation change)
   const headingRef = useStepFocus(currentStep, Boolean(submittedProject));
@@ -939,9 +947,9 @@ export default function CreatorStudioPage() {
       return;
     }
 
-    // 2. Set submittedProjectId so all guards ignore post-submission state
+    // 2. Set submittedProjectId and activate immediate transition state
     setSubmittedProjectId(project.id);
-    setIsSubmitting(false);
+    setIsNavigatingToConfirmation(true);
 
     // 3. Synchronize server session and register project in client stores
     void refreshUserSession();
@@ -967,6 +975,8 @@ export default function CreatorStudioPage() {
       await router.replace(`/new-project/confirmation/${project.id}`);
     } catch (navErr) {
       console.error('[Checkout] Navigation to confirmation failed:', navErr);
+      setIsNavigatingToConfirmation(false);
+      setIsSubmitting(false);
       setSubmissionError({
         message: 'Order created successfully! Click below to view your project in My Projects.',
         showProjectsLink: true,
@@ -1378,6 +1388,46 @@ export default function CreatorStudioPage() {
       <p aria-live="polite" aria-atomic="true" className="sr-only">
         {getStepAnnouncement(currentStep, Boolean(submittedProject))}
       </p>
+
+      {/* Immediate High-Fidelity Order Received Transition Overlay */}
+      {isNavigatingToConfirmation && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-md animate-in fade-in duration-200 p-4"
+        >
+          <div className="w-full max-w-sm sm:max-w-md p-6 sm:p-8 rounded-2xl bg-card border border-border/80 shadow-2xl space-y-5 text-center flex flex-col items-center">
+            <div className="relative">
+              <div className="size-16 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-inner">
+                <CheckCircle className="size-8 animate-in zoom-in-75 duration-300" />
+              </div>
+              <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                Order Received!
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                Your order is confirmed. Opening your project receipt and creative workspace...
+              </p>
+            </div>
+
+            <div className="w-full space-y-2.5 pt-1">
+              <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 w-full animate-pulse rounded-full" />
+              </div>
+              <div className="flex items-center justify-center gap-2 text-2xs text-muted-foreground font-mono">
+                <Spinner className="size-3 text-muted-foreground" />
+                <span>Loading studio confirmation...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}

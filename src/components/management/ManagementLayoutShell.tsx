@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, MessageSquare, FolderKanban } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const ROUTE_HEADERS: Record<string, { title: string; description: string }> = {
   '/management': {
@@ -79,6 +81,29 @@ export function ManagementLayoutShell({ children }: { children: React.ReactNode 
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
               {currentHeader.description}
             </p>
+          </div>
+
+          {/* Quick Header Actions using reusable Button components */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-wrap">
+            {pathname !== '/management' && (
+              <Link href="/management">
+                <Button variant="outline" size="sm" className="gap-1.5 cursor-pointer">
+                  <span>Overview</span>
+                </Button>
+              </Link>
+            )}
+            <Link href="/management/inbox">
+              <Button variant="outline" size="sm" className="gap-1.5 cursor-pointer">
+                <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
+                <span>Studio Desk</span>
+              </Button>
+            </Link>
+            <Link href="/management/projects">
+              <Button variant="gold" size="sm" className="gap-1.5 cursor-pointer shadow-xs shadow-amber-400/20">
+                <FolderKanban className="size-3.5" />
+                <span>Briefs Queue</span>
+              </Button>
+            </Link>
           </div>
         </div>
 

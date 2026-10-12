@@ -20,7 +20,6 @@ import { useUserStore, refreshUserSession } from '@/lib/userStore';
 import { useChatStore } from '@/lib/chatStore';
 import { useWizardStore } from '@/lib/wizardStore';
 import { toast } from 'sonner';
-import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
 import { PACKAGES } from '@/lib/catalog';
 import type { ProjectRecord } from '@/types';
@@ -69,14 +68,13 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
   const confirmationState = getConfirmationState(project);
 
   // Focus heading on mount for accessibility & announce via aria-live.
-  // Refresh canChat strictly from the authoritative server session.
   useEffect(() => {
     // If server passed verified canChat from getRequestUser(), set it
     if (typeof canChat === 'boolean') {
       useUserStore.getState().updateUser({ hasProjects: true, canChat });
+    } else {
+      void refreshUserSession();
     }
-    // Also trigger full server session refresh to synchronize all stores
-    void refreshUserSession();
 
     // Register project in chat store
     useChatStore.getState().registerProject({
@@ -96,13 +94,15 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
     headingRef.current?.focus();
   }, [project, canChat, resetWizard]);
 
-  // Celebratory confetti trigger on mount (Strict-mode & mobile safe)
+  // Celebratory confetti trigger on mount (Strict-mode & mobile safe, dynamically imported)
   useEffect(() => {
     if (confettiFired.current) return;
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       confettiFired.current = true;
       try {
+        const { default: confetti } = await import('canvas-confetti');
+
         // Stage 1: Vibrant center burst (visible across all mobile viewports)
         confetti({
           particleCount: 110,
@@ -136,7 +136,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
       } catch (err) {
         console.warn('[Confirmation] Confetti failed to fire:', err);
       }
-    }, 250);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, []);

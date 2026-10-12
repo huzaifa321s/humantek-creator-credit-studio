@@ -270,7 +270,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         sender: profile
           ? {
               id: profile.id || row.sender_id,
-              name: profile.full_name || 'Studio Member',
+              name: profile.full_name || (profile.role === 'admin' || profile.role === 'manager' ? 'Humantek Studio' : 'Client'),
               email: profile.email,
               role: profile.role,
             }
@@ -388,7 +388,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const replyTo = body.replyTo && body.replyTo.id
       ? {
           id: String(body.replyTo.id),
-          senderName: String(body.replyTo.senderName || 'Studio Member'),
+          senderName: String(body.replyTo.senderName || 'Humantek Studio'),
           senderRole: body.replyTo.senderRole ? String(body.replyTo.senderRole) : undefined,
           content: String(body.replyTo.content || '').slice(0, 300),
         }
@@ -503,7 +503,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         sender: newSenderProfile
           ? {
               id: newSenderProfile.id || newMsg.sender_id,
-              name: newSenderProfile.full_name || (user.isAdmin ? 'Studio Team' : 'Creator'),
+              name: newSenderProfile.full_name || (user.isAdmin ? 'Humantek Studio' : 'Creator'),
               email: newSenderProfile.email || user.email,
               role: newSenderProfile.role || user.role,
             }

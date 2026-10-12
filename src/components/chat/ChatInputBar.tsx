@@ -113,15 +113,13 @@ export function ChatInputBar({
     (editingMessage
       ? 'Update your message...'
       : replyingTo
-      ? viewerRole === 'admin'
-        ? `Reply to ${replyingTo.senderName} as Studio Admin...`
-        : `Reply to ${replyingTo.senderName}...`
+      ? `Reply to ${replyingTo.senderName}...`
       : isGlobal
       ? viewerRole === 'admin'
-        ? 'Reply to creator inquiries as Studio Admin...'
+        ? 'Reply to creator inquiries...'
         : 'Message the studio desk...'
       : viewerRole === 'admin'
-      ? `Reply to ${activeProjectName || activeProjectCode || 'Client'} as Studio Admin...`
+      ? `Message ${activeProjectName || activeProjectCode || 'Client'}...`
       : compact
       ? `Message studio team${activeProjectCode ? ` (${activeProjectCode})` : ''}...`
       : `Message studio team about ${activeProjectName || activeProjectCode || 'this project'}...`);

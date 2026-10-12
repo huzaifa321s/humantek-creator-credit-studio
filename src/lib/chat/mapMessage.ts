@@ -13,7 +13,9 @@ export function isStaffRole(role?: string | null): boolean {
 
 function staffDisplayName(name?: string | null): string {
   const trimmed = name?.trim();
-  return trimmed && trimmed !== 'Studio Member' ? trimmed : STUDIO_TEAM_NAME;
+  return trimmed && trimmed !== 'Studio Member' && trimmed !== 'Studio Team'
+    ? trimmed
+    : STUDIO_TEAM_NAME;
 }
 
 function formatFileSize(bytes: number): string {
@@ -39,7 +41,7 @@ export function mapProjectChatMessage(
     projectId: m.projectId,
     sender: m.kind === 'system' ? 'system' : isStaff ? 'agent' : 'client',
     senderName: isStaff ? staffDisplayName(m.sender?.name) : m.sender?.name?.trim() || options.clientName || 'Client',
-    senderRole: isStaff ? 'Studio team' : 'Creator',
+    senderRole: isStaff ? 'Studio Team' : 'Creator',
     content: m.body,
     replyTo: m.replyTo || undefined,
     likes: m.likes || [],

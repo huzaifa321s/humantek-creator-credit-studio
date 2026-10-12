@@ -134,7 +134,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   };
 
   const handleToggleLike = async (messageId: string) => {
-    const adminName = user?.name || 'Studio Admin';
+    const adminName = user?.name || 'Humantek Studio';
     const numericId = parseInt(messageId, 10);
     if (targetProjectId && !isNaN(numericId)) {
       try {
@@ -267,7 +267,9 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                         {activeProject.projectCode}
                       </span>
                       <span className="text-foreground font-bold text-sm truncate max-w-[200px] sm:max-w-[400px]">
-                        {activeProject.channelName || activeProject.packageName || 'Project Workspace'}
+                        {activeProject.channelName && activeProject.channelName !== activeProject.clientName
+                          ? activeProject.channelName
+                          : activeProject.clientName || activeProject.packageName || 'Project Workspace'}
                       </span>
                       <Badge
                         variant="outline"
@@ -345,7 +347,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
               emptyDescription={
                 isGlobal
                   ? 'No support messages yet. Inquiries sent by creators in the Studio Support Desk will appear here in real time.'
-                  : `Write a message below to coordinate deliverables, feedback, and milestones with ${
+                  : `Write a message below to coordinate deliverables, feedback, and project status with ${
                       activeProject?.channelName || activeProject?.clientName || 'the client'
                     }.`
               }

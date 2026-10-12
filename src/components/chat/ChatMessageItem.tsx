@@ -110,7 +110,7 @@ export const ChatMessageItem = React.memo(
     const myId = currentUserId || (viewerRole === 'admin' ? 'agent-me' : 'client-me');
     const isLiked = useMemo(() => likes.some((l) => l.userId === myId), [likes, myId]);
     const likedByLabel = useMemo(
-      () => likes.map((l) => (l.userId === myId ? 'You' : l.userName || 'Studio Member')).join(', '),
+      () => likes.map((l) => (l.userId === myId ? 'You' : l.userName || 'Humantek Studio')).join(', '),
       [likes, myId]
     );
 
@@ -165,7 +165,9 @@ export const ChatMessageItem = React.memo(
         <MessageContent className="gap-1.5 relative">
           {/* Header: Name · Role · Timestamp · (edited) · desktop actions */}
           <MessageHeader className="gap-1.5 text-xs text-muted-foreground items-center">
-            <span className="font-semibold text-foreground/90 truncate">{message.senderName}</span>
+            <span className="font-semibold text-foreground/90 truncate">
+              {isOutgoing ? 'You' : message.senderName}
+            </span>
             {message.senderRole && !isOutgoing && !compact && (
               <span className="text-2xs font-mono text-brand-text/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
                 · {message.senderRole}

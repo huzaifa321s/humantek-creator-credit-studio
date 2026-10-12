@@ -59,8 +59,17 @@ export function ProjectsQueueContent() {
     <Suspense
       fallback={
         <div className="space-y-4">
-          <Skeleton className="h-10 w-full rounded-lg" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-24 rounded-lg" />
+            <Skeleton className="h-8 w-28 rounded-lg" />
+            <Skeleton className="h-8 w-28 rounded-lg" />
+            <Skeleton className="h-8 w-24 rounded-lg" />
+          </div>
+          <div className="flex justify-between items-center gap-2">
+            <Skeleton className="h-8 w-64 rounded-lg" />
+            <Skeleton className="h-8 w-32 rounded-lg" />
+          </div>
+          <Skeleton className="h-96 w-full rounded-xl" />
         </div>
       }
     >
