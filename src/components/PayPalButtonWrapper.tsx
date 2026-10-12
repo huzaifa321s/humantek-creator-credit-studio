@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons, FUNDING, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import { useQueryClient } from '@tanstack/react-query';
-import confetti from 'canvas-confetti';
 import { ShieldCheck, AlertCircle } from 'lucide-react';
 import { ProjectRecord } from '@/types';
 import { useUserStore } from '@/lib/userStore';
@@ -181,13 +180,6 @@ export function PayPalButtonWrapper({
     onApprove: async (data: { orderID: string }) => {
       try {
         const project = await captureOrder(data.orderID);
-
-        confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 },
-        });
-
         onSuccess(project);
       } catch (err: unknown) {
         let msg = 'Payment processing encountered an issue. Please verify your balance or try again.';

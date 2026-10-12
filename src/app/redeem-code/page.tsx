@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
+import { TypographyH1 } from '@/components/ui/typography';
 import { Separator } from '@/components/ui/separator';
 import { CreditValue } from '@/components/ui/credit-value';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -120,9 +121,9 @@ export default function RedeemCodePage() {
         <Link href="/new-project">
           <Button
             type="button"
-            variant="default"
+            variant="gold"
             size="sm"
-            className="h-8 px-2.5 sm:px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground cursor-pointer shadow-amber-400/20"
+            className="gap-1 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden min-[400px]:inline">New Project</span>
@@ -138,9 +139,9 @@ export default function RedeemCodePage() {
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               CREATOR WALLET &amp; PASSES
             </div>
-            <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
+            <TypographyH1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
               Promo Code &amp; Passes
-            </h1>
+            </TypographyH1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
               Redeem promo codes directly into your wallet, or generate passes for partners and creators.
             </p>
@@ -222,10 +223,11 @@ export default function RedeemCodePage() {
                             />
                             <Button
                               type="submit"
+                              variant="gold"
                               loading={isRedeeming}
                               loadingText="Applying…"
                               disabled={!redeemCode}
-                              className="shrink-0 h-9 px-3.5 text-xs font-bold gap-1.5 rounded-lg bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground shadow-xs cursor-pointer w-full xs:w-auto justify-center"
+                              className="shrink-0 h-9 px-3.5 text-xs font-bold gap-1.5 cursor-pointer w-full xs:w-auto justify-center"
                             >
                               <span>Redeem</span>
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -357,7 +359,7 @@ export default function RedeemCodePage() {
                         </Field>
                       </FieldGroup>
 
-                      <Button type="submit" variant="default" className="w-full h-9 rounded-lg text-sm font-semibold cursor-pointer">
+                      <Button type="submit" variant="gold" className="w-full font-bold cursor-pointer">
                         Generate Promo Code
                       </Button>
                     </form>

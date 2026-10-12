@@ -20,7 +20,9 @@ import { useUserStore, refreshUserSession } from '@/lib/userStore';
 import { useChatStore } from '@/lib/chatStore';
 import { useWizardStore } from '@/lib/wizardStore';
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
+import { PACKAGES } from '@/lib/catalog';
 import type { ProjectRecord } from '@/types';
 
 interface ConfirmationContentProps {
@@ -60,6 +62,7 @@ export function getConfirmationState(project: ProjectRecord): ConfirmationPaymen
 export default function ConfirmationContent({ project, canChat }: ConfirmationContentProps) {
   const router = useRouter();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const confettiFired = useRef(false);
   const [, setCopied] = useState(false);
   const resetWizard = useWizardStore((state) => state.resetWizard);
 
@@ -93,6 +96,51 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
     headingRef.current?.focus();
   }, [project, canChat, resetWizard]);
 
+  // Celebratory confetti trigger on mount (Strict-mode & mobile safe)
+  useEffect(() => {
+    if (confettiFired.current) return;
+
+    const timer = setTimeout(() => {
+      confettiFired.current = true;
+      try {
+        // Stage 1: Vibrant center burst (visible across all mobile viewports)
+        confetti({
+          particleCount: 110,
+          spread: 75,
+          origin: { x: 0.5, y: 0.4 },
+          zIndex: 99999,
+          colors: ['#f59e0b', '#fbbf24', '#10b981', '#3b82f6', '#ec4899', '#ffffff'],
+        });
+
+        // Stage 2: Dual side-cannon follow-up wave
+        setTimeout(() => {
+          try {
+            confetti({
+              particleCount: 50,
+              angle: 60,
+              spread: 55,
+              origin: { x: 0.1, y: 0.5 },
+              zIndex: 99999,
+              colors: ['#f59e0b', '#fbbf24', '#ffffff'],
+            });
+            confetti({
+              particleCount: 50,
+              angle: 120,
+              spread: 55,
+              origin: { x: 0.9, y: 0.5 },
+              zIndex: 99999,
+              colors: ['#f59e0b', '#fbbf24', '#ffffff'],
+            });
+          } catch {}
+        }, 180);
+      } catch (err) {
+        console.warn('[Confirmation] Confetti failed to fire:', err);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // Context-dependent copy
   let heading = 'Payment received';
   let description = 'Your payment went through and your project has started.';
@@ -122,12 +170,19 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
     isPendingOrManual = true;
   } else if (confirmationState === 'manual_order') {
     heading = 'Order received';
-    description = 'We’ll start after we confirm your payment. Here’s how to pay, with your reference code.';
+    description = 'We’ve received your brief. Our team will review it and send payment details within 1 business day.';
     statusBadgeText = 'Pending review & payment';
-    nextStepText = 'Submit payment or PO approval';
+    nextStepText = 'Waiting for payment';
     paymentSummary = `Amount due: $${project.packagePrice.toLocaleString('en-US')} USD`;
     isPendingOrManual = true;
   }
+
+  const matchedPack = PACKAGES.find(
+    (pkg) =>
+      pkg.id === project.packageId ||
+      pkg.name.toLowerCase() === (project.packageName || '').toLowerCase()
+  );
+  const resolvedPackageCredits = project.packageCredits || matchedPack?.credits || 0;
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(project.projectCode);
@@ -150,7 +205,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
       showBack={false}
       topRightBadge={null}
     >
-      <div className="w-full flex items-center justify-center py-6 sm:py-10 animate-in fade-in duration-300">
+      <div className="w-full flex items-center justify-center py-6 sm:py-10 pb-24 sm:pb-14 animate-in fade-in duration-300">
         <Card className="max-w-lg w-full mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-sm text-center">
           {/* Screen reader announcement */}
           <div aria-live="polite" className="sr-only">
@@ -214,7 +269,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
             <div className="flex items-center justify-between pt-3">
               <span className="text-muted-foreground font-medium">Package</span>
               <span className="font-semibold text-foreground text-xs sm:text-sm">
-                {project.packageName || 'Studio Custom'}
+                {project.packageName || matchedPack?.name || 'Studio Custom'}
               </span>
             </div>
 
@@ -222,9 +277,11 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
             <div className="flex items-center justify-between pt-3">
               <span className="text-muted-foreground font-medium">Credits</span>
               <span className="font-semibold text-foreground text-xs sm:text-sm">
-                {project.fundingSource === 'wallet'
+                {confirmationState === 'manual_order'
+                  ? `${resolvedPackageCredits || project.usedCredits} CR · added after payment is confirmed`
+                  : project.fundingSource === 'wallet'
                   ? `${project.usedCredits} credits used`
-                  : `${project.usedCredits} of ${project.packageCredits || project.usedCredits} used`}
+                  : `${project.usedCredits} of ${resolvedPackageCredits || project.usedCredits} used`}
               </span>
             </div>
 
@@ -259,54 +316,62 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                 {nextStepText}
               </span>
             </div>
+
+            {/* 7. Total Due / Amount Due Row */}
+            <div className="flex items-center justify-between pt-3 border-t border-border/80">
+              <span className="text-foreground font-bold text-xs sm:text-sm">
+                {confirmationState === 'manual_order' ? 'Amount due' : 'Total paid'}
+              </span>
+              <span className="font-mono font-bold text-foreground text-sm sm:text-base">
+                ${project.packagePrice.toLocaleString('en-US')} USD
+              </span>
+            </div>
           </div>
 
-          {/* Manual Bank / PO Instructions (Only for manual_order) */}
+          {/* Payment Instructions (Only for manual_order) */}
           {confirmationState === 'manual_order' && (
             <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-text dark:text-amber-400">
                 <Building2 className="size-3.5" />
-                <span>How to complete payment</span>
+                <span>How payment works</span>
               </div>
               <p className="text-2xs sm:text-xs text-muted-foreground leading-relaxed">
-                Please transfer or submit your agency PO referencing project code{' '}
-                <strong className="font-mono text-foreground">{project.projectCode}</strong>.
-                Our operations team will verify your payment and start creative production.
+                We’ll review your brief and send an invoice + bank/PayPal details to your email and studio chat. Always quote project code{' '}
+                <strong className="font-mono font-bold text-foreground">{project.projectCode}</strong>.
               </p>
             </div>
           )}
 
-          {/* Payment & Receipt Note */}
-          <p className="text-xs text-muted-foreground leading-normal">
-            {paymentSummary}
-            {project.email && confirmationState !== 'manual_order'
-              ? ` · Receipt sent to ${project.email}`
-              : ''}
-          </p>
+          {/* Receipt Note for paid orders */}
+          {project.email && confirmationState !== 'manual_order' && (
+            <p className="text-xs text-muted-foreground leading-normal">
+              Receipt sent to {project.email}
+            </p>
+          )}
 
           {/* Actions: Primary View Button & Secondary Links */}
-          <div className="space-y-2 pt-1 w-full">
+          <div className="space-y-3 pt-1 w-full">
             <Link href="/projects" className="block w-full">
               <Button
                 type="button"
                 variant="default"
                 size="lg"
-                className="w-full h-10 font-bold text-sm bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground rounded-lg shadow-xs shadow-amber-400/20 cursor-pointer transition-colors"
+                className="w-full h-11 font-bold text-sm bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground rounded-xl shadow-xs shadow-amber-400/20 cursor-pointer transition-colors"
               >
                 <span>View my project</span>
                 <ArrowRight className="size-4 ml-1" />
               </Button>
             </Link>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-3">
               <ChatGate>
                 <Button
                   type="button"
-                  variant="link"
+                  variant="outline"
                   size="sm"
                   data-chat-entry="confirmation-chat"
                   onClick={() => useChatStore.getState().setIsOpen(true, project.id)}
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 rounded-lg cursor-pointer border-border/70 hover:bg-secondary/60"
                 >
                   <MessageSquare className="size-3.5" />
                   <span>Message our team</span>
@@ -314,10 +379,10 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
               </ChatGate>
               <Button
                 type="button"
-                variant="link"
+                variant="ghost"
                 size="sm"
                 onClick={handleStartAnother}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 cursor-pointer"
+                className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 rounded-lg cursor-pointer"
               >
                 <Plus className="size-3.5" />
                 <span>Start another project</span>

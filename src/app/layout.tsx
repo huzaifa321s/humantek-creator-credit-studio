@@ -57,7 +57,7 @@ export default async function RootLayout({
           <TooltipProvider>
             {children}
             <ChatFloatingWidget />
-            <Toaster position="bottom-left" />
+            <Toaster position="top-center" />
           </TooltipProvider>
         </Providers>
       </body>

@@ -188,8 +188,8 @@ function SignInContent() {
               </div>
 
               {/* Pillar 3: Non-Expiring Wallet */}
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-background/70 dark:bg-zinc-950/40 border border-border/60 shadow-2xs">
-                <div className="size-7 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-background/70 dark:bg-card/40 border border-border/60 shadow-2xs">
+                <div className="size-7 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
                   <ShieldCheck className="size-3.5" />
                 </div>
                 <div className="space-y-0.5 min-w-0 flex-1">

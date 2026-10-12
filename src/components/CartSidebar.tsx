@@ -121,7 +121,7 @@ export function CartSidebar({
                 <span className="min-[380px]:hidden">Combined Budget</span>
               </>
             ) : (
-              'Live Credit Wallet'
+              'Studio Order Summary'
             )}
           </Badge>
           <div className="text-right shrink-0">
@@ -182,56 +182,63 @@ export function CartSidebar({
           </div>
         </div>
 
-        {/* Row 3: Tier Limit Gauges with Tooltips */}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
-              }
-            >
-              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold min-w-0 gap-1">
-                <span className="truncate">Standard Units</span>
-                <Info className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
-              </div>
-              <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
-                {standardUnits}
-                {pack.standardLimit !== undefined ? ` / ${pack.standardLimit}` : ''}
-              </b>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-xs p-3">
-              <span className="text-zinc-200">
-                {pack.standardLimit !== undefined
-                  ? `${pack.name} allows up to ${pack.standardLimit} Standard level service units.`
-                  : 'Unlimited Standard level service units supported on this plan.'}
-              </span>
-            </TooltipContent>
-          </Tooltip>
+        {/* Row 3: Tier Limit Gauges with Tooltips (Only render if package has explicit unit limits) */}
+        {(pack.standardLimit !== undefined || pack.eliteLimit !== undefined) && (
+          <div
+            className={cn(
+              'grid gap-2 text-xs',
+              pack.standardLimit !== undefined && pack.eliteLimit !== undefined
+                ? 'grid-cols-2'
+                : 'grid-cols-1'
+            )}
+          >
+            {pack.standardLimit !== undefined && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
+                  }
+                >
+                  <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold min-w-0 gap-1">
+                    <span className="truncate">Standard Units</span>
+                    <Info className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                  </div>
+                  <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
+                    {standardUnits} / {pack.standardLimit}
+                  </b>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs p-3">
+                  <span className="text-zinc-200">
+                    {pack.name} allows up to {pack.standardLimit} Standard level service units.
+                  </span>
+                </TooltipContent>
+              </Tooltip>
+            )}
 
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
-              }
-            >
-              <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold min-w-0 gap-1">
-                <span className="truncate">Elite Units</span>
-                <Info className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
-              </div>
-              <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
-                {eliteUnits}
-                {pack.eliteLimit !== undefined ? ` / ${pack.eliteLimit}` : ''}
-              </b>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-xs p-3">
-              <span className="text-zinc-200">
-                {pack.eliteLimit !== undefined
-                  ? `${pack.name} allows up to ${pack.eliteLimit} Elite complex service units.`
-                  : 'Unlimited Elite level complex units supported on this plan.'}
-              </span>
-            </TooltipContent>
-          </Tooltip>
-        </div>
+            {pack.eliteLimit !== undefined && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-secondary/80 border border-border/70 hover:border-amber-400/80 transition-colors cursor-help" />
+                  }
+                >
+                  <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold min-w-0 gap-1">
+                    <span className="truncate">Elite Units</span>
+                    <Info className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                  </div>
+                  <b className="text-foreground text-sm sm:text-base mt-0.5 block tabular-nums">
+                    {eliteUnits} / {pack.eliteLimit}
+                  </b>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs p-3">
+                  <span className="text-zinc-200">
+                    {pack.name} allows up to {pack.eliteLimit} Elite complex service units.
+                  </span>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        )}
       </div>
 
       {/* SCROLLABLE MIDDLE AREA: Services list + Extras */}
@@ -284,13 +291,13 @@ export function CartSidebar({
                   No Services Selected
                 </EmptyTitle>
                 <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
-                  Pick creative assets from the catalog to build your project scope.
+                  Pick creative assets from the catalog to build your order.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="pt-0.5">
                 <span className="inline-flex items-center gap-1 text-2xs font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 px-2.5 py-1 rounded-lg border border-amber-400/25">
                   <Sparkles className="w-3 h-3 text-brand-text dark:text-amber-400" />
-                  Click &ldquo;Add to Scope&rdquo; on any service
+                  Click &ldquo;Add to Cart&rdquo; on any service
                 </span>
               </EmptyContent>
             </Empty>

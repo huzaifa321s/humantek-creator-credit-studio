@@ -16,6 +16,9 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Field, FieldLabel, FieldGroup } from '@/components/ui/field';
+import { Badge } from '@/components/ui/badge';
+import { TypographyH1, TypographyMuted } from '@/components/ui/typography';
+import { StudioBackground } from '@/components/StudioBackground';
 import { toast } from 'sonner';
 import {
   ShieldAlert,
@@ -102,39 +105,37 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 bg-zinc-950 text-zinc-100 overflow-hidden select-none">
-      {/* Background Ambient Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-400/10 via-zinc-950 to-zinc-950 pointer-events-none" />
-      <div className="absolute -top-40 -right-40 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-zinc-800/20 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative min-h-screen flex items-center justify-center p-4 bg-background text-foreground overflow-hidden select-none font-sans">
+      {/* Studio Ambient Background */}
+      <StudioBackground variant="default" showDots={true} />
 
-      <div className="relative w-full max-w-md space-y-6">
+      <div className="relative z-10 w-full max-w-md space-y-6">
         {/* Header Branding */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-zinc-900 border border-amber-400/30 shadow-inner mb-2">
-            <ShieldCheck className="size-8 text-amber-400" />
+          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-secondary/80 border border-amber-400/30 shadow-xs mb-2">
+            <ShieldCheck className="size-8 text-amber-500" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+          <TypographyH1 className="text-2xl font-bold tracking-tight text-foreground">
             Operations Console
-          </h1>
+          </TypographyH1>
           <div className="flex items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-semibold uppercase tracking-wider bg-amber-400/15 text-amber-400 border border-amber-400/30">
+            <Badge variant="gold" size="sm" className="gap-1.5 font-semibold uppercase tracking-wider">
               <Lock className="size-2.5" />
               Restricted · Staff Only
-            </span>
+            </Badge>
           </div>
-          <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+          <TypographyMuted className="text-xs text-muted-foreground max-w-xs mx-auto">
             Authorized administrator authentication required. All access events are strictly logged.
-          </p>
+          </TypographyMuted>
         </div>
 
         {/* Login Card */}
-        <Card className="bg-zinc-900/90 border-zinc-800 shadow-2xl backdrop-blur-xl">
+        <Card className="border-border/80 bg-card/95 shadow-xl backdrop-blur-md">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-base text-zinc-200 font-semibold">
+            <CardTitle className="text-base text-foreground font-semibold">
               Administrator Sign In
             </CardTitle>
-            <CardDescription className="text-xs text-zinc-400">
+            <CardDescription className="text-xs text-muted-foreground">
               Enter your verified studio credentials to proceed
             </CardDescription>
           </CardHeader>
@@ -142,10 +143,10 @@ export default function AdminLoginPage() {
           <CardContent>
             <form onSubmit={handleAdminLogin} className="space-y-4">
               {errorMessage && (
-                <Alert variant="destructive" className="bg-rose-950/40 border-rose-800/50 text-rose-200">
-                  <ShieldAlert className="size-4 text-rose-400" />
+                <Alert variant="destructive" className="py-2.5 px-3 text-xs animate-in fade-in-50">
+                  <ShieldAlert className="size-4 shrink-0 text-destructive" />
                   <AlertTitle className="text-xs font-semibold">Access Denied</AlertTitle>
-                  <AlertDescription className="text-xs text-rose-300">
+                  <AlertDescription className="text-xs">
                     {errorMessage}
                   </AlertDescription>
                 </Alert>
@@ -153,8 +154,8 @@ export default function AdminLoginPage() {
 
               <FieldGroup className="space-y-3">
                 <Field className="space-y-1.5">
-                  <FieldLabel className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
-                    <Mail className="size-3.5 text-zinc-400" />
+                  <FieldLabel className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Mail className="size-3.5 text-muted-foreground" />
                     Admin Email
                   </FieldLabel>
                   <Input
@@ -166,13 +167,13 @@ export default function AdminLoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@humantek.art"
                     disabled={isLoading}
-                    className="bg-zinc-950/80 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:ring-amber-400/20 text-sm h-10"
+                    className="h-10 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:border-amber-400 focus-visible:ring-amber-400/20"
                   />
                 </Field>
 
                 <Field className="space-y-1.5">
-                  <FieldLabel className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
-                    <Lock className="size-3.5 text-zinc-400" />
+                  <FieldLabel className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Lock className="size-3.5 text-muted-foreground" />
                     Master Password
                   </FieldLabel>
                   <div className="relative">
@@ -184,12 +185,12 @@ export default function AdminLoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
                       disabled={isLoading}
-                      className="bg-zinc-950/80 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:ring-amber-400/20 text-sm h-10 pr-10"
+                      className="h-10 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:border-amber-400 focus-visible:ring-amber-400/20 pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -200,31 +201,25 @@ export default function AdminLoginPage() {
 
               <Button
                 type="submit"
-                disabled={isLoading}
-                className="w-full bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black h-10 shadow-lg shadow-amber-400/25 border-none transition-all cursor-pointer mt-2"
+                variant="gold"
+                size="lg"
+                loading={isLoading}
+                loadingText="Authenticating Console..."
+                className="w-full font-bold shadow-md shadow-amber-400/20 cursor-pointer mt-2"
               >
-                {isLoading ? (
-                  <span className="flex items-center gap-2 text-xs">
-                    <span className="size-3.5 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
-                    Authenticating Console...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2 text-xs">
-                    <ShieldCheck className="size-4" />
-                    Access Operations Console
-                  </span>
-                )}
+                <ShieldCheck className="size-4 mr-2" />
+                Access Operations Console
               </Button>
             </form>
           </CardContent>
 
-          <CardFooter className="pt-2 pb-5 border-t border-zinc-800/60 flex flex-col gap-2">
+          <CardFooter className="pt-2 pb-5 border-t border-border/60 flex flex-col gap-2">
             <div className="text-center w-full">
-              <p className="text-2xs text-zinc-500">
+              <p className="text-2xs text-muted-foreground">
                 Are you a client or creator?{' '}
                 <Link
                   href="/login"
-                  className="text-amber-400 hover:text-amber-300 font-medium inline-flex items-center gap-1 transition-colors"
+                  className="text-brand-text dark:text-amber-400 hover:underline font-semibold inline-flex items-center gap-1 transition-colors"
                 >
                   Return to Client Portal
                   <ArrowRight className="size-3" />
@@ -235,7 +230,7 @@ export default function AdminLoginPage() {
         </Card>
 
         {/* Footer Security Watermark */}
-        <p className="text-center text-3xs font-mono text-zinc-600 tracking-wider">
+        <p className="text-center text-3xs font-mono text-muted-foreground/60 tracking-wider">
           HUMANTEK STUDIO · SECURITY LEVEL 4 · ENCRYPTED SSL
         </p>
       </div>

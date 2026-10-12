@@ -4,6 +4,9 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/lib/userStore';
 
+import { Spinner } from '@/components/ui/spinner';
+import { StudioBackground } from '@/components/StudioBackground';
+
 interface RequireAdminProps {
   children: React.ReactNode;
 }
@@ -24,10 +27,11 @@ export function RequireAdmin({ children }: RequireAdminProps) {
 
   if (!isHydrated || !user?.email || !isAdmin()) {
     return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-100">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-6 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
-          <p className="text-xs font-mono text-zinc-400">Verifying administrator credentials...</p>
+      <div className="relative flex h-screen items-center justify-center bg-background text-foreground overflow-hidden">
+        <StudioBackground variant="subtle" showDots={false} />
+        <div className="relative z-10 flex flex-col items-center gap-3">
+          <Spinner className="size-6 text-amber-500" />
+          <p className="text-xs font-mono text-muted-foreground">Verifying administrator credentials...</p>
         </div>
       </div>
     );

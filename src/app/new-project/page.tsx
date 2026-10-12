@@ -141,6 +141,7 @@ import {
 import { toast } from 'sonner';
 import {
   CheckCircle,
+  AlertCircle,
   AlertTriangle,
   Upload,
   ArrowRight,
@@ -195,7 +196,6 @@ import {
   MessageSquare,
   Wallet,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { useChatStore, GLOBAL_CHAT_ID } from '@/lib/chatStore';
 import { ChatGate } from '@/components/chat/ChatGate';
 import { useUserStore, refreshUserSession } from '@/lib/userStore';
@@ -405,6 +405,8 @@ export default function CreatorStudioPage() {
   const [mounted, setMounted] = useState(false);
   const [submittedProjectId, setSubmittedProjectId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<{ message: string; showProjectsLink?: boolean } | null>(null);
+  const [policyError, setPolicyError] = useState(false);
+  const [termsError, setTermsError] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -760,10 +762,10 @@ export default function CreatorStudioPage() {
             toast.error('Adjust your services — check your credit budget and tier limits.');
           }
         } else if (s === 3) {
+          setPolicyError(true);
           const el = document.getElementById('policy-ack') || document.getElementById('policy-ack-card');
           el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           el?.focus({ preventScroll: true });
-          toast.error('Please accept the scope policy to continue.');
         } else if (s === 4) {
           if (!brief.validateAll()) {
             toast.error(
@@ -772,10 +774,10 @@ export default function CreatorStudioPage() {
                 : `Please fix the ${brief.errorCount} highlighted fields.`
             );
           } else if (!termsAccepted) {
+            setTermsError(true);
             const el = document.getElementById('terms-ack') || document.getElementById('terms-ack-card');
             el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             el?.focus({ preventScroll: true });
-            toast.error('Please accept the Terms & Conditions to continue.');
           }
         }
         return;
@@ -1049,14 +1051,6 @@ export default function CreatorStudioPage() {
         deductCredits(usedCredits, `Launched project ${data.project.projectCode}`);
       }
 
-      if (data?.project) {
-        confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 },
-        });
-      }
-
       await completeCheckout(data?.project ?? null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
@@ -1087,7 +1081,7 @@ export default function CreatorStudioPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 sm:h-7.5 px-2 sm:px-2.5 rounded-full text-2xs sm:text-xs font-medium text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 border border-zinc-800 hover:border-rose-500/30 transition-all cursor-pointer select-none gap-1 shrink-0"
+                className="h-7 sm:h-7.5 px-2 sm:px-2.5 rounded-full text-2xs sm:text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/80 hover:border-destructive/30 transition-all cursor-pointer select-none gap-1 shrink-0"
                 title="Discard draft and start fresh"
               >
                 <RotateCcw className="size-3" />
@@ -1120,9 +1114,9 @@ export default function CreatorStudioPage() {
 
       {currentPackage && (
         <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-7 sm:h-7.5 rounded-full bg-amber-400/15 border border-amber-400/35 text-2xs sm:text-xs font-medium shadow-2xs select-none shrink-0">
-          <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span className="text-zinc-300 font-medium hidden md:inline">Scope:</span>
-          <span className="font-bold text-amber-300 tabular-nums font-mono">
+          <Coins className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+          <span className="text-muted-foreground font-medium hidden md:inline">Scope:</span>
+          <span className="font-bold text-brand-text dark:text-amber-300 tabular-nums font-mono">
             <span className="hidden sm:inline">{remainingCredits} / {totalPackageCredits} CR</span>
             <span className="sm:hidden">{remainingCredits} CR</span>
           </span>
@@ -1791,12 +1785,12 @@ export default function CreatorStudioPage() {
             </div>
           </div>
 
-          {/* Compact Sticky Scope & Budget Summary Bar (Permanently visible on mobile screens) */}
+          {/* Compact Sticky Cart & Budget Summary Bar (Permanently visible on mobile screens) */}
           <div className="lg:hidden sticky top-[53px] sm:top-[61px] z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-background/95 backdrop-blur-md border-b border-border/70 shadow-2xs">
             <button
               type="button"
               onClick={() => setMobileScopeOpen(true)}
-              className="w-full flex items-center justify-between gap-3 p-2 sm:p-2.5 px-3 rounded-xl bg-card hover:bg-secondary/60 border border-border/80 text-foreground transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
+              className="w-full flex items-center justify-between gap-2.5 p-2 sm:p-2.5 px-3 rounded-xl bg-card hover:bg-secondary/60 border border-border/80 text-foreground transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
             >
               <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                 <div
@@ -1809,28 +1803,35 @@ export default function CreatorStudioPage() {
                 >
                   <Coins className="size-4" />
                 </div>
-                <div className="text-xs truncate flex items-center gap-1.5 font-semibold">
-                  <span className="font-bold text-foreground">
-                    {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'}<span className="hidden sm:inline"> selected</span>
-                  </span>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span
-                    className={cn(
-                      'font-mono font-bold tabular-nums',
-                      remainingCredits >= 0
-                        ? 'text-brand-text dark:text-amber-400'
-                        : 'text-destructive font-black'
-                    )}
-                  >
-                    {remainingCredits >= 0
-                      ? `${remainingCredits.toLocaleString('en-US')} CR left`
-                      : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
-                  </span>
+                <div className="min-w-0 flex flex-col justify-center text-left">
+                  <div className="text-xs truncate flex items-center gap-1.5 font-semibold text-foreground leading-tight">
+                    <span className="font-bold">
+                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'}
+                    </span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="font-mono tabular-nums text-foreground/80">
+                      {usedCredits.toLocaleString('en-US')} CR
+                    </span>
+                  </div>
+                  <div className="text-2xs leading-tight mt-0.5">
+                    <span
+                      className={cn(
+                        'font-mono font-bold tabular-nums',
+                        remainingCredits >= 0
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-destructive font-black'
+                      )}
+                    >
+                      {remainingCredits >= 0
+                        ? `${remainingCredits.toLocaleString('en-US')} CR left`
+                        : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-1 text-2xs sm:text-xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/35 px-2 sm:px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs">
-                <span>View Scope</span>
+                <span>View Cart</span>
                 <ChevronRight className="w-3 h-3 text-brand-text dark:text-amber-400" />
               </div>
             </button>
@@ -2064,7 +2065,7 @@ export default function CreatorStudioPage() {
                             className="w-full text-xs font-semibold h-8 rounded-lg border-dashed hover:border-amber-400 hover:text-brand-text dark:hover:text-amber-400 hover:bg-amber-400/[0.04] gap-1.5 cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
-                            Add to Scope
+                            Add to Cart
                           </Button>
                         )}
                       </div>
@@ -2129,7 +2130,7 @@ export default function CreatorStudioPage() {
                                     variant="ghost"
                                     size="sm"
                                     className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2 shrink-0 rounded-lg transition-colors gap-1 cursor-pointer"
-                                    aria-label="Remove from scope"
+                                    aria-label="Remove from cart"
                                   />
                                 }
                               >
@@ -2177,7 +2178,7 @@ export default function CreatorStudioPage() {
                     </EmptyTitle>
                     <EmptyDescription className="text-xs">
                       {activeCategory === 'Selected'
-                        ? 'Browse catalog categories and click "Add to Scope" to build your custom package.'
+                        ? 'Browse catalog categories and click "Add to Cart" to build your custom package.'
                         : 'Try adjusting your price filter or selecting another category.'}
                     </EmptyDescription>
                   </EmptyHeader>
@@ -2233,10 +2234,10 @@ export default function CreatorStudioPage() {
                   </div>
                   <div className="min-w-0">
                     <DrawerTitle className="text-sm font-bold truncate">
-                      Project Scope &amp; Budget
+                      Your Order &amp; Credits
                     </DrawerTitle>
                     <DrawerDescription className="text-2xs text-muted-foreground truncate">
-                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} selected · {remainingCredits >= 0 ? `${remainingCredits.toLocaleString('en-US')} CR remaining` : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over budget`}
+                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} selected · {usedCredits.toLocaleString('en-US')} CR used · {remainingCredits >= 0 ? `${remainingCredits.toLocaleString('en-US')} CR remaining` : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over budget`}
                     </DrawerDescription>
                   </div>
                 </div>
@@ -2300,7 +2301,7 @@ export default function CreatorStudioPage() {
                   onClick={() => setMobileScopeOpen(false)}
                   className="h-8.5 px-4 text-xs font-semibold rounded-xl cursor-pointer shadow-2xs shrink-0"
                 >
-                  Done Browsing Scope
+                  Close Cart
                 </Button>
               </DrawerFooter>
             </DrawerContent>
@@ -2741,30 +2742,56 @@ export default function CreatorStudioPage() {
             id="policy-ack-card"
             className={cn(
               'rounded-xl border transition-all cursor-pointer select-none scroll-mt-[140px]',
-              policyAccepted
+              policyError && !policyAccepted
+                ? 'border-rose-500 bg-rose-500/[0.04] ring-2 ring-rose-500/25 shadow-xs'
+                : policyAccepted
                 ? 'border-amber-400/80 bg-amber-400/[0.04] ring-1 ring-amber-400/25 shadow-xs'
                 : 'border-border/80 bg-card hover:border-amber-400/40 hover:shadow-2xs'
             )}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('button, input, label')) return;
-              setPolicyAccepted(!policyAccepted);
+              const nextVal = !policyAccepted;
+              setPolicyAccepted(nextVal);
+              if (nextVal) setPolicyError(false);
             }}
           >
             <CardContent className="p-4 sm:p-4.5 flex items-start gap-3">
               <Checkbox
                 id="policy-ack"
                 checked={policyAccepted}
-                onCheckedChange={(checked) => setPolicyAccepted(Boolean(checked))}
-                className="mt-0.5 shrink-0 scroll-mt-[140px]"
+                onCheckedChange={(checked) => {
+                  const val = Boolean(checked);
+                  setPolicyAccepted(val);
+                  if (val) setPolicyError(false);
+                }}
+                className={cn(
+                  'mt-0.5 shrink-0 scroll-mt-[140px]',
+                  policyError && !policyAccepted && 'border-rose-500 data-[state=unchecked]:border-rose-500 ring-2 ring-rose-500/30'
+                )}
               />
-              <div className="space-y-0.5">
-                <Label htmlFor="policy-ack" className="text-sm font-bold text-foreground cursor-pointer block">
-                  Required Acknowledgement *
+              <div className="space-y-0.5 w-full">
+                <Label
+                  htmlFor="policy-ack"
+                  className={cn(
+                    'text-sm font-bold cursor-pointer block transition-colors',
+                    policyError && !policyAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'
+                  )}
+                >
+                  Required Acknowledgement <span className={policyError && !policyAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
                 </Label>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   I understand that credits can only be applied to eligible creative services supported by Humantek Art,
                   and that briefs with non-compliant content may be declined even if sufficient credits are available.
                 </p>
+                {policyError && !policyAccepted && (
+                  <div
+                    className="flex items-center gap-1.5 pt-1 text-xs font-semibold text-rose-600 dark:text-rose-400 animate-in fade-in-50 duration-150"
+                    role="alert"
+                  >
+                    <AlertCircle className="size-3.5 shrink-0" />
+                    <span>Please accept the studio policy to continue.</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -3157,30 +3184,56 @@ export default function CreatorStudioPage() {
               id="terms-ack-card"
               className={cn(
                 'rounded-xl border transition-all cursor-pointer select-none scroll-mt-[140px]',
-                termsAccepted
+                termsError && !termsAccepted
+                  ? 'border-rose-500 bg-rose-500/[0.04] ring-2 ring-rose-500/25 shadow-xs'
+                  : termsAccepted
                   ? 'border-amber-400/80 bg-amber-400/[0.04] ring-1 ring-amber-400/25 shadow-xs'
                   : 'border-border/80 bg-card hover:border-amber-400/50 hover:shadow-2xs'
               )}
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest('button, input, label')) return;
-                setTermsAccepted(!termsAccepted);
+                const nextVal = !termsAccepted;
+                setTermsAccepted(nextVal);
+                if (nextVal) setTermsError(false);
               }}
             >
               <CardContent className="p-4 sm:p-4.5 flex items-start gap-3">
                 <Checkbox
                   id="terms-ack"
                   checked={termsAccepted}
-                  onCheckedChange={(checked) => setTermsAccepted(Boolean(checked))}
-                  className="mt-0.5 shrink-0 scroll-mt-[140px]"
+                  onCheckedChange={(checked) => {
+                    const val = Boolean(checked);
+                    setTermsAccepted(val);
+                    if (val) setTermsError(false);
+                  }}
+                  className={cn(
+                    'mt-0.5 shrink-0 scroll-mt-[140px]',
+                    termsError && !termsAccepted && 'border-rose-500 data-[state=unchecked]:border-rose-500 ring-2 ring-rose-500/30'
+                  )}
                 />
-                <div className="space-y-0.5">
-                  <Label htmlFor="terms-ack" className="text-xs font-bold text-foreground cursor-pointer block">
-                    Terms Confirmation <span className="text-destructive font-semibold">*</span>
+                <div className="space-y-0.5 w-full">
+                  <Label
+                    htmlFor="terms-ack"
+                    className={cn(
+                      'text-xs font-bold cursor-pointer block transition-colors',
+                      termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'
+                    )}
+                  >
+                    Terms Confirmation <span className={termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
                   </Label>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     I agree to the Humantek Studio Terms & Conditions, revision policies, and understand
                     that production commences upon scope confirmation and payment verification.
                   </p>
+                  {termsError && !termsAccepted && (
+                    <div
+                      className="flex items-center gap-1.5 pt-1 text-xs font-semibold text-rose-600 dark:text-rose-400 animate-in fade-in-50 duration-150"
+                      role="alert"
+                    >
+                      <AlertCircle className="size-3.5 shrink-0" />
+                      <span>Please accept the Terms &amp; Conditions to continue.</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

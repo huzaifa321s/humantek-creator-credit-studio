@@ -86,8 +86,8 @@ export function ScopeGuideModal() {
             className="gap-1.5 sm:gap-2 text-2xs sm:text-xs h-7 sm:h-8 px-2.5 sm:px-3 border-dashed text-muted-foreground hover:text-foreground cursor-pointer shadow-2xs"
           >
             <TableIcon className="size-3 sm:size-3.5 text-brand-text" />
-            <span className="hidden min-[400px]:inline">Full Credit Rates &amp; Scope Matrix</span>
-            <span className="min-[400px]:hidden">Rates &amp; Scope Matrix</span>
+            <span className="hidden min-[400px]:inline">Credit Rates &amp; What&apos;s Included</span>
+            <span className="min-[400px]:hidden">Credit Rates &amp; Guide</span>
           </Button>
         }
       />
@@ -101,7 +101,7 @@ export function ScopeGuideModal() {
             </div>
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-sm sm:text-base font-bold text-foreground tracking-tight truncate">
-                Creative Services · Scope Matrix
+                Creative Services · Credit Rates &amp; Guide
               </DialogTitle>
               <DialogDescription className="text-2xs sm:text-xs text-muted-foreground mt-0.5 truncate">
                 All 39 studio services · <span className="font-semibold text-foreground/80">1 CR = $2.50</span> base rate

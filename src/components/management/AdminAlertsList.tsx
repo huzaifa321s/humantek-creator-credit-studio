@@ -1,8 +1,10 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { AlertTriangle, ShieldAlert, DollarSign, Clock, RefreshCw, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { cn } from '@/lib/utils';
 
 export interface AdminAlert {
   id: string;
@@ -81,27 +83,32 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
           </div>
         </div>
 
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={fetchAlerts}
           disabled={loading}
-          className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-foreground bg-secondary/70 hover:bg-secondary border border-border/80 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
+          loading={loading}
+          className="cursor-pointer self-start sm:self-auto gap-1.5"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className="size-3.5" />
           Refresh
-        </button>
+        </Button>
       </div>
 
       {/* Alerts list */}
       {loading && alerts.length === 0 ? (
         <div className="p-12 text-center text-muted-foreground text-xs sm:text-sm">Loading alerts...</div>
       ) : alerts.length === 0 ? (
-        <div className="p-10 sm:p-12 rounded-xl bg-card border border-border/80 text-center space-y-3 shadow-2xs">
-          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-          <h4 className="text-sm font-semibold text-foreground">All Clear</h4>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+        <Empty className="p-10 sm:p-12 rounded-xl bg-card border border-border/80 text-center shadow-2xs">
+          <EmptyMedia variant="default">
+            <CheckCircle2 className="size-8 text-emerald-500" />
+          </EmptyMedia>
+          <EmptyTitle className="text-sm font-semibold text-foreground">All Clear</EmptyTitle>
+          <EmptyDescription className="text-xs text-muted-foreground max-w-sm mx-auto">
             No active shortfalls, disputes, or security alerts. All transactions and wallet settlements are in good standing.
-          </p>
-        </div>
+          </EmptyDescription>
+        </Empty>
       ) : (
         <div className="space-y-2.5">
           {alerts.map((alert) => {
@@ -118,12 +125,14 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
                   className="p-3.5 sm:p-4 flex items-start justify-between gap-3 cursor-pointer select-none"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${bg} shrink-0 self-start`}
+                    <Badge
+                      variant="outline"
+                      size="sm"
+                      className={cn('gap-1.5 shrink-0 self-start font-medium', bg)}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <Icon className="size-3.5" />
                       {alert.type.replace(/_/g, ' ')}
-                    </span>
+                    </Badge>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs sm:text-sm text-foreground font-medium leading-snug break-words">
                         {alert.message}

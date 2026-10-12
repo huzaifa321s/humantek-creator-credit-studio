@@ -112,14 +112,17 @@ export function AdminManualOrders() {
           </div>
         </div>
 
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={fetchOrders}
           disabled={loading}
-          className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-foreground bg-secondary/70 hover:bg-secondary border border-border/80 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
+          loading={loading}
+          className="cursor-pointer self-start sm:self-auto gap-1.5"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className="size-3.5" />
           Refresh
-        </button>
+        </Button>
       </div>
 
       {/* Pending Manual Transfers Section */}

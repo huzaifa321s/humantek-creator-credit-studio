@@ -25,9 +25,9 @@ export default function MessagesPage() {
       topRightBadge={
         <Link href="/new-project">
           <Button
-            variant="default"
+            variant="gold"
             size="sm"
-            className="h-8 px-2.5 sm:px-3 rounded-md text-xs font-bold gap-1 shadow-xs bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground shadow-amber-400/20 cursor-pointer"
+            className="gap-1 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden min-[400px]:inline">New Project</span>
