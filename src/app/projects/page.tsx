@@ -17,6 +17,7 @@ import {
   Search,
   MessageSquare,
   Sparkles,
+  Plus,
   ChevronDown,
   CheckCircle2,
   Loader2,
@@ -86,10 +87,20 @@ function CompactProjectRow({
 
   return (
     <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs transition-all hover:border-amber-400/40">
-      {/* Clickable Header Row */}
+      {/* Clickable Header Row with full Keyboard & Accessibility Support */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        aria-controls={`project-details-${project.id}`}
         onClick={onToggle}
-        className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none bg-card hover:bg-muted/30 transition-colors"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none bg-card hover:bg-muted/30 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
       >
         <div className="flex items-center gap-3 min-w-0">
           <Badge
@@ -129,6 +140,8 @@ function CompactProjectRow({
               size="icon-xs"
               className="text-muted-foreground hover:text-foreground cursor-pointer rounded-md"
               aria-label={isExpanded ? 'Collapse project details' : 'Expand project details'}
+              aria-expanded={isExpanded}
+              aria-controls={`project-details-${project.id}`}
             >
               <ChevronDown
                 className={cn('size-4 transition-transform duration-200', isExpanded && 'rotate-180')}
@@ -140,7 +153,10 @@ function CompactProjectRow({
 
       {/* Expanded Details Body */}
       {isExpanded && (
-        <div className="border-t border-border/60 bg-secondary/15 p-4 sm:p-5 space-y-4 animate-in fade-in duration-200">
+        <div
+          id={`project-details-${project.id}`}
+          className="border-t border-border/60 bg-secondary/15 p-4 sm:p-5 space-y-4 animate-in fade-in duration-200"
+        >
           {/* Stepper */}
           <div>
             <p className="text-2xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
@@ -263,13 +279,25 @@ export default function ProjectsPage() {
   const activeCount = counts.active;
   const deliveredCount = counts.delivered;
 
-  // If client has 10+ projects, default initial tab to 'active' (In Progress) while keeping Delivered tab visible
+  const currentTabTotal =
+    activeTab === 'active'
+      ? activeCount
+      : activeTab === 'delivered'
+        ? deliveredCount
+        : totalCount;
+
+  // If client has 10+ projects, default initial tab to 'active' (In Progress) only if active projects exist.
+  // If activeCount === 0 (e.g. all 12 projects are delivered), fall back to 'all' so client is never shown an empty tab.
   useEffect(() => {
     if (!hasAutoSwitchedTab.current && totalCount >= 10) {
       hasAutoSwitchedTab.current = true;
-      setActiveTab('active');
+      if (activeCount > 0) {
+        setActiveTab('active');
+      } else {
+        setActiveTab('all');
+      }
     }
-  }, [totalCount]);
+  }, [totalCount, activeCount]);
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -287,7 +315,7 @@ export default function ProjectsPage() {
       topRightBadge={
         <Link href="/new-project">
           <Button variant="gold" size="sm" className="gap-1 cursor-pointer">
-            <Sparkles className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span className="hidden min-[400px]:inline">New Project</span>
             <span className="min-[400px]:hidden">New</span>
           </Button>
@@ -468,7 +496,7 @@ export default function ProjectsPage() {
                             {proj.status === 'pending_review'
                               ? ' · Creative brief submitted for review'
                               : proj.status === 'payment_confirmed'
-                              ? ' · Preparing production assets'
+                              ? ' · Getting things ready'
                               : proj.status === 'in_production'
                               ? ' · Creative work in progress'
                               : proj.status === 'review_round'
@@ -563,11 +591,11 @@ export default function ProjectsPage() {
                     <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-border/60 pt-4">
                       <div className="flex items-center justify-between mb-2.5">
                         <span className="text-2xs sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Deliverable Assets</span>
-                        <span className="text-xs text-muted-foreground font-mono tabular-nums">{proj.selections.length} items</span>
+                        <span className="text-xs text-muted-foreground font-mono tabular-nums">{(proj.selections || []).length} items</span>
                       </div>
-                      {proj.selections.length > 0 ? (
+                      {(proj.selections || []).length > 0 ? (
                         <div className="divide-y divide-border/50 rounded-lg border border-border/60 bg-muted/20 text-xs overflow-hidden">
-                          {proj.selections.map((item, i) => (
+                          {(proj.selections || []).map((item, i) => (
                             <div key={i} className="flex items-center justify-between px-3.5 py-2 hover:bg-muted/40 transition-colors gap-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="font-medium text-foreground truncate">{item.name}</span>
@@ -590,28 +618,31 @@ export default function ProjectsPage() {
             })}
 
             {/* Load More Button for Keyset Cursor pagination (No page numbers) */}
-            {hasNextPage && (
+            {(hasNextPage || currentTabTotal > 20) && (
               <div className="pt-4 flex flex-col items-center gap-2">
-                <p className="text-2xs text-muted-foreground font-medium">
-                  Showing {allProjects.length} of {totalCount} projects
+                <p className="text-2xs text-muted-foreground font-medium" aria-live="polite">
+                  Loaded {allProjects.length} of {currentTabTotal} projects
                 </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isFetchingNextPage}
-                  onClick={() => fetchNextPage()}
-                  className="h-9 px-5 text-xs font-semibold gap-2 border-border/80 bg-card hover:bg-muted cursor-pointer"
-                >
-                  {isFetchingNextPage ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin" />
-                      <span>Loading more projects...</span>
-                    </>
-                  ) : (
-                    <span>Load More Projects</span>
-                  )}
-                </Button>
+                {hasNextPage && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isFetchingNextPage}
+                    onClick={() => fetchNextPage()}
+                    className="h-9 px-5 text-xs font-semibold gap-2 border-border/80 bg-card hover:bg-muted cursor-pointer"
+                    aria-label={`Load more projects. Currently loaded ${allProjects.length} of ${currentTabTotal}`}
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin" />
+                        <span>Loading more projects...</span>
+                      </>
+                    ) : (
+                      <span>Load More Projects</span>
+                    )}
+                  </Button>
+                )}
               </div>
             )}
           </div>

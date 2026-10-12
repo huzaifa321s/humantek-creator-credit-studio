@@ -31,7 +31,7 @@ export function RequireAdmin({ children }: RequireAdminProps) {
         <StudioBackground variant="subtle" showDots={false} />
         <div className="relative z-10 flex flex-col items-center gap-3">
           <Spinner className="size-6 text-amber-500" />
-          <p className="text-xs font-mono text-muted-foreground">Verifying administrator credentials...</p>
+          <p className="text-xs font-mono text-muted-foreground">Checking access...</p>
         </div>
       </div>
     );

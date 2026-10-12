@@ -23,7 +23,7 @@ interface PayPalButtonWrapperProps {
  */
 export function PaymentButtonsSkeleton() {
   return (
-    <div className="space-y-2.5 animate-pulse" aria-label="Loading secure payment options...">
+    <div className="space-y-2.5 animate-pulse" aria-label="Loading payment options...">
       {/* 1. Pay with PayPal slot */}
       <div className="h-11 w-full rounded-lg bg-amber-400/15 border border-amber-400/25 flex items-center justify-center">
         <div className="h-4 w-28 bg-amber-400/30 rounded-md" />

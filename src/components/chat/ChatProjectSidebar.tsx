@@ -130,8 +130,9 @@ export function ChatProjectSidebar({
                 <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 rounded-r-xs" />
               )}
 
-              <div className="flex items-center justify-between gap-1.5 mb-1 w-full">
-                <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+              {/* Row 1: Icon + Title on left, Badge or Unread on right */}
+              <div className="flex items-center justify-between gap-1.5 mb-0.5 w-full">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <span
                     className={cn(
                       'flex size-5 shrink-0 items-center justify-center rounded-md transition-all shadow-2xs',
@@ -144,7 +145,7 @@ export function ChatProjectSidebar({
                   </span>
                   <span
                     className={cn(
-                      'text-xs font-bold tracking-tight whitespace-nowrap',
+                      'text-xs font-bold tracking-tight truncate',
                       isGlobalSelected
                         ? 'text-brand-text dark:text-amber-200'
                         : 'text-foreground'
@@ -152,27 +153,37 @@ export function ChatProjectSidebar({
                   >
                     Global Chat
                   </span>
-                  <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1 py-0.2 rounded border border-amber-400/20">
-                    Concierge
-                  </span>
                 </div>
 
-                {globalUnread > 0 ? (
-                  <Badge
-                    variant="destructive"
-                    className="text-2xs font-mono font-bold tabular-nums px-1.5 py-0 h-4 shrink-0 animate-pulse"
-                  >
-                    {globalUnread} new
-                  </Badge>
-                ) : (
-                  <span className="text-2xs font-mono tabular-nums text-muted-foreground/80 shrink-0 whitespace-nowrap">
-                    {lastGlobalMsg
-                      ? formatChatTimestamp(lastGlobalMsg.timestamp)
-                      : ''}
-                  </span>
-                )}
+                <div className="flex items-center gap-1 shrink-0">
+                  {globalUnread > 0 ? (
+                    <Badge
+                      variant="destructive"
+                      className="text-2xs font-mono font-bold tabular-nums px-1.5 py-0 h-4 shrink-0 animate-pulse"
+                    >
+                      {globalUnread} new
+                    </Badge>
+                  ) : (
+                    <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/20">
+                      Concierge
+                    </span>
+                  )}
+                </div>
               </div>
 
+              {/* Row 2: Subtitle on left, Timestamp on right */}
+              <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1 w-full pl-6.5">
+                <span className="font-medium text-foreground/85 truncate text-2xs">
+                  Studio Advisory
+                </span>
+                <span className="text-3xs shrink-0 font-mono tabular-nums text-muted-foreground/80 pl-1">
+                  {lastGlobalMsg
+                    ? formatChatTimestamp(lastGlobalMsg.timestamp)
+                    : ''}
+                </span>
+              </div>
+
+              {/* Row 3: Preview */}
               <p
                 className={cn(
                   'text-2xs line-clamp-2 leading-relaxed pl-6.5 w-full break-words',

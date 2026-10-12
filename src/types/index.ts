@@ -140,6 +140,19 @@ export interface ChatAudioNote {
   url?: string;
 }
 
+export interface ChatLike {
+  userId: string;
+  userName: string;
+  likedAt?: string;
+}
+
+export interface ChatReplyTo {
+  id: string;
+  senderName: string;
+  senderRole?: string;
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   clientMessageId?: string;
@@ -153,6 +166,12 @@ export interface ChatMessage {
   orderCard?: ChatOrderCard;
   isRead?: boolean;
   reactions?: ChatReaction[];
+  likes?: ChatLike[];
+  replyTo?: ChatReplyTo;
+  isEdited?: boolean;
+  editedAt?: string;
+  isDeleted?: boolean;
+  createdAtRaw?: string;
   audioNote?: ChatAudioNote;
   status?: 'sending' | 'sent' | 'failed';
   errorReason?: string;

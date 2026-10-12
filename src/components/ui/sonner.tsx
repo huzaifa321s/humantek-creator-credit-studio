@@ -4,7 +4,12 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
+const Toaster = ({
+  position = "top-right",
+  offset = 72,
+  mobileOffset = { top: 72, left: 16, right: 16 },
+  ...props
+}: ToasterProps) => {
   const { theme = "system" } = useTheme()
 
   return (
@@ -16,7 +21,8 @@ const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
       visibleToasts={3}
       closeButton
       gap={8}
-      offset={20}
+      offset={offset}
+      mobileOffset={mobileOffset}
       icons={{
         success: (
           <CircleCheckIcon className="size-4.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -45,7 +51,7 @@ const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-card group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xs group-[.toaster]:rounded-xl font-sans text-sm border",
+            "group toast group-[.toaster]:bg-card group-[.toaster]:!opacity-100 group-[.toaster]:backdrop-blur-none group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-xl font-sans text-sm border",
           title: "font-bold text-foreground text-sm tracking-tight",
           description: "text-muted-foreground text-xs leading-relaxed",
           actionButton:

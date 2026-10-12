@@ -57,7 +57,7 @@ export default async function RootLayout({
           <TooltipProvider>
             {children}
             <ChatFloatingWidget />
-            <Toaster position="top-center" />
+            <Toaster position="top-right" offset={72} mobileOffset={{ top: 72, left: 16, right: 16 }} />
           </TooltipProvider>
         </Providers>
       </body>

@@ -74,6 +74,7 @@ interface CartSidebarProps {
   additions?: string[];
   onToggleAddition?: (extra: string) => void;
   onClearAll?: () => void;
+  hasServiceError?: boolean;
 }
 
 export function CartSidebar({
@@ -93,6 +94,7 @@ export function CartSidebar({
   additions = [],
   onToggleAddition,
   onClearAll,
+  hasServiceError = false,
 }: CartSidebarProps) {
   const effectiveTotal = totalAvailableCredits !== undefined ? totalAvailableCredits : pack.credits;
   const percentage = effectiveTotal > 0 ? Math.min(100, Math.round((usedCredits / effectiveTotal) * 100)) : 0;
@@ -282,21 +284,62 @@ export function CartSidebar({
               </div>
             ))
           ) : (
-            <Empty className="p-5 gap-2 rounded-xl border border-dashed border-border bg-secondary/20">
+            <Empty
+              id="no-services-sidebar-card"
+              className={cn(
+                'p-5 gap-2 rounded-xl border border-dashed transition-all scroll-mt-28',
+                hasServiceError
+                  ? 'border-rose-500/80 bg-rose-500/5 ring-2 ring-rose-500/25 dark:border-rose-500 dark:bg-rose-950/20 shadow-xs'
+                  : 'border-border bg-secondary/20'
+              )}
+            >
               <EmptyHeader className="gap-1.5">
-                <EmptyMedia variant="icon" className="mb-0 size-9 rounded-lg">
-                  <Layers className="w-5 h-5 text-muted-foreground" />
+                <EmptyMedia
+                  variant="icon"
+                  className={cn(
+                    'mb-0 size-9 rounded-lg transition-colors',
+                    hasServiceError
+                      ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                      : ''
+                  )}
+                >
+                  {hasServiceError ? (
+                    <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                  ) : (
+                    <Layers className="w-5 h-5 text-muted-foreground" />
+                  )}
                 </EmptyMedia>
-                <EmptyTitle className="text-xs font-bold text-foreground">
-                  No Services Selected
+                <EmptyTitle
+                  className={cn(
+                    'text-xs font-bold transition-colors',
+                    hasServiceError ? 'text-rose-700 dark:text-rose-300' : 'text-foreground'
+                  )}
+                >
+                  {hasServiceError ? 'Please Select a Service' : 'No Services Selected'}
                 </EmptyTitle>
-                <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
-                  Pick creative assets from the catalog to build your order.
+                <EmptyDescription
+                  className={cn(
+                    'text-2xs leading-normal transition-colors',
+                    hasServiceError
+                      ? 'text-rose-600/90 dark:text-rose-300 font-medium'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {hasServiceError
+                    ? 'Choose at least one creative service from the catalog to build your order.'
+                    : 'Pick creative assets from the catalog to build your order.'}
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="pt-0.5">
-                <span className="inline-flex items-center gap-1 text-2xs font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 px-2.5 py-1 rounded-lg border border-amber-400/25">
-                  <Sparkles className="w-3 h-3 text-brand-text dark:text-amber-400" />
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 text-2xs font-semibold px-2.5 py-1 rounded-lg border transition-colors',
+                    hasServiceError
+                      ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                      : 'text-brand-text dark:text-amber-400 bg-amber-400/15 border-amber-400/25'
+                  )}
+                >
+                  <Sparkles className="w-3 h-3 text-current" />
                   Click &ldquo;Add to Cart&rdquo; on any service
                 </span>
               </EmptyContent>

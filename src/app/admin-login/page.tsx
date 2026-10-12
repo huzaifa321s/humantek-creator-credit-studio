@@ -204,7 +204,7 @@ export default function AdminLoginPage() {
                 variant="gold"
                 size="lg"
                 loading={isLoading}
-                loadingText="Authenticating Console..."
+                loadingText="Signing in..."
                 className="w-full font-bold shadow-md shadow-amber-400/20 cursor-pointer mt-2"
               >
                 <ShieldCheck className="size-4 mr-2" />

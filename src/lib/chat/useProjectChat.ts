@@ -11,6 +11,20 @@ export interface ProjectChatMessage {
   body: string;
   clientMessageId: string | null;
   createdAt: string;
+  replyTo?: {
+    id: string;
+    senderName: string;
+    senderRole?: string;
+    content: string;
+  } | null;
+  likes?: Array<{
+    userId: string;
+    userName: string;
+    likedAt?: string;
+  }>;
+  isEdited?: boolean;
+  editedAt?: string | null;
+  isDeleted?: boolean;
   sender: {
     id: string;
     name: string;
@@ -187,7 +201,7 @@ export function useProjectChat({
 
   // Send message
   const sendMessage = useCallback(
-    async (bodyText: string, attachments?: any[], existingClientMsgId?: string) => {
+    async (bodyText: string, attachments?: any[], existingClientMsgId?: string, replyTo?: any) => {
       if (!isRealProject || !bodyText.trim() || isSending) return;
       setIsSending(true);
 
@@ -205,6 +219,7 @@ export function useProjectChat({
             body: bodyText.trim(),
             clientMessageId,
             attachments: attachments || [],
+            replyTo: replyTo || undefined,
           }),
         });
 
@@ -222,6 +237,113 @@ export function useProjectChat({
       }
     },
     [isRealProject, projectId, isSending, mergeMessages]
+  );
+
+  // Toggle like on message
+  const toggleLike = useCallback(
+    async (messageId: number, currentUserId?: string, currentUserName?: string) => {
+      if (!isRealProject) return;
+
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          const currentLikes = m.likes || [];
+          const myId = currentUserId || 'current-user';
+          const alreadyLiked = currentLikes.some((l) => l.userId === myId);
+          const updatedLikes = alreadyLiked
+            ? currentLikes.filter((l) => l.userId !== myId)
+            : [...currentLikes, { userId: myId, userName: currentUserName || 'You', likedAt: new Date().toISOString() }];
+          return { ...m, likes: updatedLikes };
+        })
+      );
+
+      try {
+        const res = await fetch(`/api/projects/${projectId}/messages`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'toggle_like', messageId }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to toggle like');
+        }
+        const data = await res.json();
+        if (data.likes) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === messageId ? { ...m, likes: data.likes } : m))
+          );
+        }
+      } catch (err) {
+        console.error('Failed to toggle like:', err);
+        fetchIncremental();
+      }
+    },
+    [isRealProject, projectId, fetchIncremental]
+  );
+
+  // Edit message
+  const editMessage = useCallback(
+    async (messageId: number, newBody: string) => {
+      if (!isRealProject || !newBody.trim()) return;
+
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, body: newBody.trim(), isEdited: true, editedAt: new Date().toISOString() } : m
+        )
+      );
+
+      try {
+        const res = await fetch(`/api/projects/${projectId}/messages`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'edit', messageId, content: newBody.trim() }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to edit message');
+        }
+      } catch (err: any) {
+        console.error('Failed to edit message:', err);
+        fetchIncremental();
+        throw err;
+      }
+    },
+    [isRealProject, projectId, fetchIncremental]
+  );
+
+  // Delete message
+  const deleteMessage = useCallback(
+    async (messageId: number) => {
+      if (!isRealProject) return;
+
+      // Optimistic delete
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, isDeleted: true, body: '', attachments: [] }
+            : m
+        )
+      );
+
+      try {
+        const res = await fetch(`/api/projects/${projectId}/messages`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', messageId }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to delete message');
+        }
+      } catch (err: any) {
+        console.error('Failed to delete message:', err);
+        fetchIncremental();
+        throw err;
+      }
+    },
+    [isRealProject, projectId, fetchIncremental]
   );
 
   // Mark messages as read
@@ -266,6 +388,9 @@ export function useProjectChat({
     isSending,
     error,
     sendMessage,
+    toggleLike,
+    editMessage,
+    deleteMessage,
     markAsRead,
     refetch: fetchIncremental,
   };

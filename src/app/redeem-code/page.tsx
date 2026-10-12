@@ -37,6 +37,7 @@ import {
   Check,
   Ticket,
   Sparkles,
+  Plus,
   ShieldCheck,
   Gift,
   ArrowRight,
@@ -125,7 +126,7 @@ export default function RedeemCodePage() {
             size="sm"
             className="gap-1 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span className="hidden min-[400px]:inline">New Project</span>
             <span className="min-[400px]:hidden">New</span>
           </Button>

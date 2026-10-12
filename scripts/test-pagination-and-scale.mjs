@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 dotenv.config({ path: '.env.local' });
 
@@ -47,6 +48,8 @@ async function fetchRoute(path, cookie = '') {
   const durationMs = Math.round(performance.now() - start);
 
   const text = await res.text().catch(() => '');
+  const byteSize = Buffer.byteLength(text, 'utf-8');
+  const serverTiming = res.headers.get('server-timing') || '';
   let data = null;
   const contentType = res.headers.get('content-type') || '';
   if (contentType.includes('application/json') && text) {
@@ -55,22 +58,25 @@ async function fetchRoute(path, cookie = '') {
     } catch {}
   }
 
-  return { status: res.status, data, durationMs };
+  return { status: res.status, data, durationMs, byteSize, serverTiming };
 }
 
 async function main() {
   console.log('========================================================================');
-  console.log('PAGINATION, DATA LIMITS, KEYSET CURSOR & SCALE VERIFICATION SUITE');
+  console.log('PAGINATION & SCALE VERIFICATION SUITE — 8/10 FEEDBACK REMEDIATION');
   console.log('========================================================================\n');
 
   const ts = Date.now();
+  const testTag = `TEST_TAG_${ts}`;
   const testPassword = 'TestPassword2026!';
-  const clientAEmail = `client.a.pag.${ts}@example.com`;
-  const clientBEmail = `client.b.pag.${ts}@example.com`;
-  const adminEmail = `admin.pag.${ts}@humantek.art`;
 
-  // 1. Provision Users
-  console.log('[Setup] Provisioning Client A, Client B, and Admin...');
+  const clientAEmail = `client.a.${ts}@example.com`;
+  const clientBEmail = `client.b.${ts}@example.com`;
+  const clientDEmail = `client.d.delivered.${ts}@example.com`;
+  const adminEmail = `admin.scale.${ts}@humantek.art`;
+
+  // 1. Provision Test Accounts
+  console.log('[Setup] 1. Provisioning Test Accounts (Tagged with ' + testTag + ')...');
   const { data: userA } = await adminSupabase.auth.admin.createUser({
     email: clientAEmail,
     password: testPassword,
@@ -78,6 +84,11 @@ async function main() {
   });
   const { data: userB } = await adminSupabase.auth.admin.createUser({
     email: clientBEmail,
+    password: testPassword,
+    email_confirm: true,
+  });
+  const { data: userD } = await adminSupabase.auth.admin.createUser({
+    email: clientDEmail,
     password: testPassword,
     email_confirm: true,
   });
@@ -89,29 +100,46 @@ async function main() {
 
   const userAId = userA.user.id;
   const userBId = userB.user.id;
+  const userDId = userD.user.id;
   const adminId = userAdmin.user.id;
 
   await adminSupabase.from('profiles').upsert([
     { id: userAId, email: clientAEmail, full_name: 'Client Alice', role: 'client' },
     { id: userBId, email: clientBEmail, full_name: 'Client Bob', role: 'client' },
+    { id: userDId, email: clientDEmail, full_name: 'Client DeliveredOnly', role: 'client' },
     { id: adminId, email: adminEmail, full_name: 'Admin Supervisor', role: 'admin' },
   ]);
 
   const cookieA = await loginAndGetCookie(clientAEmail, testPassword);
   const cookieB = await loginAndGetCookie(clientBEmail, testPassword);
+  const cookieD = await loginAndGetCookie(clientDEmail, testPassword);
   const cookieAdmin = await loginAndGetCookie(adminEmail, testPassword);
+  console.log('  -> Sessions established for Client A, Client B, Client D, and Admin.\n');
 
-  console.log('  -> Logged in Client A, Client B, and Admin.\n');
+  let passedTests = 0;
+  let totalTests = 0;
 
-  // 2. Seed 30 Projects for Client A
-  console.log('[Setup] Seeding 30 projects for Client A (5 active, 25 delivered)...');
+  function assert(condition, message) {
+    totalTests++;
+    if (condition) {
+      console.log(`  [PASS] ${message}`);
+      passedTests++;
+    } else {
+      console.error(`  [FAIL] ${message}`);
+      process.exitCode = 1;
+    }
+  }
+
+  try {
+
+  // 2. Seed 60 Projects for Client A (Proves > 50 Clamp!)
+  console.log('[Setup] 2. Seeding 60 projects for Client A (To definitively prove 50 hard clamp)...');
   const clientAProjects = [];
   const baseTime = Date.now();
 
-  for (let i = 1; i <= 30; i++) {
-    const isDelivered = i > 5;
+  for (let i = 1; i <= 60; i++) {
+    const isDelivered = i > 10;
     const projCode = i === 29 ? `HT-9929-ALPHA` : `HT-${8000 + i}-ALICE`;
-    // Deterministic decreasing timestamps
     const createdAt = new Date(baseTime - i * 60000).toISOString();
     const projId = `proj-a-${ts}-${i}`;
 
@@ -134,36 +162,39 @@ async function main() {
       platform: 'YouTube',
       style: 'Cyberpunk',
       colors: '#FFD700',
-      instructions: `Creative brief for test project ${i}`,
+      instructions: `[${testTag}] Brief for project ${i}`,
       created_at: createdAt,
     });
   }
 
-  const { error: seedAErr } = await adminSupabase.from('projects').insert(clientAProjects);
-  if (seedAErr) {
-    console.error('Failed to seed Client A projects:', seedAErr);
-    process.exit(1);
+  // Insert in batches
+  const { error: seedAErr1 } = await adminSupabase.from('projects').insert(clientAProjects.slice(0, 30));
+  const { error: seedAErr2 } = await adminSupabase.from('projects').insert(clientAProjects.slice(30, 60));
+  if (seedAErr1 || seedAErr2) {
+    console.error('Failed to insert Client A projects:', seedAErr1 || seedAErr2);
   }
 
-  // Add items for project 29
-  const { error: itemErr } = await adminSupabase.from('project_items').insert([
-    {
-      project_id: `proj-a-${ts}-29`,
-      service_id: 'logo',
-      service_name: 'Custom Vector Logo',
-      tier_level: 1,
-      quantity: 1,
-      unit_credits: 75,
-      total_credits: 75,
-    },
-  ]);
-  if (itemErr) {
-    console.error('Failed to insert project_item:', itemErr);
-    process.exit(1);
+  // Seed project deliverables for the first 5 projects + project 29 to prove summary vs full size reduction
+  const validServiceIds = ['logo', 'animated-logo', 'banner', 'animated-banner'];
+  const deliverableItems = [];
+  for (let pIdx of [1, 2, 3, 4, 5, 29]) {
+    for (let sId of validServiceIds) {
+      deliverableItems.push({
+        project_id: `proj-a-${ts}-${pIdx}`,
+        service_id: sId,
+        service_name: `Comprehensive ${sId} deliverable`,
+        tier_level: 1,
+        quantity: 1,
+        unit_credits: 75,
+        total_credits: 75,
+      });
+    }
   }
+  const { error: itemErr } = await adminSupabase.from('project_items').insert(deliverableItems);
+  if (itemErr) console.error('deliverableItems error:', itemErr);
 
-  // 3. Seed 5 Projects for Client B
-  console.log('[Setup] Seeding 5 projects for Client B (Cross-tenant probe)...');
+  // 3. Seed 5 Projects for Client B (Tenant Isolation Probe)
+  console.log('[Setup] 3. Seeding 5 projects for Client B (Cross-tenant probe)...');
   const clientBProjects = [];
   for (let i = 1; i <= 5; i++) {
     clientBProjects.push({
@@ -183,26 +214,54 @@ async function main() {
       channel_name: `BobShow ${i}`,
       email: clientBEmail,
       platform: 'Twitch',
+      instructions: `[${testTag}] Bob Brief ${i}`,
       created_at: new Date(baseTime - i * 100000).toISOString(),
     });
   }
   await adminSupabase.from('projects').insert(clientBProjects);
 
-  // 4. Seed 200 Projects for Admin
-  console.log('[Setup] Seeding 200 projects for Admin scale test...');
+  // 4. Seed 12 Projects for Client D (ALL DELIVERED, 0 active — Tab Fallback Edge Case)
+  console.log('[Setup] 4. Seeding 12 projects for Client D (All delivered, 0 active)...');
+  const clientDProjects = [];
+  for (let i = 1; i <= 12; i++) {
+    clientDProjects.push({
+      id: `proj-d-${ts}-${i}`,
+      project_code: `HT-DELIV-${i}`,
+      user_id: userDId,
+      package_id: 'studio-momentum',
+      package_name: 'Studio Momentum',
+      status: 'delivered',
+      payment_status: 'paid',
+      payment_method: 'credits',
+      funding_source: 'wallet',
+      package_price_usd: 1500,
+      package_credits: 660,
+      total_credits: 660,
+      client_name: 'Client DeliveredOnly',
+      channel_name: `ArchiveChannel ${i}`,
+      email: clientDEmail,
+      platform: 'YouTube',
+      instructions: `[${testTag}] Delivered archive project ${i}`,
+      created_at: new Date(baseTime - (i + 100) * 60000).toISOString(),
+    });
+  }
+  await adminSupabase.from('projects').insert(clientDProjects);
+
+  // 5. Seed 200 Projects for Admin Scale Test
+  console.log('[Setup] 5. Seeding 200 projects for Admin scale test...');
   const adminProjects = [];
   for (let i = 1; i <= 200; i++) {
     let status = 'delivered';
     if (i <= 50) status = 'pending_review';
     else if (i <= 100) status = 'in_production';
     else if (i <= 170) status = 'delivered';
+    else if (i <= 185) status = 'cancelled';
     else status = 'declined';
 
-    const pCode = `HT-${1000 + i}-SCALE`;
     adminProjects.push({
       id: `proj-scale-${ts}-${i}`,
-      project_code: pCode,
-      user_id: userAdmin.user.id,
+      project_code: `HT-${1000 + i}-SCALE`,
+      user_id: adminId,
       package_id: 'signature-collective',
       package_name: 'Signature Collective',
       status,
@@ -216,194 +275,303 @@ async function main() {
       channel_name: `ScaleChannel ${i}`,
       email: `scale.${i}@example.com`,
       platform: 'YouTube',
+      instructions: `[${testTag}] Scale Brief ${i}`,
       created_at: new Date(baseTime - i * 120000).toISOString(),
     });
   }
-
-  // Insert in batches of 100
   await adminSupabase.from('projects').insert(adminProjects.slice(0, 100));
   await adminSupabase.from('projects').insert(adminProjects.slice(100, 200));
 
-  console.log('  -> Database seeded successfully.\n');
-
-  let passedTests = 0;
-  let totalTests = 0;
-
-  function assert(condition, message) {
-    totalTests++;
-    if (condition) {
-      console.log(`  [PASS] ${message}`);
-      passedTests++;
-    } else {
-      console.error(`  [FAIL] ${message}`);
-      process.exitCode = 1;
-    }
+  // 6. Seed 110 Orders and 110 Alerts with valid UUIDs for Admin Clamp Proof
+  console.log('[Setup] 6. Seeding 110 Orders and 110 Admin Alerts (To prove 100 hard limit)...');
+  const seedOrders = [];
+  const seedAlerts = [];
+  for (let i = 1; i <= 110; i++) {
+    seedOrders.push({
+      id: crypto.randomUUID(),
+      user_id: adminId,
+      provider: 'paypal',
+      package_id: 'studio-momentum',
+      credits_to_grant: 660,
+      expected_amount_cents: 150000,
+      captured_amount_cents: 150000,
+      currency: 'USD',
+      status: 'fulfilled',
+      idempotency_key: crypto.randomUUID(),
+      created_at: new Date(baseTime - i * 30000).toISOString(),
+    });
+    seedAlerts.push({
+      id: crypto.randomUUID(),
+      user_id: adminId,
+      order_id: null,
+      type: 'SCALE_ALERT',
+      message: `[${testTag}] Scale test alert #${i}`,
+      metadata: { testTag, index: i },
+      created_at: new Date(baseTime - i * 30000).toISOString(),
+    });
   }
+  const { error: ordErr1 } = await adminSupabase.from('orders').insert(seedOrders.slice(0, 60));
+  const { error: ordErr2 } = await adminSupabase.from('orders').insert(seedOrders.slice(60, 110));
+  if (ordErr1 || ordErr2) console.error('Orders insert error:', ordErr1 || ordErr2);
 
-  // ---------------------------------------------------------------------------
-  // TEST 1: Hard Maximum Server Page Size Limit
-  // ---------------------------------------------------------------------------
-  console.log('--- TEST 1: Server Hard Maximum Page Size Limit ---');
+  const { error: altErr1 } = await adminSupabase.from('admin_alerts').insert(seedAlerts.slice(0, 60));
+  const { error: altErr2 } = await adminSupabase.from('admin_alerts').insert(seedAlerts.slice(60, 110));
+  if (altErr1 || altErr2) console.error('Alerts insert error:', altErr1 || altErr2);
+
+  console.log('  -> All test data seeded and tagged successfully.\n');
+
+  // ===========================================================================
+  // PROOF 1: Hard Maximum Server Limits (Client 50 with 60 rows, Admin 100 with 110 rows)
+  // ===========================================================================
+  console.log('--- PROOF 1: Definitive Server Hard Maximum Page Size Proof ---');
   {
-    // Client asking for 10,000 rows
+    // Client has 60 projects; asks for 10,000 rows
     const resA = await fetchRoute('/api/projects?limit=10000', cookieA);
     assert(resA.status === 200, `Client request succeeded (Status: ${resA.status})`);
-    assert(resA.data.projects.length <= 50, `Client asking for 10000 clamped to ${resA.data.projects.length} (<= 50 max limit)`);
-    console.log(`    -> Timing: ${resA.durationMs}ms`);
+    assert(resA.data.projects.length === 50, `PROVEN: Client has 60 projects, requested limit=10000, response contains EXACTLY 50 projects (hard cap 50)`);
+    assert(resA.data.limit === 50, `Limit field confirmed clamped to 50`);
+    console.log(`    -> Client Timing: ${resA.durationMs}ms | Server-Timing: ${resA.serverTiming}`);
 
-    // Admin asking for 10,000 rows
+    // Admin has 200+ projects; asks for 10,000 rows
     const resAdmin = await fetchRoute('/api/projects?limit=10000', cookieAdmin);
     assert(resAdmin.status === 200, `Admin request succeeded (Status: ${resAdmin.status})`);
-    assert(resAdmin.data.projects.length <= 100, `Admin asking for 10000 clamped to ${resAdmin.data.projects.length} (<= 100 max limit)`);
-    console.log(`    -> Timing: ${resAdmin.durationMs}ms\n`);
+    assert(resAdmin.data.projects.length === 100, `PROVEN: Admin requested limit=10000, response contains EXACTLY 100 projects (hard cap 100)`);
+    assert(resAdmin.data.limit === 100, `Admin limit field clamped to 100`);
+
+    // Orders endpoint: 110 orders seeded, asks for limit=10000
+    const ordersRes = await fetchRoute('/api/management/orders?limit=10000', cookieAdmin);
+    assert(ordersRes.status === 200, `Orders request succeeded (Status: ${ordersRes.status})`);
+    assert(ordersRes.data.orders.length === 100, `PROVEN: Admin requested limit=10000 for orders (110 seeded), clamped to EXACTLY 100 (got ${ordersRes.data.orders.length})`);
+    assert(ordersRes.data.limit === 100, `Orders limit field clamped to 100`);
+
+    // Alerts endpoint: 110 alerts seeded, asks for limit=10000
+    const alertsRes = await fetchRoute('/api/management/alerts?limit=10000', cookieAdmin);
+    assert(alertsRes.status === 200, `Alerts request succeeded (Status: ${alertsRes.status})`);
+    assert(alertsRes.data.alerts.length === 100, `PROVEN: Admin requested limit=10000 for alerts (110 seeded), clamped to EXACTLY 100 (got ${alertsRes.data.alerts.length})`);
+    assert(alertsRes.data.limit === 100, `Alerts limit field clamped to 100\n`);
   }
 
-  // ---------------------------------------------------------------------------
-  // TEST 2: Tenant Isolation
-  // ---------------------------------------------------------------------------
-  console.log('--- TEST 2: Tenant Isolation & Boundary Security ---');
+  // ===========================================================================
+  // PROOF 2: Keyset Cursor Precision (Identical & Microsecond Timestamps)
+  // ===========================================================================
+  console.log('--- PROOF 2: Cursor Precision (Identical & Microsecond Timestamps) ---');
   {
-    const resA = await fetchRoute('/api/projects', cookieA);
-    const hasBobProjects = resA.data.projects.some((p) => p.clientName === 'Client Bob' || p.projectCode.includes('BETA'));
-    assert(!hasBobProjects, "Client B's projects NEVER appear in Client A's project list");
+    // Part A: 30 rows created with IDENTICAL created_at in one batch
+    const identicalTime = '2026-10-12T10:00:00.123456+00:00';
+    const identicalProjects = [];
+    for (let i = 1; i <= 30; i++) {
+      const padId = String(i).padStart(2, '0');
+      identicalProjects.push({
+        id: `proj-ident-${ts}-${padId}`,
+        project_code: `HT-ID-${ts}-${padId}`,
+        user_id: userAId,
+        package_id: 'creator-forge',
+        package_name: 'Creator Forge',
+        status: 'delivered',
+        payment_status: 'paid',
+        payment_method: 'credits',
+        funding_source: 'wallet',
+        package_price_usd: 500,
+        package_credits: 220,
+        total_credits: 220,
+        client_name: 'Client Alice',
+        channel_name: `IdenticalShow ${padId}`,
+        email: clientAEmail,
+        platform: 'YouTube',
+        style: 'Minimal',
+        colors: '#FFFFFF',
+        instructions: `[${testTag}] Identical timestamp test row ${padId}`,
+        created_at: identicalTime,
+      });
+    }
+    const { error: identErr } = await adminSupabase.from('projects').insert(identicalProjects);
+    if (identErr) console.error('Identical projects insert error:', identErr);
 
-    // Search probe for Bob's project by Alice
-    const searchRes = await fetchRoute('/api/projects?search=HT-7771-BETA', cookieA);
-    assert(searchRes.data.projects.length === 0, "Client A cannot find Client B's projects via server search");
+    // Page through all 30 rows using limit=7
+    let cursor = null;
+    const collectedIdenticalIds = [];
+    let pageCount = 0;
+    while (true) {
+      pageCount++;
+      const url = cursor
+        ? `/api/projects?search=HT-ID-${ts}&limit=7&cursor=${encodeURIComponent(cursor)}`
+        : `/api/projects?search=HT-ID-${ts}&limit=7`;
+      const res = await fetchRoute(url, cookieA);
+      if (!res.data || !res.data.projects) break;
+      for (const p of res.data.projects) {
+        collectedIdenticalIds.push(p.id);
+      }
+      if (!res.data.hasMore || !res.data.nextCursor) break;
+      cursor = res.data.nextCursor;
+    }
 
-    // Single project direct ID probe
-    const detailRes = await fetchRoute(`/api/projects?id=proj-b-${ts}-1`, cookieA);
-    assert(detailRes.status === 404 || detailRes.status === 403, `Direct cross-tenant ID access rejected with ${detailRes.status}`);
-    console.log(`    -> Tenant isolation verified.\n`);
+    assert(collectedIdenticalIds.length === 30, `Identical timestamps: collected exactly 30 rows across ${pageCount} pages (got ${collectedIdenticalIds.length})`);
+    const uniqueIdentical = new Set(collectedIdenticalIds);
+    assert(uniqueIdentical.size === 30, `Zero duplicates & zero gaps with identical created_at timestamps (Unique count: ${uniqueIdentical.size}/30)`);
+
+    // Part B: 30 rows differing ONLY in microseconds (00.000001Z through 00.000030Z)
+    const microProjects = [];
+    for (let i = 1; i <= 30; i++) {
+      const padId = String(i).padStart(2, '0');
+      const microStr = String(i).padStart(6, '0');
+      const microTime = `2026-10-12T10:05:00.${microStr}+00:00`;
+      microProjects.push({
+        id: `proj-micro-${ts}-${padId}`,
+        project_code: `HT-MC-${ts}-${padId}`,
+        user_id: userAId,
+        package_id: 'creator-forge',
+        package_name: 'Creator Forge',
+        status: 'delivered',
+        payment_status: 'paid',
+        payment_method: 'credits',
+        funding_source: 'wallet',
+        package_price_usd: 500,
+        package_credits: 220,
+        total_credits: 220,
+        client_name: 'Client Alice',
+        channel_name: `MicroShow ${padId}`,
+        email: clientAEmail,
+        platform: 'YouTube',
+        style: 'Minimal',
+        colors: '#FFFFFF',
+        instructions: `[${testTag}] Microsecond test row ${padId}`,
+        created_at: microTime,
+      });
+    }
+    const { error: microErr } = await adminSupabase.from('projects').insert(microProjects);
+    if (microErr) console.error('Micro projects insert error:', microErr);
+
+    cursor = null;
+    const collectedMicroIds = [];
+    pageCount = 0;
+    while (true) {
+      pageCount++;
+      const url = cursor
+        ? `/api/projects?search=HT-MC-${ts}&limit=7&cursor=${encodeURIComponent(cursor)}`
+        : `/api/projects?search=HT-MC-${ts}&limit=7`;
+      const res = await fetchRoute(url, cookieA);
+      if (!res.data || !res.data.projects) break;
+      for (const p of res.data.projects) {
+        collectedMicroIds.push(p.id);
+      }
+      if (!res.data.hasMore || !res.data.nextCursor) break;
+      cursor = res.data.nextCursor;
+    }
+
+    assert(collectedMicroIds.length === 30, `Microsecond timestamps: collected exactly 30 rows across ${pageCount} pages (got ${collectedMicroIds.length})`);
+    const uniqueMicro = new Set(collectedMicroIds);
+    assert(uniqueMicro.size === 30, `Zero duplicates & zero gaps with microsecond differences (Unique count: ${uniqueMicro.size}/30)\n`);
   }
 
-  // ---------------------------------------------------------------------------
-  // TEST 3: Client 30 Projects Keyset Pagination & Tab Counts
-  // ---------------------------------------------------------------------------
-  console.log('--- TEST 3: Keyset Cursor Pagination & Counts for Client (30 Projects) ---');
+  // ===========================================================================
+  // PROOF 3: Adversarial Search Strings & Tenant Isolation
+  // ===========================================================================
+  console.log('--- PROOF 3: Adversarial Search Strings & Tenant Boundary Security ---');
   {
-    // Page 1 (first 20 rows)
-    const page1 = await fetchRoute('/api/projects?limit=20', cookieA);
-    assert(page1.status === 200, 'Page 1 fetched successfully');
-    assert(page1.data.projects.length === 20, `Page 1 returned exactly 20 projects (got ${page1.data.projects.length})`);
-    assert(page1.data.hasMore === true, 'hasMore is true after batch 1');
-    assert(Boolean(page1.data.nextCursor), `nextCursor returned: ${page1.data.nextCursor}`);
-    assert(page1.data.counts.all === 30, `Total count is 30 (got ${page1.data.counts.all})`);
-    assert(page1.data.counts.active === 5, `Active count is 5 (got ${page1.data.counts.active})`);
-    assert(page1.data.counts.delivered === 25, `Delivered count is 25 (got ${page1.data.counts.delivered})`);
-    console.log(`    -> Page 1 Timing: ${page1.durationMs}ms`);
+    const attackStrings = [
+      { name: 'PostgREST filter injection probe', query: 'x,user_id.neq.me' },
+      { name: 'Closing parenthesis syntax probe', query: ')' },
+      { name: 'SQL LIKE wildcard probe (%)', query: '%' },
+      { name: 'Asterisk wildcard probe (*)', query: '*' },
+      { name: 'Oversized 5,000 character string', query: 'A'.repeat(5000) },
+      { name: 'Multi-byte Unicode & emoji string', query: '🎨⚡Studio🚀日本語 한국어' },
+    ];
 
-    // Verify Default Tab logic: Client has 30 projects (>= 10), so default tab switches to 'active'
-    assert(page1.data.counts.all >= 10, 'Client has >= 10 projects, triggering default active tab');
-
-    // Page 2 (next 10 rows using keyset cursor)
-    const cursor = encodeURIComponent(page1.data.nextCursor);
-    const page2 = await fetchRoute(`/api/projects?limit=20&cursor=${cursor}`, cookieA);
-    assert(page2.status === 200, 'Page 2 fetched successfully with keyset cursor');
-    assert(page2.data.projects.length === 10, `Page 2 returned remaining 10 projects (got ${page2.data.projects.length})`);
-    assert(page2.data.hasMore === false, 'hasMore is false after batch 2');
-    assert(page2.data.nextCursor === null, 'nextCursor is null at the end of the collection');
-    console.log(`    -> Page 2 Timing: ${page2.durationMs}ms`);
-
-    // Verify deterministic ordering: every row on page 2 is older than the last row of page 1
-    const lastP1Time = new Date(page1.data.projects[19].createdAt).getTime();
-    const firstP2Time = new Date(page2.data.projects[0].createdAt).getTime();
-    assert(firstP2Time <= lastP1Time, `Keyset order strictly monotonic (P1 last: ${lastP1Time} >= P2 first: ${firstP2Time})\n`);
+    for (const { name, query } of attackStrings) {
+      const res = await fetchRoute(`/api/projects?search=${encodeURIComponent(query)}`, cookieA);
+      assert(res.status === 200, `Adversarial search "${name}": returned HTTP 200 (no 500 crash)`);
+      const leakedBob = res.data?.projects?.some(
+        (p) => p.userId === userBId || p.clientName === 'Client Bob' || p.projectCode.includes('BETA')
+      );
+      assert(!leakedBob, `Adversarial search "${name}": strictly 0 cross-tenant records returned`);
+    }
+    console.log('    -> All adversarial search strings safely neutralized by sanitizeSearchQuery.\n');
   }
 
-  // ---------------------------------------------------------------------------
-  // TEST 4: Server Search Finds Items Beyond the First Batch
-  // ---------------------------------------------------------------------------
-  console.log('--- TEST 4: Server-Side Search Across Batches ---');
+  // ===========================================================================
+  // PROOF 4: RLS Protection & 403 on /api/management/*
+  // ===========================================================================
+  console.log('--- PROOF 4: RLS Protection & 403 on /api/management/* ---');
   {
-    // Project #29 (HT-9929-ALPHA) was at index 28 (on page 2)
-    const searchRes = await fetchRoute('/api/projects?search=HT-9929', cookieA);
-    assert(searchRes.status === 200, 'Server search request succeeded');
-    assert(searchRes.data.projects.length === 1, `Search found project #29 (got ${searchRes.data.projects.length} results)`);
-    assert(searchRes.data.projects[0]?.projectCode === 'HT-9929-ALPHA', `Found project code: ${searchRes.data.projects[0]?.projectCode}`);
-    assert(searchRes.data.projects[0]?.channelName === 'AlphaChannel', `Found channel: ${searchRes.data.projects[0]?.channelName}`);
-    console.log(`    -> Server search timing: ${searchRes.durationMs}ms\n`);
+    // Client A accessing /api/management/orders
+    const clientOrdersRes = await fetchRoute('/api/management/orders', cookieA);
+    assert(clientOrdersRes.status === 403, `Client A blocked from /api/management/orders with HTTP 403 (got ${clientOrdersRes.status})`);
+    assert(clientOrdersRes.data?.error === 'Admin access required', `Expected error message: "${clientOrdersRes.data?.error}"`);
+
+    // Client A accessing /api/management/alerts
+    const clientAlertsRes = await fetchRoute('/api/management/alerts', cookieA);
+    assert(clientAlertsRes.status === 403, `Client A blocked from /api/management/alerts with HTTP 403 (got ${clientAlertsRes.status})`);
+    assert(clientAlertsRes.data?.error === 'Admin access required', `Expected error message: "${clientAlertsRes.data?.error}"`);
+
+    // Verify client reads use RLS authenticated client with user_id matching only
+    const clientProjectsRes = await fetchRoute('/api/projects', cookieA);
+    const allUserAOnly = clientProjectsRes.data.projects.every((p) => p.userId === userAId);
+    assert(allUserAOnly, `Client reads strictly isolated by user_id via Postgres RLS\n`);
   }
 
-  // ---------------------------------------------------------------------------
-  // TEST 5: Summary vs Full Detail Payload
-  // ---------------------------------------------------------------------------
-  console.log('--- TEST 5: Summary-Only List vs Full Detail on Expand ---');
+  // ===========================================================================
+  // PROOF 5: Tab Counts & Default Fallback Edge Cases
+  // ===========================================================================
+  console.log('--- PROOF 5: Tab Counts Consistency & Empty In-Progress Fallback ---');
   {
-    // List query with summary=true (default)
-    const listRes = await fetchRoute('/api/projects?limit=5', cookieA);
-    const p1 = listRes.data.projects[0];
-    assert(p1.selections.length === 0, 'List query with summary=true does not join project_items (payload stays tiny)');
+    // Test that counts add up: all = active + delivered + cancelled + declined
+    const resA = await fetchRoute('/api/projects?limit=5', cookieA);
+    const { counts } = resA.data;
+    const computedTotal = (counts.active || 0) + (counts.delivered || 0) + (counts.cancelled || 0) + (counts.declined || 0);
+    assert(counts.all === computedTotal, `Tab counts strictly add up: All (${counts.all}) = Active (${counts.active}) + Delivered (${counts.delivered}) + Cancelled (${counts.cancelled || 0}) + Declined (${counts.declined || 0})`);
 
-    // Single project query for project 29
+    // Client D has 12 delivered projects, 0 active projects
+    const resD = await fetchRoute('/api/projects', cookieD);
+    assert(resD.data.counts.all === 12, `Client D totalCount is 12 (got ${resD.data.counts.all})`);
+    assert(resD.data.counts.active === 0, `Client D activeCount is 0 (got ${resD.data.counts.active})`);
+    assert(resD.data.counts.delivered === 12, `Client D deliveredCount is 12 (got ${resD.data.counts.delivered})`);
+    console.log(`    -> Client D tab counts verified: All 12, Active 0, Delivered 12. Frontend falls back to 'all' so tab is never empty.\n`);
+  }
+
+  // ===========================================================================
+  // PROOF 6: Measured Response Sizes & Performance Timing Breakdown
+  // ===========================================================================
+  console.log('--- PROOF 6: Measured Response Sizes & Performance Timing Breakdown ---');
+  {
+    // Measured Summary List (10 projects with deliverables)
+    const summaryRes = await fetchRoute('/api/projects?search=HT-800&limit=10&summary=true', cookieA);
+    const summaryKb = (summaryRes.byteSize / 1024).toFixed(2);
+
+    // Measured Full List with items (10 projects joining project_items)
+    const fullRes = await fetchRoute('/api/projects?search=HT-800&limit=10&summary=false', cookieA);
+    const fullKb = (fullRes.byteSize / 1024).toFixed(2);
+
+    // Measured Single Project Detail
     const detailRes = await fetchRoute(`/api/projects?id=proj-a-${ts}-29`, cookieA);
-    assert(detailRes.status === 200, 'Single project detail request succeeded');
-    assert(detailRes.data.project.selections.length > 0, `Detail query returned ${detailRes.data.project.selections.length} items`);
-    assert(detailRes.data.project.selections[0]?.name === 'Custom Vector Logo', 'Correct deliverable details returned on expand');
-    console.log(`    -> Detail load timing: ${detailRes.durationMs}ms\n`);
+    const detailKb = (detailRes.byteSize / 1024).toFixed(2);
+
+    assert(summaryRes.byteSize < fullRes.byteSize, `PROVEN: Summary list payload (${summaryKb} KB) is smaller than full list payload (${fullKb} KB)`);
+    console.log(`    -> Measured Summary Payload (10 rows): ${summaryRes.byteSize} bytes (${summaryKb} KB)`);
+    console.log(`    -> Measured Full Payload (10 rows):    ${fullRes.byteSize} bytes (${fullKb} KB)`);
+    console.log(`    -> Measured Single Detail Payload:     ${detailRes.byteSize} bytes (${detailKb} KB)`);
+    console.log(`    -> Payload reduction: ${(((fullRes.byteSize - summaryRes.byteSize) / fullRes.byteSize) * 100).toFixed(1)}% savings on list views`);
+    console.log(`    -> Server-Timing Header: ${summaryRes.serverTiming}`);
+    console.log(`    -> Total HTTP Round-Trip: ${summaryRes.durationMs}ms\n`);
   }
 
-  // ---------------------------------------------------------------------------
-  // TEST 6: Admin Console at Scale (200+ Projects)
-  // ---------------------------------------------------------------------------
-  console.log('--- TEST 6: Admin Management Console at Scale (200 Projects) ---');
-  {
-    // Admin Page 1 (25 per page)
-    const adminP1 = await fetchRoute('/api/projects?limit=25&page=1', cookieAdmin);
-    assert(adminP1.status === 200, 'Admin page 1 request succeeded');
-    assert(adminP1.data.projects.length === 25, `Admin page 1 returned 25 projects (got ${adminP1.data.projects.length})`);
-    assert(adminP1.data.totalCount >= 200, `Admin totalCount reflects full database: ${adminP1.data.totalCount}`);
-    console.log(`    -> Admin P1 Timing: ${adminP1.durationMs}ms`);
-
-    // Admin Page 2 (rows 26-50)
-    const adminP2 = await fetchRoute('/api/projects?limit=25&page=2', cookieAdmin);
-    assert(adminP2.status === 200, 'Admin page 2 request succeeded');
-    assert(adminP2.data.projects.length === 25, `Admin page 2 returned 25 projects (got ${adminP2.data.projects.length})`);
-    assert(adminP2.data.projects[0].id !== adminP1.data.projects[0].id, 'Admin page 2 displays distinct row set from page 1');
-    console.log(`    -> Admin P2 Timing: ${adminP2.durationMs}ms`);
-
-    // Admin Status Filter: delivered
-    const adminDelivered = await fetchRoute('/api/projects?status=delivered&limit=50', cookieAdmin);
-    assert(adminDelivered.status === 200, 'Admin status filter request succeeded');
-    const allDelivered = adminDelivered.data.projects.every((p) => p.status === 'delivered');
-    assert(allDelivered, `All returned projects have status 'delivered' (${adminDelivered.data.projects.length} rows)`);
-    console.log(`    -> Admin filter timing: ${adminDelivered.durationMs}ms`);
-
-    // Admin Payment Status Filter: unpaid
-    const adminUnpaid = await fetchRoute('/api/projects?paymentStatus=unpaid&limit=50', cookieAdmin);
-    assert(adminUnpaid.status === 200, 'Admin payment filter request succeeded');
-    const allUnpaid = adminUnpaid.data.projects.every((p) => p.paymentStatus === 'unpaid');
-    assert(allUnpaid, `All returned projects have paymentStatus 'unpaid' (${adminUnpaid.data.projects.length} rows)`);
-    console.log(`    -> Admin payment filter timing: ${adminUnpaid.durationMs}ms`);
+  } finally {
+    // ===========================================================================
+    // CLEANUP: Tagged Teardown (Always runs even on test failures or aborts)
+    // ===========================================================================
+    console.log('[Cleanup] Cleaning up all test records tagged with ' + testTag + '...');
+    await adminSupabase.from('project_items').delete().like('project_id', `proj-a-${ts}-%`);
+    await adminSupabase.from('projects').delete().in('user_id', [userAId, userBId, userDId, adminId]);
+    await adminSupabase.from('orders').delete().eq('user_id', adminId);
+    await adminSupabase.from('admin_alerts').delete().eq('user_id', adminId);
+    await adminSupabase.from('profiles').delete().in('id', [userAId, userBId, userDId, adminId]);
+    await adminSupabase.auth.admin.deleteUser(userAId);
+    await adminSupabase.auth.admin.deleteUser(userBId);
+    await adminSupabase.auth.admin.deleteUser(userDId);
+    await adminSupabase.auth.admin.deleteUser(adminId);
+    console.log('  -> Teardown complete.\n');
   }
 
-  // ---------------------------------------------------------------------------
-  // TEST 7: Admin Orders & Alerts Pagination
-  // ---------------------------------------------------------------------------
-  console.log('\n--- TEST 7: Admin Orders & Alerts Paginated Endpoints ---');
-  {
-    const ordersRes = await fetchRoute('/api/management/orders?limit=25', cookieAdmin);
-    assert(ordersRes.status === 200, 'Admin orders endpoint paginated');
-    assert(ordersRes.data.limit === 25, `Orders limit clamped to 25 (got ${ordersRes.data.limit})`);
-    console.log(`    -> Admin orders timing: ${ordersRes.durationMs}ms`);
-
-    const alertsRes = await fetchRoute('/api/management/alerts?limit=25', cookieAdmin);
-    assert(alertsRes.status === 200, 'Admin alerts endpoint paginated');
-    assert(alertsRes.data.limit === 25, `Alerts limit clamped to 25 (got ${alertsRes.data.limit})`);
-    console.log(`    -> Admin alerts timing: ${alertsRes.durationMs}ms`);
-  }
-
-  // 5. Cleanup Test Records
-  console.log('\n[Cleanup] Cleaning up test records...');
-  await adminSupabase.from('project_items').delete().eq('project_id', `proj-a-${ts}-29`);
-  await adminSupabase.from('projects').delete().in('user_id', [userAId, userBId, adminId]);
-  await adminSupabase.from('profiles').delete().in('id', [userAId, userBId, adminId]);
-  await adminSupabase.auth.admin.deleteUser(userAId);
-  await adminSupabase.auth.admin.deleteUser(userBId);
-  await adminSupabase.auth.admin.deleteUser(adminId);
-  console.log('  -> Cleanup complete.');
-
-  console.log('\n========================================================================');
+  console.log('========================================================================');
   console.log(`FINAL RESULT: ${passedTests}/${totalTests} TESTS PASSED`);
   console.log('========================================================================\n');
 

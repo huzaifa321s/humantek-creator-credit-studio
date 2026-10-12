@@ -37,7 +37,7 @@ export default function RootLoading() {
         {/* Loading Spinner & Status */}
         <div className="flex items-center gap-2 pt-2 text-xs text-muted-foreground">
           <Spinner className="size-4 text-amber-500" />
-          <span>Preparing your studio canvas...</span>
+          <span>Loading studio...</span>
         </div>
       </div>
     </div>

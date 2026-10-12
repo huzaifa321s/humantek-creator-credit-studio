@@ -43,6 +43,27 @@
   from { background-position: 100% 0; }
   to { background-position: -100% 0; }
 }
+@keyframes like-pop {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(1.35);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.45);
+    opacity: 0;
+  }
+}
+@utility animate-like-pop {
+  animation: like-pop 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
 
 @theme inline {
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

@@ -368,7 +368,7 @@ export function DashboardHeader({
               ) : !isBalanceLoaded ? (
                 <div
                   className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-xs font-semibold select-none shadow-2xs shrink-0"
-                  aria-label="Loading credit balance"
+                  aria-label="Loading balance"
                 >
                   <Coins className="size-3.5 text-amber-400/60 animate-pulse shrink-0" />
                   <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>

@@ -98,7 +98,7 @@ export function AdminAlertsList({ onAlertCountChange }: AdminAlertsListProps) {
 
       {/* Alerts list */}
       {loading && alerts.length === 0 ? (
-        <div className="p-12 text-center text-muted-foreground text-xs sm:text-sm">Loading alerts...</div>
+        <div className="p-12 text-center text-muted-foreground text-xs sm:text-sm">Loading alerts</div>
       ) : alerts.length === 0 ? (
         <Empty className="p-10 sm:p-12 rounded-xl bg-card border border-border/80 text-center shadow-2xs">
           <EmptyMedia variant="default">

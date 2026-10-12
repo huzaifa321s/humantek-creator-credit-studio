@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useStudioChat, useChatStore, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META, ChatMessage } from '@/lib/chatStore';
+import { useStudioChat, useChatStore, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
 import { useUserStore } from '@/lib/userStore';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
@@ -22,6 +22,7 @@ import { Item, ItemGroup, ItemMedia, ItemContent, ItemTitle, ItemDescription } f
 import { cn, formatChatTimestamp } from '@/lib/utils';
 import {
   Sparkles,
+  Plus,
   ShieldCheck,
   Coins,
   FolderKanban,
@@ -51,11 +52,16 @@ export function ChatFullView() {
     retryMessage,
     setActiveProjectId,
     sendMessage: sendStoreMessage,
+    toggleLike: toggleStoreLike,
+    editMessage: editStoreMessage,
+    deleteMessage: deleteStoreMessage,
     toggleReaction,
     markAllAsRead,
   } = useStudioChat();
 
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ChatReplyTo | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
 
   const projectsQuery = useProjectsQuery();
   const projects = projectsQuery.data ?? [];
@@ -74,6 +80,9 @@ export function ChatFullView() {
     messages: dbMessages,
     lastReadId,
     sendMessage: sendDbMessage,
+    toggleLike: toggleDbLike,
+    editMessage: editDbMessage,
+    deleteMessage: deleteDbMessage,
     markAsRead,
   } = useProjectChat({ projectId: targetProjectId });
 
@@ -113,6 +122,12 @@ export function ChatFullView() {
         senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
         senderRole: m.sender?.role === 'admin' ? 'Senior Creative Producer' : 'Creator',
         content: m.body,
+        replyTo: m.replyTo || undefined,
+        likes: m.likes || [],
+        isEdited: Boolean(m.isEdited),
+        editedAt: m.editedAt || undefined,
+        isDeleted: Boolean(m.isDeleted),
+        createdAtRaw: m.createdAt,
         timestamp: formatChatTimestamp(m.createdAt),
         isRead: m.id <= lastReadId,
         status: 'sent',
@@ -142,19 +157,92 @@ export function ChatFullView() {
     return storeMessages;
   }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
 
-  const handleSendMessage = async (text: string, attachments?: ChatAttachment[]) => {
+  const handleSendMessage = async (text: string, attachments?: ChatAttachment[], replyTo?: ChatReplyTo) => {
     // 1. Send optimistically into Zustand store (enforces single-flight lock, clears draft, sets status: 'sending')
-    const clientMsgId = await sendStoreMessage(text, attachments);
+    const clientMsgId = await sendStoreMessage(text, attachments, undefined, replyTo);
 
     // 2. If connected to a real Supabase DB project, dispatch to DB API endpoint
     if (!isGlobal && projectId && targetProjectId && clientMsgId) {
       try {
-        await sendDbMessage(text, attachments, clientMsgId);
+        await sendDbMessage(text, attachments, clientMsgId, replyTo);
         useChatStore.getState().reconcileMessage(projectId, clientMsgId, { status: 'sent' });
       } catch (err: any) {
         useChatStore.getState().markMessageFailed(projectId, clientMsgId, err.message || 'Failed to send');
         toast.error(err.message || 'Failed to send message');
       }
+    }
+  };
+
+  const handleToggleLike = async (messageId: string) => {
+    // Optimistic store update
+    const currentName = user?.name || user?.email?.split('@')[0] || 'You';
+    toggleStoreLike(messageId, { id: user?.id || 'client-me', name: currentName });
+
+    // DB update if real project
+    const numericId = parseInt(messageId, 10);
+    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+      try {
+        await toggleDbLike(numericId, user?.id, currentName);
+      } catch (err) {
+        console.error('Failed to toggle like in DB:', err);
+      }
+    }
+  };
+
+  const handleSaveEdit = async (messageId: string, newContent: string) => {
+    editStoreMessage(messageId, newContent);
+    const numericId = parseInt(messageId, 10);
+    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+      try {
+        await editDbMessage(numericId, newContent);
+        toast.success('Message updated');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to edit message');
+      }
+    } else {
+      toast.success('Message updated');
+    }
+    setEditingMessage(null);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    deleteStoreMessage(messageId);
+    const numericId = parseInt(messageId, 10);
+    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+      try {
+        await deleteDbMessage(numericId);
+        toast.success('Message deleted');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete message');
+      }
+    } else {
+      toast.success('Message deleted');
+    }
+  };
+
+  const handleReplyTo = (message: ChatMessage) => {
+    setEditingMessage(null);
+    setReplyingTo({
+      id: message.id,
+      senderName: message.senderName,
+      senderRole: message.senderRole,
+      content: message.content,
+    });
+  };
+
+  const handleStartEdit = (message: ChatMessage) => {
+    setReplyingTo(null);
+    setEditingMessage(message);
+  };
+
+  const handleScrollToMessage = (messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-amber-400/80', 'rounded-xl', 'transition-all');
+      setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-amber-400/80', 'rounded-xl');
+      }, 1500);
     }
   };
 
@@ -195,7 +283,7 @@ export function ChatFullView() {
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/new-project">
             <Button variant="outline" size="sm" className="h-8.5 text-xs font-semibold gap-1.5 rounded-lg sm:rounded-xl cursor-pointer">
-              <Sparkles className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" />
+              <Plus className="w-3.5 h-3.5 stroke-[2.5] text-brand-text dark:text-amber-400" />
               <span className="hidden sm:inline">New Project</span>
               <span className="sm:hidden">New</span>
             </Button>
@@ -436,8 +524,13 @@ export function ChatFullView() {
                 renderMessage={(msg) => (
                   <ChatMessageItem
                     message={msg}
+                    currentUserId={user?.id}
                     onPreviewAttachment={setPreviewAttachment}
-                    onToggleReaction={(emoji) => toggleReaction(msg.id, emoji)}
+                    onReply={handleReplyTo}
+                    onToggleLike={handleToggleLike}
+                    onStartEdit={handleStartEdit}
+                    onDelete={handleDeleteMessage}
+                    onScrollToMessage={handleScrollToMessage}
                     onRetry={retryMessage}
                   />
                 )}
@@ -448,6 +541,11 @@ export function ChatFullView() {
             <div className="px-4 py-3 border-t border-border/70 bg-card/90 shrink-0">
               <ChatInputBar
                 onSendMessage={handleSendMessage}
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
+                editingMessage={editingMessage}
+                onCancelEdit={() => setEditingMessage(null)}
+                onSaveEdit={handleSaveEdit}
                 isTyping={isTyping}
                 isGlobal={isGlobal}
                 projectId={projectId}

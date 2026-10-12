@@ -5,6 +5,7 @@ import { ProjectRecord } from '@/types';
 import { useStudioChat, ChatMessage, GLOBAL_CHAT_ID } from '@/lib/chatStore';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery } from '@/lib/queries/projects';
+import { useUserStore } from '@/lib/userStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,12 +35,14 @@ interface AdminInboxProps {
 }
 
 export function AdminInbox({ initialProjectId }: AdminInboxProps) {
+  const { user } = useUserStore();
   const {
     projectId,
     isGlobal,
     messages: storeMessages,
     sendMessage: sendStoreMessage,
-    toggleReaction,
+    toggleLike: toggleStoreLike,
+    deleteMessage: deleteStoreMessage,
     setActiveProjectId,
     unreadCounts,
     markAllAsRead,
@@ -75,6 +78,8 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
     messages: dbMessages,
     lastReadId,
     sendMessage: sendDbMessage,
+    toggleLike: toggleDbLike,
+    deleteMessage: deleteDbMessage,
     markAsRead,
   } = useProjectChat({ projectId: targetProjectId });
 
@@ -86,6 +91,34 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
       markAllAsRead();
     }
   }, [projectId, isGlobal, markAsRead, markAllAsRead, dbMessages]);
+
+  const handleToggleLike = async (messageId: string) => {
+    const adminName = user?.name || 'Sarah Miller';
+    toggleStoreLike(messageId, { id: user?.id || 'admin-sarah', name: adminName });
+    const numericId = parseInt(messageId, 10);
+    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+      try {
+        await toggleDbLike(numericId, user?.id || 'admin-sarah', adminName);
+      } catch (err) {
+        console.error('Failed to toggle like in DB:', err);
+      }
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    deleteStoreMessage(messageId);
+    const numericId = parseInt(messageId, 10);
+    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+      try {
+        await deleteDbMessage(numericId);
+        toast.success('Message deleted');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete message');
+      }
+    } else {
+      toast.success('Message deleted');
+    }
+  };
 
   const displayMessages: ChatMessage[] = useMemo(() => {
     if (isGlobal || !projectId) {
@@ -99,6 +132,12 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
         senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'Client'),
         senderRole: m.sender?.role === 'admin' ? 'Lead Creative Producer' : 'Client',
         content: m.body,
+        replyTo: m.replyTo || undefined,
+        likes: m.likes || [],
+        isEdited: Boolean(m.isEdited),
+        editedAt: m.editedAt || undefined,
+        isDeleted: Boolean(m.isDeleted),
+        createdAtRaw: m.createdAt,
         timestamp: formatChatTimestamp(m.createdAt),
         isRead: m.id <= lastReadId,
         attachments: (m.attachments || []).map((att) => ({
@@ -360,8 +399,10 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
               <ChatMessageItem
                 key={msg.id}
                 message={msg}
+                currentUserId={user?.id || 'admin-sarah'}
                 onPreviewAttachment={() => {}}
-                onToggleReaction={(emoji) => toggleReaction(msg.id, emoji)}
+                onToggleLike={handleToggleLike}
+                onDelete={handleDeleteMessage}
               />
             ))
           )}

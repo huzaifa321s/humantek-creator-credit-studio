@@ -4,9 +4,9 @@ import { useEffect, useCallback } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
-import type { ChatMessage, ChatAttachment, ChatOrderCard, ChatReaction, ChatAudioNote } from '@/types';
+import type { ChatMessage, ChatAttachment, ChatOrderCard, ChatReaction, ChatAudioNote, ChatLike, ChatReplyTo } from '@/types';
 
-export type { ChatMessage, ChatAttachment, ChatOrderCard, ChatReaction, ChatAudioNote };
+export type { ChatMessage, ChatAttachment, ChatOrderCard, ChatReaction, ChatAudioNote, ChatLike, ChatReplyTo };
 
 export interface SalesAgentProfile {
   name: string;
@@ -214,7 +214,16 @@ interface ChatState {
   setActiveProjectId: (projectId: string) => void;
   setIsOpen: (open: boolean, projectId?: string) => void;
   markProjectAsRead: (projectId: string) => void;
-  sendMessage: (text: string, attachments?: ChatAttachment[], targetProjectId?: string, clientMsgId?: string) => Promise<string | undefined>;
+  sendMessage: (
+    text: string,
+    attachments?: ChatAttachment[],
+    targetProjectId?: string,
+    clientMsgId?: string,
+    replyTo?: ChatReplyTo
+  ) => Promise<string | undefined>;
+  toggleLike: (projectId: string, messageId: string, user?: { id: string; name: string }) => void;
+  editMessage: (projectId: string, messageId: string, newContent: string) => void;
+  deleteMessage: (projectId: string, messageId: string) => void;
   toggleReaction: (projectId: string, messageId: string, emoji: string) => void;
   registerProject: (project: ProjectMeta) => void;
 }
@@ -445,7 +454,7 @@ export const useChatStore = create<ChatState>()(
         });
       },
 
-      sendMessage: async (text, attachments, targetProjectId, clientMsgId) => {
+      sendMessage: async (text, attachments, targetProjectId, clientMsgId, replyTo) => {
         if (!text.trim() && (!attachments || attachments.length === 0)) return undefined;
 
         const currentTargetId = targetProjectId || get().activeProjectId;
@@ -484,7 +493,12 @@ export const useChatStore = create<ChatState>()(
           senderName: isGlobal ? 'You (Creator)' : (meta.clientName || 'You (Creator)'),
           content: text.trim(),
           timestamp: nowLabel(),
+          createdAtRaw: new Date().toISOString(),
           attachments,
+          replyTo: replyTo || undefined,
+          likes: [],
+          isEdited: false,
+          isDeleted: false,
           isRead: true,
           status: 'sending',
           errorReason: undefined,
@@ -552,6 +566,15 @@ export const useChatStore = create<ChatState>()(
               senderRole: DEFAULT_AGENT.role,
               content: replyContent,
               timestamp: nowLabel(),
+              createdAtRaw: new Date().toISOString(),
+              replyTo: {
+                id: optimisticMsg.id,
+                senderName: optimisticMsg.senderName,
+                content: optimisticMsg.content,
+              },
+              likes: [],
+              isEdited: false,
+              isDeleted: false,
               isRead: get().isOpen && get().activeProjectId === currentTargetId,
               status: 'sent',
             };
@@ -570,6 +593,72 @@ export const useChatStore = create<ChatState>()(
         }, 250);
 
         return clientMessageId;
+      },
+
+      toggleLike: (projectId, messageId, user) => {
+        set((s) => {
+          const msgs = s.projectMessages[projectId] || [];
+          const myId = user?.id || 'client-user';
+          const myName = user?.name || 'You';
+          const updated = msgs.map((m) => {
+            if (m.id !== messageId) return m;
+            const currentLikes = m.likes ? [...m.likes] : [];
+            const alreadyLiked = currentLikes.some((l) => l.userId === myId);
+            const updatedLikes = alreadyLiked
+              ? currentLikes.filter((l) => l.userId !== myId)
+              : [...currentLikes, { userId: myId, userName: myName, likedAt: new Date().toISOString() }];
+            return { ...m, likes: updatedLikes };
+          });
+          return {
+            projectMessages: {
+              ...s.projectMessages,
+              [projectId]: updated,
+            },
+          };
+        });
+      },
+
+      editMessage: (projectId, messageId, newContent) => {
+        set((s) => {
+          const msgs = s.projectMessages[projectId] || [];
+          const updated = msgs.map((m) => {
+            if (m.id !== messageId) return m;
+            return {
+              ...m,
+              content: newContent,
+              isEdited: true,
+              editedAt: new Date().toISOString(),
+            };
+          });
+          return {
+            projectMessages: {
+              ...s.projectMessages,
+              [projectId]: updated,
+            },
+          };
+        });
+      },
+
+      deleteMessage: (projectId, messageId) => {
+        set((s) => {
+          const msgs = s.projectMessages[projectId] || [];
+          const updated = msgs.map((m) => {
+            if (m.id !== messageId) return m;
+            return {
+              ...m,
+              content: '',
+              attachments: [],
+              audioNote: undefined,
+              isDeleted: true,
+            };
+          });
+          return {
+            projectMessages: {
+              ...s.projectMessages,
+              [projectId]: updated,
+            },
+          };
+        });
       },
 
       toggleReaction: (projectId, messageId, emoji) => {
@@ -708,6 +797,9 @@ export function useStudioChat(scopedProjectId?: string) {
     clearDraft,
     incrementUnreadBelowScroll,
     clearUnreadBelowScroll,
+    toggleLike,
+    editMessage,
+    deleteMessage,
     toggleReaction,
     registerProject,
   } = useChatStore(
@@ -729,6 +821,9 @@ export function useStudioChat(scopedProjectId?: string) {
       clearDraft: s.clearDraft,
       incrementUnreadBelowScroll: s.incrementUnreadBelowScroll,
       clearUnreadBelowScroll: s.clearUnreadBelowScroll,
+      toggleLike: s.toggleLike,
+      editMessage: s.editMessage,
+      deleteMessage: s.deleteMessage,
       toggleReaction: s.toggleReaction,
       registerProject: s.registerProject,
     }))
@@ -755,8 +850,8 @@ export function useStudioChat(scopedProjectId?: string) {
   }
 
   const handleSendMessage = useCallback(
-    (text: string, attachments?: ChatAttachment[], clientMsgId?: string) =>
-      sendMessage(text, attachments, effectiveProjectId, clientMsgId),
+    (text: string, attachments?: ChatAttachment[], clientMsgId?: string, replyTo?: ChatReplyTo) =>
+      sendMessage(text, attachments, effectiveProjectId, clientMsgId, replyTo),
     [sendMessage, effectiveProjectId]
   );
 
@@ -783,6 +878,24 @@ export function useStudioChat(scopedProjectId?: string) {
   const handleClearUnreadBelowScroll = useCallback(
     () => clearUnreadBelowScroll(effectiveProjectId),
     [clearUnreadBelowScroll, effectiveProjectId]
+  );
+
+  const handleToggleLike = useCallback(
+    (messageId: string, user?: { id: string; name: string }) =>
+      toggleLike(effectiveProjectId, messageId, user),
+    [toggleLike, effectiveProjectId]
+  );
+
+  const handleEditMessage = useCallback(
+    (messageId: string, newContent: string) =>
+      editMessage(effectiveProjectId, messageId, newContent),
+    [editMessage, effectiveProjectId]
+  );
+
+  const handleDeleteMessage = useCallback(
+    (messageId: string) =>
+      deleteMessage(effectiveProjectId, messageId),
+    [deleteMessage, effectiveProjectId]
   );
 
   const handleToggleReaction = useCallback(
@@ -820,6 +933,9 @@ export function useStudioChat(scopedProjectId?: string) {
     clearUnreadBelowScroll: handleClearUnreadBelowScroll,
     sendMessage: handleSendMessage,
     retryMessage: handleRetryMessage,
+    toggleLike: handleToggleLike,
+    editMessage: handleEditMessage,
+    deleteMessage: handleDeleteMessage,
     toggleReaction: handleToggleReaction,
     markAllAsRead: handleMarkAllAsRead,
     registerProject,

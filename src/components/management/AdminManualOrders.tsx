@@ -134,7 +134,7 @@ export function AdminManualOrders() {
         </div>
 
         {loading && orders.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-xs sm:text-sm">Loading orders...</div>
+          <div className="p-8 text-center text-muted-foreground text-xs sm:text-sm">Loading orders</div>
         ) : pendingOrders.length === 0 ? (
           <div className="p-8 rounded-xl bg-card border border-border/80 text-center space-y-2 shadow-2xs">
             <CheckCircle2 className="w-7 h-7 text-emerald-500 mx-auto" />

@@ -405,6 +405,7 @@ export default function CreatorStudioPage() {
   const [mounted, setMounted] = useState(false);
   const [submittedProjectId, setSubmittedProjectId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<{ message: string; showProjectsLink?: boolean } | null>(null);
+  const [serviceSelectionError, setServiceSelectionError] = useState(false);
   const [policyError, setPolicyError] = useState(false);
   const [termsError, setTermsError] = useState(false);
 
@@ -624,6 +625,12 @@ export default function CreatorStudioPage() {
     }
   );
 
+  useEffect(() => {
+    if (selectedEntries.length > 0 && serviceSelectionError) {
+      setServiceSelectionError(false);
+    }
+  }, [selectedEntries.length, serviceSelectionError]);
+
   const servicesCredits = selectedEntries.reduce((sum, item) => sum + item.credits, 0);
   const additionsCredits = additions.reduce(
     (sum, extra) => sum + (ADDITIONS_PRICING[extra] || 0),
@@ -739,7 +746,13 @@ export default function CreatorStudioPage() {
           toast.error('Please choose a package or use your Studio Wallet balance to continue.');
         } else if (s === 2) {
           if (selectedEntries.length === 0) {
-            toast.error('Please select at least one creative service to continue.');
+            setServiceSelectionError(true);
+            const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+            const targetEl = isDesktop
+              ? document.getElementById('no-services-sidebar-card')
+              : document.getElementById('step2-inline-error') || document.getElementById('catalog-services-container');
+            targetEl?.scrollIntoView({ behavior: 'smooth', block: isDesktop ? 'nearest' : 'start' });
+            return;
           } else if (remainingCredits < 0) {
             toast.error(
               isWalletFunding
@@ -1297,7 +1310,7 @@ export default function CreatorStudioPage() {
                   variant="default"
                   size="default"
                   loading={isSubmitting}
-                  loadingText="Launching..."
+                  loadingText="Starting project..."
                   disabled={userBalance < usedCredits}
                   onClick={handleLaunchWithWallet}
                   className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
@@ -1311,7 +1324,7 @@ export default function CreatorStudioPage() {
                   variant="default"
                   size="default"
                   loading={isSubmitting}
-                  loadingText="Submitting..."
+                  loadingText="Submitting order..."
                   onClick={() => {
                     const rawClientId = (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '').trim();
                     const isOffline =
@@ -1871,9 +1884,31 @@ export default function CreatorStudioPage() {
           )}
 
           {/* 2-Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          <div id="catalog-services-container" className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start scroll-mt-24">
             {/* LEFT COLUMN: AVAILABLE SERVICES & ADDITIONS (~65% / 8 cols) */}
             <div className="lg:col-span-8 space-y-4 sm:space-y-6">
+              {/* Mobile / Inline Error Banner when no services are selected */}
+              {serviceSelectionError && selectedEntries.length === 0 && (
+                <div
+                  id="step2-inline-error"
+                  tabIndex={-1}
+                  className="p-3.5 rounded-xl bg-rose-500/10 border-2 border-rose-500/50 dark:border-rose-500/60 text-rose-700 dark:text-rose-300 flex items-start sm:items-center gap-3 text-xs font-medium animate-in fade-in slide-in-from-top-2 duration-200 shadow-xs"
+                  role="alert"
+                >
+                  <div className="size-7 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                    <AlertTriangle className="size-4 text-rose-600 dark:text-rose-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-xs text-rose-700 dark:text-rose-300">
+                      Please select at least one creative service to continue
+                    </p>
+                    <p className="text-2xs text-rose-600/90 dark:text-rose-400/90 font-normal mt-0.5">
+                      Browse catalog categories below and click &ldquo;Add to Cart&rdquo; on the services you need.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Category & Price Filters */}
               <div className="space-y-2 sm:space-y-3">
                 <div className="flex items-center justify-between gap-2">
@@ -2229,6 +2264,7 @@ export default function CreatorStudioPage() {
                 additions={additions}
                 onToggleAddition={toggleAddition}
                 onClearAll={handleClearAllSelections}
+                hasServiceError={serviceSelectionError && selectedEntries.length === 0}
                 className="h-full"
               />
             </div>
@@ -2277,6 +2313,7 @@ export default function CreatorStudioPage() {
                   additions={additions}
                   onToggleAddition={toggleAddition}
                   onClearAll={handleClearAllSelections}
+                  hasServiceError={serviceSelectionError && selectedEntries.length === 0}
                   className="border-0 shadow-none rounded-none h-auto"
                 />
               </div>
@@ -3799,7 +3836,7 @@ export default function CreatorStudioPage() {
                             type="button"
                             size="lg"
                             loading={isSubmitting}
-                            loadingText="Launching Project..."
+                            loadingText="Starting project..."
                             disabled={userBalance < usedCredits}
                             onClick={handleLaunchWithWallet}
                             className="w-full h-11 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black rounded-xl shadow-md shadow-amber-400/25 cursor-pointer flex items-center justify-center gap-2"

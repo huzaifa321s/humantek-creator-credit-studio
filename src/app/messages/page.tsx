@@ -7,7 +7,7 @@ import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ChatFullView } from '@/components/chat/ChatFullView';
 import { ChatGate } from '@/components/chat/ChatGate';
 import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 function RedirectToProjects() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function MessagesPage() {
             size="sm"
             className="gap-1 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span className="hidden min-[400px]:inline">New Project</span>
             <span className="min-[400px]:hidden">New</span>
           </Button>

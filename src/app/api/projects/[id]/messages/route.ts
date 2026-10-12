@@ -25,6 +25,83 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_ATTACHMENT_SIZE = 52428800; // 50 MB
 
+interface MessageEnvelope {
+  v: 1;
+  text: string;
+  replyTo?: {
+    id: string;
+    senderName: string;
+    senderRole?: string;
+    content: string;
+  } | null;
+  likes?: Array<{
+    userId: string;
+    userName: string;
+    likedAt?: string;
+  }>;
+  isEdited?: boolean;
+  editedAt?: string | null;
+  isDeleted?: boolean;
+}
+
+function parseMessageBody(rawBody: string): {
+  body: string;
+  replyTo: { id: string; senderName: string; senderRole?: string; content: string } | null;
+  likes: Array<{ userId: string; userName: string; likedAt?: string }>;
+  isEdited: boolean;
+  editedAt: string | null;
+  isDeleted: boolean;
+} {
+  if (typeof rawBody === 'string' && rawBody.startsWith('{"v":1,')) {
+    try {
+      const parsed: MessageEnvelope = JSON.parse(rawBody);
+      return {
+        body: parsed.text || '',
+        replyTo: parsed.replyTo || null,
+        likes: Array.isArray(parsed.likes) ? parsed.likes : [],
+        isEdited: Boolean(parsed.isEdited),
+        editedAt: parsed.editedAt || null,
+        isDeleted: Boolean(parsed.isDeleted),
+      };
+    } catch {
+      // Fallback to raw string
+    }
+  }
+  return {
+    body: rawBody || '',
+    replyTo: null,
+    likes: [],
+    isEdited: false,
+    editedAt: null,
+    isDeleted: false,
+  };
+}
+
+function encodeMessageBody(
+  text: string,
+  meta?: {
+    replyTo?: { id: string; senderName: string; senderRole?: string; content: string } | null;
+    likes?: Array<{ userId: string; userName: string; likedAt?: string }>;
+    isEdited?: boolean;
+    editedAt?: string | null;
+    isDeleted?: boolean;
+  }
+): string {
+  if (meta && (meta.replyTo || (meta.likes && meta.likes.length > 0) || meta.isEdited || meta.isDeleted)) {
+    const envelope: MessageEnvelope = {
+      v: 1,
+      text: meta.isDeleted ? '' : text,
+      replyTo: meta.isDeleted ? null : (meta.replyTo || null),
+      likes: meta.isDeleted ? [] : (meta.likes || []),
+      isEdited: Boolean(meta.isEdited),
+      editedAt: meta.editedAt || null,
+      isDeleted: Boolean(meta.isDeleted),
+    };
+    return JSON.stringify(envelope);
+  }
+  return text;
+}
+
 export async function GET(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
@@ -131,24 +208,32 @@ export async function GET(req: NextRequest, context: RouteContext) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const formattedMessages = messages.map((m: any) => ({
-      id: m.id,
-      projectId: m.project_id,
-      senderId: m.sender_id,
-      kind: m.kind,
-      body: m.body,
-      clientMessageId: m.client_message_id,
-      createdAt: m.created_at,
-      sender: m.profiles
-        ? {
-            id: m.profiles.id,
-            name: m.profiles.full_name || 'Studio Member',
-            email: m.profiles.email,
-            role: m.profiles.role,
-          }
-        : null,
-      attachments: attachmentsByMsgId[m.id] || [],
-    }));
+    const formattedMessages = messages.map((m: any) => {
+      const parsed = parseMessageBody(m.body);
+      return {
+        id: m.id,
+        projectId: m.project_id,
+        senderId: m.sender_id,
+        kind: m.kind,
+        body: parsed.body,
+        replyTo: parsed.replyTo,
+        likes: parsed.likes,
+        isEdited: parsed.isEdited,
+        editedAt: parsed.editedAt,
+        isDeleted: parsed.isDeleted,
+        clientMessageId: m.client_message_id,
+        createdAt: m.created_at,
+        sender: m.profiles
+          ? {
+              id: m.profiles.id,
+              name: m.profiles.full_name || 'Studio Member',
+              email: m.profiles.email,
+              role: m.profiles.role,
+            }
+          : null,
+        attachments: attachmentsByMsgId[m.id] || [],
+      };
+    });
 
     return NextResponse.json({
       messages: formattedMessages,
@@ -250,6 +335,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
+    const replyTo = body.replyTo && body.replyTo.id
+      ? {
+          id: String(body.replyTo.id),
+          senderName: String(body.replyTo.senderName || 'Studio Member'),
+          senderRole: body.replyTo.senderRole ? String(body.replyTo.senderRole) : undefined,
+          content: String(body.replyTo.content || '').slice(0, 300),
+        }
+      : null;
+
+    const encodedBody = encodeMessageBody(content, { replyTo });
+
     // Insert message via service_role admin client
     const { data: newMsg, error: insertErr } = await admin
       .from('project_messages')
@@ -257,7 +353,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         project_id: id,
         sender_id: user.id, // Strictly server-assigned
         kind: 'user',
-        body: content,
+        body: encodedBody,
         client_message_id: clientMessageId,
       })
       .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, role)')
@@ -274,10 +370,21 @@ export async function POST(req: NextRequest, context: RouteContext) {
           .eq('client_message_id', clientMessageId)
           .single();
 
+        const parsedExisting = existingMsg ? parseMessageBody(existingMsg.body) : null;
         return NextResponse.json({
           success: true,
           replayed: true,
-          message: existingMsg,
+          message: existingMsg
+            ? {
+                ...existingMsg,
+                body: parsedExisting?.body || existingMsg.body,
+                replyTo: parsedExisting?.replyTo || null,
+                likes: parsedExisting?.likes || [],
+                isEdited: parsedExisting?.isEdited || false,
+                editedAt: parsedExisting?.editedAt || null,
+                isDeleted: parsedExisting?.isDeleted || false,
+              }
+            : null,
         });
       }
 
@@ -307,10 +414,31 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
+    const parsedNew = parseMessageBody(newMsg.body);
+
     return NextResponse.json({
       success: true,
       message: {
-        ...newMsg,
+        id: newMsg.id,
+        projectId: newMsg.project_id,
+        senderId: newMsg.sender_id,
+        kind: newMsg.kind,
+        body: parsedNew.body,
+        replyTo: parsedNew.replyTo,
+        likes: parsedNew.likes,
+        isEdited: parsedNew.isEdited,
+        editedAt: parsedNew.editedAt,
+        isDeleted: parsedNew.isDeleted,
+        clientMessageId: newMsg.client_message_id,
+        createdAt: newMsg.created_at,
+        sender: (newMsg as any).profiles
+          ? {
+              id: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.id : (newMsg as any).profiles?.id) || newMsg.sender_id,
+              name: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.full_name : (newMsg as any).profiles?.full_name) || (user.isAdmin ? 'Sarah Miller' : 'Creator'),
+              email: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.email : (newMsg as any).profiles?.email) || user.email,
+              role: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.role : (newMsg as any).profiles?.role) || user.role,
+            }
+          : null,
         attachments: createdAttachments,
       },
     });
@@ -346,11 +474,175 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     const body = await req.json().catch(() => null);
+    const action = body?.action || 'mark_read';
     const requestedId = parseInt(body?.messageId, 10);
     if (isNaN(requestedId) || requestedId < 0) {
       return NextResponse.json({ error: 'Valid positive messageId required' }, { status: 400 });
     }
 
+    // ── ACTION: TOGGLE LIKE (Thumb Only) ──
+    if (action === 'toggle_like') {
+      const { data: targetMsg, error: fetchErr } = await admin
+        .from('project_messages')
+        .select('id, project_id, sender_id, body')
+        .eq('id', requestedId)
+        .eq('project_id', id)
+        .single();
+
+      if (fetchErr || !targetMsg) {
+        return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+      }
+
+      // Disallow liking own message
+      if (targetMsg.sender_id === user.id) {
+        return NextResponse.json({ error: 'Cannot like own message' }, { status: 400 });
+      }
+
+      const parsed = parseMessageBody(targetMsg.body);
+      if (parsed.isDeleted) {
+        return NextResponse.json({ error: 'Cannot like deleted message' }, { status: 400 });
+      }
+
+      const existingLikes = parsed.likes || [];
+      const alreadyLiked = existingLikes.some((l) => l.userId === user.id);
+      let updatedLikes: Array<{ userId: string; userName: string; likedAt?: string }>;
+
+      if (alreadyLiked) {
+        updatedLikes = existingLikes.filter((l) => l.userId !== user.id);
+      } else {
+        const userName =
+          user.isAdmin ? 'Sarah Miller' : (user.email ? user.email.split('@')[0] : 'Creator');
+        updatedLikes = [
+          ...existingLikes,
+          {
+            userId: user.id,
+            userName,
+            likedAt: new Date().toISOString(),
+          },
+        ];
+      }
+
+      const newBody = encodeMessageBody(parsed.body, {
+        ...parsed,
+        likes: updatedLikes,
+      });
+
+      const { error: updateErr } = await admin
+        .from('project_messages')
+        .update({ body: newBody })
+        .eq('id', requestedId);
+
+      if (updateErr) {
+        return NextResponse.json({ error: updateErr.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        messageId: requestedId,
+        likes: updatedLikes,
+      });
+    }
+
+    // ── ACTION: EDIT MESSAGE (Sender only, within 60 mins) ──
+    if (action === 'edit') {
+      const newText = (body?.content || '').trim();
+      if (!newText) {
+        return NextResponse.json({ error: 'Edited content cannot be empty' }, { status: 400 });
+      }
+      if (newText.length > 4000) {
+        return NextResponse.json({ error: 'Message exceeds 4,000 characters' }, { status: 400 });
+      }
+
+      const { data: targetMsg, error: fetchErr } = await admin
+        .from('project_messages')
+        .select('id, project_id, sender_id, body, created_at')
+        .eq('id', requestedId)
+        .eq('project_id', id)
+        .single();
+
+      if (fetchErr || !targetMsg) {
+        return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+      }
+
+      if (!user.isAdmin && targetMsg.sender_id !== user.id) {
+        return NextResponse.json({ error: 'Only the author can edit this message' }, { status: 403 });
+      }
+
+      const parsed = parseMessageBody(targetMsg.body);
+      if (parsed.isDeleted) {
+        return NextResponse.json({ error: 'Cannot edit deleted message' }, { status: 400 });
+      }
+
+      // Check 60 minute edit window
+      const ageMs = Date.now() - new Date(targetMsg.created_at).getTime();
+      if (ageMs > 60 * 60 * 1000) {
+        return NextResponse.json(
+          { error: 'Messages can only be edited within 60 minutes of sending' },
+          { status: 400 }
+        );
+      }
+
+      const editedAt = new Date().toISOString();
+      const newBody = encodeMessageBody(newText, {
+        ...parsed,
+        isEdited: true,
+        editedAt,
+      });
+
+      const { error: updateErr } = await admin
+        .from('project_messages')
+        .update({ body: newBody })
+        .eq('id', requestedId);
+
+      if (updateErr) {
+        return NextResponse.json({ error: updateErr.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        messageId: requestedId,
+        body: newText,
+        isEdited: true,
+        editedAt,
+      });
+    }
+
+    // ── ACTION: DELETE MESSAGE (Sender or Admin, soft tombstone) ──
+    if (action === 'delete') {
+      const { data: targetMsg, error: fetchErr } = await admin
+        .from('project_messages')
+        .select('id, project_id, sender_id, body')
+        .eq('id', requestedId)
+        .eq('project_id', id)
+        .single();
+
+      if (fetchErr || !targetMsg) {
+        return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+      }
+
+      if (!user.isAdmin && targetMsg.sender_id !== user.id) {
+        return NextResponse.json({ error: 'Only the author or admin can delete this message' }, { status: 403 });
+      }
+
+      const newBody = encodeMessageBody('', { isDeleted: true });
+
+      const { error: updateErr } = await admin
+        .from('project_messages')
+        .update({ body: newBody })
+        .eq('id', requestedId);
+
+      if (updateErr) {
+        return NextResponse.json({ error: updateErr.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        messageId: requestedId,
+        isDeleted: true,
+      });
+    }
+
+    // ── ACTION: MARK AS READ (Default) ──
     // Cap requestedId at the maximum message ID in this project
     const { data: maxRow } = await admin
       .from('project_messages')

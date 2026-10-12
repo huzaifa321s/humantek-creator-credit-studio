@@ -8,6 +8,7 @@ import {
   Ticket,
   ShieldCheck,
   Sparkles,
+  Plus,
   MessageSquare,
   Coins,
   ArrowRight,
@@ -83,7 +84,7 @@ export function DashboardSearchDialog({
         category: 'Navigation' as const,
         title: 'New Project',
         description: 'Configure and start your next creative media project',
-        icon: Sparkles,
+        icon: Plus,
         keywords: ['new', 'project', 'brief', 'create', 'order', 'package', 'home', 'services', 'wizard'],
         action: () => {
           if (isMobile) setOpenMobile(false);

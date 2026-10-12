@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { orderRequestSchema, patchProjectSchema, firstIssue } from '@/lib/validation';
 import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import {
@@ -14,11 +14,14 @@ import {
 import { computeOrderQuote } from '@/lib/pricing';
 import { buildProjectRecord, formatDbProject } from '@/lib/orders';
 import { PACKAGES, SERVICES } from '@/lib/catalog';
-
-
-
-
-import { clampLimit, decodeCursor, encodeCursor, PAGINATION_LIMITS } from '@/lib/pagination';
+import {
+  clampLimit,
+  decodeCursor,
+  encodeCursor,
+  compareIsoTimestamps,
+  sanitizeSearchQuery,
+  PAGINATION_LIMITS,
+} from '@/lib/pagination';
 
 /**
  * Admins see every project; signed-in creators only see their own.
@@ -27,26 +30,32 @@ import { clampLimit, decodeCursor, encodeCursor, PAGINATION_LIMITS } from '@/lib
  * - Keyset cursor pagination: GET /api/projects?cursor=<base64url>&limit=20
  * - Server-side search & filtering: GET /api/projects?search=HT-8531&status=active
  * - Lightweight summary-only responses: summary=true (default for lists)
+ * - RLS enforcement for clients; Server-Timing performance headers
  */
 export async function GET(req: NextRequest) {
+  const tStart = performance.now();
   const user = await getRequestUser();
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
+  const authDurationMs = Math.round(performance.now() - tStart);
 
   const { searchParams } = new URL(req.url);
   const singleId = searchParams.get('id');
+
+  // Client reads use standard client with RLS; admins use adminClient
+  const dbClient = user.isAdmin ? createAdminClient() : await createClient();
 
   // 1. Single Project Detail Mode (loads full project with selections & additions)
   if (singleId) {
     if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
       try {
-        const adminClient = createAdminClient();
-        let query = adminClient
+        let query = dbClient
           .from('projects')
           .select('*, project_items(*), project_additions(*)')
           .eq('id', singleId);
 
+        // Strict user_id ownership check (defense-in-depth on top of RLS)
         if (!user.isAdmin) {
           query = query.eq('user_id', user.id);
         }
@@ -81,7 +90,8 @@ export async function GET(req: NextRequest) {
   const cursorParam = searchParams.get('cursor');
   const statusParam = searchParams.get('status') || 'all';
   const paymentStatusParam = searchParams.get('paymentStatus') || 'all';
-  const searchParam = searchParams.get('search')?.trim() || '';
+  const rawSearch = searchParams.get('search')?.trim() || '';
+  const cleanSearch = sanitizeSearchQuery(rawSearch);
   const summaryParam = searchParams.get('summary') !== 'false';
   const pageParam = searchParams.get('page');
 
@@ -93,91 +103,106 @@ export async function GET(req: NextRequest) {
   // A. Production / Real Supabase Path
   if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
     try {
-      const adminClient = createAdminClient();
+      const tDb = performance.now();
 
-      // Aggregate tab counts: all, active, delivered
-      let statusQuery = adminClient.from('projects').select('status');
+      // Aggregate tab counts
+      let statusQuery = dbClient.from('projects').select('status');
       if (!user.isAdmin) {
         statusQuery = statusQuery.eq('user_id', user.id);
       }
-      const { data: statusRows } = await statusQuery;
-
-      let allCount = 0;
-      let activeCount = 0;
-      let deliveredCount = 0;
-      (statusRows || []).forEach((row) => {
-        allCount++;
-        if (row.status === 'delivered') deliveredCount++;
-        else if (row.status !== 'declined' && row.status !== 'cancelled') activeCount++;
-      });
 
       // Build data query
-      let query = summaryParam
-        ? adminClient
+      let dataQuery = summaryParam
+        ? dbClient
             .from('projects')
             .select(
               'id, user_id, project_code, package_id, package_name, package_price_usd, package_credits, total_credits, status, payment_status, payment_method, funding_source, applied_wallet_credits, client_name, channel_name, email, platform, style, colors, instructions, uploaded_files, last_message_at, last_message_preview, created_at',
               { count: 'exact' }
             )
-        : adminClient
+        : dbClient
             .from('projects')
             .select('*, project_items(*), project_additions(*)', { count: 'exact' });
 
-      // Tenant isolation: clients only see their own projects
+      // Tenant isolation: clients only see their own projects (enforced both in query & RLS)
       if (!user.isAdmin) {
-        query = query.eq('user_id', user.id);
+        dataQuery = dataQuery.eq('user_id', user.id);
       }
 
       // Status filter
       if (statusParam && statusParam !== 'all') {
         if (statusParam === 'active') {
-          query = query.not('status', 'in', '("delivered","declined","cancelled")');
+          dataQuery = dataQuery.not('status', 'in', '("delivered","declined","cancelled")');
         } else if (statusParam === 'delivered') {
-          query = query.eq('status', 'delivered');
+          dataQuery = dataQuery.eq('status', 'delivered');
         } else {
-          query = query.eq('status', statusParam);
+          dataQuery = dataQuery.eq('status', statusParam);
         }
       }
 
       // Payment status filter (e.g. for admin)
       if (paymentStatusParam && paymentStatusParam !== 'all') {
-        query = query.eq('payment_status', paymentStatusParam);
+        dataQuery = dataQuery.eq('payment_status', paymentStatusParam);
       }
 
-      // Server-side search filter
-      if (searchParam) {
-        const sanitized = searchParam.replace(/[,()]/g, '');
-        const s = `%${sanitized}%`;
-        query = query.or(`project_code.ilike.${s},client_name.ilike.${s},channel_name.ilike.${s},package_name.ilike.${s}`);
+      // Server-side search filter with strict PostgREST injection sanitization
+      if (cleanSearch) {
+        const s = `%${cleanSearch}%`;
+        dataQuery = dataQuery.or(`project_code.ilike.${s},client_name.ilike.${s},channel_name.ilike.${s},package_name.ilike.${s}`);
       }
 
       // Keyset cursor or offset page
       if (cursor) {
-        query = query.or(
+        dataQuery = dataQuery.or(
           `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`
         );
       } else if (pageParam && user.isAdmin) {
         const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
         const offset = (pageNum - 1) * limit;
-        query = query.range(offset, offset + limit - 1);
+        dataQuery = dataQuery.range(offset, offset + limit - 1);
       }
 
       // Deterministic keyset ordering
-      query = query
+      dataQuery = dataQuery
         .order('created_at', { ascending: false })
         .order('id', { ascending: false });
 
       if (!pageParam || !user.isAdmin) {
-        query = query.limit(limit + 1);
+        dataQuery = dataQuery.limit(limit + 1);
       }
 
-      const { data, error, count } = await query;
-      if (error) {
-        console.error('Error retrieving projects from database:', error);
+      // Execute counts and data query concurrently in a single network round-trip
+      const [statusRes, dataRes] = await Promise.all([
+        statusQuery,
+        dataQuery,
+      ]);
+
+      const dbDurationMs = Math.round(performance.now() - tDb);
+
+      if (dataRes.error) {
+        console.error('Error retrieving projects from database:', dataRes.error);
         return NextResponse.json({ error: 'Failed to retrieve projects' }, { status: 500 });
       }
 
-      const rows: any[] = (data as any[]) || [];
+      let allCount = 0;
+      let activeCount = 0;
+      let deliveredCount = 0;
+      let cancelledCount = 0;
+      let declinedCount = 0;
+
+      (statusRes.data || []).forEach((row) => {
+        allCount++;
+        if (row.status === 'delivered') {
+          deliveredCount++;
+        } else if (row.status === 'cancelled') {
+          cancelledCount++;
+        } else if (row.status === 'declined') {
+          declinedCount++;
+        } else {
+          activeCount++;
+        }
+      });
+
+      const rows: any[] = (dataRes.data as any[]) || [];
       let items = rows;
       let hasMore = false;
       let nextCursor: string | null = null;
@@ -185,29 +210,37 @@ export async function GET(req: NextRequest) {
       if (!pageParam || !user.isAdmin) {
         hasMore = rows.length > limit;
         items = hasMore ? rows.slice(0, limit) : rows;
-        const lastRow = items[items.length - 1];
+        const lastRow: any = items[items.length - 1];
         nextCursor =
           hasMore && lastRow
             ? encodeCursor({ createdAt: lastRow.created_at, id: lastRow.id })
             : null;
       } else {
         const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
-        hasMore = pageNum * limit < (count ?? 0);
+        hasMore = pageNum * limit < (dataRes.count ?? 0);
       }
 
       const projects = items.map(formatDbProject);
-      return NextResponse.json({
+      const res = NextResponse.json({
         projects,
-        totalCount: count ?? projects.length,
+        totalCount: dataRes.count ?? projects.length,
         counts: {
           all: allCount,
           active: activeCount,
           delivered: deliveredCount,
+          cancelled: cancelledCount,
+          declined: declinedCount,
         },
         hasMore,
         nextCursor,
         limit,
       });
+
+      res.headers.set(
+        'Server-Timing',
+        `auth;dur=${authDurationMs}, db;dur=${dbDurationMs}, total;dur=${Math.round(performance.now() - tStart)}`
+      );
+      return res;
     } catch (err) {
       console.error('Database query exception in GET /api/projects:', err);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -223,10 +256,15 @@ export async function GET(req: NextRequest) {
   let allCount = 0;
   let activeCount = 0;
   let deliveredCount = 0;
+  let cancelledCount = 0;
+  let declinedCount = 0;
+
   all.forEach((p) => {
     allCount++;
     if (p.status === 'delivered') deliveredCount++;
-    else if (p.status !== 'declined' && p.status !== 'cancelled') activeCount++;
+    else if (p.status === 'cancelled') cancelledCount++;
+    else if (p.status === 'declined') declinedCount++;
+    else activeCount++;
   });
 
   let filtered = all;
@@ -244,8 +282,8 @@ export async function GET(req: NextRequest) {
     filtered = filtered.filter((p) => p.paymentStatus === paymentStatusParam);
   }
 
-  if (searchParam) {
-    const q = searchParam.toLowerCase();
+  if (cleanSearch) {
+    const q = cleanSearch.toLowerCase();
     filtered = filtered.filter((p) =>
       p.projectCode.toLowerCase().includes(q) ||
       p.clientName.toLowerCase().includes(q) ||
@@ -256,9 +294,8 @@ export async function GET(req: NextRequest) {
   }
 
   filtered.sort((a, b) => {
-    const tA = new Date(a.createdAt).getTime();
-    const tB = new Date(b.createdAt).getTime();
-    if (tB !== tA) return tB - tA;
+    const cmp = compareIsoTimestamps(b.createdAt, a.createdAt);
+    if (cmp !== 0) return cmp;
     return (b.id || '').localeCompare(a.id || '');
   });
 
@@ -267,10 +304,9 @@ export async function GET(req: NextRequest) {
 
   if (cursor) {
     const idx = filtered.findIndex((p) => {
-      const tP = new Date(p.createdAt).getTime();
-      const tC = new Date(cursor.createdAt).getTime();
-      if (tP < tC) return true;
-      if (tP === tC) return (p.id || '') < cursor.id;
+      const cmp = compareIsoTimestamps(p.createdAt, cursor.createdAt);
+      if (cmp < 0) return true;
+      if (cmp === 0) return (p.id || '') < cursor.id;
       return false;
     });
     sliced = idx >= 0 ? filtered.slice(idx) : [];
@@ -298,18 +334,26 @@ export async function GET(req: NextRequest) {
     ? items.map((p) => ({ ...p, selections: [], additions: [] }))
     : items;
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     projects,
     totalCount,
     counts: {
       all: allCount,
       active: activeCount,
       delivered: deliveredCount,
+      cancelled: cancelledCount,
+      declined: declinedCount,
     },
     hasMore,
     nextCursor,
     limit,
   });
+
+  res.headers.set(
+    'Server-Timing',
+    `auth;dur=${authDurationMs}, db;dur=0, total;dur=${Math.round(performance.now() - tStart)}`
+  );
+  return res;
 }
 
 /**

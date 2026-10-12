@@ -59,10 +59,17 @@ export const useUserStore = create<UserStoreState>()(
       setHydrated: (hydrated) => set({ isHydrated: hydrated }),
       updateUser: (patch) =>
         set((state) => {
-          if (!state.user) return state;
-          const updated: StudioUser = { ...state.user, ...patch };
-          if (patch.name && !patch.avatarInitials) {
-            updated.avatarInitials = computeInitials(patch.name, updated.email);
+          const current: StudioUser = state.user || {
+            id: patch.id || '',
+            name: patch.name || (patch.email?.split('@')[0] ?? 'Creator'),
+            email: patch.email || '',
+            avatarInitials: computeInitials(patch.name, patch.email),
+            walletBalance: patch.walletBalance ?? 0,
+            role: patch.role || 'client',
+          };
+          const updated: StudioUser = { ...current, ...patch };
+          if (!updated.avatarInitials || (patch.name && !patch.avatarInitials)) {
+            updated.avatarInitials = computeInitials(updated.name, updated.email);
           }
           return { user: updated };
         }),
@@ -155,6 +162,8 @@ export const useUserStore = create<UserStoreState>()(
             state.user = null;
           }
           state.setHydrated(true);
+        } else {
+          useUserStore.getState().setHydrated(true);
         }
       },
     }
