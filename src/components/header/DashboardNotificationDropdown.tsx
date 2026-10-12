@@ -102,10 +102,10 @@ export function DashboardNotificationDropdown() {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="dark w-72 sm:w-80 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1 shadow-xl ring-1 ring-white/10"
+        className="dark w-72 sm:w-80 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-100 p-1 shadow-xl ring-1 ring-white/10 flex flex-col"
       >
         {/* Header Row: Title & Mark All Read */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 select-none">
+        <div className="flex items-center justify-between px-2.5 py-1.5 select-none shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-100">Notifications</span>
             {mounted && unreadCount > 0 && (
@@ -128,11 +128,11 @@ export function DashboardNotificationDropdown() {
           )}
         </div>
 
-        <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
+        <DropdownMenuSeparator className="my-1 h-px bg-white/10 shrink-0" />
 
         {/* List of Notification Items or Empty State */}
         {notifications.length === 0 ? (
-          <Empty className="py-6 px-4">
+          <Empty className="py-6 px-4 shrink-0">
             <EmptyMedia>
               <Bell className="size-6 text-zinc-500" />
             </EmptyMedia>
@@ -144,58 +144,61 @@ export function DashboardNotificationDropdown() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <DropdownMenuGroup className="space-y-0.5">
-            {notifications.map((item) => {
-              const Icon = ICON_MAP[item.iconType] || Bell;
-              return (
-                <DropdownMenuItem
-                  key={item.id}
-                  data-chat-entry={item.actionId === 'open-chat' ? 'notification-chat' : undefined}
-                  onClick={() => handleItemClick(item)}
-                  className="group flex items-start gap-2.5 rounded-lg p-2 text-xs cursor-pointer transition-colors hover:bg-white/5 focus-visible:bg-white/5 outline-none w-full"
-                >
-                  <IconTile
-                    variant={item.unread ? 'soft' : 'outline'}
-                    size="xs"
-                    radius="default"
-                    className={cn(
-                      'shrink-0 mt-0.5',
-                      item.unread
-                        ? 'text-amber-400 bg-amber-400/15'
-                        : 'text-zinc-400 border-white/10 bg-white/5'
-                    )}
+          <div className="max-h-[340px] sm:max-h-[380px] overflow-y-auto overscroll-contain scrollbar-thin [scrollbar-gutter:stable]">
+            <DropdownMenuGroup className="space-y-0.5">
+              {notifications.map((item) => {
+                const Icon = ICON_MAP[item.iconType] || Bell;
+                return (
+                  <DropdownMenuItem
+                    key={item.id}
+                    data-chat-entry={item.actionId === 'open-chat' ? 'notification-chat' : undefined}
+                    onClick={() => handleItemClick(item)}
+                    className="group flex items-start gap-2.5 rounded-lg p-2 text-xs cursor-pointer transition-colors hover:bg-white/5 focus-visible:bg-white/5 outline-none w-full"
                   >
-                    <Icon className="size-3.5" />
-                  </IconTile>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span
-                        className={cn(
-                          'text-xs truncate',
-                          item.unread ? 'font-semibold text-zinc-100' : 'font-medium text-zinc-300'
-                        )}
-                      >
-                        {item.title}
-                      </span>
-                      <span className="text-2xs font-mono tabular-nums text-zinc-400 shrink-0">{item.time}</span>
+                    <IconTile
+                      variant={item.unread ? 'soft' : 'outline'}
+                      size="xs"
+                      radius="default"
+                      className={cn(
+                        'shrink-0 mt-0.5',
+                        item.unread
+                          ? 'text-amber-400 bg-amber-400/15'
+                          : 'text-zinc-400 border-white/10 bg-white/5'
+                      )}
+                    >
+                      <Icon className="size-3.5" />
+                    </IconTile>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span
+                          className={cn(
+                            'text-xs truncate',
+                            item.unread ? 'font-semibold text-zinc-100' : 'font-medium text-zinc-300'
+                          )}
+                        >
+                          {item.title}
+                        </span>
+                        <span className="text-2xs font-mono tabular-nums text-zinc-400 shrink-0">{item.time}</span>
+                      </div>
+                      <p className="text-2xs text-zinc-400 line-clamp-1 mt-0.5 leading-relaxed">
+                        {item.description}
+                      </p>
                     </div>
-                    <p className="text-2xs text-zinc-400 line-clamp-1 mt-0.5 leading-relaxed">
-                      {item.description}
-                    </p>
-                  </div>
-                  {item.unread && (
-                    <span className="size-1.5 rounded-full bg-amber-400 shrink-0 mt-2" />
-                  )}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuGroup>
+                    {item.unread && (
+                      <span className="size-1.5 rounded-full bg-amber-400 shrink-0 mt-2" />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
+          </div>
         )}
 
-        <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
+        <DropdownMenuSeparator className="my-1 h-px bg-white/10 shrink-0" />
 
         {/* Footer: View All Projects Activity */}
         <DropdownMenuItem
+          className="shrink-0 p-0"
           render={
             <Link
               href="/projects"
