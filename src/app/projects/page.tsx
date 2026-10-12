@@ -160,7 +160,7 @@ function CompactProjectRow({
           {/* Stepper */}
           <div>
             <p className="text-2xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-              Delivery Completion Pipeline
+              Timeline &amp; Milestones
             </p>
             <ProjectPipelineStepper
               status={project.status}
@@ -494,15 +494,15 @@ export default function ProjectsPage() {
                           </span>
                           <span className="text-muted-foreground">
                             {proj.status === 'pending_review'
-                              ? ' · Creative brief submitted for review'
+                              ? ' · Sarah is reviewing your brief'
                               : proj.status === 'payment_confirmed'
-                              ? ' · Getting things ready'
+                              ? ' · Queued for production'
                               : proj.status === 'in_production'
-                              ? ' · Creative work in progress'
+                              ? ' · Artists are working on your assets'
                               : proj.status === 'review_round'
-                              ? ' · Deliverables awaiting your review'
+                              ? ' · Draft ready for your review'
                               : proj.status === 'delivered'
-                              ? ' · All project assets completed'
+                              ? ' · Files delivered'
                               : ''}
                           </span>
                           {proj.platform && proj.platform.toLowerCase() !== 'general' && (

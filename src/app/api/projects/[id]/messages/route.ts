@@ -44,6 +44,45 @@ interface MessageEnvelope {
   isDeleted?: boolean;
 }
 
+interface MessageProfile {
+  id?: string;
+  email?: string | null;
+  full_name?: string | null;
+  role?: string | null;
+}
+
+interface MessageRow {
+  id: number;
+  project_id: string;
+  sender_id: string;
+  kind: string;
+  body: string;
+  client_message_id: string | null;
+  created_at: string;
+  profiles?: MessageProfile | MessageProfile[] | null;
+}
+
+interface AttachmentItem {
+  id: number;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string;
+  storagePath: string;
+  url: string | null;
+  isDeliverable: boolean;
+  createdAt: string;
+}
+
+function extractSenderProfile(
+  profiles: MessageProfile | MessageProfile[] | null | undefined
+): MessageProfile | null {
+  if (!profiles) return null;
+  if (Array.isArray(profiles)) {
+    return profiles[0] || null;
+  }
+  return profiles;
+}
+
 function parseMessageBody(rawBody: string): {
   body: string;
   replyTo: { id: string; senderName: string; senderRole?: string; content: string } | null;
@@ -111,20 +150,23 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     const admin = createAdminClient();
+    const isGlobal = id === 'global';
 
-    // Verify membership or admin role
-    const { data: project, error: projErr } = await admin
-      .from('projects')
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
+    if (!isGlobal) {
+      // Verify membership or admin role
+      const { data: project, error: projErr } = await admin
+        .from('projects')
+        .select('id, user_id')
+        .eq('id', id)
+        .single();
 
-    if (projErr || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
+      if (projErr || !project) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
 
-    if (!user.isAdmin && project.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      if (!user.isAdmin && project.user_id !== user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const searchParams = req.nextUrl.searchParams;
@@ -134,7 +176,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     let query = admin
       .from('project_messages')
-      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, role)')
+      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role)')
       .eq('project_id', id);
 
     let isReversed = false;
@@ -163,7 +205,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     // Attachments query with signed URLs
     const messageIds = messages.map((m) => m.id);
-    let attachmentsByMsgId: Record<number, any[]> = {};
+    const attachmentsByMsgId: Record<number, AttachmentItem[]> = {};
 
     if (messageIds.length > 0) {
       const { data: attachments } = await admin
@@ -208,30 +250,32 @@ export async function GET(req: NextRequest, context: RouteContext) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const formattedMessages = messages.map((m: any) => {
-      const parsed = parseMessageBody(m.body);
+    const formattedMessages = messages.map((m) => {
+      const row = m as unknown as MessageRow;
+      const parsed = parseMessageBody(row.body);
+      const profile = extractSenderProfile(row.profiles);
       return {
-        id: m.id,
-        projectId: m.project_id,
-        senderId: m.sender_id,
-        kind: m.kind,
+        id: row.id,
+        projectId: row.project_id,
+        senderId: row.sender_id,
+        kind: row.kind,
         body: parsed.body,
         replyTo: parsed.replyTo,
         likes: parsed.likes,
         isEdited: parsed.isEdited,
         editedAt: parsed.editedAt,
         isDeleted: parsed.isDeleted,
-        clientMessageId: m.client_message_id,
-        createdAt: m.created_at,
-        sender: m.profiles
+        clientMessageId: row.client_message_id,
+        createdAt: row.created_at,
+        sender: profile
           ? {
-              id: m.profiles.id,
-              name: m.profiles.full_name || 'Studio Member',
-              email: m.profiles.email,
-              role: m.profiles.role,
+              id: profile.id || row.sender_id,
+              name: profile.full_name || 'Studio Member',
+              email: profile.email,
+              role: profile.role,
             }
           : null,
-        attachments: attachmentsByMsgId[m.id] || [],
+        attachments: attachmentsByMsgId[row.id] || [],
       };
     });
 
@@ -239,7 +283,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       messages: formattedMessages,
       lastReadId: readState?.last_read_message_id || 0,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error in GET /api/projects/[id]/messages:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -266,20 +310,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const admin = createAdminClient();
+    const isGlobal = id === 'global';
 
-    // Verify membership or admin
-    const { data: project, error: projErr } = await admin
-      .from('projects')
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
+    if (!isGlobal) {
+      // Verify membership or admin
+      const { data: project, error: projErr } = await admin
+        .from('projects')
+        .select('id, user_id')
+        .eq('id', id)
+        .single();
 
-    if (projErr || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
+      if (projErr || !project) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
 
-    if (!user.isAdmin && project.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      if (!user.isAdmin && project.user_id !== user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const body = await req.json().catch(() => null);
@@ -288,8 +335,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const content = (body.body || '').trim();
-    if (!content) {
+    const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+    if (!content && attachments.length === 0) {
       return NextResponse.json({ error: 'Message body cannot be empty' }, { status: 400 });
+    }
+    if (attachments.length > 5) {
+      return NextResponse.json({ error: 'You can attach up to 5 files per message' }, { status: 400 });
     }
 
     if (content.length > 4000) {
@@ -305,7 +356,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     // Attachment validation (Strict isolation: cannot attach files belonging to other projects)
-    const attachments = Array.isArray(body.attachments) ? body.attachments : [];
     for (const att of attachments) {
       if (!att.storagePath || typeof att.storagePath !== 'string') {
         return NextResponse.json({ error: 'Invalid storagePath for attachment' }, { status: 400 });
@@ -356,7 +406,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         body: encodedBody,
         client_message_id: clientMessageId,
       })
-      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, role)')
+      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role)')
       .single();
 
     if (insertErr) {
@@ -364,7 +414,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       if (insertErr.code === '23505') {
         const { data: existingMsg } = await admin
           .from('project_messages')
-          .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, role)')
+          .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role)')
           .eq('project_id', id)
           .eq('sender_id', user.id)
           .eq('client_message_id', clientMessageId)
@@ -410,11 +460,30 @@ export async function POST(req: NextRequest, context: RouteContext) {
         .single();
 
       if (!attErr && attRow) {
-        createdAttachments.push(attRow);
+        let signedUrl: string | null = null;
+        try {
+          const { data: signed } = await admin.storage
+            .from('project-attachments')
+            .createSignedUrl(attRow.storage_path, 3600);
+          signedUrl = signed?.signedUrl || null;
+        } catch {
+          signedUrl = null;
+        }
+        createdAttachments.push({
+          id: attRow.id,
+          fileName: attRow.file_name,
+          fileSize: attRow.file_size,
+          mimeType: attRow.mime_type,
+          storagePath: attRow.storage_path,
+          url: signedUrl,
+          isDeliverable: attRow.is_deliverable,
+          createdAt: attRow.created_at,
+        });
       }
     }
 
     const parsedNew = parseMessageBody(newMsg.body);
+    const newSenderProfile = extractSenderProfile((newMsg as unknown as MessageRow).profiles);
 
     return NextResponse.json({
       success: true,
@@ -431,18 +500,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
         isDeleted: parsedNew.isDeleted,
         clientMessageId: newMsg.client_message_id,
         createdAt: newMsg.created_at,
-        sender: (newMsg as any).profiles
+        sender: newSenderProfile
           ? {
-              id: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.id : (newMsg as any).profiles?.id) || newMsg.sender_id,
-              name: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.full_name : (newMsg as any).profiles?.full_name) || (user.isAdmin ? 'Sarah Miller' : 'Creator'),
-              email: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.email : (newMsg as any).profiles?.email) || user.email,
-              role: (Array.isArray((newMsg as any).profiles) ? (newMsg as any).profiles[0]?.role : (newMsg as any).profiles?.role) || user.role,
+              id: newSenderProfile.id || newMsg.sender_id,
+              name: newSenderProfile.full_name || (user.isAdmin ? 'Studio Team' : 'Creator'),
+              email: newSenderProfile.email || user.email,
+              role: newSenderProfile.role || user.role,
             }
           : null,
         attachments: createdAttachments,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error in POST /api/projects/[id]/messages:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -457,20 +526,23 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     const admin = createAdminClient();
+    const isGlobal = id === 'global';
 
-    // Verify membership or admin
-    const { data: project, error: projErr } = await admin
-      .from('projects')
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
+    if (!isGlobal) {
+      // Verify membership or admin
+      const { data: project, error: projErr } = await admin
+        .from('projects')
+        .select('id, user_id')
+        .eq('id', id)
+        .single();
 
-    if (projErr || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
+      if (projErr || !project) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
 
-    if (!user.isAdmin && project.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      if (!user.isAdmin && project.user_id !== user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const body = await req.json().catch(() => null);
@@ -511,7 +583,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         updatedLikes = existingLikes.filter((l) => l.userId !== user.id);
       } else {
         const userName =
-          user.isAdmin ? 'Sarah Miller' : (user.email ? user.email.split('@')[0] : 'Creator');
+          user.isAdmin ? 'Studio Team' : (user.email ? user.email.split('@')[0] : 'Creator');
         updatedLikes = [
           ...existingLikes,
           {
@@ -676,7 +748,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json({ success: true, lastReadId: newLastRead });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error in PATCH /api/projects/[id]/messages:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

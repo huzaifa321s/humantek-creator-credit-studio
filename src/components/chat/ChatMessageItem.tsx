@@ -1,15 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   CheckCheck,
   Sparkles,
   Eye,
-  Copy,
-  Check,
   ThumbsUp,
   CornerUpLeft,
-  Pencil,
   Trash2,
   Play,
   Pause,
@@ -17,14 +14,13 @@ import {
   Clock,
   AlertCircle,
   RotateCw,
-  MoreHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatChatTimestamp } from '@/lib/utils';
 
 import { ChatMessage, ChatAttachment } from '@/lib/chatStore';
+import { useMessageGestures } from '@/hooks/use-message-gestures';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import {
   Message,
   MessageAvatar,
@@ -33,13 +29,7 @@ import {
   MessageHeader,
 } from '@/components/ui/message';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Attachment,
   AttachmentContent,
@@ -50,10 +40,21 @@ import {
   AttachmentTrigger,
 } from '@/components/ui/attachment';
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker';
+import {
+  ChatDeleteMessageDialog,
+  ChatMessageActionDrawer,
+  ChatMessageActionToolbar,
+  useMessageActions,
+} from '@/components/chat/ChatMessageActions';
 
 interface ChatMessageItemProps {
   message: ChatMessage;
   currentUserId?: string;
+  /**
+   * Who is viewing the thread. Determines which messages count as "own"
+   * (editable / deletable, not likeable). Defaults to the creator portal.
+   */
+  viewerRole?: 'client' | 'admin';
   onPreviewAttachment: (attachment: ChatAttachment) => void;
   onReply?: (message: ChatMessage) => void;
   onToggleLike?: (messageId: string) => void;
@@ -64,6 +65,8 @@ interface ChatMessageItemProps {
   /** Compact mode used inside the floating widget */
   compact?: boolean;
 }
+
+const LIKE_POP_MS = 650;
 
 /** System notices rendered with the official shadcn `Marker` (separator variant). */
 function SystemMarker({ content }: { content: string }) {
@@ -83,6 +86,7 @@ export const ChatMessageItem = React.memo(
   function ChatMessageItem({
     message,
     currentUserId,
+    viewerRole = 'client',
     onPreviewAttachment,
     onReply,
     onToggleLike,
@@ -92,143 +96,106 @@ export const ChatMessageItem = React.memo(
     onScrollToMessage,
     compact = false,
   }: ChatMessageItemProps) {
-    const [copied, setCopied] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
-    const [showLikePop, setShowLikePop] = useState(false);
+    const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [likePopKey, setLikePopKey] = useState(0);
 
-    const lastTapRef = React.useRef<number>(0);
-    const singleTapTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-    const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
-    const triggerLikePop = () => {
-      setShowLikePop(true);
-      setTimeout(() => setShowLikePop(false), 700);
-    };
-
-    const handleBubbleClick = (e: React.MouseEvent) => {
-      if (isDeleted) return;
-
-      const now = Date.now();
-      const timeSinceLastTap = now - lastTapRef.current;
-
-      // Double-tap threshold (< 300ms)
-      if (timeSinceLastTap < 300) {
-        if (singleTapTimerRef.current) {
-          clearTimeout(singleTapTimerRef.current);
-          singleTapTimerRef.current = null;
-        }
-        lastTapRef.current = 0;
-
-        // Instant Like toggle (other person's messages)
-        if (!isOwnMessage && onToggleLike) {
-          triggerLikePop();
-          onToggleLike(message.id);
-        }
-      } else {
-        lastTapRef.current = now;
-        if (singleTapTimerRef.current) {
-          clearTimeout(singleTapTimerRef.current);
-        }
-
-        // On touch / small mobile screens, open action sheet on single tap after debounce
-        singleTapTimerRef.current = setTimeout(() => {
-          const isTouch =
-            typeof window !== 'undefined' &&
-            (window.innerWidth < 640 || window.matchMedia('(pointer: coarse)').matches);
-
-          if (isTouch) {
-            setIsActionSheetOpen(true);
-          }
-          singleTapTimerRef.current = null;
-        }, 280);
-      }
-    };
-
-    const handleTouchStart = () => {
-      if (isDeleted) return;
-      longPressTimerRef.current = setTimeout(() => {
-        setIsActionSheetOpen(true);
-      }, 500);
-    };
-
-    const handleTouchEnd = () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-    };
-
-    if (message.sender === 'system') {
-      return <SystemMarker content={message.content} />;
-    }
-
-    const isClient = message.sender === 'client';
+    const isSystem = message.sender === 'system';
     const isDeleted = Boolean(message.isDeleted);
+    const isOutgoing = viewerRole === 'admin' ? message.sender === 'agent' : message.sender === 'client';
+    const isOwn = isOutgoing;
+    const likes = useMemo(() => (isDeleted ? [] : message.likes ?? []), [isDeleted, message.likes]);
+    const hasLikes = likes.length > 0;
     const hasAttachments = !isDeleted && !!message.attachments && message.attachments.length > 0;
-    const hasLikes = !isDeleted && !!message.likes && message.likes.length > 0;
 
-    const myId = currentUserId || (isClient ? 'client-me' : 'agent-me');
-    const isOwnMessage = isClient; // In client portal, client sender is user's own message
+    const myId = currentUserId || (viewerRole === 'admin' ? 'agent-me' : 'client-me');
+    const isLiked = useMemo(() => likes.some((l) => l.userId === myId), [likes, myId]);
+    const likedByLabel = useMemo(
+      () => likes.map((l) => (l.userId === myId ? 'You' : l.userName || 'Studio Member')).join(', '),
+      [likes, myId]
+    );
 
-    const isLiked = useMemo(() => {
-      if (!message.likes || message.likes.length === 0) return false;
-      return message.likes.some((l) => l.userId === myId);
-    }, [message.likes, myId]);
-
-    const likedByLabel = useMemo(() => {
-      if (!message.likes || message.likes.length === 0) return '';
-      return message.likes
-        .map((l) => (l.userId === myId ? 'You' : l.userName || 'Studio Member'))
-        .join(', ');
-    }, [message.likes, myId]);
-
-    // Author can edit own message within 60 minutes
-    const canEdit = useMemo(() => {
-      if (!isOwnMessage || isDeleted) return false;
-      if (!message.createdAtRaw && !message.timestamp) return true;
-      try {
-        const timeMs = message.createdAtRaw ? new Date(message.createdAtRaw).getTime() : Date.now();
-        return Date.now() - timeMs <= 60 * 60 * 1000;
-      } catch {
-        return true;
-      }
-    }, [isOwnMessage, isDeleted, message.createdAtRaw, message.timestamp]);
-
-    const handleCopy = async () => {
-      if (!message.content || isDeleted) return;
+    const handleCopy = useCallback(async () => {
+      if (!message.content) return;
       try {
         await navigator.clipboard.writeText(message.content);
-        setCopied(true);
-        toast.success('Message copied to clipboard');
-        setTimeout(() => setCopied(false), 2000);
+        toast.success('Message copied');
       } catch {
-        toast.error('Failed to copy');
+        toast.error('Could not copy message');
       }
-    };
+    }, [message.content]);
+
+    const requestDelete = useCallback(() => setIsDeleteDialogOpen(true), []);
+
+    const actions = useMessageActions({
+      message,
+      isOwn,
+      isLiked,
+      likeCount: likes.length,
+      onToggleLike,
+      onReply,
+      onStartEdit,
+      onRequestDelete: onDelete ? requestDelete : undefined,
+      onCopy: handleCopy,
+    });
+
+    const canLike = !isOwn && !isDeleted && Boolean(onToggleLike);
+
+    const gestures = useMessageGestures({
+      enabled: !isSystem && !isDeleted && actions.length > 0,
+      onDoubleTap: () => {
+        if (!canLike) return;
+        // Only animate when the tap results in a like, not an unlike.
+        if (!isLiked) setLikePopKey(Date.now());
+        onToggleLike?.(message.id);
+      },
+      onTap: () => setIsActionDrawerOpen(true),
+      onLongPress: () => setIsActionDrawerOpen(true),
+    });
+
+    const avatarInitials = useMemo(() => {
+      const name = message.senderName?.trim();
+      if (!name) return message.sender === 'agent' ? 'SM' : 'CL';
+      const parts = name.split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return name.slice(0, 2).toUpperCase();
+    }, [message.senderName, message.sender]);
+
+    if (isSystem) {
+      return <SystemMarker content={message.content} />;
+    }
 
     return (
       <Message
         id={`msg-${message.id}`}
-        align={isClient ? 'end' : 'start'}
+        align={isOutgoing ? 'end' : 'start'}
         className="group/message relative scroll-mt-20"
       >
-        {!isClient && (
+        {!isOutgoing && (
           <MessageAvatar>
-            <Avatar className="size-7 border border-amber-400/40 bg-amber-400/15 shadow-2xs">
-              <AvatarFallback className="bg-transparent text-brand-text dark:text-amber-300 font-bold text-xs">
-                SM
+            <Avatar
+              className={cn(
+                'size-7 shadow-2xs',
+                message.sender === 'agent'
+                  ? 'border border-amber-400/40 bg-amber-400/15 text-brand-text dark:text-amber-300'
+                  : 'border border-border bg-secondary/80 text-foreground'
+              )}
+            >
+              <AvatarFallback className="bg-transparent font-bold text-xs">
+                {avatarInitials}
               </AvatarFallback>
             </Avatar>
           </MessageAvatar>
         )}
 
         <MessageContent className="gap-1.5 relative">
-          {/* Header: Name · Role · Timestamp · (edited) */}
+          {/* Header: Name · Role · Timestamp · (edited) · desktop actions */}
           <MessageHeader className="gap-1.5 text-xs text-muted-foreground items-center">
             <span className="font-semibold text-foreground/90 truncate">{message.senderName}</span>
-            {message.senderRole && !isClient && !compact && (
+            {message.senderRole && !isOutgoing && !compact && (
               <span className="text-2xs font-mono text-brand-text/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
                 · {message.senderRole}
               </span>
@@ -237,138 +204,43 @@ export const ChatMessageItem = React.memo(
               {formatChatTimestamp(message.timestamp)}
             </span>
             {message.isEdited && !isDeleted && (
-              <span className="text-3xs font-mono text-muted-foreground/70 italic ml-1">
-                (edited)
-              </span>
-            )}
-
-            {/* Mobile More Button (•••) */}
-            {!isDeleted && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsActionSheetOpen(true);
-                }}
-                title="Message actions"
-                className={cn(
-                  'sm:hidden h-6 w-6 text-muted-foreground/70 hover:text-foreground cursor-pointer rounded-md transition-colors',
-                  isClient ? 'order-first mr-auto ml-0' : 'ml-auto'
-                )}
-              >
-                <MoreHorizontal className="size-3.5" />
-                <span className="sr-only">Message actions</span>
-              </Button>
-            )}
-
-            {/* Desktop Action Toolbar on hover */}
-            {!isDeleted && (
-              <div
-                className={cn(
-                  'hidden sm:flex opacity-0 group-hover/message:opacity-100 transition-opacity ml-auto items-center gap-0.5 bg-background/80 dark:bg-card/90 backdrop-blur-xs border border-border/70 rounded-lg px-1 py-0.5 shadow-2xs select-none',
-                  isClient && 'order-first mr-auto ml-0'
-                )}
-              >
-                {/* Thumb like button (available on other person's messages) */}
-                {!isOwnMessage && onToggleLike && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => onToggleLike(message.id)}
-                    title={isLiked ? 'Unlike' : 'Like (thumbs up)'}
-                    className={cn(
-                      'h-6 w-6 rounded-md cursor-pointer transition-colors',
-                      isLiked
-                        ? 'text-amber-500 bg-amber-400/15 hover:bg-amber-400/25'
-                        : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-400/10'
-                    )}
-                  >
-                    <ThumbsUp className={cn('size-3', isLiked && 'fill-current text-amber-500')} />
-                  </Button>
-                )}
-
-                {/* Reply button (available on all messages) */}
-                {onReply && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => onReply(message)}
-                    title="Reply"
-                    className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer rounded-md transition-colors"
-                  >
-                    <CornerUpLeft className="size-3" />
-                  </Button>
-                )}
-
-                {/* Edit button (author only, within 60 mins) */}
-                {canEdit && onStartEdit && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => onStartEdit(message)}
-                    title="Edit message"
-                    className="h-6 w-6 text-muted-foreground hover:text-amber-500 cursor-pointer rounded-md transition-colors"
-                  >
-                    <Pencil className="size-3" />
-                  </Button>
-                )}
-
-                {/* Delete button (author only) */}
-                {isOwnMessage && onDelete && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    title="Delete message"
-                    className="h-6 w-6 text-muted-foreground hover:text-rose-500 cursor-pointer rounded-md transition-colors"
-                  >
-                    <Trash2 className="size-3" />
-                  </Button>
-                )}
-
-                {/* Copy button */}
-                {message.content && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={handleCopy}
-                    title="Copy text"
-                    className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer rounded-md transition-colors"
-                  >
-                    {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                  </Button>
-                )}
-              </div>
+              <span className="text-3xs font-mono text-muted-foreground/70 italic ml-1">(edited)</span>
             )}
           </MessageHeader>
 
-          {/* Message Bubble */}
+          {/* Message Bubble — double-tap to like, tap / long-press for actions (touch) */}
           <Bubble
-            variant={isClient ? 'default' : 'outline'}
-            align={isClient ? 'end' : 'start'}
-            onClick={handleBubbleClick}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
+            variant="custom"
+            align={isOutgoing ? 'end' : 'start'}
+            {...gestures}
             className={cn(
-              'relative max-w-[85%] sm:max-w-[75%] transition-all cursor-pointer sm:cursor-default select-none sm:select-text',
-              isActionSheetOpen && 'ring-2 ring-amber-400/80 rounded-xl'
+              'relative max-w-[85%] sm:max-w-[75%] min-w-[80px] rounded-xl transition-shadow',
+              '[@media(pointer:coarse)]:select-none [@media(pointer:coarse)]:[-webkit-touch-callout:none]',
+              isActionDrawerOpen && 'ring-2 ring-amber-400/70'
             )}
           >
-            {/* Double-tap Like Pop Animation */}
-            {showLikePop && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 overflow-visible">
-                <div className="size-12 rounded-full bg-amber-400 text-zinc-950 flex items-center justify-center shadow-lg shadow-amber-400/50 animate-like-pop">
-                  <ThumbsUp className="size-6 fill-current text-zinc-950 stroke-[2.5]" />
-                </div>
-              </div>
+            {/* Desktop floating hover action toolbar */}
+            <ChatMessageActionToolbar
+              actions={actions}
+              className={cn(
+                'absolute -top-3.5 right-2 z-20',
+                // Touch devices use the drawer; never show ghost hover buttons there.
+                '[@media(hover:none)]:hidden!'
+              )}
+            />
+
+            {likePopKey > 0 && (
+              <span
+                key={likePopKey}
+                aria-hidden="true"
+                onAnimationEnd={() => setLikePopKey(0)}
+                className="pointer-events-none absolute left-1/2 top-1/2 z-30 flex size-11 items-center justify-center rounded-full bg-amber-400 text-zinc-950 shadow-lg shadow-amber-400/40 animate-like-pop motion-reduce:hidden"
+                style={{ animationDuration: `${LIKE_POP_MS}ms` }}
+              >
+                <ThumbsUp className="size-5 fill-current" />
+              </span>
             )}
+
             {isDeleted ? (
               <BubbleContent className="px-3.5 py-2 text-xs leading-relaxed rounded-xl border border-dashed border-border/80 bg-muted/30 text-muted-foreground italic flex items-center gap-1.5 shadow-2xs">
                 <Trash2 className="size-3 text-muted-foreground/60 shrink-0" />
@@ -378,24 +250,32 @@ export const ChatMessageItem = React.memo(
               <BubbleContent
                 className={cn(
                   'px-3.5 py-2.5 text-sm leading-relaxed',
-                  isClient
+                  isOutgoing
                     ? message.status === 'failed'
                       ? 'rounded-xl rounded-br-sm bg-rose-500/15 border border-rose-500/30 text-foreground shadow-xs'
                       : 'rounded-xl rounded-br-sm bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-medium shadow-xs'
                     : 'rounded-xl rounded-bl-sm border-border/80 bg-muted/50 dark:bg-card shadow-2xs text-foreground'
                 )}
               >
-                {/* Replied parent message preview quote */}
+                {/* Quoted parent message — jumps to the original */}
                 {message.replyTo && (
                   <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onScrollToMessage?.(message.replyTo!.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onScrollToMessage?.(message.replyTo!.id);
+                      }
+                    }}
+                    aria-label={`Jump to message from ${message.replyTo.senderName}`}
                     className={cn(
-                      'mb-2 p-2 rounded-lg text-left border-l-3 text-2xs cursor-pointer select-none transition-colors group/quote',
-                      isClient
+                      'mb-2 p-2 rounded-lg text-left border-l-3 text-2xs cursor-pointer select-none transition-colors group/quote outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60',
+                      isOutgoing
                         ? 'bg-black/15 border-zinc-900/60 text-zinc-900 hover:bg-black/20'
                         : 'bg-secondary/70 border-amber-400 text-foreground hover:bg-secondary'
                     )}
-                    title="Click to jump to replied message"
                   >
                     <div className="flex items-center gap-1 font-bold text-3xs uppercase tracking-wider text-amber-600 dark:text-amber-400">
                       <CornerUpLeft className="size-2.5" />
@@ -407,52 +287,40 @@ export const ChatMessageItem = React.memo(
                   </div>
                 )}
 
-                {message.content && (
-                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                )}
+                {message.content && <p className="whitespace-pre-wrap break-words">{message.content}</p>}
               </BubbleContent>
             )}
 
-            {/* Like Badge Pill with anchored tooltip */}
+            {/* Thumbs-up count — names on hover (desktop) or in the action drawer (touch) */}
             {hasLikes && (
-              <div
-                className={cn(
-                  'relative group/likes mt-1.5 px-0.5 inline-flex',
-                  isClient ? 'justify-end self-end' : 'justify-start self-start'
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={isOwnMessage ? undefined : () => onToggleLike?.(message.id)}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border transition-all shadow-2xs select-none',
-                    isOwnMessage ? 'cursor-default' : 'cursor-pointer hover:scale-105 active:scale-95',
-                    isLiked
-                      ? 'bg-amber-400/20 border-amber-400/50 text-brand-text dark:text-amber-300'
-                      : 'bg-secondary/80 hover:bg-secondary border-border/70 text-muted-foreground'
-                  )}
-                  title={isOwnMessage ? 'Liked by studio members' : isLiked ? 'Unlike' : 'Like'}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={canLike ? () => onToggleLike?.(message.id) : undefined}
+                      aria-label={`${likes.length} ${likes.length === 1 ? 'like' : 'likes'}${canLike ? (isLiked ? ', tap to unlike' : ', tap to like') : ''}`}
+                      aria-pressed={canLike ? isLiked : undefined}
+                      className={cn(
+                        'mt-1.5 inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold shadow-2xs transition-all select-none',
+                        isOutgoing ? 'self-end' : 'self-start',
+                        canLike ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default',
+                        isLiked
+                          ? 'bg-amber-400/20 border-amber-400/50 text-brand-text dark:text-amber-300'
+                          : 'bg-secondary/80 hover:bg-secondary border-border/70 text-muted-foreground'
+                      )}
+                    />
+                  }
                 >
-                  <ThumbsUp className={cn('size-3 shrink-0', isLiked ? 'fill-current text-amber-500' : 'text-muted-foreground')} />
-                  <span className="text-2xs font-mono tabular-nums font-bold">{message.likes!.length}</span>
-                </button>
-
-                {/* Anchored Tooltip */}
-                <div
-                  className={cn(
-                    'absolute bottom-full mb-1.5 hidden group-hover/likes:flex flex-col gap-0.5 bg-zinc-950/95 border border-zinc-800 p-2 rounded-xl text-white shadow-xl z-50 pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95 select-none w-max max-w-[200px]',
-                    isClient ? 'right-0' : 'left-0'
-                  )}
-                >
-                  <div className="flex items-center gap-1 text-3xs font-bold uppercase tracking-wider text-amber-400">
-                    <ThumbsUp className="size-2.5 fill-current text-amber-400 shrink-0" />
-                    <span>Liked by</span>
-                  </div>
-                  <p className="text-2xs text-zinc-300 leading-snug break-words">
-                    {likedByLabel}
-                  </p>
-                </div>
-              </div>
+                  <ThumbsUp
+                    className={cn('size-3 shrink-0', isLiked ? 'fill-current text-amber-500' : 'text-muted-foreground')}
+                  />
+                  <span className="text-2xs font-mono tabular-nums font-bold">{likes.length}</span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] text-2xs">
+                  <span className="text-zinc-300">Liked by {likedByLabel}</span>
+                </TooltipContent>
+              </Tooltip>
             )}
           </Bubble>
 
@@ -461,7 +329,7 @@ export const ChatMessageItem = React.memo(
             <div
               className={cn(
                 'flex items-center gap-2.5 px-3 py-2 rounded-lg bg-secondary/50 border border-border/70 max-w-xs text-xs min-h-[52px]',
-                isClient ? 'self-end' : 'self-start'
+                isOutgoing ? 'self-end' : 'self-start'
               )}
             >
               <button
@@ -491,7 +359,7 @@ export const ChatMessageItem = React.memo(
                 </div>
                 <div className="flex items-center justify-between text-2xs text-muted-foreground">
                   <span className="flex items-center gap-1 font-mono font-medium">
-                    <Volume2 className="size-2.5 text-brand-text dark:text-amber-400" /> Creative Brief Note
+                    <Volume2 className="size-2.5 text-brand-text dark:text-amber-400" /> Voice Note
                   </span>
                   <span className="font-mono tabular-nums">{message.audioNote.duration}</span>
                 </div>
@@ -501,7 +369,7 @@ export const ChatMessageItem = React.memo(
 
           {/* Reference images */}
           {hasAttachments && (
-            <AttachmentGroup className={isClient ? 'justify-end self-end' : 'self-start'}>
+            <AttachmentGroup className={isOutgoing ? 'justify-end self-end' : 'self-start'}>
               {message.attachments!.map((att, idx) => (
                 <Attachment
                   key={`${message.id}-${att.id || 'att'}-${idx}`}
@@ -532,7 +400,7 @@ export const ChatMessageItem = React.memo(
           )}
 
           {/* Message Delivery Status Indicator */}
-          {isClient && !isDeleted && (
+          {isOutgoing && !isDeleted && (
             <MessageFooter className="gap-1 text-2xs">
               {message.status === 'sending' ? (
                 <span className="flex items-center gap-1 text-muted-foreground/80 animate-pulse font-mono text-3xs">
@@ -557,184 +425,49 @@ export const ChatMessageItem = React.memo(
               ) : (
                 <span className="flex items-center gap-1 text-brand-text/90 dark:text-amber-400/90">
                   <CheckCheck className="size-3 text-brand-text dark:text-amber-400" />
-                  <span className="text-muted-foreground">Delivered to studio</span>
+                  <span className="text-muted-foreground">
+                    {viewerRole === 'admin' ? 'Sent to client' : 'Delivered to studio'}
+                  </span>
                 </span>
               )}
             </MessageFooter>
           )}
         </MessageContent>
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-popover border border-border p-4 rounded-xl shadow-2xl max-w-xs w-full space-y-3 animate-in zoom-in-95 duration-150">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-foreground">Delete message?</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  This will remove the message content from the workspace for all studio members.
-                </p>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs cursor-pointer rounded-lg"
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  className="h-8 text-xs font-semibold cursor-pointer rounded-lg bg-rose-600 hover:bg-rose-500 text-white"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    onDelete?.(message.id);
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </div>
+        {/* Touch action drawer (Base UI portals only mount content while open) */}
+        {actions.length > 0 && (
+          <ChatMessageActionDrawer
+            open={isActionDrawerOpen}
+            onOpenChange={setIsActionDrawerOpen}
+            message={message}
+            actions={actions}
+            likedByLabel={likedByLabel}
+          />
         )}
 
-        {/* Mobile Bottom Action Sheet */}
-        <Sheet open={isActionSheetOpen} onOpenChange={setIsActionSheetOpen}>
-          <SheetContent
-            side="bottom"
-            className="rounded-t-2xl border-t border-border/80 bg-card p-4 pb-8 max-w-lg mx-auto sm:max-w-md shadow-2xl space-y-3 z-50"
-          >
-            <SheetHeader className="p-0 text-left border-b border-border/60 pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-bold text-foreground truncate">{message.senderName}</span>
-                  <span className="text-3xs font-mono text-muted-foreground">{formatChatTimestamp(message.timestamp)}</span>
-                  {message.isEdited && <span className="text-3xs text-muted-foreground/70 italic">(edited)</span>}
-                </div>
-              </div>
-              <SheetTitle className="sr-only">Message Actions</SheetTitle>
-              <SheetDescription className="text-2xs text-muted-foreground line-clamp-2 mt-1">
-                &ldquo;{message.content}&rdquo;
-              </SheetDescription>
-            </SheetHeader>
-
-            <div className="grid grid-cols-1 gap-1.5 pt-1">
-              {/* 1. Like / Unlike */}
-              {!isOwnMessage && onToggleLike && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionSheetOpen(false);
-                    onToggleLike(message.id);
-                  }}
-                  className={cn(
-                    'flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer',
-                    isLiked
-                      ? 'bg-amber-400/15 text-brand-text dark:text-amber-400 border border-amber-400/30'
-                      : 'hover:bg-secondary/70 active:bg-secondary text-foreground'
-                  )}
-                >
-                  <ThumbsUp className={cn('size-4 shrink-0', isLiked ? 'fill-current text-amber-500' : 'text-muted-foreground')} />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span>{isLiked ? 'Unlike message' : 'Like message'}</span>
-                    {hasLikes && (
-                      <span className="text-3xs text-muted-foreground font-mono tabular-nums">({message.likes!.length})</span>
-                    )}
-                  </div>
-                </button>
-              )}
-
-              {/* 2. Reply */}
-              {onReply && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionSheetOpen(false);
-                    onReply(message);
-                  }}
-                  className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-xs font-semibold hover:bg-secondary/70 active:bg-secondary text-foreground transition-colors text-left cursor-pointer"
-                >
-                  <CornerUpLeft className="size-4 text-muted-foreground shrink-0" />
-                  <span>Reply</span>
-                </button>
-              )}
-
-              {/* 3. Edit (only own messages < 60 min) */}
-              {canEdit && onStartEdit && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionSheetOpen(false);
-                    onStartEdit(message);
-                  }}
-                  className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-xs font-semibold hover:bg-secondary/70 active:bg-secondary text-foreground transition-colors text-left cursor-pointer"
-                >
-                  <Pencil className="size-4 text-amber-500 shrink-0" />
-                  <div className="flex items-center gap-1.5">
-                    <span>Edit message</span>
-                    <span className="text-3xs text-muted-foreground font-mono">(within 60m)</span>
-                  </div>
-                </button>
-              )}
-
-              {/* 4. Delete (only own messages) */}
-              {isOwnMessage && onDelete && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionSheetOpen(false);
-                    setShowDeleteConfirm(true);
-                  }}
-                  className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-xs font-semibold hover:bg-rose-500/10 active:bg-rose-500/20 text-rose-500 transition-colors text-left cursor-pointer"
-                >
-                  <Trash2 className="size-4 text-rose-500 shrink-0" />
-                  <span>Delete message</span>
-                </button>
-              )}
-
-              {/* 5. Copy Text */}
-              {message.content && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionSheetOpen(false);
-                    handleCopy();
-                  }}
-                  className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-xs font-semibold hover:bg-secondary/70 active:bg-secondary text-foreground transition-colors text-left cursor-pointer"
-                >
-                  <Copy className="size-4 text-muted-foreground shrink-0" />
-                  <span>Copy text</span>
-                </button>
-              )}
-            </div>
-
-            {/* Cancel button */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsActionSheetOpen(false)}
-              className="w-full h-10 text-xs font-semibold rounded-xl mt-2 cursor-pointer"
-            >
-              Cancel
-            </Button>
-          </SheetContent>
-        </Sheet>
+        {onDelete && (
+          <ChatDeleteMessageDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onConfirm={() => onDelete(message.id)}
+          />
+        )}
       </Message>
     );
   },
   (prev, next) =>
     prev.message.id === next.message.id &&
     prev.message.content === next.message.content &&
+    prev.message.timestamp === next.message.timestamp &&
     prev.message.status === next.message.status &&
     prev.message.errorReason === next.message.errorReason &&
     prev.message.isEdited === next.message.isEdited &&
     prev.message.isDeleted === next.message.isDeleted &&
-    prev.message.likes?.length === next.message.likes?.length &&
+    prev.message.attachments?.length === next.message.attachments?.length &&
+    likesKey(prev.message) === likesKey(next.message) &&
     prev.message.replyTo?.id === next.message.replyTo?.id &&
     prev.currentUserId === next.currentUserId &&
+    prev.viewerRole === next.viewerRole &&
     prev.compact === next.compact &&
     prev.onPreviewAttachment === next.onPreviewAttachment &&
     prev.onReply === next.onReply &&
@@ -744,3 +477,8 @@ export const ChatMessageItem = React.memo(
     prev.onRetry === next.onRetry &&
     prev.onScrollToMessage === next.onScrollToMessage
 );
+
+/** Stable identity of who liked a message, so memo re-renders when likers change (not just the count). */
+function likesKey(message: ChatMessage): string {
+  return (message.likes ?? []).map((l) => l.userId).join('|');
+}

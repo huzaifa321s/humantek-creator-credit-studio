@@ -5,6 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Safely extract a readable message from an unknown thrown value. */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message
+  if (typeof err === "string" && err) return err
+  return fallback
+}
+
 export function formatStudioDate(dateInput?: string | number | Date | null): string {
   if (!dateInput) return ''
   const d = new Date(dateInput)

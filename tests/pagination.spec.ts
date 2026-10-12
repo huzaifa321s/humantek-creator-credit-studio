@@ -292,7 +292,7 @@ test.describe('Creator Studio Pagination, Accessibility & Scale UI Suite', () =>
     expect(postClickExpanded).toBe('true');
 
     // Verify expanded details appeared (Pipeline stepper and deliverable section)
-    await expect(page.locator('text=Delivery Completion Pipeline')).toBeVisible();
+    await expect(page.locator('text=Timeline & Milestones').first()).toBeVisible({ timeout: 15000 });
 
     // 5. Keyboard accessibility: collapse via Space key and re-expand via Enter key
     await compactRows.first().focus();

@@ -1,20 +1,20 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   FolderKanban,
   Search,
   Plus,
   X,
-  Sparkles,
   Inbox,
-  Filter,
-  Globe,
+  RotateCcw,
   MessageSquare,
 } from 'lucide-react';
 import { cn, formatChatTimestamp } from '@/lib/utils';
-import { ProjectMeta, ChatMessage, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { ChatMessage, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { useInfiniteProjectsQuery } from '@/lib/queries/projects';
+import { useUserStore } from '@/lib/userStore';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,47 +35,94 @@ import {
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 
+/** Sessions fetched per cursor page. Small enough for a fast first paint, large enough to fill the panel. */
+const SESSIONS_PAGE_SIZE = 15;
+const SEARCH_DEBOUNCE_MS = 250;
+
+interface SidebarProject {
+  id: string;
+  projectCode: string;
+  packageName: string;
+  clientName: string;
+  channelName?: string;
+  status: string;
+  packagePrice?: number;
+  packageCredits?: number;
+  lastMessageAt?: string | null;
+  lastMessagePreview?: string | null;
+}
+
 export interface ChatProjectSidebarProps {
-  projects: Array<{
-    id: string;
-    projectCode: string;
-    packageName: string;
-    clientName: string;
-    status: string;
-    packagePrice?: number;
-    packageCredits?: number;
-  }>;
+  /**
+   * Projects already known to the parent (first page from the shared projects cache).
+   * Used only to pin sessions with unread messages; the list itself is paginated internally.
+   */
+  projects: SidebarProject[];
   activeProjectId: string;
   unreadCounts: Record<string, number>;
-  projectMessages: Record<string, ChatMessage[]>;
+  projectMessages?: Record<string, ChatMessage[]>;
   onSelectProject: (projectId: string) => void;
   onNewBriefClick?: () => void;
-  isLoading?: boolean;
+  onNewProjectClick?: () => void;
+  viewerRole?: 'client' | 'admin';
   className?: string;
 }
 
 type FilterTab = 'all' | 'active' | 'unread';
 
+const INACTIVE_STATUSES = new Set(['delivered', 'declined', 'cancelled']);
+
+function matchesSearch(p: SidebarProject, q: string) {
+  if (!q) return true;
+  return (
+    p.projectCode.toLowerCase().includes(q) ||
+    p.clientName.toLowerCase().includes(q) ||
+    (p.channelName && p.channelName.toLowerCase().includes(q)) ||
+    p.packageName.toLowerCase().includes(q)
+  );
+}
+
+function SessionSkeleton() {
+  return (
+    <div className="p-2.5 rounded-lg border border-border/60 bg-card/60 space-y-2 shadow-2xs min-h-[52px]">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3.5 w-20 rounded-md" />
+        <Skeleton className="h-3 w-12 rounded-full" />
+      </div>
+      <Skeleton className="h-3 w-28 rounded-md" />
+      <Skeleton className="h-3 w-36 rounded-md" />
+    </div>
+  );
+}
+
 export function ChatProjectSidebar({
   projects,
   activeProjectId,
   unreadCounts,
-  projectMessages,
   onSelectProject,
   onNewBriefClick,
-  isLoading = false,
+  onNewProjectClick,
+  viewerRole = 'client',
   className,
 }: ChatProjectSidebarProps) {
+  const { user } = useUserStore();
+  const handleNewProject = onNewProjectClick || onNewBriefClick;
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Debounce search so we query the server, not just the loaded page
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(searchQuery.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
+
   const isGlobalSelected = activeProjectId === GLOBAL_CHAT_ID;
-  const globalMsgs = projectMessages[GLOBAL_CHAT_ID] || [];
-  const lastGlobalMsg = globalMsgs[globalMsgs.length - 1];
   const globalUnread = unreadCounts[GLOBAL_CHAT_ID] || 0;
-  const lastGlobalPreview = lastGlobalMsg
-    ? `${lastGlobalMsg.sender === 'client' ? 'You: ' : 'Sarah: '}${lastGlobalMsg.content}`
-    : 'Ask about packages, credits, or studio services...';
+  const lastGlobalPreview = 'Packages, credits, or anything else';
 
   const totalProjectUnread = useMemo(() => {
     return Object.entries(unreadCounts).reduce((acc, [id, count]) => {
@@ -84,43 +131,200 @@ export function ChatProjectSidebar({
     }, 0);
   }, [unreadCounts]);
 
-  const filteredProjects = useMemo(() => {
-    let result = projects;
+  // Cursor-paginated sessions (server-side status + search filtering)
+  const sessionsQuery = useInfiniteProjectsQuery({
+    status: activeTab === 'active' ? 'active' : 'all',
+    search: debouncedSearch,
+    limit: SESSIONS_PAGE_SIZE,
+    summary: true,
+  });
+  const {
+    data,
+    isPending: isInitialLoading,
+    isError: isInitialError,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = sessionsQuery;
 
-    // Filter by tab
-    if (activeTab === 'unread') {
-      result = result.filter((p) => (unreadCounts[p.id] || 0) > 0);
-    } else if (activeTab === 'active') {
-      result = result.filter((p) => p.status !== 'completed' && p.status !== 'archived');
-    }
+  const loadedSessions = useMemo<SidebarProject[]>(
+    () => data?.pages.flatMap((page) => page.projects) ?? [],
+    [data]
+  );
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (p) =>
-          p.projectCode.toLowerCase().includes(q) ||
-          p.clientName.toLowerCase().includes(q) ||
-          p.packageName.toLowerCase().includes(q)
-      );
-    }
+  const totalSessions = data?.pages[0]?.counts.all ?? projects.length;
+  const isSearching = searchQuery.trim() !== debouncedSearch;
 
-    return result;
-  }, [projects, activeTab, searchQuery, unreadCounts]);
+  // Pin sessions with unread messages so new studio replies are never buried on a later page
+  const pinnedUnread = useMemo(() => {
+    const byId = new Map<string, SidebarProject>();
+    [...projects, ...loadedSessions].forEach((p) => {
+      if ((unreadCounts[p.id] || 0) > 0 && !byId.has(p.id)) byId.set(p.id, p);
+    });
+    const q = debouncedSearch.toLowerCase();
+    return Array.from(byId.values()).filter(
+      (p) =>
+        matchesSearch(p, q) &&
+        (activeTab !== 'active' || !INACTIVE_STATUSES.has(p.status))
+    );
+  }, [projects, loadedSessions, unreadCounts, debouncedSearch, activeTab]);
+
+  const pinnedIds = useMemo(() => new Set(pinnedUnread.map((p) => p.id)), [pinnedUnread]);
+
+  const listedSessions = useMemo(
+    () => (activeTab === 'unread' ? [] : loadedSessions.filter((p) => !pinnedIds.has(p.id))),
+    [activeTab, loadedSessions, pinnedIds]
+  );
+
+  const visibleCount = pinnedUnread.length + listedSessions.length;
+  const canPaginate = activeTab !== 'unread' && !!hasNextPage;
+
+  // Infinite scroll: fetch the next cursor page when the sentinel nears the bottom of the panel
+  useEffect(() => {
+    const root = scrollRef.current;
+    const target = sentinelRef.current;
+    if (!root || !target || !canPaginate) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNextPage && !isFetchNextPageError) {
+          void fetchNextPage();
+        }
+      },
+      { root, rootMargin: '0px 0px 120px 0px' }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [canPaginate, isFetchingNextPage, isFetchNextPageError, fetchNextPage, visibleCount]);
+
+  // Reset scroll to top when the filter or search changes
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [activeTab, debouncedSearch]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setActiveTab('all');
+  };
+
+  const renderSession = (p: SidebarProject) => {
+    const isSelected = p.id === activeProjectId;
+    const pUnread = unreadCounts[p.id] || 0;
+    const lastPreview = p.lastMessagePreview?.trim() || 'No messages yet';
+
+    // In client role, never show the user's own name as the project title.
+    // If the project has a distinct custom channel name (e.g. "Tech Gaming"), use that.
+    // Otherwise, use the package name (e.g. "Creator Forge", "Studio Momentum").
+    // In admin role, display channel + package or client + package.
+    const rawChannel = p.channelName?.trim();
+    const isSelfName =
+      viewerRole === 'client' &&
+      Boolean(rawChannel) &&
+      (rawChannel?.toLowerCase() === (user?.name || '').toLowerCase() ||
+        rawChannel?.toLowerCase() === (user?.email || '').toLowerCase() ||
+        rawChannel?.toLowerCase() === (p.clientName || '').toLowerCase());
+
+    const hasDistinctChannel = Boolean(rawChannel && !isSelfName);
+    const title = hasDistinctChannel
+      ? `${rawChannel} · ${p.packageName}`
+      : viewerRole === 'admin' && p.clientName
+      ? `${p.clientName} · ${p.packageName}`
+      : p.packageName || 'Project Workspace';
+
+    return (
+      <SidebarMenuItem key={p.id}>
+        <SidebarMenuButton
+          isActive={isSelected}
+          onClick={() => onSelectProject(p.id)}
+          className={cn(
+            'group/project-item cursor-pointer py-2 px-2.5 h-auto min-h-[56px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
+            isSelected
+              ? 'border-amber-400/80 bg-amber-400/10 shadow-xs ring-1 ring-amber-400/30'
+              : 'border-border/70 bg-card/60 hover:border-amber-400/50 hover:bg-secondary/40'
+          )}
+        >
+          {/* Left active accent bar indicator */}
+          {isSelected && (
+            <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 rounded-r-xs" />
+          )}
+
+          {/* Line 1: Package / Channel Title + Status or Unread */}
+          <div className="flex items-center justify-between gap-1 mb-0.5 w-full">
+            <span
+              className={cn(
+                'text-xs font-bold tracking-tight truncate',
+                isSelected ? 'text-brand-text dark:text-amber-300' : 'text-foreground'
+              )}
+            >
+              {title}
+            </span>
+
+            <div className="flex items-center gap-1 shrink-0">
+              {pUnread > 0 ? (
+                <Badge
+                  variant="destructive"
+                  className="text-2xs font-mono font-bold tabular-nums px-1.5 py-0 h-4 shrink-0 animate-pulse"
+                >
+                  {pUnread} new
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                >
+                  {p.status.replace(/_/g, ' ').toLowerCase()}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Line 2: Monospace Code Pill + Client tag (admin) + Time */}
+          <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1 w-full gap-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-mono text-3xs text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-1 py-0.2 rounded border border-amber-400/25 shrink-0 font-semibold">
+                {p.projectCode}
+              </span>
+              {viewerRole === 'admin' && p.clientName && hasDistinctChannel && (
+                <span className="text-3xs text-muted-foreground truncate">
+                  {p.clientName}
+                </span>
+              )}
+            </div>
+            <span className="text-3xs shrink-0 font-mono tabular-nums text-muted-foreground/80">
+              {p.lastMessageAt ? formatChatTimestamp(p.lastMessageAt) : ''}
+            </span>
+          </div>
+
+          {/* Line 3: Snippet */}
+          <p
+            className={cn(
+              'text-2xs line-clamp-1 leading-relaxed w-full break-words text-muted-foreground/80 italic',
+              pUnread > 0 && 'font-medium text-foreground dark:text-amber-200 not-italic'
+            )}
+          >
+            {lastPreview}
+          </p>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <div className={cn('flex flex-col h-full bg-secondary/15', className)}>
       {/* ========================================================= */}
       {/* 1. PINNED GLOBAL CHAT (Always at the very top)            */}
       {/* ========================================================= */}
-      <div className="p-2 border-b border-border/70 shrink-0 bg-background/60 backdrop-blur-xs mb-3">
+      <div className="p-2 border-b border-border/70 shrink-0 bg-background/60 backdrop-blur-xs">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={isGlobalSelected}
               onClick={() => onSelectProject(GLOBAL_CHAT_ID)}
               className={cn(
-                'group/global-item cursor-pointer px-2.5 py-2 h-auto min-h-[50px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
+                'group/global-item cursor-pointer px-2.5 py-2 h-auto rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
                 isGlobalSelected
                   ? 'border-amber-400 bg-amber-400/15 dark:bg-amber-400/25 shadow-xs ring-1 ring-amber-400/40'
                   : 'border-amber-400/30 dark:border-amber-400/35 bg-amber-400/[0.06] dark:bg-amber-400/[0.10] hover:bg-amber-400/12 hover:border-amber-400/50 shadow-2xs'
@@ -130,18 +334,18 @@ export function ChatProjectSidebar({
                 <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 rounded-r-xs" />
               )}
 
-              {/* Row 1: Icon + Title on left, Badge or Unread on right */}
-              <div className="flex items-center justify-between gap-1.5 mb-0.5 w-full">
+              {/* Row 1: Icon + Title on left, Badge or Status on right */}
+              <div className="flex items-center justify-between gap-1.5 w-full">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span
                     className={cn(
                       'flex size-5 shrink-0 items-center justify-center rounded-md transition-all shadow-2xs',
                       isGlobalSelected
-                        ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-black shadow-amber-400/20'
+                        ? 'bg-amber-400 text-zinc-950 font-black shadow-amber-400/20'
                         : 'bg-amber-400/20 text-brand-text dark:text-amber-300'
                     )}
                   >
-                    <Globe className="size-3" />
+                    <MessageSquare className="size-3" />
                   </span>
                   <span
                     className={cn(
@@ -151,11 +355,11 @@ export function ChatProjectSidebar({
                         : 'text-foreground'
                     )}
                   >
-                    Global Chat
+                    {viewerRole === 'admin' ? 'Studio Support Desk' : 'Studio Support'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {globalUnread > 0 ? (
                     <Badge
                       variant="destructive"
@@ -164,35 +368,26 @@ export function ChatProjectSidebar({
                       {globalUnread} new
                     </Badge>
                   ) : (
-                    <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/20">
-                      Concierge
+                    <span className="text-3xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Row 2: Subtitle on left, Timestamp on right */}
-              <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1 w-full pl-6.5">
-                <span className="font-medium text-foreground/85 truncate text-2xs">
-                  Studio Advisory
-                </span>
-                <span className="text-3xs shrink-0 font-mono tabular-nums text-muted-foreground/80 pl-1">
-                  {lastGlobalMsg
-                    ? formatChatTimestamp(lastGlobalMsg.timestamp)
-                    : ''}
-                </span>
-              </div>
-
-              {/* Row 3: Preview */}
+              {/* Row 2: Clean Subtitle / Last Message */}
               <p
                 className={cn(
-                  'text-2xs line-clamp-2 leading-relaxed pl-6.5 w-full break-words',
+                  'text-2xs truncate pl-6.5 w-full mt-0.5 leading-relaxed',
                   globalUnread > 0
                     ? 'font-medium text-foreground dark:text-amber-200'
                     : 'text-muted-foreground'
                 )}
               >
-                {lastGlobalPreview}
+                {viewerRole === 'admin'
+                  ? 'General creator inquiries & billing'
+                  : lastGlobalPreview || 'General questions & studio support'}
               </p>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -200,7 +395,7 @@ export function ChatProjectSidebar({
       </div>
 
       {/* ========================================================= */}
-      {/* 2. PROJECT SESSIONS SECTION HEADER & CONTROLS             */}
+      {/* 2. PROJECTS SECTION HEADER & CONTROLS                     */}
       {/* ========================================================= */}
       <div className="p-2 pb-1.5 border-b border-border/70 space-y-1.5 shrink-0 bg-background/40 mb-1.5">
         <div className="flex items-center justify-between">
@@ -209,31 +404,45 @@ export function ChatProjectSidebar({
               <FolderKanban className="size-3" />
             </span>
             <span className="text-2xs font-bold tracking-wider uppercase text-muted-foreground/80">
-              PROJECT SESSIONS
+              PROJECTS
             </span>
             <Badge variant="outline" className="text-2xs font-mono tabular-nums h-4 px-1.5 font-semibold text-muted-foreground">
-              {projects.length}
+              {totalSessions}
             </Badge>
           </div>
 
-          <Link href="/" onClick={onNewBriefClick}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className="h-6 px-1.5 text-2xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:bg-amber-400/15 rounded-md cursor-pointer"
-            >
-              <Plus className="size-3" />
-              <span>+ New Brief</span>
-            </Button>
-          </Link>
+          {viewerRole === 'admin' ? (
+            <Link href="/management/projects">
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-6 px-1.5 text-2xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:bg-amber-400/15 rounded-md cursor-pointer"
+              >
+                <FolderKanban className="size-3" />
+                <span>All Projects</span>
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/" onClick={handleNewProject}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-6 px-1.5 text-2xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:bg-amber-400/15 rounded-md cursor-pointer"
+              >
+                <Plus className="size-3" />
+                <span>New Project</span>
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Search input with clear button */}
         <div className="relative">
           <Search className="size-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <Input
-            placeholder="Search code or name..."
+            placeholder="Search projects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-7.5 pl-7 pr-6 text-xs bg-card/90 rounded-md border-border/70 focus-visible:border-amber-400 placeholder:text-muted-foreground/70"
@@ -258,8 +467,8 @@ export function ChatProjectSidebar({
           className="w-full"
           listClassName="w-full grid grid-cols-3"
           tabs={[
-            { value: 'all', label: 'All', count: projects.length },
-            { value: 'active', label: 'Active' },
+            { value: 'all', label: 'All', count: totalSessions },
+            { value: 'active', label: 'Active', count: data?.pages[0]?.counts.active },
             {
               value: 'unread',
               label: 'Unread',
@@ -270,62 +479,84 @@ export function ChatProjectSidebar({
       </div>
 
       {/* ========================================================= */}
-      {/* 3. PROJECT SESSIONS LIST                                  */}
+      {/* 3. PROJECT SESSIONS LIST (cursor-paginated, infinite scroll) */}
       {/* ========================================================= */}
-      <ScrollArea className="flex-1 p-1.5">
-        {isLoading ? (
-          <div className="space-y-2 p-1">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="p-2.5 rounded-lg border border-border/60 bg-card/60 space-y-2 shadow-2xs"
-              >
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-3.5 w-20 rounded-md" />
-                  <Skeleton className="h-3 w-12 rounded-full" />
-                </div>
-                <Skeleton className="h-4 w-28 rounded-md" />
-                <Skeleton className="h-3 w-36 rounded-md" />
-              </div>
+      <ScrollArea ref={scrollRef} className="flex-1 p-1.5 scrollbar-custom" aria-busy={isInitialLoading || isFetchingNextPage}>
+        {isInitialLoading && visibleCount === 0 && activeTab !== 'unread' ? (
+          <div className="space-y-2 p-1" role="status" aria-label="Loading projects">
+            {[1, 2, 3, 4].map((i) => (
+              <SessionSkeleton key={i} />
             ))}
           </div>
-        ) : projects.length === 0 ? (
+        ) : isInitialError && visibleCount === 0 && activeTab !== 'unread' ? (
+          <Empty className="py-6 border-0">
+            <EmptyHeader>
+              <EmptyTitle className="text-xs font-semibold tracking-tight">Couldn&apos;t load projects</EmptyTitle>
+              <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
+                Check your connection and try again.
+              </EmptyDescription>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => void refetch()}
+                className="mt-1.5 h-7 gap-1 text-2xs font-semibold"
+              >
+                <RotateCcw className="size-3" />
+                Retry
+              </Button>
+            </EmptyHeader>
+          </Empty>
+        ) : totalSessions === 0 && !debouncedSearch && activeTab === 'all' ? (
           <Empty className="py-6 border-0">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400 size-8">
                 <FolderKanban className="size-4" />
               </EmptyMedia>
-              <EmptyTitle className="text-xs font-semibold tracking-tight">No project channels yet</EmptyTitle>
+              <EmptyTitle className="text-xs font-semibold tracking-tight">
+                No projects yet
+              </EmptyTitle>
               <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
-                Submit a creative brief to start a dedicated workspace.
+                {viewerRole === 'admin'
+                  ? 'Client projects will appear here once submitted.'
+                  : 'Start a project to open a dedicated workspace.'}
               </EmptyDescription>
-              <Link href="/" onClick={onNewBriefClick} className="mt-1.5">
-                <Button type="button" variant="outline" size="xs" className="h-7 gap-1 text-2xs font-semibold">
-                  <Plus className="size-3" />
-                  <span>+ New Brief</span>
-                </Button>
-              </Link>
+              {viewerRole !== 'admin' && (
+                <Link href="/" onClick={handleNewProject} className="mt-1.5">
+                  <Button type="button" variant="outline" size="xs" className="h-7 gap-1 text-2xs font-semibold">
+                    <Plus className="size-3" />
+                    <span>+ New Project</span>
+                  </Button>
+                </Link>
+              )}
             </EmptyHeader>
           </Empty>
-        ) : filteredProjects.length === 0 ? (
+        ) : visibleCount === 0 ? (
           <Empty className="py-6 border-0">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400 size-8">
                 <Inbox className="size-4" />
               </EmptyMedia>
-              <EmptyTitle className="text-xs font-semibold tracking-tight">No projects match</EmptyTitle>
+              <EmptyTitle className="text-xs font-semibold tracking-tight">
+                {activeTab === 'unread' && !debouncedSearch
+                  ? 'All caught up'
+                  : 'No projects found'}
+              </EmptyTitle>
               <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
-                {searchQuery ? `No results for "${searchQuery}"` : 'No projects found in this category'}
+                {debouncedSearch
+                  ? `No results for "${debouncedSearch}"`
+                  : activeTab === 'unread'
+                    ? viewerRole === 'admin'
+                      ? 'No unread client messages right now.'
+                      : 'No unread messages right now.'
+                    : 'No projects found in this category'}
               </EmptyDescription>
-              {(searchQuery || activeTab !== 'all') && (
+              {(debouncedSearch || activeTab !== 'all') && (
                 <Button
                   type="button"
                   variant="outline"
                   size="xs"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setActiveTab('all');
-                  }}
+                  onClick={clearFilters}
                   className="mt-1.5 h-7 text-2xs font-semibold"
                 >
                   Clear Filters
@@ -334,87 +565,66 @@ export function ChatProjectSidebar({
             </EmptyHeader>
           </Empty>
         ) : (
-          <SidebarMenu className="gap-1 space-y-1">
-            {filteredProjects.map((p) => {
-              const isSelected = p.id === activeProjectId;
-              const pUnread = unreadCounts[p.id] || 0;
-              const pMsgs = projectMessages[p.id] || [];
-              const lastMsg = pMsgs[pMsgs.length - 1];
+          <div className={cn('space-y-1 transition-opacity', isSearching && 'opacity-60')}>
+            {/* Pinned: sessions with unread messages */}
+            {pinnedUnread.length > 0 && (
+              <>
+                {activeTab !== 'unread' && listedSessions.length > 0 && (
+                  <p className="px-1 pt-0.5 text-3xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                    {viewerRole === 'admin' ? `Unread Client Messages (${pinnedUnread.length})` : 'Unread'}
+                  </p>
+                )}
+                <SidebarMenu className="gap-1 space-y-1">{pinnedUnread.map(renderSession)}</SidebarMenu>
+              </>
+            )}
 
-              const lastPreview = lastMsg
-                ? `${lastMsg.sender === 'client' ? 'You: ' : 'Sarah: '}${lastMsg.content}`
-                : 'Project workspace created';
+            {/* Paginated sessions */}
+            {listedSessions.length > 0 && (
+              <>
+                {pinnedUnread.length > 0 && (
+                  <p className="px-1 pt-2 text-3xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                    {activeTab === 'active' ? 'Active' : 'All projects'}
+                  </p>
+                )}
+                <SidebarMenu className="gap-1 space-y-1">{listedSessions.map(renderSession)}</SidebarMenu>
+              </>
+            )}
 
-              return (
-                <SidebarMenuItem key={p.id}>
-                  <SidebarMenuButton
-                    isActive={isSelected}
-                    onClick={() => onSelectProject(p.id)}
-                    className={cn(
-                      'group/project-item cursor-pointer py-2 px-2.5 h-auto min-h-[52px] rounded-lg transition-all border flex flex-col items-stretch text-left relative overflow-hidden',
-                      isSelected
-                        ? 'border-amber-400/80 bg-amber-400/10 shadow-xs ring-1 ring-amber-400/30'
-                        : 'border-border/70 bg-card/60 hover:border-amber-400/50 hover:bg-secondary/40'
-                    )}
-                  >
-                    {/* Left active accent bar indicator */}
-                    {isSelected && (
-                      <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 rounded-r-xs" />
-                    )}
+            {/* Bottom shimmer skeletons while the next cursor page loads */}
+            {isFetchingNextPage && (
+              <div className="space-y-1 pt-1" role="status" aria-label="Loading more projects">
+                <SessionSkeleton />
+                <SessionSkeleton />
+              </div>
+            )}
 
-                    <div className="flex items-center justify-between gap-1 mb-0.5 w-full">
-                      <span
-                        className={cn(
-                          'font-mono text-xs font-bold tracking-tight truncate',
-                          isSelected ? 'text-brand-text dark:text-amber-300' : 'text-foreground'
-                        )}
-                      >
-                        {p.projectCode}
-                      </span>
+            {/* Inline retry if a page fails, instead of silently stopping */}
+            {isFetchNextPageError && !isFetchingNextPage && (
+              <div className="flex items-center justify-center gap-2 py-2 text-2xs text-muted-foreground">
+                <span>Couldn&apos;t load more.</span>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  onClick={() => void fetchNextPage()}
+                  className="h-auto p-0 text-2xs font-semibold text-brand-text dark:text-amber-400"
+                >
+                  Retry
+                </Button>
+              </div>
+            )}
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        {pUnread > 0 ? (
-                          <Badge
-                            variant="destructive"
-                            className="text-2xs font-mono font-bold tabular-nums px-1.5 py-0 h-4 shrink-0 animate-pulse"
-                          >
-                            {pUnread} new
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
-                          >
-                            {p.status.replace('_', ' ').toLowerCase()}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+            {/* Scroll sentinel: observed to trigger the next page */}
+            {canPaginate && <div ref={sentinelRef} aria-hidden="true" className="h-px" />}
 
-                    <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1 w-full">
-                      <span className="font-medium text-foreground/85 truncate text-2xs">{p.packageName}</span>
-                      <span className="text-3xs shrink-0 font-mono tabular-nums text-muted-foreground/80">
-                        {lastMsg ? formatChatTimestamp(lastMsg.timestamp) : ''}
-                      </span>
-                    </div>
-
-                    <p
-                      className={cn(
-                        'text-2xs line-clamp-2 leading-relaxed w-full break-words',
-                        pUnread > 0
-                          ? 'font-medium text-foreground dark:text-amber-200'
-                          : 'text-muted-foreground'
-                      )}
-                    >
-                      {lastPreview}
-                    </p>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
+            {/* End-of-list marker (only once the user has actually paginated) */}
+            {activeTab !== 'unread' && !hasNextPage && (data?.pages.length ?? 0) > 1 && (
+              <p className="py-2 text-center text-3xs text-muted-foreground/70">No more projects</p>
+            )}
+          </div>
         )}
       </ScrollArea>
     </div>
   );
 }
+

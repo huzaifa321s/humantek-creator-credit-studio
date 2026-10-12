@@ -1,0 +1,77 @@
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { ApiError } from '@/components/Providers';
+import type { ManagementSummaryData } from '@/app/api/management/summary/route';
+import type { LedgerTransaction } from '@/components/AgencyDataGrid';
+
+interface LedgerResponse {
+  transactions: LedgerTransaction[];
+  totalCount: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+  limit: number;
+}
+
+/**
+ * Live executive management summary and KPI counts query.
+ * Refetches automatically every 30 seconds to keep badges live.
+ */
+export function useManagementSummaryQuery() {
+  return useQuery<ManagementSummaryData, ApiError>({
+    queryKey: ['management', 'summary'],
+    queryFn: async () => {
+      const res = await fetch('/api/management/summary');
+      if (res.status === 401 || res.status === 403) {
+        throw new ApiError('Unauthorized', res.status);
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new ApiError(
+          (data as { error?: string }).error || `Summary request failed (${res.status})`,
+          res.status
+        );
+      }
+      return data as ManagementSummaryData;
+    },
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+}
+
+/**
+ * Audited credit ledger transaction history query.
+ */
+export function useManagementLedgerQuery(filters?: {
+  page?: number;
+  limit?: number;
+  type?: string;
+  status?: string;
+}) {
+  const { page = 1, limit = 50, type, status } = filters || {};
+
+  return useQuery<LedgerResponse, ApiError>({
+    queryKey: ['management', 'ledger', { page, limit, type, status }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+      if (type && type !== 'all') params.set('type', type);
+      if (status && status !== 'all') params.set('status', status);
+
+      const res = await fetch(`/api/management/ledger?${params.toString()}`);
+      if (res.status === 401 || res.status === 403) {
+        throw new ApiError('Unauthorized', res.status);
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new ApiError(
+          (data as { error?: string }).error || `Ledger request failed (${res.status})`,
+          res.status
+        );
+      }
+      return data as LedgerResponse;
+    },
+    staleTime: 10_000,
+  });
+}

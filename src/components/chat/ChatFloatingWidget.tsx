@@ -9,15 +9,16 @@ import {
   PanelLeft,
   ExternalLink,
   ChevronLeft,
-  Sparkles,
 } from 'lucide-react';
-import { cn, formatChatTimestamp } from '@/lib/utils';
+import { cn, getErrorMessage } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-import { useStudioChat, useChatStore, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
+import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
+import { mapProjectChatMessage } from '@/lib/chat/mapMessage';
 import { useUserStore } from '@/lib/userStore';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
-import { useProjectsQuery } from '@/lib/queries/projects';
+import { useProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
+import type { ProjectRecord } from '@/types';
 import { toast } from 'sonner';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInputBar } from './ChatInputBar';
@@ -29,29 +30,24 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ChatGate } from '@/components/chat/ChatGate';
 
+const EMPTY_PROJECTS: ProjectRecord[] = [];
+
 function ChatFloatingWidgetInner() {
   const {
     projectId,
     isGlobal,
-    projectMeta,
-    projectMessages,
-    messages: storeMessages,
-    agent,
+    outbox,
     isOpen,
-    isTyping,
     totalUnreadCount,
     unreadCounts,
     unreadBelowScroll,
     incrementUnreadBelowScroll,
     clearUnreadBelowScroll,
-    retryMessage,
+    queueMessage,
+    removeMessage,
+    markMessageFailed,
     setIsOpen,
     setActiveProjectId,
-    sendMessage: sendStoreMessage,
-    toggleLike: toggleStoreLike,
-    editMessage: editStoreMessage,
-    deleteMessage: deleteStoreMessage,
-    toggleReaction,
   } = useStudioChat();
 
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
@@ -72,21 +68,27 @@ function ChatFloatingWidgetInner() {
   const [hasFooter, setHasFooter] = useState(isWizardRoute);
 
   const projectsQuery = useProjectsQuery();
-  const projects = projectsQuery.data ?? [];
+  const projects = projectsQuery.data ?? EMPTY_PROJECTS;
 
-  // Derive active project metadata directly from TanStack Query without duplicating state into Zustand
-  const activeProject = useMemo(
+  // Derive active project metadata directly from TanStack Query
+  const projectFromList = useMemo(
     () => projects.find((p) => p.id === projectId),
     [projects, projectId]
   );
 
-  const { user } = useUserStore();
-  const targetProjectId = isGlobal || !user?.email || !activeProject || projectId === 'proj-demo-1' ? null : projectId;
+  // Sidebar is paginated: a selected session may live beyond the first page, so fall back to the detail query
+  const needsDetailLookup = !isGlobal && !projectFromList && !!projectId;
+  const activeDetailQuery = useProjectDetailQuery(needsDetailLookup ? projectId : null);
+  const activeProject = projectFromList ?? activeDetailQuery.data ?? undefined;
 
-  // Hook into real Supabase doorbell realtime transport & messages
+  const { user } = useUserStore();
+  const targetProjectId = isGlobal ? GLOBAL_CHAT_ID : activeProject ? projectId : null;
+
+  // Real Supabase doorbell realtime transport & messages
   const {
     messages: dbMessages,
     lastReadId,
+    isLoading: isDbLoading,
     sendMessage: sendDbMessage,
     toggleLike: toggleDbLike,
     editMessage: editDbMessage,
@@ -106,84 +108,65 @@ function ChatFloatingWidgetInner() {
         price: activeProject.packagePrice,
         credits: activeProject.packageCredits,
       }
-    : projectMeta;
+    : GLOBAL_META;
 
-  // Mark active project as read
+  // Mark active conversation (project or global) as read
   useEffect(() => {
-    if (isOpen && !isGlobal && projectId) {
+    if (isOpen && targetProjectId) {
       markAsRead();
     }
-  }, [isOpen, projectId, isGlobal, markAsRead, dbMessages]);
+  }, [isOpen, targetProjectId, markAsRead, dbMessages]);
 
   const displayMessages: ChatMessage[] = useMemo(() => {
-    if (isGlobal || !projectId) {
-      return storeMessages;
+    if (!targetProjectId) {
+      return [];
     }
-    if (dbMessages && dbMessages.length > 0) {
-      const mappedDb: ChatMessage[] = dbMessages.map((m) => ({
-        id: String(m.id),
-        clientMessageId: m.clientMessageId || undefined,
-        projectId: m.projectId,
-        sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
-        senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
-        senderRole: m.sender?.role === 'admin' ? 'Senior Creative Producer' : 'Creator',
-        content: m.body,
-        replyTo: m.replyTo || undefined,
-        likes: m.likes || [],
-        isEdited: Boolean(m.isEdited),
-        editedAt: m.editedAt || undefined,
-        isDeleted: Boolean(m.isDeleted),
-        createdAtRaw: m.createdAt,
-        timestamp: formatChatTimestamp(m.createdAt),
-        isRead: m.id <= lastReadId,
-        status: 'sent',
-        attachments: (m.attachments || []).map((att) => ({
-          id: att.id,
-          name: att.fileName,
-          size: `${Math.round(att.fileSize / 1024)} KB`,
-          type: att.mimeType.startsWith('image/') ? 'image' : 'file',
-          url: att.url || '',
-          previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
-        })),
-      }));
+    const clientName = isGlobal ? (user?.name || 'You') : (activeProject?.clientName || user?.name || 'You');
+    const mappedDb = (dbMessages || []).map((m) =>
+      mapProjectChatMessage(m, { clientName, lastReadId })
+    );
 
-      // Include pending/failed optimistic messages from store that haven't landed in dbMessages yet
-      const confirmedClientIds = new Set(
-        dbMessages.map((m) => m.clientMessageId).filter(Boolean)
-      );
-      const pendingOptimistic = storeMessages.filter(
-        (m) =>
-          m.clientMessageId &&
-          !confirmedClientIds.has(m.clientMessageId) &&
-          (m.status === 'sending' || m.status === 'failed')
-      );
+    // Include pending/failed optimistic messages from outbox that haven't landed in dbMessages yet
+    const confirmedClientIds = new Set(
+      dbMessages.map((m) => m.clientMessageId).filter(Boolean)
+    );
+    const pendingOptimistic = outbox.filter(
+      (m: ChatMessage) =>
+        m.clientMessageId &&
+        !confirmedClientIds.has(m.clientMessageId) &&
+        (m.status === 'sending' || m.status === 'failed')
+    );
 
-      return [...mappedDb, ...pendingOptimistic];
-    }
-    return storeMessages;
-  }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
+    return [...mappedDb, ...pendingOptimistic];
+  }, [targetProjectId, isGlobal, dbMessages, lastReadId, activeProject, user?.name, outbox]);
 
   const handleSendMessage = async (text: string, attachments?: ChatAttachment[], replyTo?: ChatReplyTo) => {
-    // 1. Send optimistically into Zustand store (enforces single-flight lock, clears draft, sets status: 'sending')
-    const clientMsgId = await sendStoreMessage(text, attachments, undefined, replyTo);
+    if (!targetProjectId) return;
+    const senderName = isGlobal ? (user?.name || 'You') : (activeProject?.clientName || user?.name || 'You');
+    const clientMsgId = queueMessage(text, { attachments, replyTo, senderName });
+    if (!clientMsgId) return;
 
-    // 2. If connected to a real Supabase DB project, dispatch to DB API endpoint
-    if (!isGlobal && projectId && targetProjectId && clientMsgId) {
-      try {
-        await sendDbMessage(text, attachments, clientMsgId, replyTo);
-        useChatStore.getState().reconcileMessage(projectId, clientMsgId, { status: 'sent' });
-      } catch (err: any) {
-        useChatStore.getState().markMessageFailed(projectId, clientMsgId, err.message || 'Failed to send');
-        toast.error(err.message || 'Failed to send message');
-      }
+    try {
+      await sendDbMessage(text, attachments, clientMsgId, replyTo);
+      removeMessage(clientMsgId);
+    } catch (err) {
+      const message = getErrorMessage(err, 'Failed to send message');
+      markMessageFailed(clientMsgId, message);
+      toast.error(message);
     }
+  };
+
+  const handleRetryMessage = async (clientMsgId: string) => {
+    const target = outbox.find((m) => m.clientMessageId === clientMsgId || m.id === clientMsgId);
+    if (!target) return;
+    removeMessage(clientMsgId);
+    await handleSendMessage(target.content, target.attachments, target.replyTo);
   };
 
   const handleToggleLike = async (messageId: string) => {
     const currentName = user?.name || user?.email?.split('@')[0] || 'You';
-    toggleStoreLike(messageId, { id: user?.id || 'client-me', name: currentName });
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
         await toggleDbLike(numericId, user?.id, currentName);
       } catch (err) {
@@ -193,33 +176,27 @@ function ChatFloatingWidgetInner() {
   };
 
   const handleSaveEdit = async (messageId: string, newContent: string) => {
-    editStoreMessage(messageId, newContent);
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
         await editDbMessage(numericId, newContent);
         toast.success('Message updated');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to edit message');
+      } catch (err) {
+        toast.error(getErrorMessage(err, 'Failed to edit message'));
       }
-    } else {
-      toast.success('Message updated');
     }
     setEditingMessage(null);
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    deleteStoreMessage(messageId);
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
         await deleteDbMessage(numericId);
         toast.success('Message deleted');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to delete message');
+      } catch (err) {
+        toast.error(getErrorMessage(err, 'Failed to delete message'));
       }
-    } else {
-      toast.success('Message deleted');
     }
   };
 
@@ -249,12 +226,10 @@ function ChatFloatingWidgetInner() {
     }
   };
 
-  // Mount drawer contents when opened
-  useEffect(() => {
-    if (isOpen) {
-      setHasOpened(true);
-    }
-  }, [isOpen]);
+  // Mount drawer contents the first time it opens
+  if (isOpen && !hasOpened) {
+    setHasOpened(true);
+  }
 
   // Focus management: move focus into drawer on open, restore to launcher on close
   useEffect(() => {
@@ -285,10 +260,7 @@ function ChatFloatingWidgetInner() {
 
   // Adjust bottom clearance when wizard sticky navigation footer is mounted
   useEffect(() => {
-    if (!isWizardRoute) {
-      setHasFooter(false);
-      return;
-    }
+    if (!isWizardRoute) return;
 
     const checkFooter = () => {
       const footerEl = document.getElementById('studio-footer-actions');
@@ -318,7 +290,7 @@ function ChatFloatingWidgetInner() {
       <div
         className={cn(
           'fixed right-5 sm:right-6 md:right-7 z-50 transition-all duration-300 ease-in-out motion-reduce:transition-none',
-          hasFooter ? 'hidden md:block bottom-20 md:bottom-22' : 'bottom-5 sm:bottom-6',
+          isWizardRoute && hasFooter ? 'hidden md:block bottom-20 md:bottom-22' : 'bottom-5 sm:bottom-6',
           isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
         )}
       >
@@ -341,11 +313,11 @@ function ChatFloatingWidgetInner() {
             <MessageSquare className="size-3 text-brand-text dark:text-amber-400" />
           </span>
 
-          {/* Label: Chat with Our Team on wizard flow, or Messages on tracking views */}
+          {/* Label */}
           <div className="flex items-center gap-1.5 text-xs font-medium">
             <span className="text-foreground font-semibold">
-              <span className="hidden sm:inline">{isWizardRoute || isGlobal ? 'Chat with Our Team' : 'Messages'}</span>
-              <span className="sm:hidden">{isWizardRoute || isGlobal ? 'Chat' : 'Messages'}</span>
+              <span className="hidden sm:inline">{isWizardRoute || isGlobal ? 'Help & Support' : 'Messages'}</span>
+              <span className="sm:hidden">{isWizardRoute || isGlobal ? 'Help' : 'Messages'}</span>
             </span>
             <span className="hidden sm:inline text-muted-foreground/60 font-normal">·</span>
             <span
@@ -354,7 +326,7 @@ function ChatFloatingWidgetInner() {
                 isWizardRoute || isGlobal ? 'font-sans' : 'font-mono'
               )}
             >
-              {isWizardRoute || isGlobal ? 'Sarah Miller' : displayMeta.projectCode}
+              {isWizardRoute || isGlobal ? 'Studio Support' : displayMeta.projectCode}
             </span>
           </div>
 
@@ -370,8 +342,7 @@ function ChatFloatingWidgetInner() {
         </Button>
       </div>
 
-      {/* 2. Slide-over Panel Workspace (Hybrid Two-Column Drawer) */}
-      {/* Backdrop overlay (plain opacity fade, zero blur-filter shader penalty during animation) */}
+      {/* 2. Slide-over Panel Workspace */}
       <div
         onClick={() => setIsOpen(false)}
         aria-hidden="true"
@@ -396,12 +367,9 @@ function ChatFloatingWidgetInner() {
       >
         {hasOpened && (
           <>
-            {/* ========================================================= */}
-            {/* 1. TOP AGENT BAR (Lightweight & Reassuring, px-4 py-2.5)   */}
-            {/* ========================================================= */}
+            {/* Top Bar */}
             <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/80 bg-secondary/35 shrink-0 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                {/* Sidebar toggle button (desktop only) */}
                 {projects.length > 1 && (
                   <Button
                     type="button"
@@ -421,20 +389,18 @@ function ChatFloatingWidgetInner() {
                 <div className="relative shrink-0">
                   <Avatar className="size-8 sm:size-8.5 border border-amber-400/40 bg-amber-400/15 shadow-2xs">
                     <AvatarFallback className="bg-transparent text-brand-text dark:text-amber-300 font-semibold text-xs">
-                      {agent.avatarInitials}
+                      HT
                     </AvatarFallback>
                   </Avatar>
-                  <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate">{agent.name}</span>
-                    <span className="text-xs text-muted-foreground hidden xs:inline">· Lead Producer</span>
+                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate">Humantek Studio</span>
+                    <span className="text-xs text-muted-foreground hidden xs:inline">· Studio Team</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-2xs text-muted-foreground truncate">
-                    <span className="flex size-1.5 rounded-full bg-emerald-500" />
-                    <span>{agent.responseTime}</span>
+                  <div className="text-2xs text-muted-foreground truncate">
+                    Sarah + Studio Team
                   </div>
                 </div>
               </div>
@@ -458,11 +424,9 @@ function ChatFloatingWidgetInner() {
               </div>
             </div>
 
-            {/* ========================================================= */}
-            {/* 2. MAIN BODY: TWO-COLUMN LAYOUT                           */}
-            {/* ========================================================= */}
+            {/* Main Body */}
             <div className="flex-1 flex min-h-0 overflow-hidden relative">
-              {/* LEFT COLUMN: Pinned Global Chat + Project Sessions Sidebar */}
+              {/* Left Column: Sessions Sidebar */}
               <div
                 className={cn(
                   'border-r border-border/80 flex flex-col transition-all duration-200 z-10',
@@ -475,15 +439,13 @@ function ChatFloatingWidgetInner() {
                   projects={projects}
                   activeProjectId={projectId}
                   unreadCounts={unreadCounts}
-                  projectMessages={projectMessages}
                   onSelectProject={handleSelectProject}
-                  onNewBriefClick={() => setIsOpen(false)}
-                  isLoading={projectsQuery.isPending}
+                  onNewProjectClick={() => setIsOpen(false)}
                   className="h-full border-0"
                 />
               </div>
 
-              {/* RIGHT COLUMN: Chat Header + Messages Feed */}
+              {/* Right Column: Chat Feed or Global Help View */}
               <div
                 className={cn(
                   'flex-1 flex flex-col min-w-0 bg-card overflow-hidden',
@@ -507,32 +469,8 @@ function ChatFloatingWidgetInner() {
                   </span>
                 </div>
 
-                {/* ========================================================= */}
-                {/* 3. CONTEXT BAR: Global Header vs Project Context Bar      */}
-                {/* ========================================================= */}
-                {isGlobal ? (
-                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs">
-                        <Sparkles className="size-3.5" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs sm:text-sm font-bold tracking-tight text-foreground">Global Chat</span>
-                          <span className="flex size-1.5 rounded-full bg-emerald-500 inline-block align-middle" />
-                          <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/20">
-                            Concierge
-                          </span>
-                        </div>
-                        <p className="text-2xs text-muted-foreground mt-0.5 leading-normal truncate">
-                          Replies in ~2 mins · Packages, credits & studio support
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
+                {!isGlobal && activeProject && (
                   <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1">
-                    {/* Line 1: Code + Package + Status Badge (Left) & Milestone Tracker (Right) */}
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                         <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
@@ -554,20 +492,18 @@ function ChatFloatingWidgetInner() {
                         onClick={() => setIsOpen(false)}
                         className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                       >
-                        <span className="hidden min-[380px]:inline">Milestone Tracker</span>
-                        <span className="min-[380px]:hidden">Tracker</span>
+                        <span>Milestones</span>
                         <ExternalLink className="size-3 shrink-0" />
                       </Link>
                     </div>
 
-                    {/* Line 2: Client Info · Credits Badge · Price (graceful wrapping on small screens) */}
                     <div className="flex items-center gap-x-1.5 gap-y-0.5 text-2xs text-muted-foreground flex-wrap min-w-0">
-                      <span className="inline-flex items-center gap-1 truncate max-w-[130px] sm:max-w-[220px]">
-                        Client: <b className="text-foreground font-medium truncate">{displayMeta.clientName}</b>
+                      <span className="inline-flex items-center gap-1 truncate max-w-[140px] sm:max-w-[220px]">
+                        Lead: <b className="text-foreground font-medium truncate">Sarah M.</b>
                       </span>
                       <span className="text-muted-foreground/50">·</span>
                       <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
-                        {displayMeta.credits || 660} CR
+                        {displayMeta.credits || 0} CR
                       </span>
                       {displayMeta.price && (
                         <>
@@ -585,9 +521,7 @@ function ChatFloatingWidgetInner() {
                 <div className="flex-1 min-h-0 bg-card/60">
                   <ChatMessageList
                     messages={displayMessages}
-                    isTyping={isTyping}
-                    agentName={agent.name}
-                    isGlobal={isGlobal}
+                    isLoading={isDbLoading}
                     projectId={projectId}
                     unreadCount={unreadBelowScroll}
                     onClearUnread={clearUnreadBelowScroll}
@@ -605,7 +539,7 @@ function ChatFloatingWidgetInner() {
                         onStartEdit={handleStartEdit}
                         onDelete={handleDeleteMessage}
                         onScrollToMessage={handleScrollToMessage}
-                        onRetry={retryMessage}
+                        onRetry={handleRetryMessage}
                       />
                     )}
                   />
@@ -620,7 +554,6 @@ function ChatFloatingWidgetInner() {
                     editingMessage={editingMessage}
                     onCancelEdit={() => setEditingMessage(null)}
                     onSaveEdit={handleSaveEdit}
-                    isTyping={isTyping}
                     compact
                     isGlobal={isGlobal}
                     projectId={projectId}

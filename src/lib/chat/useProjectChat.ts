@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { defaultChatTransport, ChatTransport, ChatEvent } from './transport';
+import { defaultChatTransport, ChatTransport } from './transport';
+import type { ChatAttachment, ChatReplyTo } from '@/types';
+import { useInvalidateChatUnread } from '@/lib/queries/chat';
 
 export interface ProjectChatMessage {
   id: number;
@@ -53,15 +55,27 @@ export function useProjectChat({
   transport = defaultChatTransport,
   pollIntervalMs = 15_000,
 }: UseProjectChatOptions) {
-  const isRealProject = Boolean(projectId && projectId !== 'proj-demo-1');
+  const isRealProject = Boolean(projectId);
+  const invalidateUnread = useInvalidateChatUnread();
   const [messages, setMessages] = useState<ProjectChatMessage[]>([]);
   const [lastReadId, setLastReadId] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(projectId));
   const [isSending, setIsSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const messagesRef = useRef<ProjectChatMessage[]>([]);
-  messagesRef.current = messages;
+  const [prevProjectId, setPrevProjectId] = useState(projectId);
+  if (prevProjectId !== projectId) {
+    setPrevProjectId(projectId);
+    setMessages([]);
+    setLastReadId(0);
+    setIsLoading(Boolean(projectId));
+    setError(null);
+  }
+
+  const messagesRef = useRef<ProjectChatMessage[]>(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Merge newly fetched messages into current state deduplicating by ID and sorting ascending
   const mergeMessages = useCallback((newMsgs: ProjectChatMessage[]) => {
@@ -104,7 +118,7 @@ export function useProjectChat({
         if (typeof data.lastReadId === 'number') {
           setLastReadId(data.lastReadId);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch messages:', err);
       }
     },
@@ -113,15 +127,9 @@ export function useProjectChat({
 
   // Initial load
   useEffect(() => {
-    if (!isRealProject) {
-      setMessages([]);
-      setIsLoading(false);
-      return;
-    }
+    if (!isRealProject) return;
 
     let isMounted = true;
-    setIsLoading(true);
-    setError(null);
 
     fetch(`/api/projects/${projectId}/messages`)
       .then((res) => {
@@ -143,9 +151,9 @@ export function useProjectChat({
         setLastReadId(data.lastReadId || 0);
         setIsLoading(false);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (!isMounted) return;
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Failed to load messages');
         setIsLoading(false);
       });
 
@@ -160,7 +168,7 @@ export function useProjectChat({
 
     const unsubscribe = transport.subscribe(
       projectId!,
-      (event: ChatEvent) => {
+      () => {
         // Doorbell signal: fetch new messages since highest local ID with overlap window
         const highest =
           messagesRef.current.length > 0
@@ -197,12 +205,19 @@ export function useProjectChat({
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
     };
-  }, [isRealProject, projectId, pollIntervalMs, fetchIncremental]);
+  }, [isRealProject, projectId, pollIntervalMs, fetchIncremental, error]);
 
   // Send message
   const sendMessage = useCallback(
-    async (bodyText: string, attachments?: any[], existingClientMsgId?: string, replyTo?: any) => {
-      if (!isRealProject || !bodyText.trim() || isSending) return;
+    async (
+      bodyText: string,
+      attachments?: ChatAttachment[],
+      existingClientMsgId?: string,
+      replyTo?: ChatReplyTo
+    ) => {
+      const uploaded = (attachments || []).filter((a) => a.storagePath);
+      if (!isRealProject) return;
+      if (!bodyText.trim() && uploaded.length === 0) return;
       setIsSending(true);
 
       const clientMessageId =
@@ -218,7 +233,12 @@ export function useProjectChat({
           body: JSON.stringify({
             body: bodyText.trim(),
             clientMessageId,
-            attachments: attachments || [],
+            attachments: uploaded.map((a) => ({
+              storagePath: a.storagePath,
+              fileName: a.name,
+              fileSize: a.fileSize,
+              mimeType: a.mimeType,
+            })),
             replyTo: replyTo || undefined,
           }),
         });
@@ -236,7 +256,7 @@ export function useProjectChat({
         setIsSending(false);
       }
     },
-    [isRealProject, projectId, isSending, mergeMessages]
+    [isRealProject, projectId, mergeMessages]
   );
 
   // Toggle like on message
@@ -304,7 +324,7 @@ export function useProjectChat({
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error || 'Failed to edit message');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to edit message:', err);
         fetchIncremental();
         throw err;
@@ -337,7 +357,7 @@ export function useProjectChat({
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error || 'Failed to delete message');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to delete message:', err);
         fetchIncremental();
         throw err;
@@ -370,12 +390,13 @@ export function useProjectChat({
           if (typeof data.lastReadId === 'number') {
             setLastReadId(data.lastReadId);
           }
+          invalidateUnread();
         }
       } catch (err) {
         console.error('Failed to mark read state:', err);
       }
     },
-    [isRealProject, projectId, lastReadId]
+    [isRealProject, projectId, lastReadId, invalidateUnread]
   );
 
   const unreadCount = messages.filter((m) => m.id > lastReadId).length;

@@ -4,49 +4,20 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  ChevronLeft,
-  Coins,
   FolderKanban,
   Ticket,
-  Sparkles,
-  LogOut,
-  ChevronDown,
-  User,
   MessageSquare,
-  ShieldCheck,
   LayoutDashboard,
   Landmark,
   ShieldAlert,
+  Receipt,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { Separator } from '@/components/ui/separator';
-import { CreditValue } from '@/components/ui/credit-value';
 import {
   SidebarProvider,
   Sidebar,
-  SidebarHeader,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
@@ -54,7 +25,6 @@ import {
   SidebarMenuBadge,
   SidebarRail,
   SidebarInset,
-  SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { HorizontalStepper } from '@/components/HorizontalStepper';
@@ -62,12 +32,13 @@ import { StudioBackground } from '@/components/StudioBackground';
 import { DashboardHeader } from '@/components/header/DashboardHeader';
 import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
-import { useUserStore } from '@/lib/userStore';
+import { useUserStore, type StudioUser } from '@/lib/userStore';
 import { ChatGate } from '@/components/chat/ChatGate';
 
 interface StudioCardLayoutProps {
   children: React.ReactNode;
   mode?: 'wizard' | 'standalone';
+  fullBleed?: boolean;
   currentStep?: number;
   onSelectStep?: (step: number) => void;
   isPackageSelected?: boolean;
@@ -92,7 +63,7 @@ interface StudioCardLayoutProps {
 
 interface StudioSidebarNavigationProps {
   pathname: string;
-  user: any;
+  user: StudioUser | null;
 }
 
 function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
@@ -104,14 +75,14 @@ function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
     if (isMobile) setOpenMobile(false);
   };
 
-  const isActive = pathname === '/management' && typeof window !== 'undefined' && window.location.search.includes('tab=messages');
+  const isActive = pathname.startsWith('/management/inbox');
 
   return (
     <SidebarMenuItem data-chat-entry="admin-communications">
       <SidebarMenuButton
         isActive={isActive}
         onClick={handleNavClick}
-        render={<Link href="/management?tab=messages" onClick={handleNavClick} />}
+        render={<Link href="/management/inbox" onClick={handleNavClick} />}
         tooltip="Client Communications"
         className={cn(
           'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
@@ -215,13 +186,13 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
               // ADMINISTRATOR NAVIGATION MENU (Strict Operations Console)
               // =========================================================
               <>
-                {/* 1. Projects & Orders Overview */}
+                {/* 1. Overview */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={pathname === '/management'}
                     onClick={handleNavClick}
                     render={<Link href="/management" onClick={handleNavClick} />}
-                    tooltip="Projects & Orders"
+                    tooltip="Agency Overview"
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                       pathname === '/management'
@@ -237,43 +208,113 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
                     />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Projects & Orders</span>
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Overview</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 2. Client Communications (Realtime Doorbell Chat) */}
-                <SidebarAdminCommunicationsItem pathname={pathname} />
-
-                {/* 3. Manual Payment Orders */}
+                {/* 2. Projects Queue */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={pathname === '/management' && typeof window !== 'undefined' && window.location.search.includes('tab=wire-orders')}
+                    isActive={pathname.startsWith('/management/projects')}
                     onClick={handleNavClick}
-                    render={<Link href="/management?tab=wire-orders" onClick={handleNavClick} />}
+                    render={<Link href="/management/projects" onClick={handleNavClick} />}
+                    tooltip="Projects Queue"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      pathname.startsWith('/management/projects')
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <FolderKanban
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/management/projects')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Projects Queue</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 3. Client Communications (Realtime Chat) */}
+                <SidebarAdminCommunicationsItem pathname={pathname} />
+
+                {/* 4. Credit Ledger */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname.startsWith('/management/ledger')}
+                    onClick={handleNavClick}
+                    render={<Link href="/management/ledger" onClick={handleNavClick} />}
+                    tooltip="Credit Ledger"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      pathname.startsWith('/management/ledger')
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <Receipt
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/management/ledger')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Credit Ledger</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 5. Manual Payment Orders */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname.startsWith('/management/orders')}
+                    onClick={handleNavClick}
+                    render={<Link href="/management/orders" onClick={handleNavClick} />}
                     tooltip="Manual Payments"
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                      pathname.startsWith('/management/orders')
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                     )}
                   >
-                    <Landmark className="size-4 shrink-0 text-muted-foreground group-hover/menu-button:text-foreground transition-colors" />
+                    <Landmark
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/management/orders')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
                     <span className="truncate group-data-[collapsible=icon]:hidden">Manual Payments</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 4. Security Alerts */}
+                {/* 6. Security Alerts */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={pathname === '/management' && typeof window !== 'undefined' && window.location.search.includes('tab=alerts')}
+                    isActive={pathname.startsWith('/management/alerts')}
                     onClick={handleNavClick}
-                    render={<Link href="/management?tab=alerts" onClick={handleNavClick} />}
+                    render={<Link href="/management/alerts" onClick={handleNavClick} />}
                     tooltip="Security Alerts"
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                      pathname.startsWith('/management/alerts')
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
                     )}
                   >
-                    <ShieldAlert className="size-4 shrink-0 text-muted-foreground group-hover/menu-button:text-foreground transition-colors" />
+                    <ShieldAlert
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/management/alerts')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
                     <span className="truncate group-data-[collapsible=icon]:hidden">Security Alerts</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -349,6 +390,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
 export function StudioCardLayout({
   children,
   mode = 'wizard',
+  fullBleed = false,
   currentStep = 1,
   onSelectStep = () => {},
   isPackageSelected = false,
@@ -427,7 +469,14 @@ export function StudioCardLayout({
   // =========================================================================
   if (mode === 'standalone') {
     return (
-      <SidebarProvider defaultOpen={true} style={{ "--sidebar-width": "15rem" } as React.CSSProperties} className="min-h-screen w-full bg-background flex flex-col font-sans antialiased">
+      <SidebarProvider
+        defaultOpen={true}
+        style={{ "--sidebar-width": "15rem" } as React.CSSProperties}
+        className={cn(
+          "w-full bg-background flex flex-col font-sans antialiased",
+          fullBleed ? "h-screen max-h-screen overflow-hidden" : "min-h-screen"
+        )}
+      >
         {/* 1. Full-Width Black Dashboard Header (Shadcn Studio Style) */}
         <DashboardHeader
           mode="standalone"
@@ -442,7 +491,12 @@ export function StudioCardLayout({
           onSignInClick={onSignInClick}
         />
 
-        <div className="flex flex-1 w-full min-h-0 relative">
+        <div
+          className={cn(
+            "flex flex-1 w-full min-h-0 relative",
+            fullBleed && "h-[calc(100vh-3.25rem)] sm:h-[calc(100vh-3.375rem)] max-h-[calc(100vh-3.25rem)] sm:max-h-[calc(100vh-3.375rem)] overflow-hidden"
+          )}
+        >
           {/* 2. Official Ultra-Compact shadcn Sidebar sitting below the top header */}
           <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar select-none top-13 sm:top-13.5 h-[calc(100vh-3.25rem)] sm:h-[calc(100vh-3.375rem)]">
             {/* Sidebar Navigation Content with Mobile Auto-Close */}
@@ -451,11 +505,23 @@ export function StudioCardLayout({
           </Sidebar>
 
           {/* 4. Main Page View Inset */}
-          <SidebarInset className="flex-1 flex flex-col min-w-0 bg-background min-h-0 relative isolate">
+          <SidebarInset
+            className={cn(
+              "flex-1 flex flex-col min-w-0 bg-background min-h-0 relative isolate",
+              fullBleed && "h-full max-h-full overflow-hidden"
+            )}
+          >
             <StudioBackground />
 
             {/* Main Step / Page Content */}
-            <div className="flex-1 p-3.5 sm:p-4 lg:p-5 w-full mx-auto relative z-10 max-w-[1600px]">
+            <div
+              className={cn(
+                'flex-1 w-full relative z-10 flex flex-col min-h-0',
+                fullBleed
+                  ? 'p-0 max-w-none h-full max-h-full overflow-hidden'
+                  : 'p-3.5 sm:p-4 lg:p-5 mx-auto max-w-[1600px]'
+              )}
+            >
               {!isHydrated ? (
                 <div className="space-y-6 pb-24 sm:pb-32 w-full" aria-busy="true">
                   <div className="space-y-2 border-b border-border/60 pb-5">

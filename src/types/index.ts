@@ -119,6 +119,11 @@ export interface ChatAttachment {
   size?: string;
   type: 'image' | 'file';
   previewUrl?: string;
+  /** Storage object key (`projects/{projectId}/...`) once the file is uploaded. */
+  storagePath?: string;
+  mimeType?: string;
+  /** Raw byte size, needed by the messages API to validate uploads. */
+  fileSize?: number;
 }
 
 export interface ChatOrderCard {

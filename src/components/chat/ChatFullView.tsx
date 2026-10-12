@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useStudioChat, useChatStore, ChatAttachment, SAMPLE_REFERENCES, GLOBAL_META, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
+import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
+import { mapProjectChatMessage } from '@/lib/chat/mapMessage';
 import { useUserStore } from '@/lib/userStore';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
-import { useProjectsQuery } from '@/lib/queries/projects';
+import { useProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
+import type { ProjectRecord } from '@/types';
 import { toast } from 'sonner';
 import { ChatMessageItem } from './ChatMessageItem';
 import { ChatInputBar } from './ChatInputBar';
@@ -13,50 +15,38 @@ import { ChatAttachmentModal } from './ChatAttachmentModal';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatProjectSidebar } from './ChatProjectSidebar';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Item, ItemGroup, ItemMedia, ItemContent, ItemTitle, ItemDescription } from '@/components/ui/item';
-import { cn, formatChatTimestamp } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/utils';
 import {
   Sparkles,
   Plus,
   ShieldCheck,
-  Coins,
   FolderKanban,
   ImageIcon,
   Clock,
   ExternalLink,
-  CheckCircle2,
+  Mail,
   Eye,
   MessageSquare,
-  Search,
-  Filter,
 } from 'lucide-react';
+
+const EMPTY_PROJECTS: ProjectRecord[] = [];
 
 export function ChatFullView() {
   const {
     projectId,
     isGlobal,
-    projectMeta,
-    projectMessages,
-    messages: storeMessages,
-    agent,
-    isTyping,
+    outbox,
     unreadCounts,
     unreadBelowScroll,
     incrementUnreadBelowScroll,
     clearUnreadBelowScroll,
-    retryMessage,
+    queueMessage,
+    removeMessage,
+    markMessageFailed,
     setActiveProjectId,
-    sendMessage: sendStoreMessage,
-    toggleLike: toggleStoreLike,
-    editMessage: editStoreMessage,
-    deleteMessage: deleteStoreMessage,
-    toggleReaction,
-    markAllAsRead,
   } = useStudioChat();
 
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
@@ -64,21 +54,25 @@ export function ChatFullView() {
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
 
   const projectsQuery = useProjectsQuery();
-  const projects = projectsQuery.data ?? [];
+  const projects = projectsQuery.data ?? EMPTY_PROJECTS;
 
-  // Derive active project metadata directly from TanStack Query without duplicating state into Zustand
-  const activeProject = useMemo(
+  const projectFromList = useMemo(
     () => projects.find((p) => p.id === projectId),
     [projects, projectId]
   );
 
-  const { user } = useUserStore();
-  const targetProjectId = isGlobal || !user?.email || !activeProject || projectId === 'proj-demo-1' ? null : projectId;
+  const needsDetailLookup = !isGlobal && !projectFromList && !!projectId;
+  const activeDetailQuery = useProjectDetailQuery(needsDetailLookup ? projectId : null);
+  const activeProject = projectFromList ?? activeDetailQuery.data ?? undefined;
 
-  // Hook into real Supabase doorbell realtime transport & messages
+  const { user } = useUserStore();
+  const targetProjectId = isGlobal ? GLOBAL_CHAT_ID : activeProject ? projectId : null;
+
+  // Real Supabase doorbell realtime transport & messages
   const {
     messages: dbMessages,
     lastReadId,
+    isLoading: isDbLoading,
     sendMessage: sendDbMessage,
     toggleLike: toggleDbLike,
     editMessage: editDbMessage,
@@ -98,89 +92,64 @@ export function ChatFullView() {
         price: activeProject.packagePrice,
         credits: activeProject.packageCredits,
       }
-    : projectMeta;
+    : GLOBAL_META;
 
-  // Mark active project as read
+  // Mark active conversation as read
   useEffect(() => {
-    if (!isGlobal && projectId) {
+    if (targetProjectId) {
       markAsRead();
-    } else {
-      markAllAsRead();
     }
-  }, [projectId, isGlobal, markAsRead, markAllAsRead, dbMessages]);
+  }, [targetProjectId, markAsRead, dbMessages]);
 
   const displayMessages: ChatMessage[] = useMemo(() => {
-    if (isGlobal || !projectId) {
-      return storeMessages;
+    if (!targetProjectId) {
+      return [];
     }
-    if (dbMessages && dbMessages.length > 0) {
-      const mappedDb: ChatMessage[] = dbMessages.map((m) => ({
-        id: String(m.id),
-        clientMessageId: m.clientMessageId || undefined,
-        projectId: m.projectId,
-        sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
-        senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'You (Creator)'),
-        senderRole: m.sender?.role === 'admin' ? 'Senior Creative Producer' : 'Creator',
-        content: m.body,
-        replyTo: m.replyTo || undefined,
-        likes: m.likes || [],
-        isEdited: Boolean(m.isEdited),
-        editedAt: m.editedAt || undefined,
-        isDeleted: Boolean(m.isDeleted),
-        createdAtRaw: m.createdAt,
-        timestamp: formatChatTimestamp(m.createdAt),
-        isRead: m.id <= lastReadId,
-        status: 'sent',
-        attachments: (m.attachments || []).map((att) => ({
-          id: att.id,
-          name: att.fileName,
-          size: `${Math.round(att.fileSize / 1024)} KB`,
-          type: att.mimeType.startsWith('image/') ? 'image' : 'file',
-          url: att.url || '',
-          previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
-        })),
-      }));
+    const clientName = isGlobal ? (user?.name || 'You') : (activeProject?.clientName || user?.name || 'You');
+    const mappedDb = (dbMessages || []).map((m) =>
+      mapProjectChatMessage(m, { clientName, lastReadId })
+    );
 
-      // Include pending/failed optimistic messages from store that haven't landed in dbMessages yet
-      const confirmedClientIds = new Set(
-        dbMessages.map((m) => m.clientMessageId).filter(Boolean)
-      );
-      const pendingOptimistic = storeMessages.filter(
-        (m) =>
-          m.clientMessageId &&
-          !confirmedClientIds.has(m.clientMessageId) &&
-          (m.status === 'sending' || m.status === 'failed')
-      );
+    const confirmedClientIds = new Set(
+      dbMessages.map((m) => m.clientMessageId).filter(Boolean)
+    );
+    const pendingOptimistic = outbox.filter(
+      (m: ChatMessage) =>
+        m.clientMessageId &&
+        !confirmedClientIds.has(m.clientMessageId) &&
+        (m.status === 'sending' || m.status === 'failed')
+    );
 
-      return [...mappedDb, ...pendingOptimistic];
-    }
-    return storeMessages;
-  }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
+    return [...mappedDb, ...pendingOptimistic];
+  }, [targetProjectId, isGlobal, dbMessages, lastReadId, activeProject, user?.name, outbox]);
 
   const handleSendMessage = async (text: string, attachments?: ChatAttachment[], replyTo?: ChatReplyTo) => {
-    // 1. Send optimistically into Zustand store (enforces single-flight lock, clears draft, sets status: 'sending')
-    const clientMsgId = await sendStoreMessage(text, attachments, undefined, replyTo);
+    if (!targetProjectId) return;
+    const senderName = isGlobal ? (user?.name || 'You') : (activeProject?.clientName || user?.name || 'You');
+    const clientMsgId = queueMessage(text, { attachments, replyTo, senderName });
+    if (!clientMsgId) return;
 
-    // 2. If connected to a real Supabase DB project, dispatch to DB API endpoint
-    if (!isGlobal && projectId && targetProjectId && clientMsgId) {
-      try {
-        await sendDbMessage(text, attachments, clientMsgId, replyTo);
-        useChatStore.getState().reconcileMessage(projectId, clientMsgId, { status: 'sent' });
-      } catch (err: any) {
-        useChatStore.getState().markMessageFailed(projectId, clientMsgId, err.message || 'Failed to send');
-        toast.error(err.message || 'Failed to send message');
-      }
+    try {
+      await sendDbMessage(text, attachments, clientMsgId, replyTo);
+      removeMessage(clientMsgId);
+    } catch (err) {
+      const message = getErrorMessage(err, 'Failed to send message');
+      markMessageFailed(clientMsgId, message);
+      toast.error(message);
     }
   };
 
-  const handleToggleLike = async (messageId: string) => {
-    // Optimistic store update
-    const currentName = user?.name || user?.email?.split('@')[0] || 'You';
-    toggleStoreLike(messageId, { id: user?.id || 'client-me', name: currentName });
+  const handleRetryMessage = async (clientMsgId: string) => {
+    const target = outbox.find((m) => m.clientMessageId === clientMsgId || m.id === clientMsgId);
+    if (!target) return;
+    removeMessage(clientMsgId);
+    await handleSendMessage(target.content, target.attachments, target.replyTo);
+  };
 
-    // DB update if real project
+  const handleToggleLike = async (messageId: string) => {
+    const currentName = user?.name || user?.email?.split('@')[0] || 'You';
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
         await toggleDbLike(numericId, user?.id, currentName);
       } catch (err) {
@@ -190,33 +159,27 @@ export function ChatFullView() {
   };
 
   const handleSaveEdit = async (messageId: string, newContent: string) => {
-    editStoreMessage(messageId, newContent);
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
         await editDbMessage(numericId, newContent);
         toast.success('Message updated');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to edit message');
+      } catch (err) {
+        toast.error(getErrorMessage(err, 'Failed to edit message'));
       }
-    } else {
-      toast.success('Message updated');
     }
     setEditingMessage(null);
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    deleteStoreMessage(messageId);
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
         await deleteDbMessage(numericId);
         toast.success('Message deleted');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to delete message');
+      } catch (err) {
+        toast.error(getErrorMessage(err, 'Failed to delete message'));
       }
-    } else {
-      toast.success('Message deleted');
     }
   };
 
@@ -246,14 +209,12 @@ export function ChatFullView() {
     }
   };
 
-  // Extract unique attachments from the currently active project chat
+  // Real attachments uploaded in the active conversation
   const displayAttachments = useMemo(() => {
     const rawAttachments: ChatAttachment[] = displayMessages.flatMap((m) => m.attachments || []);
-    const source = rawAttachments.length > 0 ? rawAttachments : SAMPLE_REFERENCES;
-
     const seen = new Set<string>();
     const unique: ChatAttachment[] = [];
-    for (const att of source) {
+    for (const att of rawAttachments) {
       const identifier = att.url || att.id || att.name;
       if (identifier && !seen.has(identifier)) {
         seen.add(identifier);
@@ -270,13 +231,13 @@ export function ChatFullView() {
         <div>
           <div className="flex items-center gap-2 text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Project-Based Creative Studio Communications</span>
+            <span>Creative Studio Communications</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
             Messages &amp; Project Discussion
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-            Direct project discussion threads, moodboards, asset approvals, and milestone updates.
+            Direct collaboration with your Lead Producer, revision notes, file sharing, and project milestones.
           </p>
         </div>
 
@@ -303,28 +264,25 @@ export function ChatFullView() {
         {/* LEFT COLUMN: PROJECT DIRECTORY & ASSETS                   */}
         {/* ========================================================= */}
         <div className="lg:col-span-4 xl:col-span-3 space-y-4 order-2 lg:order-1">
-          {/* Producer Profile Card */}
+          {/* Studio Team Card */}
           <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
             <div className="flex items-start gap-3.5">
               <div className="relative">
                 <Avatar className="w-12 h-12 rounded-xl border-2 border-amber-400/40 bg-gradient-to-br from-amber-400/20 to-amber-500/30 text-brand-text dark:text-amber-300 font-extrabold text-sm shadow-md">
-                  <AvatarFallback>{agent.avatarInitials}</AvatarFallback>
+                  <AvatarFallback>HT</AvatarFallback>
                 </Avatar>
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-background flex items-center justify-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                </span>
               </div>
 
               <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-bold text-foreground truncate">{agent.name}</h3>
+                  <h3 className="text-sm font-bold text-foreground truncate">Humantek Studio</h3>
                   <Badge variant="gold" className="text-2xs font-mono font-bold uppercase tracking-wider py-0 px-1.5 h-4">
-                    Lead
+                    Team
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground truncate">{agent.role}</p>
-                <span className="inline-flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Online & Dedicated
+                <p className="text-xs text-muted-foreground truncate">Sarah Miller &amp; Production Team</p>
+                <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground font-medium">
+                  Direct Studio Line
                 </span>
               </div>
             </div>
@@ -338,12 +296,6 @@ export function ChatFullView() {
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" /> Response Time
-                </span>
-                <span className="font-semibold text-brand-text dark:text-amber-400">~2 minutes</span>
-              </div>
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Mode
                 </span>
                 <span className="font-medium text-foreground">Project-Isolated</span>
@@ -351,15 +303,13 @@ export function ChatFullView() {
             </div>
           </Card>
 
-          {/* Project Conversation Threads Directory using ChatProjectSidebar */}
+          {/* Project Conversation Threads Directory */}
           <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden h-[380px]">
             <ChatProjectSidebar
               projects={projects}
               activeProjectId={projectId}
               unreadCounts={unreadCounts}
-              projectMessages={projectMessages}
               onSelectProject={setActiveProjectId}
-              isLoading={projectsQuery.isPending}
               className="h-full border-0 bg-transparent"
             />
           </div>
@@ -370,26 +320,21 @@ export function ChatFullView() {
               <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
                 <Sparkles className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                 <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Studio Concierge
+                  Need help?
                 </span>
               </div>
               <div className="space-y-2.5 text-xs text-muted-foreground leading-relaxed">
                 <p>
-                  This is your primary channel with Sarah Miller for custom creative quotes, credit inquiries, package advisory, and account support.
+                  Message Sarah or the team about packages, credits, or your projects.
                 </p>
                 <div className="pt-2 border-t border-border/70 space-y-2 font-medium text-2xs text-foreground/90">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                    <span>Dedicated Senior Lead Producer</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                    <span>12-Month Wallet Credit Rollover</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                    <span>Rapid 48h Concept Turnaround</span>
-                  </div>
+                  <a
+                    href="mailto:support@humantek.com"
+                    className="flex items-center gap-2 text-brand-text dark:text-amber-400 hover:underline"
+                  >
+                    <Mail className="size-3.5 shrink-0" />
+                    <span>support@humantek.com</span>
+                  </a>
                 </div>
               </div>
             </Card>
@@ -399,35 +344,41 @@ export function ChatFullView() {
                 <div className="flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                   <span className="text-2xs font-bold text-foreground uppercase tracking-wider">
-                    Project Moodboards ({displayAttachments.length})
+                    Project References ({displayAttachments.length})
                   </span>
                 </div>
                 <span className="text-2xs text-muted-foreground font-mono tabular-nums">{displayMeta.projectCode}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                {displayAttachments.map((att, idx) => (
-                  <div
-                    key={`${att.id || 'att'}-${idx}`}
-                    onClick={() => setPreviewAttachment(att)}
-                    className="group relative rounded-lg overflow-hidden border border-border/70 bg-black/20 cursor-pointer aspect-video hover:border-amber-400/60 transition-all"
-                  >
-                    {att.previewUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={att.previewUrl}
-                        alt={att.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-2xs font-medium backdrop-blur-xs">
-                      <Eye className="w-3.5 h-3.5 mr-1" /> View
+              {displayAttachments.length === 0 ? (
+                <div className="py-6 text-center text-xs text-muted-foreground">
+                  No references shared yet
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {displayAttachments.map((att, idx) => (
+                    <div
+                      key={`${att.id || 'att'}-${idx}`}
+                      onClick={() => setPreviewAttachment(att)}
+                      className="group relative rounded-lg overflow-hidden border border-border/70 bg-black/20 cursor-pointer aspect-video hover:border-amber-400/60 transition-all"
+                    >
+                      {att.previewUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={att.previewUrl}
+                          alt={att.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-2xs font-medium backdrop-blur-xs">
+                        <Eye className="w-3.5 h-3.5 mr-1" /> View
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               <p className="text-2xs text-muted-foreground/80 leading-normal">
-                Visual moodboards uploaded for {displayMeta.projectCode}. Click any frame to zoom in.
+                Files and image references shared in this project thread.
               </p>
             </Card>
           )}
@@ -443,25 +394,20 @@ export function ChatFullView() {
               <div className="px-3.5 sm:px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs">
-                    <Sparkles className="size-3.5" />
+                    <MessageSquare className="size-3.5" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm sm:text-base font-bold tracking-tight text-foreground">Global Chat</span>
-                      <span className="flex size-2 rounded-full bg-emerald-500 inline-block align-middle" />
-                      <span className="text-3xs uppercase tracking-wider font-semibold text-brand-text dark:text-amber-400 bg-amber-400/15 dark:bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/25">
-                        Concierge
-                      </span>
+                      <span className="text-sm sm:text-base font-bold tracking-tight text-foreground">Studio Help</span>
                     </div>
                     <p className="text-2xs text-muted-foreground mt-0.5 leading-normal truncate">
-                      Replies in ~2 mins · Packages, credits & studio support
+                      Packages, credits, or anything else
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1">
-                {/* Line 1: Code + Package + Status Badge (Left) & Milestone Tracker (Right) */}
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                     <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
@@ -482,20 +428,18 @@ export function ChatFullView() {
                     href="/projects"
                     className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                   >
-                    <span className="hidden min-[380px]:inline">Milestone Tracker</span>
-                    <span className="min-[380px]:hidden">Tracker</span>
+                    <span>Milestones</span>
                     <ExternalLink className="size-3 shrink-0" />
                   </Link>
                 </div>
 
-                {/* Line 2: Client Info · Credits Badge · Price (graceful wrapping on small screens) */}
                 <div className="flex items-center gap-x-1.5 gap-y-0.5 text-2xs text-muted-foreground flex-wrap min-w-0">
                   <span className="inline-flex items-center gap-1 truncate max-w-[140px] sm:max-w-[260px]">
-                    Client: <b className="text-foreground font-medium truncate">{displayMeta.clientName}</b>
+                    Lead: <b className="text-foreground font-medium truncate">Sarah M.</b>
                   </span>
                   <span className="text-muted-foreground/50">·</span>
                   <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
-                    {displayMeta.credits || 660} CR
+                    {displayMeta.credits || 0} CR
                   </span>
                   {displayMeta.price && (
                     <>
@@ -513,9 +457,7 @@ export function ChatFullView() {
             <div className="flex-1 min-h-0 bg-card/60">
               <ChatMessageList
                 messages={displayMessages}
-                isTyping={isTyping}
-                agentName={agent.name}
-                isGlobal={isGlobal}
+                isLoading={isDbLoading}
                 projectId={projectId}
                 unreadCount={unreadBelowScroll}
                 onClearUnread={clearUnreadBelowScroll}
@@ -531,13 +473,12 @@ export function ChatFullView() {
                     onStartEdit={handleStartEdit}
                     onDelete={handleDeleteMessage}
                     onScrollToMessage={handleScrollToMessage}
-                    onRetry={retryMessage}
+                    onRetry={handleRetryMessage}
                   />
                 )}
               />
             </div>
 
-            {/* Input Bar Footer */}
             <div className="px-4 py-3 border-t border-border/70 bg-card/90 shrink-0">
               <ChatInputBar
                 onSendMessage={handleSendMessage}
@@ -546,7 +487,6 @@ export function ChatFullView() {
                 editingMessage={editingMessage}
                 onCancelEdit={() => setEditingMessage(null)}
                 onSaveEdit={handleSaveEdit}
-                isTyping={isTyping}
                 isGlobal={isGlobal}
                 projectId={projectId}
                 activeProjectCode={isGlobal ? undefined : displayMeta.projectCode}

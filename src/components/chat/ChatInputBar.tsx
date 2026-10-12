@@ -6,14 +6,6 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
@@ -30,8 +22,9 @@ import {
   AttachmentTitle,
 } from '@/components/ui/attachment';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
+import { Spinner } from '@/components/ui/spinner';
 
-import { ChatAttachment, SAMPLE_REFERENCES, useChatStore, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
+import { ChatAttachment, useChatStore, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
 
 interface ChatInputBarProps {
   onSendMessage: (text: string, attachments?: ChatAttachment[], replyTo?: ChatReplyTo) => void;
@@ -46,15 +39,11 @@ interface ChatInputBarProps {
   projectId?: string;
   activeProjectCode?: string;
   activeProjectName?: string;
+  viewerRole?: 'client' | 'admin';
+  placeholder?: string;
 }
 
-const GLOBAL_QUICK_PROMPTS = [
-  'How do credit roll-overs work?',
-  'What packages do you offer?',
-  'What is the standard delivery turnaround?',
-];
-
-const PROJECT_QUICK_PROMPTS = [
+const QUICK_PROMPTS = [
   'What is the next milestone?',
   'Can I submit revision notes?',
   'When will concept thumbnails be ready?',
@@ -67,36 +56,49 @@ export function ChatInputBar({
   editingMessage = null,
   onCancelEdit,
   onSaveEdit,
-  isTyping = false,
   compact = false,
   isGlobal = false,
   projectId,
   activeProjectCode,
   activeProjectName,
+  viewerRole = 'client',
+  placeholder: customPlaceholder,
 }: ChatInputBarProps) {
-  const effectiveId = projectId || (isGlobal ? 'global' : undefined);
+  const effectiveId = projectId || undefined;
   const [text, setText] = useState(() =>
-    effectiveId ? useChatStore.getState().drafts[effectiveId] || '' : ''
+    editingMessage
+      ? editingMessage.content
+      : effectiveId
+      ? useChatStore.getState().drafts[effectiveId] || ''
+      : ''
   );
   const [draft, setDraft] = useState<ChatAttachment | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Restore draft when switching active project or drawer reopening
-  useEffect(() => {
-    if (!effectiveId) return;
-    if (editingMessage) return; // Do not overwrite active edit session with draft
-    const saved = useChatStore.getState().drafts[effectiveId] || '';
-    setText(saved);
-  }, [effectiveId, editingMessage]);
+  // Composer source: the message being edited, otherwise the saved draft for this chat.
+  const textSourceKey = editingMessage ? `edit:${editingMessage.id}` : `draft:${effectiveId ?? ''}`;
+  const [syncedSourceKey, setSyncedSourceKey] = useState(textSourceKey);
+  if (syncedSourceKey !== textSourceKey) {
+    setSyncedSourceKey(textSourceKey);
+    setText(
+      editingMessage
+        ? editingMessage.content
+        : effectiveId
+        ? useChatStore.getState().drafts[effectiveId] || ''
+        : ''
+    );
+  }
 
-  // When editingMessage changes, populate input and focus
+  // Starting an edit or a reply focuses the composer
+  const editingId = editingMessage?.id;
+  const replyingToId = replyingTo?.id;
   useEffect(() => {
-    if (editingMessage) {
-      setText(editingMessage.content);
+    if (editingId || replyingToId) {
       textareaRef.current?.focus();
     }
-  }, [editingMessage]);
+  }, [editingId, replyingToId]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -106,20 +108,25 @@ export function ChatInputBar({
     }
   };
 
-  const quickPrompts = isGlobal ? GLOBAL_QUICK_PROMPTS : PROJECT_QUICK_PROMPTS;
-  const placeholder = editingMessage
-    ? 'Update your message...'
-    : replyingTo
-    ? `Reply to ${replyingTo.senderName}...`
-    : compact
-    ? isGlobal
-      ? 'Message Sarah about packages & credits...'
-      : 'Message Sarah or share references...'
-    : isGlobal
-    ? 'Message Sarah about packages, credits, or anything else...'
-    : 'Message Sarah, share references or ask a question...';
+  const placeholder =
+    customPlaceholder ||
+    (editingMessage
+      ? 'Update your message...'
+      : replyingTo
+      ? viewerRole === 'admin'
+        ? `Reply to ${replyingTo.senderName} as Studio Admin...`
+        : `Reply to ${replyingTo.senderName}...`
+      : isGlobal
+      ? viewerRole === 'admin'
+        ? 'Reply to creator inquiries as Studio Admin...'
+        : 'Message the studio desk...'
+      : viewerRole === 'admin'
+      ? `Reply to ${activeProjectName || activeProjectCode || 'Client'} as Studio Admin...`
+      : compact
+      ? `Message studio team${activeProjectCode ? ` (${activeProjectCode})` : ''}...`
+      : `Message studio team about ${activeProjectName || activeProjectCode || 'this project'}...`);
 
-  const canSend = (!!text.trim() || !!draft) && !isTyping;
+  const canSend = (!!text.trim() || !!draft) && !isUploadingAttachment;
 
   const handleSend = () => {
     if (!canSend) return;
@@ -154,30 +161,72 @@ export function ChatInputBar({
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setDraft({
-      id: `att-${Date.now()}`,
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      type: 'image',
-      previewUrl: URL.createObjectURL(file),
-      url: '#',
-    });
-    toast.success(`Attached "${file.name}"`);
     e.target.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files (PNG, JPG, WebP, GIF) are supported');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Images must be under 10 MB');
+      return;
+    }
+
+    if (!projectId) {
+      toast.error('Please select an active project first');
+      return;
+    }
+
+    setIsUploadingAttachment(true);
+    const toastId = toast.loading(`Uploading ${file.name}...`);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`/api/projects/${projectId}/attachments`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload file');
+      }
+
+      const att = data.attachment;
+      setDraft({
+        id: `att-${Date.now()}`,
+        name: att.fileName,
+        size: `${(att.fileSize / (1024 * 1024)).toFixed(1)} MB`,
+        type: 'image',
+        url: att.url || '',
+        previewUrl: att.url || URL.createObjectURL(file),
+        storagePath: att.storagePath,
+        mimeType: att.mimeType,
+        fileSize: att.fileSize,
+      });
+      toast.success(`Attached "${file.name}"`, { id: toastId });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to upload image';
+      toast.error(msg, { id: toastId });
+    } finally {
+      setIsUploadingAttachment(false);
+    }
   };
 
   return (
     <div className="space-y-2">
-      {/* Quick prompts — hidden in compact mode or active edit/reply sessions */}
-      {!compact && !editingMessage && !replyingTo && (
+      {/* Quick prompts — hidden in compact mode, active edit/reply sessions, or for admin console */}
+      {!compact && !editingMessage && !replyingTo && viewerRole !== 'admin' && (
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
           <span className="flex shrink-0 items-center gap-1 text-2xs font-semibold text-muted-foreground">
             <Sparkles className="size-3 text-brand-text dark:text-amber-400" /> Quick ask:
           </span>
-          {quickPrompts.map((prompt) => (
+          {QUICK_PROMPTS.map((prompt) => (
             <Button
               key={prompt}
               type="button"
@@ -192,7 +241,7 @@ export function ChatInputBar({
         </div>
       )}
 
-      {/* WhatsApp / Studio style Reply Preview Bar */}
+      {/* Reply Preview Bar */}
       {replyingTo && (
         <div className="flex items-center justify-between gap-3 px-3.5 py-2 bg-secondary/80 border border-border/80 border-l-4 border-l-amber-400 rounded-xl text-xs shadow-2xs animate-in slide-in-from-bottom-2 duration-150">
           <div className="flex-1 min-w-0">
@@ -215,7 +264,7 @@ export function ChatInputBar({
         </div>
       )}
 
-      {/* WhatsApp / Studio style Edit Preview Bar */}
+      {/* Edit Preview Bar */}
       {editingMessage && (
         <div className="flex items-center justify-between gap-3 px-3.5 py-2 bg-amber-400/10 border border-amber-400/30 border-l-4 border-l-amber-500 rounded-xl text-xs shadow-2xs animate-in slide-in-from-bottom-2 duration-150">
           <div className="flex-1 min-w-0">
@@ -282,56 +331,26 @@ export function ChatInputBar({
         <InputGroupAddon align="block-end" className="gap-2">
           {!editingMessage && (
             <>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <InputGroupButton
-                      size="icon-sm"
-                      className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400"
-                      aria-label="Attach reference"
-                    >
-                      <Paperclip className="size-4" />
-                    </InputGroupButton>
-                  }
-                />
-                <DropdownMenuContent align="start" side="top" className="w-64 p-1.5 text-xs">
-                  <DropdownMenuLabel className="px-2 py-1 text-2xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Add reference assets
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer gap-2 py-2">
-                    <ImageIcon className="size-4 text-brand-text dark:text-amber-400" />
-                    <div>
-                      <span className="block font-semibold">Upload image</span>
-                      <span className="text-2xs text-muted-foreground">PNG or JPG from your computer</span>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="px-2 py-0.5 text-2xs font-medium text-muted-foreground">
-                    Sample moodboards
-                  </DropdownMenuLabel>
-                  {SAMPLE_REFERENCES.map((sample) => (
-                    <DropdownMenuItem
-                      key={sample.id}
-                      onClick={() =>
-                        setDraft({
-                          ...sample,
-                          id: `sample-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                        })
-                      }
-                      className="cursor-pointer gap-2 py-1.5 text-2xs"
-                    >
-                      <Sparkles className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
-                      <span className="truncate">{sample.name}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <InputGroupButton
+                size="icon-sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingAttachment}
+                className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400 cursor-pointer disabled:opacity-50"
+                aria-label="Upload image reference"
+                title="Upload image reference"
+              >
+                {isUploadingAttachment ? (
+                  <Spinner className="size-4 text-brand-text dark:text-amber-400" />
+                ) : (
+                  <Paperclip className="size-4" />
+                )}
+              </InputGroupButton>
 
               <InputGroupButton
                 size="icon-sm"
                 onClick={() => {
                   toast.success('Attached creative voice memo (0:24)');
-                  setText((prev) => (prev ? `${prev} 🎙️ [Voice memo: 0:24]` : '🎙️ Recorded brief audio note (0:24)'));
+                  setText((prev) => (prev ? `${prev} 🎙️ [Voice memo: 0:24]` : '🎙️ Recorded voice note (0:24)'));
                 }}
                 className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400"
                 aria-label="Record creative voice memo"
@@ -361,8 +380,8 @@ export function ChatInputBar({
             size="icon-sm"
             disabled={!canSend}
             onClick={handleSend}
-            aria-label={editingMessage ? 'Save changes' : 'Send message'}
-            title={editingMessage ? 'Save changes' : 'Send message'}
+            aria-label={editingMessage ? 'Save changes' : viewerRole === 'admin' ? 'Send reply to client' : 'Send message'}
+            title={editingMessage ? 'Save changes' : viewerRole === 'admin' ? 'Send reply to client' : 'Send message'}
             className="ml-auto size-9 rounded-full bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black shadow-xs shadow-amber-400/25 disabled:opacity-40 active:scale-95 flex items-center justify-center p-0 shrink-0 cursor-pointer"
           >
             {editingMessage ? <Check className="size-4 stroke-[2.5]" /> : <ArrowUp className="size-4" />}

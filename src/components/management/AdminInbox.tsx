@@ -1,37 +1,67 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ProjectRecord } from '@/types';
-import { useStudioChat, ChatMessage, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import React, { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
+import { useStudioChat, ChatMessage, GLOBAL_CHAT_ID, ChatReplyTo } from '@/lib/chatStore';
+import { mapProjectChatMessage } from '@/lib/chat/mapMessage';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
-import { useProjectsQuery } from '@/lib/queries/projects';
+import { useProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
 import { useUserStore } from '@/lib/userStore';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ChatProjectSidebar } from '@/components/chat/ChatProjectSidebar';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
+import { ChatMessageList } from '@/components/chat/ChatMessageList';
+import { ChatInputBar } from '@/components/chat/ChatInputBar';
+import { ChatAttachmentModal } from '@/components/chat/ChatAttachmentModal';
 import {
-  Search,
-  Send,
-  MessageSquare,
   ShieldCheck,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  Layers,
-  Sparkles,
-  Paperclip,
   ChevronLeft,
+  ExternalLink,
+  Copy,
+  MessageSquare,
 } from 'lucide-react';
-import { cn, formatStudioDate, formatChatTimestamp, getProjectStatusLabel } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+import type { ProjectRecord, ChatAttachment } from '@/types';
+
+const EMPTY_PROJECTS: ProjectRecord[] = [];
 
 interface AdminInboxProps {
   initialProjectId?: string | null;
+}
+
+function getPaymentBadge(status?: string) {
+  switch (status) {
+    case 'paid':
+      return (
+        <Badge
+          variant="outline"
+          className="text-3xs font-medium lowercase px-1.5 py-0 h-4 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-md"
+        >
+          paid
+        </Badge>
+      );
+    case 'refunded':
+      return (
+        <Badge
+          variant="outline"
+          className="text-3xs font-medium lowercase px-1.5 py-0 h-4 border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/10 rounded-md"
+        >
+          refunded
+        </Badge>
+      );
+    default:
+      return (
+        <Badge
+          variant="outline"
+          className="text-3xs font-medium lowercase px-1.5 py-0 h-4 border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md"
+        >
+          unpaid
+        </Badge>
+      );
+  }
 }
 
 export function AdminInbox({ initialProjectId }: AdminInboxProps) {
@@ -39,66 +69,78 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   const {
     projectId,
     isGlobal,
-    messages: storeMessages,
-    sendMessage: sendStoreMessage,
-    toggleLike: toggleStoreLike,
-    deleteMessage: deleteStoreMessage,
     setActiveProjectId,
     unreadCounts,
-    markAllAsRead,
+    unreadBelowScroll,
+    incrementUnreadBelowScroll,
+    clearUnreadBelowScroll,
   } = useStudioChat();
 
-  const projectsQuery = useProjectsQuery();
-  const projects = projectsQuery.data ?? [];
-  const [searchQuery, setSearchQuery] = useState('');
-  const [replyText, setReplyText] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ChatReplyTo | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+
   const [showMobileThread, setShowMobileThread] = useState(() => Boolean(initialProjectId));
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [prevInitialId, setPrevInitialId] = useState(initialProjectId);
+  if (prevInitialId !== initialProjectId) {
+    setPrevInitialId(initialProjectId);
+    if (initialProjectId) {
+      setShowMobileThread(true);
+    }
+  }
 
   // Set initial project if provided and different
   useEffect(() => {
-    if (initialProjectId) {
-      if (initialProjectId !== projectId) {
-        setActiveProjectId(initialProjectId);
-      }
-      setShowMobileThread(true);
+    if (initialProjectId && initialProjectId !== projectId) {
+      setActiveProjectId(initialProjectId);
     }
   }, [initialProjectId, projectId, setActiveProjectId]);
 
-  const activeProject = useMemo(
-    () => projects.find((p) => p.id === projectId),
-    [projects, projectId]
+  // Projects cache for fast initial sidebar display & fallback lookup
+  const projectsQuery = useProjectsQuery();
+  const initialProjects = projectsQuery.data ?? EMPTY_PROJECTS;
+
+  const projectFromList = useMemo(
+    () => initialProjects.find((p) => p.id === projectId),
+    [initialProjects, projectId]
   );
 
-  const targetProjectId = isGlobal || !activeProject || projectId === 'proj-demo-1' ? null : projectId;
+  const needsDetailLookup = !isGlobal && !projectFromList && Boolean(projectId);
+  const activeDetailQuery = useProjectDetailQuery(needsDetailLookup ? projectId : null);
+  const activeProject = projectFromList ?? activeDetailQuery.data ?? null;
 
-  // Hook into real Supabase doorbell realtime transport & messages
+  const targetProjectId = isGlobal ? GLOBAL_CHAT_ID : activeProject ? projectId : null;
+
+  // Real Supabase doorbell realtime transport & messages
   const {
     messages: dbMessages,
     lastReadId,
+    isLoading: isDbLoading,
     sendMessage: sendDbMessage,
     toggleLike: toggleDbLike,
+    editMessage: editDbMessage,
     deleteMessage: deleteDbMessage,
     markAsRead,
   } = useProjectChat({ projectId: targetProjectId });
 
   // Mark messages as read when active
   useEffect(() => {
-    if (!isGlobal && projectId) {
+    if (targetProjectId) {
       markAsRead();
-    } else {
-      markAllAsRead();
     }
-  }, [projectId, isGlobal, markAsRead, markAllAsRead, dbMessages]);
+  }, [targetProjectId, markAsRead, dbMessages]);
+
+  const handleStartEdit = (msg: ChatMessage) => {
+    setEditingMessage(msg);
+    setReplyingTo(null);
+  };
 
   const handleToggleLike = async (messageId: string) => {
-    const adminName = user?.name || 'Sarah Miller';
-    toggleStoreLike(messageId, { id: user?.id || 'admin-sarah', name: adminName });
+    const adminName = user?.name || 'Studio Admin';
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
-        await toggleDbLike(numericId, user?.id || 'admin-sarah', adminName);
+        await toggleDbLike(numericId, user?.id, adminName);
       } catch (err) {
         console.error('Failed to toggle like in DB:', err);
       }
@@ -106,342 +148,279 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    deleteStoreMessage(messageId);
     const numericId = parseInt(messageId, 10);
-    if (!isGlobal && targetProjectId && !isNaN(numericId)) {
+    if (targetProjectId && !isNaN(numericId)) {
       try {
         await deleteDbMessage(numericId);
         toast.success('Message deleted');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to delete message');
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete message');
       }
-    } else {
-      toast.success('Message deleted');
+    }
+  };
+
+  const handleSendMessage = async (
+    text: string,
+    attachments?: ChatAttachment[],
+    replyTo?: ChatReplyTo
+  ) => {
+    if (!targetProjectId) {
+      toast.error('Please select an active conversation first');
+      return;
+    }
+    try {
+      await sendDbMessage(
+        text,
+        attachments && attachments.length > 0 ? attachments : undefined,
+        undefined,
+        replyTo || undefined
+      );
+      setReplyingTo(null);
+      toast.success('Reply sent to client');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send reply');
+    }
+  };
+
+  const handleSaveEdit = async (messageId: string, newContent: string) => {
+    const numericId = parseInt(messageId, 10);
+    if (targetProjectId && !isNaN(numericId)) {
+      try {
+        await editDbMessage(numericId, newContent);
+        toast.success('Message updated');
+        setEditingMessage(null);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to update message');
+      }
     }
   };
 
   const displayMessages: ChatMessage[] = useMemo(() => {
-    if (isGlobal || !projectId) {
-      return storeMessages;
+    if (!targetProjectId) {
+      return [];
     }
-    if (dbMessages && dbMessages.length > 0) {
-      return dbMessages.map((m) => ({
-        id: String(m.id),
-        projectId: m.projectId,
-        sender: m.kind === 'system' ? 'system' : (m.sender?.role === 'admin' ? 'agent' : 'client'),
-        senderName: m.sender?.role === 'admin' ? 'Sarah Miller' : (activeProject?.clientName || 'Client'),
-        senderRole: m.sender?.role === 'admin' ? 'Lead Creative Producer' : 'Client',
-        content: m.body,
-        replyTo: m.replyTo || undefined,
-        likes: m.likes || [],
-        isEdited: Boolean(m.isEdited),
-        editedAt: m.editedAt || undefined,
-        isDeleted: Boolean(m.isDeleted),
-        createdAtRaw: m.createdAt,
-        timestamp: formatChatTimestamp(m.createdAt),
-        isRead: m.id <= lastReadId,
-        attachments: (m.attachments || []).map((att) => ({
-          id: att.id,
-          name: att.fileName,
-          size: `${Math.round(att.fileSize / 1024)} KB`,
-          type: att.mimeType.startsWith('image/') ? 'image' : 'file',
-          url: att.url || '',
-          previewUrl: att.mimeType.startsWith('image/') ? att.url || '' : undefined,
-        })),
-      }));
-    }
-    return storeMessages;
-  }, [isGlobal, projectId, storeMessages, dbMessages, lastReadId, activeProject]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [displayMessages.length]);
-
-  const filteredProjects = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return projects;
-    return projects.filter(
-      (p) =>
-        p.clientName.toLowerCase().includes(q) ||
-        p.projectCode.toLowerCase().includes(q) ||
-        (p.channelName && p.channelName.toLowerCase().includes(q)) ||
-        p.email.toLowerCase().includes(q)
+    const clientName = isGlobal ? 'Creator' : activeProject?.clientName || 'Client';
+    return (dbMessages || []).map((m) =>
+      mapProjectChatMessage(m, { clientName, lastReadId })
     );
-  }, [projects, searchQuery]);
-
-  const handleSendReply = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const text = replyText.trim();
-    if (!text || isSending) return;
-
-    setIsSending(true);
-    try {
-      if (!isGlobal && projectId) {
-        await sendDbMessage(text);
-      } else {
-        sendStoreMessage(text);
-      }
-      setReplyText('');
-      toast.success('Reply sent to client');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to send reply');
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendReply();
-    }
-  };
-
-  const clientDisplayName = activeProject
-    ? activeProject.channelName || activeProject.clientName
-    : isGlobal
-    ? 'All Clients'
-    : 'Client';
+  }, [isGlobal, targetProjectId, dbMessages, lastReadId, activeProject]);
 
   return (
-    <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs grid grid-cols-1 md:grid-cols-12 min-h-[580px] h-[calc(100vh-16rem)] max-h-[820px]">
-      {/* ========================================================= */}
-      {/* 1. Left Column: Client Conversation List                  */}
-      {/* ========================================================= */}
-      <div className={cn(
-        "md:col-span-4 lg:col-span-4 border-r border-border/80 bg-secondary/15 flex flex-col min-h-0",
-        showMobileThread ? "hidden md:flex" : "flex"
-      )}>
-        {/* Search header */}
-        <div className="p-3 border-b border-border/80 bg-card/60 shrink-0">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-xs bg-background rounded-lg border-border/70"
+    <>
+      <div className="border-0 bg-card overflow-hidden flex flex-col md:flex-row w-full h-full max-h-full flex-1 min-h-0">
+        {/* 1. Left Sidebar: Project Sessions & Global Desk (reusable ChatProjectSidebar) */}
+        <div
+          className={cn(
+            'w-full md:w-[320px] lg:w-[360px] shrink-0 border-r border-border/80 bg-secondary/15 flex flex-col min-h-0 h-full max-h-full overflow-hidden',
+            showMobileThread ? 'hidden md:flex' : 'flex'
+          )}
+        >
+          <ChatProjectSidebar
+            projects={initialProjects}
+            activeProjectId={projectId || ''}
+            unreadCounts={unreadCounts}
+            onSelectProject={(id) => {
+              setActiveProjectId(id);
+              setShowMobileThread(true);
+            }}
+            viewerRole="admin"
+            className="h-full border-0"
+          />
+        </div>
+
+        {/* 2. Right Column: Active Thread & Admin Composer */}
+        <div
+          className={cn(
+            'flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full overflow-hidden bg-background',
+            !showMobileThread ? 'hidden md:flex' : 'flex'
+          )}
+        >
+          {/* Active Conversation Header (Identical theme & layout tokens to client view) */}
+          <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1">
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setShowMobileThread(false)}
+                  className="md:hidden size-7 rounded-lg text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                  aria-label="Back to conversations"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+
+                {isGlobal ? (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs">
+                      <MessageSquare className="size-3.5" />
+                    </span>
+                    <span className="text-sm font-bold tracking-tight text-foreground truncate">
+                      Studio Support Desk
+                    </span>
+                    <Badge variant="gold" className="text-3xs font-bold uppercase tracking-wider px-1.5 py-0 h-4">
+                      Global
+                    </Badge>
+                  </div>
+                ) : (
+                  activeProject && (
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
+                        {activeProject.projectCode}
+                      </span>
+                      <span className="text-foreground/90 font-semibold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-[260px]">
+                        {activeProject.channelName &&
+                        activeProject.channelName.toLowerCase() !== activeProject.clientName.toLowerCase()
+                          ? `${activeProject.channelName} · ${activeProject.packageName}`
+                          : activeProject.packageName || 'Project Workspace'}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="text-3xs sm:text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                      >
+                        {activeProject.status.replace(/_/g, ' ').toLowerCase()}
+                      </Badge>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Right Controls */}
+              <div className="flex items-center gap-2 shrink-0">
+                {!isGlobal && activeProject && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(activeProject.id);
+                        toast.success(`Copied Project ID: ${activeProject.id}`);
+                      }}
+                      className="hidden sm:inline-flex items-center gap-1 font-mono text-3xs text-muted-foreground hover:text-foreground bg-secondary/80 hover:bg-secondary px-1.5 py-0.5 rounded border border-border/70 cursor-pointer transition-colors"
+                      title={`Database ID: ${activeProject.id} (Click to copy)`}
+                    >
+                      <span>ID:</span>
+                      <span className="truncate max-w-[70px]">{activeProject.id.slice(0, 8)}…</span>
+                      <Copy className="size-2.5 opacity-60" />
+                    </button>
+
+                    <Link
+                      href={`/management/projects?project=${activeProject.id}`}
+                      title="View project in management table"
+                      className="inline-flex items-center gap-1 text-2xs font-semibold text-brand-text dark:text-amber-400 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
+                    >
+                      <span>View Project</span>
+                      <ExternalLink className="size-2.5" />
+                    </Link>
+                  </>
+                )}
+
+                <div className="flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+                  <ShieldCheck className="size-3" />
+                  <span className="hidden sm:inline">Admin Mode</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Subtitle Line */}
+            {isGlobal ? (
+              <p className="text-2xs text-muted-foreground truncate pl-0 sm:pl-9">
+                General creator inquiries · Pre-sales, packages, billing &amp; studio credits
+              </p>
+            ) : (
+              activeProject && (
+                <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-2xs text-muted-foreground min-w-0">
+                  <span className="font-semibold text-foreground/90 truncate">
+                    Client: {activeProject.clientName}
+                  </span>
+                  <span className="text-muted-foreground/60">({activeProject.email})</span>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/25 shrink-0 text-3xs">
+                    {activeProject.packageCredits || activeProject.usedCredits || 0} CR
+                  </span>
+                  {activeProject.packagePrice > 0 && (
+                    <>
+                      <span className="text-muted-foreground/40 hidden xs:inline">·</span>
+                      <span className="font-mono tabular-nums text-foreground/80 font-medium shrink-0 hidden xs:inline">
+                        ${activeProject.packagePrice.toLocaleString()} USD
+                      </span>
+                    </>
+                  )}
+                  <span className="text-muted-foreground/40">·</span>
+                  {getPaymentBadge(activeProject.paymentStatus)}
+                </div>
+              )
+            )}
+          </div>
+
+          {/* 3. Message Thread (Identical bg-card/60 container and MessageScroller feed) */}
+          <div className="flex-1 min-h-0 bg-card/60 flex flex-col overflow-hidden">
+            <ChatMessageList
+              messages={displayMessages}
+              isLoading={isDbLoading}
+              projectId={targetProjectId || 'none'}
+              unreadCount={unreadBelowScroll}
+              onClearUnread={clearUnreadBelowScroll}
+              onIncrementUnread={incrementUnreadBelowScroll}
+              className="h-full"
+              contentClassName="p-4 sm:p-5 gap-3"
+              emptyTitle={isGlobal ? 'Studio Support Desk' : 'No messages in this project yet'}
+              emptyDescription={
+                isGlobal
+                  ? 'No support messages yet. Inquiries sent by creators in the Studio Support Desk will appear here in real time.'
+                  : `Write a message below to coordinate deliverables, feedback, and milestones with ${
+                      activeProject?.channelName || activeProject?.clientName || 'the client'
+                    }.`
+              }
+              renderMessage={(msg) => (
+                <ChatMessageItem
+                  key={msg.id}
+                  message={msg}
+                  currentUserId={user?.id || 'admin'}
+                  viewerRole="admin"
+                  onPreviewAttachment={(att) => setPreviewAttachment(att)}
+                  onReply={(m) => {
+                    setEditingMessage(null);
+                    setReplyingTo({
+                      id: m.id,
+                      senderName: m.senderName,
+                      senderRole: m.senderRole,
+                      content: m.content,
+                    });
+                  }}
+                  onToggleLike={handleToggleLike}
+                  onStartEdit={handleStartEdit}
+                  onDelete={handleDeleteMessage}
+                />
+              )}
+            />
+          </div>
+
+          {/* 4. Admin Composer (Identical bg-card/90 container and reusable ChatInputBar) */}
+          <div className="px-4 py-3 border-t border-border/70 bg-card/90 shrink-0">
+            <ChatInputBar
+              onSendMessage={handleSendMessage}
+              replyingTo={replyingTo}
+              onCancelReply={() => setReplyingTo(null)}
+              editingMessage={editingMessage}
+              onCancelEdit={() => setEditingMessage(null)}
+              onSaveEdit={handleSaveEdit}
+              isGlobal={isGlobal}
+              projectId={targetProjectId || undefined}
+              activeProjectCode={isGlobal ? undefined : activeProject?.projectCode}
+              activeProjectName={
+                isGlobal ? undefined : activeProject?.channelName || activeProject?.packageName
+              }
+              viewerRole="admin"
             />
           </div>
         </div>
-
-        {/* Channels List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-border/50">
-          {/* General Inquiries channel */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveProjectId(GLOBAL_CHAT_ID);
-              setShowMobileThread(true);
-            }}
-            className={cn(
-              'w-full text-left p-3 transition-colors flex items-start gap-2.5 cursor-pointer',
-              isGlobal
-                ? 'bg-amber-400/15 border-l-2 border-amber-400'
-                : 'hover:bg-muted/50'
-            )}
-          >
-            <Avatar className="w-8 h-8 rounded-lg border border-border bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold text-xs shrink-0 mt-0.5">
-              <AvatarFallback>HQ</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-bold text-foreground truncate">
-                  Studio General Inquiries
-                </span>
-                <span className="text-2xs text-muted-foreground font-mono">Live</span>
-              </div>
-              <p className="text-2xs text-muted-foreground truncate mt-0.5">
-                Global pre-sales &amp; general studio discussion
-              </p>
-            </div>
-          </button>
-
-          {/* Project channels */}
-          {filteredProjects.map((p) => {
-            const isSelected = !isGlobal && projectId === p.id;
-            const unread = unreadCounts[p.id] || 0;
-
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => {
-                  setActiveProjectId(p.id);
-                  setShowMobileThread(true);
-                }}
-                className={cn(
-                  'w-full text-left p-3 transition-colors flex items-start gap-2.5 cursor-pointer',
-                  isSelected
-                    ? 'bg-amber-400/15 border-l-2 border-amber-400'
-                    : 'hover:bg-muted/50'
-                )}
-              >
-                <Avatar className="w-8 h-8 rounded-lg border border-border bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold text-xs shrink-0 mt-0.5">
-                  <AvatarFallback>
-                    {(p.channelName || p.clientName || 'C').slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-bold text-foreground truncate">
-                      {p.channelName || p.clientName}
-                    </span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {p.lastMessageAt && (
-                        <span className="text-3xs text-muted-foreground font-mono">
-                          {formatStudioDate(p.lastMessageAt)}
-                        </span>
-                      )}
-                      <span className="font-mono text-2xs text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-1 py-0.2 rounded border border-amber-400/30">
-                        {p.projectCode}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 mt-1">
-                    <span className="text-2xs text-muted-foreground truncate">
-                      {p.lastMessagePreview || `${p.clientName} · ${p.packageName}`}
-                    </span>
-
-                    {unread > 0 && (
-                      <Badge variant="gold" className="text-3xs px-1.5 py-0 h-4 font-bold shrink-0">
-                        {unread}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-
-          {filteredProjects.length === 0 && (
-            <div className="p-6 text-center text-xs text-muted-foreground">
-              No matching conversations
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* 2. Right Column: Active Thread & Direct Admin Composer    */}
-      {/* ========================================================= */}
-      <div className={cn(
-        "md:col-span-8 lg:col-span-8 flex flex-col min-h-0 bg-background",
-        !showMobileThread ? "hidden md:flex" : "flex"
-      )}>
-        {/* Active conversation header */}
-        <div className="p-3 sm:p-3.5 border-b border-border/80 bg-card/40 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => setShowMobileThread(false)}
-              className="md:hidden size-8 rounded-lg text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
-              aria-label="Back to conversations"
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Avatar className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg border border-border bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold text-xs shrink-0">
-              <AvatarFallback>
-                {clientDisplayName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-foreground truncate">
-                  {clientDisplayName}
-                </h3>
-                {activeProject && (
-                  <span className="font-mono text-xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/30 shrink-0">
-                    {activeProject.projectCode}
-                  </span>
-                )}
-              </div>
-              <p className="text-2xs text-muted-foreground truncate">
-                {activeProject
-                  ? `Client: ${activeProject.clientName} · ${activeProject.email} · ${activeProject.packageName}`
-                  : 'Broadcast channel with prospective creators'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {activeProject && (
-              <Badge variant="outline" className="text-xs font-medium hidden sm:inline-flex">
-                {getProjectStatusLabel(activeProject.status)}
-              </Badge>
-            )}
-            <div className="flex items-center gap-1 text-2xs text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shrink-0">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span className="hidden min-[420px]:inline">Admin Mode</span>
-              <span className="min-[420px]:hidden">Admin</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Message Thread */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {displayMessages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground space-y-2">
-              <MessageSquare className="w-8 h-8 text-muted-foreground/60" />
-              <p className="text-sm font-semibold text-foreground">No messages in this channel</p>
-              <p className="text-xs max-w-sm">
-                Write a message below to start coordinating deliverables and milestone feedback with {clientDisplayName}.
-              </p>
-            </div>
-          ) : (
-            displayMessages.map((msg) => (
-              <ChatMessageItem
-                key={msg.id}
-                message={msg}
-                currentUserId={user?.id || 'admin-sarah'}
-                onPreviewAttachment={() => {}}
-                onToggleLike={handleToggleLike}
-                onDelete={handleDeleteMessage}
-              />
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Direct Admin Reply Composer */}
-        <div className="p-3 sm:p-4 border-t border-border/80 bg-card/40 shrink-0">
-          <form onSubmit={handleSendReply} className="space-y-2">
-            <div className="relative rounded-xl border border-border/80 bg-background focus-within:border-amber-400/80 focus-within:ring-2 focus-within:ring-amber-400/20 transition-all p-2">
-              <Textarea
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={`Reply to ${clientDisplayName} as Studio Admin... (Press Enter to send, Shift+Enter for new line)`}
-                rows={2}
-                className="w-full resize-none border-0 bg-transparent text-xs p-1 focus-visible:ring-0 shadow-none text-foreground placeholder:text-muted-foreground"
-              />
-
-              <div className="flex items-center justify-between pt-1 border-t border-border/40">
-                <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
-                  <span className="font-semibold text-brand-text dark:text-amber-400">Replying as:</span>
-                  <span>Senior Creative Producer</span>
-                </div>
-
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!replyText.trim() || isSending}
-                  className="h-8 px-3 text-xs font-bold gap-1.5 rounded-lg bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground cursor-pointer shadow-xs shadow-amber-400/20"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send Reply</span>
-                </Button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+      {/* Attachment Preview Lightbox Modal */}
+      <ChatAttachmentModal
+        attachment={previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+      />
+    </>
   );
 }

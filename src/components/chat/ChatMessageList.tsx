@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { MessageSquareDashed, ArrowDown, Sparkles } from 'lucide-react';
+import { MessageSquareDashed, ArrowDown } from 'lucide-react';
 
-import { ChatMessage, useChatStore, GLOBAL_CHAT_ID } from '@/lib/chatStore';
+import { ChatMessage, useChatStore } from '@/lib/chatStore';
 import { cn } from '@/lib/utils';
 import {
   MessageScroller,
@@ -14,7 +14,6 @@ import {
   MessageScrollerViewport,
   useMessageScrollerScrollable,
 } from '@/components/ui/message-scroller';
-import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker';
 import { Spinner } from '@/components/ui/spinner';
 import {
   Empty,
@@ -26,16 +25,17 @@ import {
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
-  isTyping?: boolean;
-  agentName: string;
-  isGlobal?: boolean;
-  projectId?: string;
+  /** True while the first page of messages is loading from the server. */
+  isLoading?: boolean;
+  projectId: string;
   unreadCount?: number;
   onClearUnread?: () => void;
   onIncrementUnread?: () => void;
   renderMessage: (message: ChatMessage) => React.ReactNode;
   contentClassName?: string;
   className?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 /**
@@ -105,14 +105,11 @@ function ChatScrollWatcherAndPill({
 
 /**
  * Shared, reusable chat feed built on the official shadcn `MessageScroller`
- * (auto-follow, scroll-to-end button with floating unread pill), `Marker` typing status,
- * and `Empty` state.
+ * (auto-follow, scroll-to-end button with floating unread pill) and `Empty` state.
  */
 export function ChatMessageList({
   messages,
-  isTyping = false,
-  agentName,
-  isGlobal = false,
+  isLoading = false,
   projectId,
   unreadCount,
   onClearUnread,
@@ -120,32 +117,36 @@ export function ChatMessageList({
   renderMessage,
   contentClassName,
   className,
+  emptyTitle,
+  emptyDescription,
 }: ChatMessageListProps) {
-  const firstName = agentName.split(' ')[0];
-
-  const storeProjectId = useChatStore((s) => s.activeProjectId);
-  const effectiveProjectId = isGlobal ? GLOBAL_CHAT_ID : (projectId || storeProjectId);
-  const storeUnread = useChatStore((s) => s.unreadBelowScroll[effectiveProjectId] ?? 0);
+  const storeUnread = useChatStore((s) => s.unreadBelowScroll[projectId] ?? 0);
   const effectiveUnread = unreadCount ?? storeUnread;
-  const clearUnread = onClearUnread ?? (() => useChatStore.getState().clearUnreadBelowScroll(effectiveProjectId));
-  const incrementUnread = onIncrementUnread ?? (() => useChatStore.getState().incrementUnreadBelowScroll(effectiveProjectId));
+  const clearUnread = onClearUnread ?? (() => useChatStore.getState().clearUnreadBelowScroll(projectId));
+  const incrementUnread = onIncrementUnread ?? (() => useChatStore.getState().incrementUnreadBelowScroll(projectId));
 
   if (messages.length === 0) {
+    if (isLoading) {
+      return (
+        <div className="h-full flex items-center justify-center gap-2 text-xs text-muted-foreground" role="status">
+          <Spinner className="size-4 text-brand-text dark:text-amber-400" />
+          <span>Loading messages...</span>
+        </div>
+      );
+    }
+
     return (
       <Empty className="h-full border-0">
         <EmptyHeader>
           <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400">
             <MessageSquareDashed />
           </EmptyMedia>
-          <EmptyTitle className="text-sm">
-            {isGlobal
-              ? `This is your general conversation with ${firstName}.`
-              : 'This is your dedicated chat for this project.'}
-          </EmptyTitle>
+          <EmptyTitle className="text-sm">{emptyTitle || 'No messages yet'}</EmptyTitle>
           <EmptyDescription className="text-xs max-w-sm">
-            {isGlobal
-              ? 'You can ask about packages, credits, pricing, account questions, or new ideas.'
-              : 'Share references, ask about milestones, or discuss revisions with Sarah.'}
+            {emptyDescription ||
+              (projectId === 'global'
+                ? 'Message Sarah or the team about packages, credits, or your projects.'
+                : 'Drop references, ask questions, or leave feedback for the team.')}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -155,41 +156,13 @@ export function ChatMessageList({
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <MessageScroller className={className}>
-        <MessageScrollerViewport aria-label="Conversation with studio producer">
+        <MessageScrollerViewport aria-label="Project conversation">
           <MessageScrollerContent className={cn('gap-3 pb-4', contentClassName)}>
-            {/* Subtle Studio Welcome / Context Card when conversation is starting */}
-            {messages.length <= 3 && (
-              <MessageScrollerItem messageId="conversation-starter-intro">
-                <div className="py-2.5 px-3.5 rounded-xl bg-secondary/35 border border-border/60 text-center space-y-1 mx-auto max-w-sm my-1 animate-in fade-in duration-200">
-                  <div className="inline-flex items-center gap-1.5 text-2xs font-semibold text-brand-text dark:text-amber-400">
-                    <Sparkles className="size-3 text-brand-text dark:text-amber-400 shrink-0" />
-                    <span>{isGlobal ? 'Studio Advisory & Support' : 'Dedicated Project Workspace'}</span>
-                  </div>
-                  <p className="text-2xs text-muted-foreground leading-relaxed">
-                    {isGlobal
-                      ? 'Ask about packages, scope recommendations, credit rollovers, or custom requests.'
-                      : 'Share references, track milestones, or discuss production directly with Sarah Miller.'}
-                  </p>
-                </div>
-              </MessageScrollerItem>
-            )}
-
             {messages.map((msg) => (
               <MessageScrollerItem key={msg.id} messageId={msg.id}>
                 {renderMessage(msg)}
               </MessageScrollerItem>
             ))}
-
-            {isTyping && (
-              <MessageScrollerItem messageId="typing-indicator">
-                <Marker role="status" className="pl-10 text-xs">
-                  <MarkerIcon>
-                    <Spinner className="size-3.5 text-brand-text dark:text-amber-400" />
-                  </MarkerIcon>
-                  <MarkerContent className="shimmer font-medium">{firstName} is typing…</MarkerContent>
-                </Marker>
-              </MessageScrollerItem>
-            )}
           </MessageScrollerContent>
         </MessageScrollerViewport>
         <ChatScrollWatcherAndPill

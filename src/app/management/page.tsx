@@ -1,18 +1,32 @@
+import React, { Suspense } from 'react';
 import { requireAdmin } from '@/lib/auth';
-import { ManagementContent } from './ManagementContent';
+import { ManagementOverview } from './ManagementOverview';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Server-Enforced Agency Management Dashboard
- *
- * Guarantees zero client-side bypass:
- * - Requires verified authenticated Supabase session.
- * - Authoritatively asserts admin role in PostgreSQL `profiles` table.
- * - Redirects unauthenticated users to `/login?next=/management`.
- * - Redirects non-admin client accounts to `/projects`.
- */
 export default async function ManagementPage() {
   await requireAdmin();
-  return <ManagementContent />;
+
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-36 w-full rounded-xl" />
+            <Skeleton className="h-36 w-full rounded-xl" />
+            <Skeleton className="h-36 w-full rounded-xl" />
+          </div>
+        </div>
+      }
+    >
+      <ManagementOverview />
+    </Suspense>
+  );
 }

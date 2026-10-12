@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:turbo": "next dev",
-    "build": "next build --webpack",
-    "build:turbo": "next build --turbopack",
+    "build": "next build --turbopack",
+    "build:webpack": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test:hydration": "playwright test tests/hydration.spec.ts",

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ProjectRecord } from '@/types';
 import {
   Table,
@@ -88,9 +89,31 @@ export function AdminProjectsTable({
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlProjectId = searchParams.get('project');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
   const [draftStatus, setDraftStatus] = useState<ProjectRecord['status'] | null>(null);
   const [draftPayment, setDraftPayment] = useState<ProjectRecord['paymentStatus'] | null>(null);
+
+  useEffect(() => {
+    setSelectedProjectId(urlProjectId);
+  }, [urlProjectId]);
+
+  const handleSelectProject = useCallback((id: string | null) => {
+    setSelectedProjectId(id);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (id) {
+        params.set('project', id);
+      } else {
+        params.delete('project');
+      }
+      const query = params.toString();
+      const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [router]);
 
   // Debounce search query so server queries run cleanly
   useEffect(() => {
@@ -409,7 +432,7 @@ export function AdminProjectsTable({
               projects.map((p) => (
                 <TableRow
                   key={p.id}
-                  onClick={() => setSelectedProjectId(p.id)}
+                  onClick={() => handleSelectProject(p.id)}
                   className="cursor-pointer hover:bg-muted/40 transition-colors group"
                 >
                   {/* Code */}
@@ -477,7 +500,7 @@ export function AdminProjectsTable({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedProjectId(p.id);
+                        handleSelectProject(p.id);
                       }}
                       className="h-8 px-2.5 text-xs text-muted-foreground group-hover:text-foreground cursor-pointer gap-1"
                     >
@@ -530,7 +553,7 @@ export function AdminProjectsTable({
       )}
 
       {/* 3. Detail Drawer (Sheet) */}
-      <Sheet open={Boolean(selectedProject)} onOpenChange={(open) => !open && setSelectedProjectId(null)}>
+      <Sheet open={Boolean(selectedProject)} onOpenChange={(open) => !open && handleSelectProject(null)}>
         {selectedProject && (
           <SheetContent side="right" className="sm:max-w-md w-full p-0 flex flex-col h-full bg-card">
             {/* Drawer Header */}
@@ -766,7 +789,7 @@ export function AdminProjectsTable({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setSelectedProjectId(null)}
+                onClick={() => handleSelectProject(null)}
                 className="h-9 text-xs rounded-lg cursor-pointer"
               >
                 Close Drawer
@@ -779,7 +802,7 @@ export function AdminProjectsTable({
                   size="sm"
                   onClick={() => {
                     const id = selectedProject.id;
-                    setSelectedProjectId(null);
+                    handleSelectProject(null);
                     onOpenChat(id);
                   }}
                   className="h-9 text-xs font-bold gap-1.5 rounded-lg bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground cursor-pointer shadow-xs shadow-amber-400/20"
