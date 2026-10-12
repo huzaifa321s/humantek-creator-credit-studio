@@ -91,11 +91,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   const isAuthenticated = Boolean(user && user.email);
-  const isAdminPath = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
-  const isClientPath = CLIENT_ONLY_PATHS.some((p) => pathname.startsWith(p));
-  const isClientAuthPage = AUTH_PREFIXES.some((p) => pathname.startsWith(p));
-  const isAdminAuthPage = pathname === ADMIN_AUTH_PATH;
-  const isNewProjectPath = pathname.startsWith('/new-project');
+  const isAdminAuthPage = pathname === ADMIN_AUTH_PATH || pathname === `${ADMIN_AUTH_PATH}/`;
+  const isClientAuthPage = AUTH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const isAdminPath = !isAdminAuthPage && ADMIN_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const isClientPath = !isClientAuthPage && CLIENT_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const isNewProjectPath = pathname === '/new-project' || pathname.startsWith('/new-project/');
 
   // Handle Root Gateway ('/')
   if (pathname === '/') {
@@ -121,7 +121,7 @@ export async function updateSession(request: NextRequest) {
       }
       return NextResponse.redirect(redirectUrl);
     }
-    // /new-project is public for guests (steps 1–4)
+    // /new-project, /admin-login, and /login are public for guests
     return supabaseResponse;
   }
 
@@ -144,15 +144,15 @@ export async function updateSession(request: NextRequest) {
     if (isAdminPath) {
       return NextResponse.redirect(new URL('/projects', request.url));
     }
-    // Clients attempting to access admin login portal are redirected to client login
-    if (isAdminAuthPage) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
     // Clients visiting login/sign-in are redirected to their projects or target next
     if (isClientAuthPage) {
       const nextParam = request.nextUrl.searchParams.get('next');
       const target = sanitizeRedirectUrl(nextParam, '/projects');
       return NextResponse.redirect(new URL(target, request.url));
+    }
+    // Allow /admin-login so clients can elevate or switch to staff administrator credentials
+    if (isAdminAuthPage) {
+      return supabaseResponse;
     }
     return supabaseResponse;
   }

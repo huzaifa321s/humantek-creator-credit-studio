@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import type { ProjectRecord } from '@/types';
 import { ApiError } from '@/components/Providers';
 import { useUserStore, refreshUserSession } from '@/lib/userStore';
@@ -18,13 +18,31 @@ async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-/** Projects visible to the current user (admins see all). */
-export function useProjectsQuery(options?: { enabled?: boolean }) {
+export interface ProjectsResponse {
+  projects: ProjectRecord[];
+  totalCount: number;
+  counts: {
+    all: number;
+    active: number;
+    delivered: number;
+  };
+  hasMore: boolean;
+  nextCursor: string | null;
+  limit: number;
+}
+
+/** Projects visible to the current user (admins see all). Returns plain array for standard views. */
+export function useProjectsQuery(options?: { enabled?: boolean; status?: string; search?: string }) {
   return useQuery({
-    queryKey: projectKeys.all,
+    queryKey: ['projects', options?.status, options?.search],
     enabled: options?.enabled,
     queryFn: async () => {
-      const res = await fetch('/api/projects');
+      const params = new URLSearchParams();
+      if (options?.status && options.status !== 'all') params.set('status', options.status);
+      if (options?.search) params.set('search', options.search);
+      const url = params.toString() ? `/api/projects?${params.toString()}` : '/api/projects';
+
+      const res = await fetch(url);
       if (res.status === 401) {
         // Unauthenticated guest user has no project records
         return [];
@@ -42,6 +60,105 @@ export function useProjectsQuery(options?: { enabled?: boolean }) {
       return failureCount < 2;
     },
     // Show cached list instantly, but always revalidate on mount so new orders appear.
+    staleTime: 0,
+  });
+}
+
+/** Single project query for on-demand details (including selections & additions) */
+export function useProjectDetailQuery(projectId: string | null, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['projects', 'detail', projectId],
+    enabled: Boolean(projectId) && (options?.enabled ?? true),
+    queryFn: async () => {
+      if (!projectId) return null;
+      const res = await fetch(`/api/projects?id=${encodeURIComponent(projectId)}`);
+      if (res.status === 401 || res.status === 404) return null;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new ApiError((data as { error?: string }).error || `Request failed (${res.status})`, res.status);
+      }
+      return (data as { project?: ProjectRecord }).project || null;
+    },
+    staleTime: 60_000,
+  });
+}
+
+/** Client infinite cursor-based pagination query for My Projects */
+export function useInfiniteProjectsQuery(filters?: {
+  status?: string;
+  search?: string;
+  limit?: number;
+  summary?: boolean;
+}) {
+  const status = filters?.status;
+  const search = filters?.search;
+  const limit = filters?.limit ?? 20;
+  const summary = filters?.summary ?? true;
+
+  return useInfiniteQuery<ProjectsResponse, ApiError>({
+    queryKey: ['projects', 'infinite', { status, search, limit, summary }],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams();
+      params.set('limit', String(limit));
+      params.set('summary', String(summary));
+      if (status && status !== 'all') params.set('status', status);
+      if (search && search.trim()) params.set('search', search.trim());
+      if (pageParam && typeof pageParam === 'string') params.set('cursor', pageParam);
+
+      const res = await fetch(`/api/projects?${params.toString()}`);
+      if (res.status === 401) {
+        return {
+          projects: [],
+          totalCount: 0,
+          counts: { all: 0, active: 0, delivered: 0 },
+          hasMore: false,
+          nextCursor: null,
+          limit,
+        };
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new ApiError((data as { error?: string }).error || `Request failed (${res.status})`, res.status);
+      }
+      return data as ProjectsResponse;
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 0,
+  });
+}
+
+/** Admin management console query with server-side pagination (25/page), search, and filters */
+export function useAdminProjectsQuery(filters: {
+  page: number;
+  limit?: number;
+  status?: string;
+  paymentStatus?: string;
+  search?: string;
+}) {
+  const { page, limit = 25, status, paymentStatus, search } = filters;
+
+  return useQuery<ProjectsResponse, ApiError>({
+    queryKey: ['projects', 'admin', { page, limit, status, paymentStatus, search }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+      params.set('summary', 'true');
+      if (status && status !== 'all') params.set('status', status);
+      if (paymentStatus && paymentStatus !== 'all') params.set('paymentStatus', paymentStatus);
+      if (search && search.trim()) params.set('search', search.trim());
+
+      const res = await fetch(`/api/projects?${params.toString()}`);
+      if (res.status === 401 || res.status === 403) {
+        throw new ApiError('Unauthorized', res.status);
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new ApiError((data as { error?: string }).error || `Request failed (${res.status})`, res.status);
+      }
+      return data as ProjectsResponse;
+    },
     staleTime: 0,
   });
 }

@@ -18,47 +18,298 @@ import { PACKAGES, SERVICES } from '@/lib/catalog';
 
 
 
-/** Admins see every project; signed-in creators only see their own. */
-export async function GET() {
+import { clampLimit, decodeCursor, encodeCursor, PAGINATION_LIMITS } from '@/lib/pagination';
+
+/**
+ * Admins see every project; signed-in creators only see their own.
+ * Supports:
+ * - Single project retrieval: GET /api/projects?id=<projectId> (full details including selections & additions)
+ * - Keyset cursor pagination: GET /api/projects?cursor=<base64url>&limit=20
+ * - Server-side search & filtering: GET /api/projects?search=HT-8531&status=active
+ * - Lightweight summary-only responses: summary=true (default for lists)
+ */
+export async function GET(req: NextRequest) {
   const user = await getRequestUser();
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  // 1. Production / Real Supabase Path
+  const { searchParams } = new URL(req.url);
+  const singleId = searchParams.get('id');
+
+  // 1. Single Project Detail Mode (loads full project with selections & additions)
+  if (singleId) {
+    if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
+      try {
+        const adminClient = createAdminClient();
+        let query = adminClient
+          .from('projects')
+          .select('*, project_items(*), project_additions(*)')
+          .eq('id', singleId);
+
+        if (!user.isAdmin) {
+          query = query.eq('user_id', user.id);
+        }
+
+        const { data, error } = await query.maybeSingle();
+        if (error) {
+          console.error('Error fetching project detail:', error);
+          return NextResponse.json({ error: 'Failed to retrieve project' }, { status: 500 });
+        }
+        if (!data) {
+          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        }
+        return NextResponse.json({ project: formatDbProject(data) });
+      } catch (err) {
+        console.error('Single project query exception in GET /api/projects:', err);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+      }
+    }
+
+    const p = getProjectById(singleId);
+    if (!p) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+    if (!user.isAdmin && p.userId && p.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    return NextResponse.json({ project: p });
+  }
+
+  // 2. Paginated List Mode
+  const limitParam = searchParams.get('limit');
+  const cursorParam = searchParams.get('cursor');
+  const statusParam = searchParams.get('status') || 'all';
+  const paymentStatusParam = searchParams.get('paymentStatus') || 'all';
+  const searchParam = searchParams.get('search')?.trim() || '';
+  const summaryParam = searchParams.get('summary') !== 'false';
+  const pageParam = searchParams.get('page');
+
+  const defaultLimit = user.isAdmin ? PAGINATION_LIMITS.ADMIN_DEFAULT : PAGINATION_LIMITS.CLIENT_DEFAULT;
+  const maxLimit = user.isAdmin ? PAGINATION_LIMITS.ADMIN_MAX : PAGINATION_LIMITS.CLIENT_MAX;
+  const limit = clampLimit(limitParam, defaultLimit, maxLimit);
+  const cursor = decodeCursor(cursorParam);
+
+  // A. Production / Real Supabase Path
   if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
     try {
       const adminClient = createAdminClient();
-      let query = adminClient
-        .from('projects')
-        .select('*, project_items(*), project_additions(*)')
-        .order('created_at', { ascending: false });
 
+      // Aggregate tab counts: all, active, delivered
+      let statusQuery = adminClient.from('projects').select('status');
+      if (!user.isAdmin) {
+        statusQuery = statusQuery.eq('user_id', user.id);
+      }
+      const { data: statusRows } = await statusQuery;
+
+      let allCount = 0;
+      let activeCount = 0;
+      let deliveredCount = 0;
+      (statusRows || []).forEach((row) => {
+        allCount++;
+        if (row.status === 'delivered') deliveredCount++;
+        else if (row.status !== 'declined' && row.status !== 'cancelled') activeCount++;
+      });
+
+      // Build data query
+      let query = summaryParam
+        ? adminClient
+            .from('projects')
+            .select(
+              'id, user_id, project_code, package_id, package_name, package_price_usd, package_credits, total_credits, status, payment_status, payment_method, funding_source, applied_wallet_credits, client_name, channel_name, email, platform, style, colors, instructions, uploaded_files, last_message_at, last_message_preview, created_at',
+              { count: 'exact' }
+            )
+        : adminClient
+            .from('projects')
+            .select('*, project_items(*), project_additions(*)', { count: 'exact' });
+
+      // Tenant isolation: clients only see their own projects
       if (!user.isAdmin) {
         query = query.eq('user_id', user.id);
       }
 
-      const { data, error } = await query;
+      // Status filter
+      if (statusParam && statusParam !== 'all') {
+        if (statusParam === 'active') {
+          query = query.not('status', 'in', '("delivered","declined","cancelled")');
+        } else if (statusParam === 'delivered') {
+          query = query.eq('status', 'delivered');
+        } else {
+          query = query.eq('status', statusParam);
+        }
+      }
+
+      // Payment status filter (e.g. for admin)
+      if (paymentStatusParam && paymentStatusParam !== 'all') {
+        query = query.eq('payment_status', paymentStatusParam);
+      }
+
+      // Server-side search filter
+      if (searchParam) {
+        const sanitized = searchParam.replace(/[,()]/g, '');
+        const s = `%${sanitized}%`;
+        query = query.or(`project_code.ilike.${s},client_name.ilike.${s},channel_name.ilike.${s},package_name.ilike.${s}`);
+      }
+
+      // Keyset cursor or offset page
+      if (cursor) {
+        query = query.or(
+          `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`
+        );
+      } else if (pageParam && user.isAdmin) {
+        const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
+        const offset = (pageNum - 1) * limit;
+        query = query.range(offset, offset + limit - 1);
+      }
+
+      // Deterministic keyset ordering
+      query = query
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
+
+      if (!pageParam || !user.isAdmin) {
+        query = query.limit(limit + 1);
+      }
+
+      const { data, error, count } = await query;
       if (error) {
         console.error('Error retrieving projects from database:', error);
         return NextResponse.json({ error: 'Failed to retrieve projects' }, { status: 500 });
       }
 
-      const projects = (data || []).map(formatDbProject);
-      return NextResponse.json({ projects });
+      const rows: any[] = (data as any[]) || [];
+      let items = rows;
+      let hasMore = false;
+      let nextCursor: string | null = null;
+
+      if (!pageParam || !user.isAdmin) {
+        hasMore = rows.length > limit;
+        items = hasMore ? rows.slice(0, limit) : rows;
+        const lastRow = items[items.length - 1];
+        nextCursor =
+          hasMore && lastRow
+            ? encodeCursor({ createdAt: lastRow.created_at, id: lastRow.id })
+            : null;
+      } else {
+        const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
+        hasMore = pageNum * limit < (count ?? 0);
+      }
+
+      const projects = items.map(formatDbProject);
+      return NextResponse.json({
+        projects,
+        totalCount: count ?? projects.length,
+        counts: {
+          all: allCount,
+          active: activeCount,
+          delivered: deliveredCount,
+        },
+        hasMore,
+        nextCursor,
+        limit,
+      });
     } catch (err) {
       console.error('Database query exception in GET /api/projects:', err);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   }
 
-  // 2. Dev Mock Fallback
-  const all = getProjects();
-  const projects = user.isAdmin
-    ? all
-    : all.filter((p) => (p.userId ? p.userId === user.id : false));
+  // B. Dev Mock Fallback
+  let all = getProjects();
+  if (!user.isAdmin) {
+    all = all.filter((p) => (p.userId ? p.userId === user.id : false));
+  }
 
-  return NextResponse.json({ projects });
+  let allCount = 0;
+  let activeCount = 0;
+  let deliveredCount = 0;
+  all.forEach((p) => {
+    allCount++;
+    if (p.status === 'delivered') deliveredCount++;
+    else if (p.status !== 'declined' && p.status !== 'cancelled') activeCount++;
+  });
+
+  let filtered = all;
+  if (statusParam && statusParam !== 'all') {
+    if (statusParam === 'active') {
+      filtered = filtered.filter((p) => p.status !== 'delivered' && p.status !== 'declined' && p.status !== 'cancelled');
+    } else if (statusParam === 'delivered') {
+      filtered = filtered.filter((p) => p.status === 'delivered');
+    } else {
+      filtered = filtered.filter((p) => p.status === statusParam);
+    }
+  }
+
+  if (paymentStatusParam && paymentStatusParam !== 'all') {
+    filtered = filtered.filter((p) => p.paymentStatus === paymentStatusParam);
+  }
+
+  if (searchParam) {
+    const q = searchParam.toLowerCase();
+    filtered = filtered.filter((p) =>
+      p.projectCode.toLowerCase().includes(q) ||
+      p.clientName.toLowerCase().includes(q) ||
+      (p.channelName && p.channelName.toLowerCase().includes(q)) ||
+      p.packageName.toLowerCase().includes(q) ||
+      (p.email && p.email.toLowerCase().includes(q))
+    );
+  }
+
+  filtered.sort((a, b) => {
+    const tA = new Date(a.createdAt).getTime();
+    const tB = new Date(b.createdAt).getTime();
+    if (tB !== tA) return tB - tA;
+    return (b.id || '').localeCompare(a.id || '');
+  });
+
+  const totalCount = filtered.length;
+  let sliced = filtered;
+
+  if (cursor) {
+    const idx = filtered.findIndex((p) => {
+      const tP = new Date(p.createdAt).getTime();
+      const tC = new Date(cursor.createdAt).getTime();
+      if (tP < tC) return true;
+      if (tP === tC) return (p.id || '') < cursor.id;
+      return false;
+    });
+    sliced = idx >= 0 ? filtered.slice(idx) : [];
+  } else if (pageParam && user.isAdmin) {
+    const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
+    const offset = (pageNum - 1) * limit;
+    sliced = filtered.slice(offset, offset + limit);
+  }
+
+  let hasMore = false;
+  let items = sliced;
+  let nextCursor: string | null = null;
+
+  if (!pageParam || !user.isAdmin) {
+    hasMore = sliced.length > limit;
+    items = hasMore ? sliced.slice(0, limit) : sliced;
+    const last = items[items.length - 1];
+    nextCursor = hasMore && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null;
+  } else {
+    const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
+    hasMore = pageNum * limit < totalCount;
+  }
+
+  const projects = summaryParam
+    ? items.map((p) => ({ ...p, selections: [], additions: [] }))
+    : items;
+
+  return NextResponse.json({
+    projects,
+    totalCount,
+    counts: {
+      all: allCount,
+      active: activeCount,
+      delivered: deliveredCount,
+    },
+    hasMore,
+    nextCursor,
+    limit,
+  });
 }
 
 /**

@@ -47,6 +47,7 @@ import {
   AlertCircle,
   FolderOpen,
   ChevronRight,
+  ChevronLeft,
   ShieldCheck,
   CreditCard,
   FileText,
@@ -61,9 +62,10 @@ import {
   getProjectStatusLabel,
   getPaymentStatusLabel,
 } from '@/lib/utils';
+import { useAdminProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
 
 interface AdminProjectsTableProps {
-  projects: ProjectRecord[];
+  projects?: ProjectRecord[];
   isLoading?: boolean;
   onOpenChat?: (projectId: string) => void;
   onUpdateStatus: (
@@ -75,21 +77,56 @@ interface AdminProjectsTableProps {
 }
 
 export function AdminProjectsTable({
-  projects,
-  isLoading = false,
+  projects: fallbackProjects,
+  isLoading: fallbackLoading = false,
   onOpenChat,
   onUpdateStatus,
   isUpdatingId = null,
 }: AdminProjectsTableProps) {
+  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<ProjectRecord['status'] | null>(null);
   const [draftPayment, setDraftPayment] = useState<ProjectRecord['paymentStatus'] | null>(null);
 
+  // Debounce search query so server queries run cleanly
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const adminQuery = useAdminProjectsQuery({
+    page,
+    limit: 25,
+    status: statusFilter,
+    paymentStatus: paymentFilter,
+    search: debouncedSearch,
+  });
+
+  const projects = adminQuery.data?.projects ?? fallbackProjects ?? [];
+  const totalCount = adminQuery.data?.totalCount ?? projects.length;
+  const isLoading = adminQuery.isPending || fallbackLoading;
+  const totalPages = Math.max(1, Math.ceil(totalCount / 25));
+
+  const fromIndex = totalCount === 0 ? 0 : (page - 1) * 25 + 1;
+  const toIndex = Math.min(page * 25, totalCount);
+
+  // Load detailed single project when opened in drawer (for deliverables & additions)
+  const detailQuery = useProjectDetailQuery(selectedProjectId);
+
   const selectedProject = useMemo(() => {
+    if (!selectedProjectId) return null;
+    if (detailQuery.data && detailQuery.data.id === selectedProjectId) {
+      return detailQuery.data;
+    }
     return projects.find((p) => p.id === selectedProjectId) || null;
-  }, [projects, selectedProjectId]);
+  }, [projects, selectedProjectId, detailQuery.data]);
 
   useEffect(() => {
     if (selectedProject) {
@@ -123,25 +160,12 @@ export function AdminProjectsTable({
     setDraftPayment(selectedProject.paymentStatus);
   };
 
-  const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        p.projectCode.toLowerCase().includes(q) ||
-        p.clientName.toLowerCase().includes(q) ||
-        (p.channelName && p.channelName.toLowerCase().includes(q)) ||
-        p.email.toLowerCase().includes(q) ||
-        p.packageName.toLowerCase().includes(q);
-
-      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [projects, searchQuery, statusFilter]);
-
   const resetFilters = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setStatusFilter('all');
+    setPaymentFilter('all');
+    setPage(1);
   };
 
   const getStatusBadge = (status: ProjectRecord['status']) => {
@@ -226,7 +250,7 @@ export function AdminProjectsTable({
       {/* 1. Unified Back-Office Toolbar matching Ledger */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
         <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-2 min-w-0">
-          <div className="relative flex-1 sm:max-w-sm">
+          <div className="relative flex-1 sm:max-w-xs">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               type="text"
@@ -239,14 +263,17 @@ export function AdminProjectsTable({
 
           <Select
             value={statusFilter}
-            onValueChange={(val) => setStatusFilter((val as string) || 'all')}
+            onValueChange={(val) => {
+              setStatusFilter((val as string) || 'all');
+              setPage(1);
+            }}
           >
-            <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[170px] rounded-lg border-border/80">
-              <SelectValue placeholder="All Projects" />
+            <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[155px] rounded-lg border-border/80">
+              <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all" className="text-xs">
-                All Projects ({projects.length})
+                All Statuses
               </SelectItem>
               <SelectItem value="pending_review" className="text-xs">
                 Pending Review
@@ -268,15 +295,41 @@ export function AdminProjectsTable({
               </SelectItem>
             </SelectContent>
           </Select>
+
+          <Select
+            value={paymentFilter}
+            onValueChange={(val) => {
+              setPaymentFilter((val as string) || 'all');
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[140px] rounded-lg border-border/80">
+              <SelectValue placeholder="All Payments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">
+                All Payments
+              </SelectItem>
+              <SelectItem value="paid" className="text-xs">
+                Paid
+              </SelectItem>
+              <SelectItem value="unpaid" className="text-xs">
+                Unpaid
+              </SelectItem>
+              <SelectItem value="refunded" className="text-xs">
+                Refunded
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex items-center gap-3 justify-between md:justify-end shrink-0">
           <span className="text-xs text-muted-foreground font-medium">
-            Showing <b className="text-foreground">{filteredProjects.length}</b>{' '}
-            {filteredProjects.length === 1 ? 'project' : 'projects'}
+            Showing <b className="text-foreground">{fromIndex}–{toIndex}</b> of{' '}
+            <b className="text-foreground">{totalCount}</b> projects
           </span>
 
-          {(searchQuery || statusFilter !== 'all') && (
+          {(searchQuery || statusFilter !== 'all' || paymentFilter !== 'all') && (
             <Button
               type="button"
               variant="ghost"
@@ -336,7 +389,7 @@ export function AdminProjectsTable({
                   <TableCell className="p-4 text-right"><Skeleton className="h-8 w-16 ml-auto rounded-md" /></TableCell>
                 </TableRow>
               ))
-            ) : filteredProjects.length === 0 ? (
+            ) : projects.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="p-0">
                   <Empty className="p-10 bg-transparent">
@@ -353,7 +406,7 @@ export function AdminProjectsTable({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProjects.map((p) => (
+              projects.map((p) => (
                 <TableRow
                   key={p.id}
                   onClick={() => setSelectedProjectId(p.id)}
@@ -438,6 +491,43 @@ export function AdminProjectsTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Footer Bar */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
+          <div className="text-xs text-muted-foreground font-medium">
+            Showing <b className="text-foreground">{fromIndex}</b> to <b className="text-foreground">{toIndex}</b> of{' '}
+            <b className="text-foreground">{totalCount}</b> projects
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="h-8 px-3 text-xs font-semibold cursor-pointer gap-1"
+            >
+              <ChevronLeft className="size-3.5" />
+              <span>Previous</span>
+            </Button>
+            <span className="text-xs font-medium font-mono tabular-nums px-2">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="h-8 px-3 text-xs font-semibold cursor-pointer gap-1"
+            >
+              <span>Next</span>
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* 3. Detail Drawer (Sheet) */}
       <Sheet open={Boolean(selectedProject)} onOpenChange={(open) => !open && setSelectedProjectId(null)}>

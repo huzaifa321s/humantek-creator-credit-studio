@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ProjectRecord } from '@/types';
@@ -12,7 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditValue } from '@/components/ui/credit-value';
 import { cn, formatStudioDate } from '@/lib/utils';
-import { Package, Search, MessageSquare, Sparkles } from 'lucide-react';
+import {
+  Package,
+  Search,
+  MessageSquare,
+  Sparkles,
+  ChevronDown,
+  CheckCircle2,
+  Loader2,
+} from 'lucide-react';
 import { useStudioChat } from '@/lib/chatStore';
 import { ProjectPipelineStepper } from '@/components/ProjectPipelineStepper';
 import {
@@ -23,7 +31,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { useProjectsQuery } from '@/lib/queries/projects';
+import {
+  useInfiniteProjectsQuery,
+  useProjectDetailQuery,
+} from '@/lib/queries/projects';
 import { ChatGate } from '@/components/chat/ChatGate';
 
 function ProjectCardChatButton({ projectId }: { projectId: string }) {
@@ -56,35 +67,218 @@ function ProjectCardChatButton({ projectId }: { projectId: string }) {
   );
 }
 
-const EMPTY_PROJECTS: ProjectRecord[] = [];
+/**
+ * Sleek compact expandable row for delivered/older projects.
+ * Avoids 500px card bloat while keeping all history and deliverables accessible on 1 click.
+ */
+function CompactProjectRow({
+  project,
+  isExpanded,
+  onToggle,
+}: {
+  project: ProjectRecord;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const detailQuery = useProjectDetailQuery(isExpanded ? project.id : null);
+  const effectiveProject = detailQuery.data || project;
+  const selections = effectiveProject.selections || [];
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs transition-all hover:border-amber-400/40">
+      {/* Clickable Header Row */}
+      <div
+        onClick={onToggle}
+        className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none bg-card hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <Badge
+            variant="outline"
+            size="sm"
+            className="font-mono tabular-nums text-brand-text dark:text-amber-300 bg-amber-400/10 border-amber-400/30 font-bold shrink-0"
+          >
+            {project.projectCode}
+          </Badge>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-foreground truncate">
+              {project.channelName || project.packageName}
+            </h3>
+            <p className="text-2xs text-muted-foreground truncate">
+              {project.packageName} · {formatStudioDate(project.createdAt)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t border-border/40 sm:border-t-0">
+          <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1">
+            <CheckCircle2 className="size-3" />
+            <span>Delivered</span>
+          </Badge>
+
+          {project.usedCredits > 0 && (
+            <CreditValue value={project.usedCredits} size="xs" variant="pill" />
+          )}
+
+          <div className="flex items-center gap-1.5 ml-1">
+            <div onClick={(e) => e.stopPropagation()}>
+              <ProjectCardChatButton projectId={project.id} />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="text-muted-foreground hover:text-foreground cursor-pointer rounded-md"
+              aria-label={isExpanded ? 'Collapse project details' : 'Expand project details'}
+            >
+              <ChevronDown
+                className={cn('size-4 transition-transform duration-200', isExpanded && 'rotate-180')}
+              />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded Details Body */}
+      {isExpanded && (
+        <div className="border-t border-border/60 bg-secondary/15 p-4 sm:p-5 space-y-4 animate-in fade-in duration-200">
+          {/* Stepper */}
+          <div>
+            <p className="text-2xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+              Delivery Completion Pipeline
+            </p>
+            <ProjectPipelineStepper
+              status={project.status}
+              createdAt={project.createdAt}
+              projectCode={project.projectCode}
+            />
+          </div>
+
+          {/* Details Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border/50 text-xs">
+            <div>
+              <span className="text-muted-foreground text-2xs block font-bold uppercase tracking-wider mb-0.5">
+                Aesthetic Style
+              </span>
+              <b className="font-semibold text-foreground truncate block">
+                {project.style || 'Custom Art'}
+              </b>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-2xs block font-bold uppercase tracking-wider mb-0.5">
+                Color Palette
+              </span>
+              <b className="font-semibold text-foreground truncate block">
+                {project.colors || 'Brand Colors'}
+              </b>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-2xs block font-bold uppercase tracking-wider mb-0.5">
+                Target Platform
+              </span>
+              <b className="font-semibold text-foreground truncate block">
+                {project.platform || 'General'}
+              </b>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-2xs block font-bold uppercase tracking-wider mb-0.5">
+                Delivered Date
+              </span>
+              <b className="font-semibold font-mono tabular-nums text-foreground">
+                {formatStudioDate(project.createdAt)}
+              </b>
+            </div>
+          </div>
+
+          {/* Deliverables */}
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground">
+                Deliverable Assets
+              </span>
+              <span className="text-2xs text-muted-foreground font-mono">
+                {selections.length} items
+              </span>
+            </div>
+            {detailQuery.isPending ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-full rounded-md" />
+                <Skeleton className="h-7 w-full rounded-md" />
+              </div>
+            ) : selections.length > 0 ? (
+              <div className="divide-y divide-border/50 rounded-lg border border-border/60 bg-card/60 text-xs overflow-hidden">
+                {selections.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-1.5 gap-2">
+                    <span className="font-medium text-foreground truncate">
+                      {item.name} × {item.quantity}
+                    </span>
+                    <span className="font-semibold text-brand-text dark:text-amber-400 font-mono tabular-nums shrink-0">
+                      {item.credits} CR
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-2xs text-muted-foreground">
+                All completed package assets delivered directly to studio inbox.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProjectsPage() {
-  const projectsQuery = useProjectsQuery();
-  const projects = projectsQuery.data ?? EMPTY_PROJECTS;
-  const isLoading = projectsQuery.isPending;
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'delivered'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const hasAutoSwitchedTab = useRef(false);
 
-  const filteredProjects = projects.filter((p) => {
-    const matchesTab =
-      activeTab === 'all' ||
-      (activeTab === 'delivered' && p.status === 'delivered') ||
-      (activeTab === 'active' && p.status !== 'delivered' && p.status !== 'declined');
+  // Debounce search query so server-side search is fast and responsive
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-    const matchesSearch =
-      searchQuery.trim() === '' ||
-      p.projectCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.channelName && p.channelName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      p.packageName.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesTab && matchesSearch;
+  const infiniteQuery = useInfiniteProjectsQuery({
+    status: activeTab,
+    search: debouncedSearch,
+    limit: 20,
+    summary: true,
   });
 
-  const activeCount = projects.filter(
-    (p) => p.status !== 'delivered' && p.status !== 'declined'
-  ).length;
-  const deliveredCount = projects.filter((p) => p.status === 'delivered').length;
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = infiniteQuery;
+
+  // Flatten projects across all loaded cursor pages
+  const allProjects = useMemo(() => {
+    return data?.pages.flatMap((page) => page.projects) || [];
+  }, [data]);
+
+  const counts = data?.pages[0]?.counts || { all: 0, active: 0, delivered: 0 };
+  const totalCount = counts.all;
+  const activeCount = counts.active;
+  const deliveredCount = counts.delivered;
+
+  // If client has 10+ projects, default initial tab to 'active' (In Progress) while keeping Delivered tab visible
+  useEffect(() => {
+    if (!hasAutoSwitchedTab.current && totalCount >= 10) {
+      hasAutoSwitchedTab.current = true;
+      setActiveTab('active');
+    }
+  }, [totalCount]);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <StudioCardLayout
@@ -114,21 +308,21 @@ export default function ProjectsPage() {
         </div>
 
         {/* Filter Bar with Tabs and Search — only shown when client has more than 3 projects */}
-        {projects.length > 3 && (
+        {totalCount > 3 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <FilterTabs
               value={activeTab}
-              onValueChange={setActiveTab}
+              onValueChange={(val) => setActiveTab(val as 'all' | 'active' | 'delivered')}
               size="sm"
               tabs={[
-                { value: 'all', label: 'All', count: projects.length },
+                { value: 'all', label: 'All', count: totalCount },
                 { value: 'active', label: 'In Progress', count: activeCount },
                 { value: 'delivered', label: 'Delivered', count: deliveredCount },
               ]}
             />
 
             <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <Input
                 placeholder="Search by code, brand, or package..."
                 value={searchQuery}
@@ -156,7 +350,7 @@ export default function ProjectsPage() {
               </Card>
             ))}
           </div>
-        ) : projects.length === 0 ? (
+        ) : totalCount === 0 ? (
           <Empty className="rounded-xl border border-dashed border-border bg-card/80 p-12 sm:p-14 shadow-xs">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -179,7 +373,7 @@ export default function ProjectsPage() {
               </Button>
             </EmptyContent>
           </Empty>
-        ) : filteredProjects.length === 0 ? (
+        ) : allProjects.length === 0 ? (
           <Empty className="rounded-xl border border-dashed border-border bg-card/80 p-12 sm:p-14 shadow-xs">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -207,7 +401,22 @@ export default function ProjectsPage() {
           </Empty>
         ) : (
           <div className="space-y-4">
-            {filteredProjects.map((proj) => {
+            {allProjects.map((proj) => {
+              const isDeliveredOrOlder = proj.status === 'delivered' || proj.status === 'declined' || proj.status === 'cancelled';
+
+              // When client has > 3 projects, render delivered/older projects as sleek compact expandable rows
+              if (totalCount > 3 && isDeliveredOrOlder) {
+                return (
+                  <CompactProjectRow
+                    key={proj.id}
+                    project={proj}
+                    isExpanded={expandedIds.has(proj.id)}
+                    onToggle={() => toggleExpanded(proj.id)}
+                  />
+                );
+              }
+
+              // In-progress projects (or all projects when <= 3) render as full cards
               return (
                 <Card
                   key={proj.id}
@@ -323,10 +532,10 @@ export default function ProjectsPage() {
 
                     {/* Summary Details */}
                     <div className={cn(
-                      "p-4 sm:p-6 grid gap-3 sm:gap-4 border-t border-border/60",
+                      'p-4 sm:p-6 grid gap-3 sm:gap-4 border-t border-border/60',
                       proj.platform && proj.platform.toLowerCase() !== 'general'
-                        ? "grid-cols-2 sm:grid-cols-4"
-                        : "grid-cols-1 sm:grid-cols-3"
+                        ? 'grid-cols-2 sm:grid-cols-4'
+                        : 'grid-cols-1 sm:grid-cols-3'
                     )}>
                       <div className="min-w-0">
                         <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Aesthetic Style</span>
@@ -379,6 +588,32 @@ export default function ProjectsPage() {
                 </Card>
               );
             })}
+
+            {/* Load More Button for Keyset Cursor pagination (No page numbers) */}
+            {hasNextPage && (
+              <div className="pt-4 flex flex-col items-center gap-2">
+                <p className="text-2xs text-muted-foreground font-medium">
+                  Showing {allProjects.length} of {totalCount} projects
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isFetchingNextPage}
+                  onClick={() => fetchNextPage()}
+                  className="h-9 px-5 text-xs font-semibold gap-2 border-border/80 bg-card hover:bg-muted cursor-pointer"
+                >
+                  {isFetchingNextPage ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      <span>Loading more projects...</span>
+                    </>
+                  ) : (
+                    <span>Load More Projects</span>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
