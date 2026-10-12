@@ -1746,8 +1746,16 @@ export default function CreatorStudioPage() {
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
-              <div className="text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5 sm:mb-1">
-                2 OF 5 · PICK YOUR SERVICES
+              <div className="flex items-center justify-between gap-2 mb-0.5 sm:mb-1">
+                <div className="text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  2 OF 5 · PICK YOUR SERVICES
+                </div>
+                {/* Mobile Available Budget Badge (visible in header before and during service selection) */}
+                <div className="sm:hidden inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-400/10 dark:bg-amber-400/15 border border-amber-400/30 text-2xs font-semibold text-brand-text dark:text-amber-300">
+                  <Coins className="size-3 text-amber-500 dark:text-amber-400" />
+                  <span className="font-mono font-bold">{totalUsableCredits.toLocaleString('en-US')} CR</span>
+                  <span className="text-muted-foreground/80 font-normal">available</span>
+                </div>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <h1
@@ -1785,57 +1793,59 @@ export default function CreatorStudioPage() {
             </div>
           </div>
 
-          {/* Compact Sticky Cart & Budget Summary Bar (Permanently visible on mobile screens) */}
-          <div className="lg:hidden sticky top-[53px] sm:top-[61px] z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-background/95 backdrop-blur-md border-b border-border/70 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setMobileScopeOpen(true)}
-              className="w-full flex items-center justify-between gap-2.5 p-2 sm:p-2.5 px-3 rounded-xl bg-card hover:bg-secondary/60 border border-border/80 text-foreground transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
-            >
-              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                <div
-                  className={cn(
-                    'size-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs',
-                    remainingCredits < 0
-                      ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                      : 'bg-amber-400/20 text-brand-text dark:text-amber-400'
-                  )}
-                >
-                  <Coins className="size-4" />
-                </div>
-                <div className="min-w-0 flex flex-col justify-center text-left">
-                  <div className="text-xs truncate flex items-center gap-1.5 font-semibold text-foreground leading-tight">
-                    <span className="font-bold">
-                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'}
-                    </span>
-                    <span className="text-muted-foreground/40">·</span>
-                    <span className="font-mono tabular-nums text-foreground/80">
-                      {usedCredits.toLocaleString('en-US')} CR
-                    </span>
+          {/* Compact Sticky Cart & Budget Summary Bar (Slides in on mobile when 1+ services selected) */}
+          {selectedEntries.length > 0 && (
+            <div className="lg:hidden sticky top-[53px] sm:top-[61px] z-30 -mx-3 sm:-mx-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-background/95 backdrop-blur-md border-b border-border/70 shadow-2xs animate-in slide-in-from-top-2 fade-in duration-200">
+              <button
+                type="button"
+                onClick={() => setMobileScopeOpen(true)}
+                className="w-full flex items-center justify-between gap-2.5 p-2 sm:p-2.5 px-3 rounded-xl bg-card hover:bg-secondary/60 border border-border/80 text-foreground transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                  <div
+                    className={cn(
+                      'size-7 rounded-lg flex items-center justify-center shrink-0 shadow-2xs',
+                      remainingCredits < 0
+                        ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                        : 'bg-amber-400/20 text-brand-text dark:text-amber-400'
+                    )}
+                  >
+                    <Coins className="size-4" />
                   </div>
-                  <div className="text-2xs leading-tight mt-0.5">
-                    <span
-                      className={cn(
-                        'font-mono font-bold tabular-nums',
-                        remainingCredits >= 0
-                          ? 'text-brand-text dark:text-amber-400'
-                          : 'text-destructive font-black'
-                      )}
-                    >
-                      {remainingCredits >= 0
-                        ? `${remainingCredits.toLocaleString('en-US')} CR left`
-                        : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
-                    </span>
+                  <div className="min-w-0 flex flex-col justify-center text-left">
+                    <div className="text-xs truncate flex items-center gap-1.5 font-semibold text-foreground leading-tight">
+                      <span className="font-bold">
+                        {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'}
+                      </span>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span className="font-mono tabular-nums text-foreground/80">
+                        {usedCredits.toLocaleString('en-US')} CR
+                      </span>
+                    </div>
+                    <div className="text-2xs leading-tight mt-0.5">
+                      <span
+                        className={cn(
+                          'font-mono font-bold tabular-nums',
+                          remainingCredits >= 0
+                            ? 'text-brand-text dark:text-amber-400'
+                            : 'text-destructive font-black'
+                        )}
+                      >
+                        {remainingCredits >= 0
+                          ? `${remainingCredits.toLocaleString('en-US')} CR left`
+                          : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-1 text-2xs sm:text-xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/35 px-2 sm:px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs">
-                <span>View Cart</span>
-                <ChevronRight className="w-3 h-3 text-brand-text dark:text-amber-400" />
-              </div>
-            </button>
-          </div>
+                <div className="flex items-center gap-1 text-2xs sm:text-xs font-bold text-brand-text dark:text-amber-300 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/35 px-2 sm:px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-2xs">
+                  <span>View Cart</span>
+                  <ChevronRight className="w-3 h-3 text-brand-text dark:text-amber-400" />
+                </div>
+              </button>
+            </div>
+          )}
 
           {isWalletFunding && remainingCredits < 0 && (
             <Alert variant="warning" className="rounded-xl border-amber-400/35 bg-amber-400/[0.08]">
