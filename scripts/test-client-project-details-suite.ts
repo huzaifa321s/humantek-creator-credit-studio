@@ -450,18 +450,23 @@ async function runSuite() {
         hasTouch: true,
       });
 
+      // Inject authenticated cookie directly into browser context
+      const cookieList = aliceCookie.split('; ').map((c) => {
+        const [name, ...rest] = c.split('=');
+        return {
+          name,
+          value: rest.join('='),
+          domain: 'localhost',
+          path: '/',
+        };
+      });
+      await context.addCookies(cookieList);
+
       const page = await context.newPage();
 
-      // Log in as Alice in browser session
-      await page.goto(`${BASE_URL}/login`);
-      await page.fill('input[type="email"]', aliceEmail);
-      await page.fill('input[type="password"]', testPass);
-      await page.click('button[type="submit"]');
-      await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-
-      // Navigate to /projects?project=[aliceProjId]
+      // Navigate directly to /projects?project=[aliceProjId]
       console.log(`  9a. Opening mobile URL: /projects?project=${aliceProjId}`);
-      await page.goto(`${BASE_URL}/projects?project=${aliceProjId}`, { waitUntil: 'networkidle' });
+      await page.goto(`${BASE_URL}/projects?project=${aliceProjId}`, { waitUntil: 'load' });
 
       // Verify drawer opened automatically via query parameter
       const drawerVisible = await page.waitForSelector('[role="dialog"]', { timeout: 8000 }).then(() => true).catch(() => false);
