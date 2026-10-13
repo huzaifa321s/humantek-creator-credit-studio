@@ -1,3 +1,5 @@
+import type { PayPalOrderDetails } from '@/lib/paypal-order-details';
+
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 const PAYPAL_API_URL = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
@@ -58,7 +60,8 @@ export async function getPayPalAccessToken(): Promise<string> {
 export async function createPayPalOrder(
   amountUSD: number,
   customId?: string,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  details?: PayPalOrderDetails
 ): Promise<{ id: string; status: string }> {
   if (isPayPalMockMode()) {
     assertMockAllowed();
@@ -68,6 +71,7 @@ export async function createPayPalOrder(
     };
   }
 
+  const value = amountUSD.toFixed(2);
   const accessToken = await getPayPalAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -85,13 +89,31 @@ export async function createPayPalOrder(
       purchase_units: [
         {
           custom_id: customId,
-          description: 'Humantek Art Creator Credits Package',
+          invoice_id: details?.invoiceId,
+          description: details?.description || 'Humantek Art Creator Credits Package',
           amount: {
             currency_code: 'USD',
-            value: amountUSD.toFixed(2),
+            value,
+            ...(details && { breakdown: { item_total: { currency_code: 'USD', value } } }),
           },
+          ...(details && {
+            items: [
+              {
+                name: details.item.name,
+                description: details.item.description,
+                sku: details.item.sku,
+                quantity: '1',
+                category: 'DIGITAL_GOODS',
+                unit_amount: { currency_code: 'USD', value },
+              },
+            ],
+          }),
         },
       ],
+      application_context: {
+        brand_name: 'Humantek Art',
+        shipping_preference: 'NO_SHIPPING',
+      },
     }),
     cache: 'no-store',
   });
