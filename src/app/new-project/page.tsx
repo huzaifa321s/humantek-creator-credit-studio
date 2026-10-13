@@ -22,7 +22,7 @@ import {
 } from '@/types';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { useStepFocus, getStepAnnouncement } from '@/hooks/useStepNavigation';
-import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { useUnsavedChangesWarning, bypassUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { ScopeGuideModal } from '@/components/ScopeGuideModal';
 import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
@@ -1228,6 +1228,7 @@ export default function CreatorStudioPage() {
       toast.error(`Insufficient credits. You need ${usedCredits} CR but only have ${userBalance} CR.`);
       return;
     }
+    bypassUnsavedChangesWarning(true);
     setIsSubmitting(true);
     setErrorMessage('');
     setSubmissionError(null);
@@ -1265,6 +1266,7 @@ export default function CreatorStudioPage() {
 
       await completeCheckout(data?.project ?? null);
     } catch (err: unknown) {
+      bypassUnsavedChangesWarning(false);
       const msg = err instanceof Error ? err.message : 'Submission failed';
       setErrorMessage(msg);
       toast.error(msg);

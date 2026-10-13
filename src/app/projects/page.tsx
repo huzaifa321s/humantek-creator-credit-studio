@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ProjectRecord } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -21,9 +22,13 @@ import {
   ChevronDown,
   CheckCircle2,
   Loader2,
+  FileText,
+  Clock,
+  Paperclip,
 } from 'lucide-react';
 import { useStudioChat } from '@/lib/chatStore';
 import { ProjectPipelineStepper } from '@/components/ProjectPipelineStepper';
+import { ClientProjectDetailsDrawer } from '@/components/projects/ClientProjectDetailsDrawer';
 import {
   Empty,
   EmptyContent,
@@ -78,10 +83,12 @@ function CompactProjectRow({
   project,
   isExpanded,
   onToggle,
+  onOpenDetails,
 }: {
   project: ProjectRecord;
   isExpanded: boolean;
   onToggle: () => void;
+  onOpenDetails: () => void;
 }) {
   const detailQuery = useProjectDetailQuery(isExpanded ? project.id : null);
   const effectiveProject = detailQuery.data || project;
@@ -241,6 +248,23 @@ function CompactProjectRow({
               </p>
             )}
           </div>
+
+          {/* Action Bar */}
+          <div className="pt-2 flex items-center justify-end gap-2 border-t border-border/50">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenDetails();
+              }}
+              className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
+            >
+              <FileText className="size-3.5 text-brand-text dark:text-amber-400" />
+              <span>View details</span>
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -248,6 +272,33 @@ function CompactProjectRow({
 }
 
 export default function ProjectsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlProjectId = searchParams.get('project');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
+
+  useEffect(() => {
+    setSelectedProjectId(urlProjectId);
+  }, [urlProjectId]);
+
+  const handleSelectProject = useCallback(
+    (id: string | null) => {
+      setSelectedProjectId(id);
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (id) {
+          params.set('project', id);
+        } else {
+          params.delete('project');
+        }
+        const query = params.toString();
+        const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+        router.replace(newUrl, { scroll: false });
+      }
+    },
+    [router]
+  );
+
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'delivered'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -437,6 +488,7 @@ export default function ProjectsPage() {
                     project={proj}
                     isExpanded={expandedIds.has(proj.id)}
                     onToggle={() => toggleExpanded(proj.id)}
+                    onOpenDetails={() => handleSelectProject(proj.id)}
                   />
                 );
               }
@@ -538,6 +590,16 @@ export default function ProjectsPage() {
                       </div>
                       <div className="flex items-center md:justify-end gap-2 w-full md:w-auto">
                         <ProjectCardChatButton projectId={proj.id} />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSelectProject(proj.id)}
+                          className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer w-full md:w-auto justify-center"
+                        >
+                          <FileText className="size-3.5 text-brand-text dark:text-amber-400" />
+                          <span>View details</span>
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -553,6 +615,36 @@ export default function ProjectsPage() {
                         createdAt={proj.createdAt}
                         projectCode={proj.projectCode}
                       />
+                    </div>
+
+                    {/* What Happens Next status line & indicators */}
+                    <div className="px-4 sm:px-6 py-2.5 bg-muted/20 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Clock className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                        <p className="text-muted-foreground truncate">
+                          <b className="text-foreground font-semibold">Next step:</b>{' '}
+                          {proj.status === 'pending_review' && 'Studio lead review in progress (expected 2–4h)'}
+                          {proj.status === 'payment_confirmed' && 'Queued for artist assignment'}
+                          {proj.status === 'in_production' && 'Draft concepts in illustration and rendering'}
+                          {proj.status === 'review_round' && 'Review your draft assets and share feedback'}
+                          {proj.status === 'delivered' && 'All final project files completed and delivered'}
+                          {!['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(proj.status) && 'Project update will appear here'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        {proj.uploadedFiles && proj.uploadedFiles.length > 0 && (
+                          <span className="flex items-center gap-1 font-mono text-2xs text-muted-foreground" title={`${proj.uploadedFiles.length} reference images attached`}>
+                            <Paperclip className="size-3 text-brand-text dark:text-amber-400" />
+                            <span>{proj.uploadedFiles.length} refs</span>
+                          </span>
+                        )}
+                        {proj.additions && proj.additions.some((a: string) => /rush|express|24h/i.test(a)) && (
+                          <span className="flex items-center gap-1 text-2xs text-amber-500 font-semibold" title="Express turnaround">
+                            <Sparkles className="size-3" />
+                            <span>Express</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Summary Details */}
@@ -645,6 +737,12 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {/* URL-Addressable Client Project Details Drawer */}
+      <ClientProjectDetailsDrawer
+        projectId={selectedProjectId}
+        onClose={() => handleSelectProject(null)}
+      />
     </StudioCardLayout>
   );
 }

@@ -183,6 +183,24 @@ export const redeemCodeSchema = z
   ])
   .default('');
 
+export const referenceLinkSchema = z
+  .string()
+  .trim()
+  .refine((url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, 'Only HTTP and HTTPS links are allowed (no javascript: or data: URLs)')
+  .max(1000, 'Link URL must be under 1,000 characters');
+
+export const referenceLinksSchema = z
+  .array(referenceLinkSchema)
+  .max(10, 'You can attach up to 10 reference links')
+  .default([]);
+
 const referenceFilesSchema = z
   .array(uploadedFileSchema)
   .max(REFERENCE_LIMITS.maxFiles, `You can attach up to ${REFERENCE_LIMITS.maxFiles} reference images`)
@@ -191,6 +209,7 @@ const referenceFilesSchema = z
 export const projectBriefSchema = briefFieldsSchema.extend({
   redeemCode: redeemCodeSchema,
   uploadedFiles: referenceFilesSchema,
+  referenceLinks: referenceLinksSchema,
 });
 
 /** Full order: catalog identifiers + creative brief (all mandatory brief fields enforced). */

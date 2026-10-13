@@ -14,6 +14,7 @@ import { useUserStore, StudioUser } from '@/lib/userStore';
 import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
+import { bypassUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 
 export type AuthFormMode = 'signin' | 'signup' | 'otp';
 
@@ -106,6 +107,8 @@ export function AuthForm({
 
   // Handle Google OAuth Sign In
   const handleGoogleSignIn = async () => {
+    // Explicitly bypass beforeunload warning so browser does not prompt when redirecting to Google OAuth
+    bypassUnsavedChangesWarning(true);
     try {
       setIsLoading(true);
       setErrorMsg('');
@@ -144,6 +147,7 @@ export function AuthForm({
         throw error;
       }
     } catch (err: unknown) {
+      bypassUnsavedChangesWarning(false);
       const msg = err instanceof Error ? err.message : 'Failed to connect with Google.';
       setErrorMsg(msg);
       setIsLoading(false);
@@ -400,6 +404,7 @@ export function AuthForm({
                 type="button"
                 variant="outline"
                 size="lg"
+                data-auth-google="true"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
                 className="w-full flex items-center justify-center gap-2.5 h-10 border-border/80 bg-background/50 hover:bg-muted font-medium text-xs sm:text-sm transition-colors cursor-pointer"
@@ -527,6 +532,7 @@ export function AuthForm({
                 type="button"
                 variant="outline"
                 size="lg"
+                data-auth-google="true"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
                 className="w-full flex items-center justify-center gap-2.5 h-10 border-border/80 bg-background/50 hover:bg-muted font-medium text-xs sm:text-sm transition-colors cursor-pointer"

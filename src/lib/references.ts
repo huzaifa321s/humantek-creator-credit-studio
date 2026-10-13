@@ -262,7 +262,8 @@ export async function verifyReferenceFiles(
 /** Adds short-lived signed view URLs. Legacy records without a storagePath are returned unchanged. */
 export async function signReferenceFiles(
   admin: SupabaseClient,
-  files: UploadedFile[] | undefined
+  files: UploadedFile[] | undefined,
+  ttlSeconds: number = SIGNED_VIEW_TTL_SECONDS
 ): Promise<UploadedFile[]> {
   const list = Array.isArray(files) ? files : [];
   const paths = list.map((f) => f.storagePath).filter((p): p is string => Boolean(p));
@@ -270,7 +271,7 @@ export async function signReferenceFiles(
 
   const { data, error } = await admin.storage
     .from(REFERENCE_LIMITS.bucket)
-    .createSignedUrls(paths, SIGNED_VIEW_TTL_SECONDS);
+    .createSignedUrls(paths, ttlSeconds);
 
   if (error || !data) {
     console.error('Could not sign reference images:', error);

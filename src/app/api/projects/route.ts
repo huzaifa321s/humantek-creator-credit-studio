@@ -14,6 +14,7 @@ import {
 } from '@/lib/store';
 import { computeOrderQuote } from '@/lib/pricing';
 import { buildProjectRecord, formatDbProject } from '@/lib/orders';
+import { serializeClientProject, serializeAdminProject } from '@/lib/serializers/project';
 import { PACKAGES, SERVICES } from '@/lib/catalog';
 import { attachProjectReferences, signReferenceFiles, verifyReferenceFiles } from '@/lib/references';
 import {
@@ -70,12 +71,13 @@ export async function GET(req: NextRequest) {
           console.error('Error fetching project detail:', error);
           return NextResponse.json({ error: 'Failed to retrieve project' }, { status: 500 });
         }
-        if (!data) {
-          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        if (Array.isArray(data.uploaded_files) && data.uploaded_files.length > 0) {
+          data.uploaded_files = await signReferenceFiles(createAdminClient(), data.uploaded_files, 900);
         }
-        const project = formatDbProject(data);
-        project.uploadedFiles = await signReferenceFiles(createAdminClient(), project.uploadedFiles);
-        return NextResponse.json({ project });
+        const serialized = user.isAdmin
+          ? serializeAdminProject(data)
+          : serializeClientProject(data);
+        return NextResponse.json({ project: serialized });
       } catch (err) {
         console.error('Single project query exception in GET /api/projects:', err);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -87,9 +89,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
     if (!user.isAdmin && p.userId && p.userId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
-    return NextResponse.json({ project: p });
+    const serialized = user.isAdmin ? serializeAdminProject(p) : serializeClientProject(p);
+    return NextResponse.json({ project: serialized });
   }
 
   // 2. Paginated List Mode
@@ -549,6 +552,7 @@ export async function POST(req: NextRequest) {
             colors: parsed.data.colors || '',
             instructions: parsed.data.instructions || '',
             uploaded_files: verifiedReferences,
+            reference_links: parsed.data.referenceLinks || [],
             idempotency_key: parsed.data.projectId,
           })
           .select('*, project_items(*), project_additions(*)')
