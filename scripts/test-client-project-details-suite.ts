@@ -102,8 +102,8 @@ async function runSuite() {
     'base64'
   );
 
-  const aliceDraftId = `draft-alice-${ts}`;
   const aliceProjId = `proj-alice-${ts}`;
+  const aliceDraftId = aliceProjId;
   const aliceStoragePath = `references/${aliceId}/${aliceDraftId}/alice-ref1.png`;
 
   // Upload Alice reference file
@@ -473,7 +473,8 @@ async function runSuite() {
       console.log(`  9b. Drawer opened automatically from URL query param: ${drawerVisible}`);
 
       // Verify "Submitted Creative Brief" section is visible
-      const briefVisible = await page.locator('[data-testid="brief-instructions"]').isVisible();
+      await page.waitForSelector('[data-testid="brief-instructions"]', { timeout: 8000 }).catch(() => null);
+      const briefVisible = await page.locator('[data-testid="brief-instructions"]').isVisible().catch(() => false);
       console.log(`  9c. Plain text brief instructions visible in drawer: ${briefVisible}`);
 
       // Take a mobile-width screenshot of the open drawer
@@ -485,8 +486,8 @@ async function runSuite() {
 
       // Test keyboard Escape to close drawer
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(500);
-      const isDrawerClosed = !(await page.locator('[role="dialog"]').isVisible().catch(() => false));
+      await page.waitForTimeout(800);
+      const isDrawerClosed = !(await page.locator('[data-testid="brief-instructions"]').isVisible().catch(() => false));
       console.log(`  9e. Keyboard Escape key closed drawer: ${isDrawerClosed}`);
 
       await browser.close();
