@@ -172,7 +172,7 @@ export function PayPalButtonWrapper({
   useEffect(() => {
     if (isPlaceholderClientId) return;
     let cancelled = false;
-    fetch('/api/paypal/config')
+    fetch('/api/paypal/config', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { mode: 'client' }))
       .catch(() => ({ mode: 'client' }))
       .then((data: { mode?: string }) => {

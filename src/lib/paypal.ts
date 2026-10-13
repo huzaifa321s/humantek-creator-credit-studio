@@ -9,7 +9,10 @@ const PAYPAL_CLIENT_ID = CONFIGURED_PAYPAL_CLIENT_ID;
 const RAW_PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
 // Treat the .env.example placeholder as "no secret" (client-id-only checkout).
 const PAYPAL_CLIENT_SECRET = RAW_PAYPAL_CLIENT_SECRET.startsWith('your-') ? '' : RAW_PAYPAL_CLIENT_SECRET;
-const PAYPAL_API_URL = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
+// Live API in production (the default client id is a live one), sandbox elsewhere.
+const PAYPAL_API_URL =
+  (process.env.PAYPAL_API_URL || '').trim() ||
+  (process.env.NODE_ENV === 'production' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com');
 const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || '';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -17,6 +20,31 @@ const isProduction = process.env.NODE_ENV === 'production';
 /** True when no real PayPal credentials are configured. */
 export function isPayPalMockMode(): boolean {
   return !PAYPAL_CLIENT_SECRET || PAYPAL_CLIENT_ID === 'sb';
+}
+
+let serverCheckoutCheck: { ok: boolean; expiresAt: number } | null = null;
+
+/**
+ * True when the server can really talk to PayPal (client id + secret are valid for PAYPAL_API_URL).
+ * A wrong or mismatched secret falls back to the client-id-only checkout instead of breaking it.
+ * The result is cached (10 min on success, 1 min on failure).
+ */
+export async function canUseServerCheckout(): Promise<boolean> {
+  if (isPayPalMockMode()) return false;
+  if (serverCheckoutCheck && serverCheckoutCheck.expiresAt > Date.now()) return serverCheckoutCheck.ok;
+  let ok = false;
+  try {
+    await getPayPalAccessToken();
+    ok = true;
+  } catch (err) {
+    console.error(
+      `[PayPal] Server credentials rejected by ${PAYPAL_API_URL}; using client-side checkout. ` +
+        'Check PAYPAL_CLIENT_SECRET matches the client id and PAYPAL_API_URL (live vs sandbox).',
+      err
+    );
+  }
+  serverCheckoutCheck = { ok, expiresAt: Date.now() + (ok ? 10 * 60_000 : 60_000) };
+  return ok;
 }
 
 /**
