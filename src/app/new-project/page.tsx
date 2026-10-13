@@ -28,7 +28,11 @@ import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
 import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
-import { PayPalButtonWrapper } from '@/components/PayPalButtonWrapper';
+import {
+  HumantekartPayPalCheckout,
+  isPayPalSdkConfigured,
+  type HumantekartPaymentResult,
+} from '@/components/HumantekartPayPalCheckout';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { ClientOnly } from '@/components/ClientOnly';
 import { FieldError } from '@/components/ui/field-error';
@@ -1173,7 +1177,29 @@ export default function CreatorStudioPage() {
     }
   };
 
-  const handleSubmitForReview = async () => {
+  const handleSubmitForReview = () => submitProjectBrief();
+
+  /**
+   * Called after the client-side PayPal / Apple Pay capture succeeds. The project is registered
+   * for studio review with the PayPal transaction attached to the brief so the team can verify
+   * the payment in the PayPal dashboard and activate production.
+   */
+  const handleHumantekartPaid = (payment: HumantekartPaymentResult) => {
+    bypassUnsavedChangesWarning(true);
+    const paymentNote = [
+      `[PAYMENT RECEIVED via ${payment.method === 'applepay' ? 'Apple Pay' : 'PayPal'}]`,
+      `Amount: $${payment.amount} USD`,
+      `PayPal Order ID: ${payment.orderId}`,
+      payment.captureId ? `Capture ID: ${payment.captureId}` : '',
+      payment.status ? `Status: ${payment.status}` : '',
+      payment.payerEmail ? `Payer: ${payment.payerEmail}` : '',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    void submitProjectBrief(paymentNote);
+  };
+
+  const submitProjectBrief = async (paymentNote?: string) => {
     if (!user?.email) {
       setShowAuthModal(true);
       return;
@@ -1203,7 +1229,9 @@ export default function CreatorStudioPage() {
         platform,
         style,
         colors,
-        instructions,
+        instructions: paymentNote
+          ? `${paymentNote}\n\n${instructions}`.slice(0, BRIEF_LIMITS.instructions.max)
+          : instructions,
         redeemCode: redeemCodeAttached ? redeemCodeInput : '',
         uploadedFiles,
         paymentStatus: 'unpaid',
@@ -1215,6 +1243,9 @@ export default function CreatorStudioPage() {
       let msg = err instanceof Error ? err.message : 'Submission failed';
       if (msg.includes('Authentication required') || msg.includes('401')) {
         msg = 'Please sign in to submit your project brief for studio review.';
+      }
+      if (paymentNote) {
+        msg = `Your payment was received, but we couldn't register the brief (${msg}). Please contact us with these details: ${paymentNote}`;
       }
       setErrorMessage(msg);
       toast.error(msg);
@@ -1527,15 +1558,7 @@ export default function CreatorStudioPage() {
                   loading={isSubmitting}
                   loadingText="Submitting order..."
                   onClick={() => {
-                    const rawClientId = (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '').trim();
-                    const isOffline =
-                      !rawClientId ||
-                      rawClientId === 'sb' ||
-                      rawClientId === 'your-paypal-client-id' ||
-                      rawClientId.includes('your-') ||
-                      rawClientId === 'placeholder' ||
-                      rawClientId.length < 10;
-                    if (isOffline) {
+                    if (!isPayPalSdkConfigured()) {
                       handleSubmitForReview();
                     } else {
                       document.getElementById('studio-checkout-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -4160,46 +4183,34 @@ export default function CreatorStudioPage() {
                             </div>
                           )}
 
-                          <PayPalButtonWrapper
-                            packageId={currentPackage.id}
-                            packagePrice={currentPackage.price}
-                            projectPayload={{
+                          <HumantekartPayPalCheckout
+                            order={{
                               projectId,
-                              packageId: currentPackage.id,
-                              fundingSource: appliedWalletCredits > 0 ? 'hybrid' : 'package',
-                              walletBalance: userBalance,
-                              applyWalletCredits: effectiveApplyWallet,
+                              packageName: currentPackage.name,
+                              packagePrice: currentPackage.price,
+                              packageCredits: currentPackage.credits,
+                              totalUsableCredits,
+                              usedCredits,
                               appliedWalletCredits,
-                              selections: selectedEntries.map((e) => ({
-                                id: e.service.id,
-                                name: e.service.name,
-                                level: e.choice.level,
-                                quantity: e.choice.quantity,
-                                credits: e.credits,
+                              deliverables: selectedEntries.map(({ service, choice, credits }) => ({
+                                name: service.name,
+                                scope: service.quoteOnly ? 'Custom Scope' : `${TIER_NAMES[choice.level]} × ${choice.quantity}`,
+                                credits: service.quoteOnly ? null : credits,
                               })),
                               additions,
                               channelName,
                               platform,
-                              style,
-                              colors,
-                              instructions,
-                              redeemCode: redeemCodeAttached ? redeemCodeInput : '',
-                              uploadedFiles,
+                              promoCode: redeemCodeAttached ? redeemCodeInput : undefined,
+                              customerName:
+                                user.name && user.name.trim().toLowerCase() !== 'client' && user.name.trim().toLowerCase() !== 'creator'
+                                  ? user.name
+                                  : user.email.split('@')[0],
+                              customerEmail: user.email,
                             }}
-                            onSuccess={(proj) => {
-                              if (proj && proj.id) {
-                                void completeCheckout(proj);
-                              } else {
-                                // PayPal succeeded and credits deposited in wallet; launch project via wallet
-                                handleLaunchWithWallet();
-                              }
-                            }}
+                            onPaid={handleHumantekartPaid}
                             onError={(err) => {
-                              const sanitized = err.includes('undefined') || err.includes('reading') || err.includes('null')
-                                ? 'Payment was received, but brief creation took longer than usual. Your credits are stored in your Studio Wallet.'
-                                : err;
-                              setErrorMessage(sanitized);
-                              toast.error(sanitized);
+                              setErrorMessage(err);
+                              toast.error(err);
                             }}
                           />
 
