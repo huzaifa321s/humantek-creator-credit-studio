@@ -1,19 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons, FUNDING, usePayPalScriptReducer } from '@paypal/react-paypal-js';
+import type { CreateOrderActions, OnApproveActions } from '@paypal/paypal-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, AlertCircle } from 'lucide-react';
 import { ProjectRecord } from '@/types';
 import { useUserStore } from '@/lib/userStore';
 import { projectKeys } from '@/lib/queries/projects';
 import { walletKeys } from '@/lib/queries/wallet';
+import {
+  buildPayPalOrderDetails,
+  buildPurchaseUnit,
+  PAYPAL_APPLICATION_CONTEXT,
+} from '@/lib/paypal-order-details';
+
+/** Payment captured in the browser (client-id-only checkout); verified by the studio in PayPal. */
+export interface ClientCapturedPayment {
+  orderId: string;
+  captureId: string | null;
+  status: string;
+  amount: string;
+  payerEmail: string | null;
+}
 
 interface PayPalButtonWrapperProps {
   packageId: string;
   packagePrice: number;
+  packageName: string;
+  packageCredits: number;
+  customer: { name: string; email: string };
   projectPayload: Record<string, unknown>;
   onSuccess: (project: ProjectRecord | null) => void;
+  /** Client-id-only mode: called after the browser captured the payment. */
+  onClientCaptured: (payment: ClientCapturedPayment) => void;
   onError: (msg: string) => void;
 }
 
@@ -96,6 +116,19 @@ function PayPalButtonsContent({
         />
       </div>
 
+      {/* Venmo (renders only for eligible US buyers) */}
+      <div className="rounded-lg overflow-hidden empty:hidden">
+        <PayPalButtons
+          style={{
+            layout: 'vertical',
+            color: 'blue',
+            shape: 'rect',
+            height: 44,
+          }}
+          {...createCommonButtonProps(FUNDING.VENMO)}
+        />
+      </div>
+
       {/* Debit or Credit Card (Crisp Black/Dark Charcoal) */}
       <div className="rounded-lg overflow-hidden">
         <PayPalButtons
@@ -114,13 +147,18 @@ function PayPalButtonsContent({
 
 export function PayPalButtonWrapper({
   packageId,
-  packagePrice: _packagePrice,
+  packagePrice,
+  packageName,
+  packageCredits,
+  customer,
   projectPayload,
   onSuccess,
+  onClientCaptured,
   onError,
 }: PayPalButtonWrapperProps) {
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [mode, setMode] = useState<'server' | 'client' | null>(null);
   const rawClientId = (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '').trim();
   const isPlaceholderClientId =
     !rawClientId ||
@@ -130,6 +168,57 @@ export function PayPalButtonWrapper({
     rawClientId === 'placeholder' ||
     rawClientId.length < 10;
   const clientId = rawClientId;
+
+  useEffect(() => {
+    if (isPlaceholderClientId) return;
+    let cancelled = false;
+    fetch('/api/paypal/config')
+      .then((res) => (res.ok ? res.json() : { mode: 'client' }))
+      .catch(() => ({ mode: 'client' }))
+      .then((data: { mode?: string }) => {
+        if (!cancelled) setMode(data.mode === 'server' ? 'server' : 'client');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPlaceholderClientId]);
+
+  const projectRef = typeof projectPayload.projectId === 'string' ? projectPayload.projectId : packageId;
+
+  /** Client-id-only: PayPal JS SDK creates the order with the package details attached. */
+  const createClientOrder = (actions: CreateOrderActions) =>
+    actions.order.create({
+      intent: 'CAPTURE',
+      purchase_units: [
+        buildPurchaseUnit(
+          packagePrice,
+          `${projectRef}|${customer.email}`.slice(0, 127),
+          buildPayPalOrderDetails({
+            internalOrderId: projectRef,
+            package: { name: packageName, credits: packageCredits },
+            customer,
+            body: { ...projectPayload, packageId },
+          })
+        ),
+      ],
+      application_context: PAYPAL_APPLICATION_CONTEXT,
+    } as Parameters<CreateOrderActions['order']['create']>[0]);
+
+  const captureClientOrder = async (actions: OnApproveActions): Promise<ClientCapturedPayment> => {
+    if (!actions.order) throw new Error('PayPal checkout was interrupted');
+    const data = await actions.order.capture();
+    const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
+    if (capture?.status !== 'COMPLETED' && data.status !== 'COMPLETED') {
+      throw new Error(`PayPal payment was not completed (status: ${capture?.status ?? data.status})`);
+    }
+    return {
+      orderId: data.id ?? '',
+      captureId: capture?.id ?? null,
+      status: capture?.status ?? data.status ?? 'COMPLETED',
+      amount: capture?.amount?.value ?? packagePrice.toFixed(2),
+      payerEmail: data.payer?.email_address ?? null,
+    };
+  };
 
   /** Server validates + prices the full order and returns a PayPal order id. */
   const createOrder = async (): Promise<string> => {
@@ -168,17 +257,21 @@ export function PayPalButtonWrapper({
   const createCommonButtonProps = (fundingSource: (typeof FUNDING)[keyof typeof FUNDING]) => ({
     fundingSource,
     disabled: isProcessing,
-    createOrder: async () => {
+    createOrder: async (_data: unknown, actions: CreateOrderActions) => {
       setIsProcessing(true);
       try {
-        return await createOrder();
+        return mode === 'client' ? await createClientOrder(actions) : await createOrder();
       } catch (err) {
         setIsProcessing(false);
         throw err;
       }
     },
-    onApprove: async (data: { orderID: string }) => {
+    onApprove: async (data: { orderID: string }, actions: OnApproveActions) => {
       try {
+        if (mode === 'client') {
+          onClientCaptured(await captureClientOrder(actions));
+          return;
+        }
         const project = await captureOrder(data.orderID);
         onSuccess(project);
       } catch (err: unknown) {
@@ -231,9 +324,15 @@ export function PayPalButtonWrapper({
             clientId: clientId,
             currency: 'USD',
             intent: 'capture',
+            enableFunding: 'venmo',
+            components: 'buttons',
           }}
         >
-          <PayPalButtonsContent createCommonButtonProps={createCommonButtonProps} />
+          {mode ? (
+            <PayPalButtonsContent createCommonButtonProps={createCommonButtonProps} />
+          ) : (
+            <PaymentButtonsSkeleton />
+          )}
         </PayPalScriptProvider>
       </div>
 

@@ -1,7 +1,13 @@
-import type { PayPalOrderDetails } from '@/lib/paypal-order-details';
+import {
+  buildPurchaseUnit,
+  PAYPAL_APPLICATION_CONTEXT,
+  type PayPalOrderDetails,
+} from '@/lib/paypal-order-details';
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
-const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
+const RAW_PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
+// Treat the .env.example placeholder as "no secret" (client-id-only checkout).
+const PAYPAL_CLIENT_SECRET = RAW_PAYPAL_CLIENT_SECRET.startsWith('your-') ? '' : RAW_PAYPAL_CLIENT_SECRET;
 const PAYPAL_API_URL = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
 const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || '';
 
@@ -71,7 +77,6 @@ export async function createPayPalOrder(
     };
   }
 
-  const value = amountUSD.toFixed(2);
   const accessToken = await getPayPalAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -86,34 +91,8 @@ export async function createPayPalOrder(
     headers,
     body: JSON.stringify({
       intent: 'CAPTURE',
-      purchase_units: [
-        {
-          custom_id: customId,
-          invoice_id: details?.invoiceId,
-          description: details?.description || 'Humantek Art Creator Credits Package',
-          amount: {
-            currency_code: 'USD',
-            value,
-            ...(details && { breakdown: { item_total: { currency_code: 'USD', value } } }),
-          },
-          ...(details && {
-            items: [
-              {
-                name: details.item.name,
-                description: details.item.description,
-                sku: details.item.sku,
-                quantity: '1',
-                category: 'DIGITAL_GOODS',
-                unit_amount: { currency_code: 'USD', value },
-              },
-            ],
-          }),
-        },
-      ],
-      application_context: {
-        brand_name: 'Humantek Art',
-        shipping_preference: 'NO_SHIPPING',
-      },
+      purchase_units: [buildPurchaseUnit(amountUSD, customId, details)],
+      application_context: PAYPAL_APPLICATION_CONTEXT,
     }),
     cache: 'no-store',
   });

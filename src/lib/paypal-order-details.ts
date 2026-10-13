@@ -13,6 +13,7 @@ export interface PayPalOrderDetails {
 }
 
 export interface PayPalOrderDetailsInput {
+  /** Unique reference for this payment (internal order id, or project id in client-only checkout). */
   internalOrderId: string;
   package: { name: string; credits: number };
   customer: { name: string; email: string };
@@ -74,3 +75,35 @@ export function buildPayPalOrderDetails({
     invoiceId: clip(`HT-${internalOrderId}`),
   };
 }
+
+/** Orders v2 purchase unit carrying the package details as an itemised line. */
+export function buildPurchaseUnit(amountUSD: number, customId: string | undefined, details?: PayPalOrderDetails) {
+  const value = amountUSD.toFixed(2);
+  return {
+    custom_id: customId,
+    invoice_id: details?.invoiceId,
+    description: details?.description || 'Humantek Art Creator Credits Package',
+    amount: {
+      currency_code: 'USD',
+      value,
+      ...(details && { breakdown: { item_total: { currency_code: 'USD', value } } }),
+    },
+    ...(details && {
+      items: [
+        {
+          name: details.item.name,
+          description: details.item.description,
+          sku: details.item.sku,
+          quantity: '1',
+          category: 'DIGITAL_GOODS',
+          unit_amount: { currency_code: 'USD', value },
+        },
+      ],
+    }),
+  };
+}
+
+export const PAYPAL_APPLICATION_CONTEXT = {
+  brand_name: 'Humantek Art',
+  shipping_preference: 'NO_SHIPPING',
+} as const;

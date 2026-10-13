@@ -28,7 +28,7 @@ import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
 import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
-import { PayPalButtonWrapper } from '@/components/PayPalButtonWrapper';
+import { PayPalButtonWrapper, type ClientCapturedPayment } from '@/components/PayPalButtonWrapper';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { ClientOnly } from '@/components/ClientOnly';
 import { FieldError } from '@/components/ui/field-error';
@@ -1173,7 +1173,30 @@ export default function CreatorStudioPage() {
     }
   };
 
-  const handleSubmitForReview = async () => {
+  const handleSubmitForReview = () => submitProjectBrief();
+
+  /**
+   * Client-id-only PayPal checkout: the browser captured the payment, so register the brief for
+   * studio review with the PayPal transaction attached. The studio verifies it in PayPal and
+   * marks the project paid.
+   */
+  const handleClientCapturedPayment = (payment: ClientCapturedPayment) => {
+    bypassUnsavedChangesWarning(true);
+    toast.success('Thank you for your payment!', { description: 'Payment Successful' });
+    const paymentNote = [
+      '[PAYMENT RECEIVED via PayPal]',
+      `Amount: $${payment.amount} USD`,
+      `PayPal Order ID: ${payment.orderId}`,
+      payment.captureId ? `Capture ID: ${payment.captureId}` : '',
+      `Status: ${payment.status}`,
+      payment.payerEmail ? `Payer: ${payment.payerEmail}` : '',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    void submitProjectBrief(paymentNote);
+  };
+
+  const submitProjectBrief = async (paymentNote?: string) => {
     if (!user?.email) {
       setShowAuthModal(true);
       return;
@@ -1203,7 +1226,9 @@ export default function CreatorStudioPage() {
         platform,
         style,
         colors,
-        instructions,
+        instructions: paymentNote
+          ? `${paymentNote}\n\n${instructions}`.slice(0, BRIEF_LIMITS.instructions.max)
+          : instructions,
         redeemCode: redeemCodeAttached ? redeemCodeInput : '',
         uploadedFiles,
         paymentStatus: 'unpaid',
@@ -1215,6 +1240,9 @@ export default function CreatorStudioPage() {
       let msg = err instanceof Error ? err.message : 'Submission failed';
       if (msg.includes('Authentication required') || msg.includes('401')) {
         msg = 'Please sign in to submit your project brief for studio review.';
+      }
+      if (paymentNote) {
+        msg = `Your payment was received, but we couldn't register the brief (${msg}). Please contact us with these details: ${paymentNote}`;
       }
       setErrorMessage(msg);
       toast.error(msg);
@@ -4163,6 +4191,16 @@ export default function CreatorStudioPage() {
                           <PayPalButtonWrapper
                             packageId={currentPackage.id}
                             packagePrice={currentPackage.price}
+                            packageName={currentPackage.name}
+                            packageCredits={currentPackage.credits}
+                            customer={{
+                              name:
+                                user.name && user.name.trim().toLowerCase() !== 'client' && user.name.trim().toLowerCase() !== 'creator'
+                                  ? user.name
+                                  : user.email.split('@')[0],
+                              email: user.email,
+                            }}
+                            onClientCaptured={handleClientCapturedPayment}
                             projectPayload={{
                               projectId,
                               packageId: currentPackage.id,
