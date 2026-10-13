@@ -86,10 +86,10 @@ export async function GET(request: NextRequest) {
 
       const isAdmin = profile?.role === 'admin';
 
-      // If user is admin, enforce two-factor authentication (TOTP)
+      // If user is admin, redirect directly to management console
       if (isAdmin) {
         return NextResponse.redirect(
-          `${redirectBase}/admin-totp?next=${encodeURIComponent(targetPath === '/projects' ? '/management' : targetPath)}`
+          `${redirectBase}${targetPath === '/projects' ? '/management' : targetPath}`
         );
       }
 

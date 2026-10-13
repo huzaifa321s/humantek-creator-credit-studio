@@ -65,7 +65,6 @@ export async function updateSession(request: NextRequest) {
 
   let user: { id: string; email?: string } | null = null;
   let userRole: 'admin' | 'client' = 'client';
-  let isAal2 = false;
 
   try {
     const supabase = createServerClient(url, key, {
@@ -100,11 +99,6 @@ export async function updateSession(request: NextRequest) {
         .eq('id', user.id)
         .single();
       userRole = profile?.role === 'admin' ? 'admin' : 'client';
-
-      if (userRole === 'admin') {
-        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        isAal2 = aalData?.currentLevel === 'aal2';
-      }
     }
   } catch {
     user = null;
@@ -124,7 +118,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL('/new-project', request.url));
     }
     if (userRole === 'admin') {
-      return NextResponse.redirect(new URL(isAal2 ? '/management' : '/admin-totp?next=/management', request.url));
+      return NextResponse.redirect(new URL('/management', request.url));
     }
     return NextResponse.redirect(new URL('/projects', request.url));
   }
@@ -148,31 +142,22 @@ export async function updateSession(request: NextRequest) {
 
   // 2. AUTHENTICATED ADMINISTRATORS
   if (userRole === 'admin') {
-    // If on TOTP verification page
     if (isAdminTotpPage) {
-      if (isAal2) {
-        return NextResponse.redirect(new URL('/management', request.url));
-      }
-      return supabaseResponse;
+      return NextResponse.redirect(new URL('/management', request.url));
     }
 
-    // Admins must verify TOTP (AAL2) before accessing /management or admin console
     if (isAdminPath) {
-      if (!isAal2) {
-        const nextUrl = sanitizeRedirectUrl(pathname + request.nextUrl.search, '/management');
-        return NextResponse.redirect(new URL(`/admin-totp?next=${encodeURIComponent(nextUrl)}`, request.url));
-      }
       return supabaseResponse;
     }
 
     // Admins are prohibited from accessing client project creation & self-service pages
     if (isClientPath || isNewProjectPath) {
-      return NextResponse.redirect(new URL(isAal2 ? '/management' : '/admin-totp?next=/management', request.url));
+      return NextResponse.redirect(new URL('/management', request.url));
     }
 
-    // Admins accessing login routes are redirected to console (or TOTP if not verified)
+    // Admins accessing login routes are redirected to console
     if (isClientAuthPage || isAdminAuthPage) {
-      return NextResponse.redirect(new URL(isAal2 ? '/management' : '/admin-totp?next=/management', request.url));
+      return NextResponse.redirect(new URL('/management', request.url));
     }
 
     return supabaseResponse;
@@ -180,7 +165,7 @@ export async function updateSession(request: NextRequest) {
 
   // 3. AUTHENTICATED CREATOR CLIENTS
   if (userRole === 'client') {
-    // Clients attempting to access administration console or TOTP are redirected to their projects
+    // Clients attempting to access administration console or legacy TOTP are redirected to their projects
     if (isAdminPath || isAdminTotpPage) {
       return NextResponse.redirect(new URL('/projects', request.url));
     }

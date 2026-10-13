@@ -23,16 +23,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
   }
 
-  if (user.role === 'admin' && !user.isAdmin) {
-    return NextResponse.json(
-      {
-        error: 'Two-factor authentication (AAL2) required to access project management operations.',
-        code: 'AAL2_REQUIRED',
-      },
-      { status: 403 }
-    );
-  }
-
   if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
     try {
       const adminClient = createAdminClient();

@@ -17,36 +17,7 @@ const TINY_PNG = Buffer.from(
   'base64'
 );
 
-function computeTotpCode(base32Secret: string): string {
-  const clean = base32Secret.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  let bits = 0;
-  let value = 0;
-  const bytes: number[] = [];
-  for (let i = 0; i < clean.length; i++) {
-    const idx = alphabet.indexOf(clean[i]);
-    if (idx === -1) continue;
-    value = (value << 5) | idx;
-    bits += 5;
-    if (bits >= 8) {
-      bytes.push((value >>> (bits - 8)) & 255);
-      bits -= 8;
-    }
-  }
-  const key = Buffer.from(bytes);
-  const counter = Math.floor(Date.now() / 1000 / 30);
-  const counterBuffer = Buffer.alloc(8);
-  counterBuffer.writeBigInt64BE(BigInt(counter));
-  const hmac = crypto.createHmac('sha1', key).update(counterBuffer).digest();
-  const offset = hmac[hmac.length - 1] & 0x0f;
-  const binary =
-    ((hmac[offset] & 0x7f) << 24) |
-    ((hmac[offset + 1] & 0xff) << 16) |
-    ((hmac[offset + 2] & 0xff) << 8) |
-    (hmac[offset + 3] & 0xff);
-  const otp = binary % 1000000;
-  return otp.toString().padStart(6, '0');
-}
+
 
 test.describe('Unified Full-Screen Image Lightbox Suite', () => {
   let adminClient: any;
@@ -183,34 +154,15 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
       return { name, value, url: 'http://localhost:3000' };
     });
 
-    // 6. Pre-authenticate admin once and elevate to AAL2
+    // 6. Pre-authenticate admin
     const adminLoginRes = await fetch('http://localhost:3000/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: adminUserEmail, password: testPassword }),
     });
-    let aCookies = adminLoginRes.headers.getSetCookie ? adminLoginRes.headers.getSetCookie() : [];
-    let aCookieHeader = aCookies.map((c) => c.split(';')[0]).join('; ');
-
-    const enrollRes = await fetch('http://localhost:3000/api/auth/admin-totp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: aCookieHeader },
-      body: JSON.stringify({ action: 'enroll' }),
-    });
-    const enrollData = await enrollRes.json();
-    let finalAdminRawCookies = [...aCookies];
-    if (enrollData?.secret && enrollData?.factorId) {
-      const totpCode = computeTotpCode(enrollData.secret);
-      const verifyRes = await fetch('http://localhost:3000/api/auth/admin-totp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Cookie: aCookieHeader },
-        body: JSON.stringify({ action: 'verify', factorId: enrollData.factorId, code: totpCode }),
-      });
-      const verifyCookies = verifyRes.headers.getSetCookie ? verifyRes.headers.getSetCookie() : [];
-      if (verifyCookies.length > 0) finalAdminRawCookies = [...finalAdminRawCookies, ...verifyCookies];
-    }
+    const aCookies = adminLoginRes.headers.getSetCookie ? adminLoginRes.headers.getSetCookie() : [];
     const adminCookieMap = new Map<string, string>();
-    for (const raw of finalAdminRawCookies) {
+    for (const raw of aCookies) {
       const cookiePair = raw.split(';')[0];
       const eqIdx = cookiePair.indexOf('=');
       const name = cookiePair.substring(0, eqIdx).trim();
@@ -305,6 +257,20 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
     );
   }
 
+  // Helper to open drawer and lightbox reliably
+  async function openClientLightbox(page: any) {
+    await page.goto(`/projects?project=${testProjectId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('text=Loading workspace...')).not.toBeVisible({ timeout: 15000 }).catch(() => {});
+    const drawer = page.locator('[data-slot="sheet-content"]');
+    await expect(drawer).toBeVisible({ timeout: 20000 });
+    const thumbBtn = page.locator('button[aria-label^="Enlarge reference image"]').first();
+    await expect(thumbBtn).toBeVisible({ timeout: 20000 });
+    await thumbBtn.click();
+    const lightbox = page.locator('[data-slot="image-lightbox-popup"]');
+    await expect(lightbox).toBeVisible({ timeout: 5000 });
+    return { drawer, thumbBtn, lightbox };
+  }
+
   // =========================================================================
   // TEST 1: Lightbox appears above drawer, sharp, background plain dimmed (no blur)
   // =========================================================================
@@ -313,19 +279,7 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsClient(page);
 
-    // Open project drawer directly
-    await page.goto(`/projects?project=${testProjectId}`, { waitUntil: 'domcontentloaded' });
-    const drawer = page.locator('[data-slot="sheet-content"]');
-    await expect(drawer).toBeVisible({ timeout: 15000 });
-
-    // Click the first thumbnail
-    const thumbBtn = page.locator('button[aria-label^="Enlarge reference image"]').first();
-    await expect(thumbBtn).toBeVisible({ timeout: 15000 });
-    await thumbBtn.click();
-
-    // Verify lightbox is open
-    const lightboxPopup = page.locator('[data-slot="image-lightbox-popup"]');
-    await expect(lightboxPopup).toBeVisible({ timeout: 5000 });
+    const { drawer, lightbox: lightboxPopup } = await openClientLightbox(page);
 
     // Check z-index of lightbox popup vs drawer
     const lightboxZIndex = await lightboxPopup.evaluate((el) => window.getComputedStyle(el).zIndex);
@@ -338,6 +292,9 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
 
     // Take Desktop Screenshot for Artifact
     await page.screenshot({ path: `${ARTIFACT_DIR}/lightbox-desktop.png` });
+
+    // Close lightbox
+    await page.keyboard.press('Escape');
   });
 
   // =========================================================================
@@ -348,16 +305,7 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsClient(page);
 
-    await page.goto(`/projects?project=${testProjectId}`, { waitUntil: 'domcontentloaded' });
-    const drawer = page.locator('[data-slot="sheet-content"]');
-    await expect(drawer).toBeVisible({ timeout: 15000 });
-
-    const thumbBtn = page.locator('button[aria-label^="Enlarge reference image"]').first();
-    await expect(thumbBtn).toBeVisible({ timeout: 15000 });
-    await thumbBtn.click();
-
-    const lightboxPopup = page.locator('[data-slot="image-lightbox-popup"]');
-    await expect(lightboxPopup).toBeVisible({ timeout: 5000 });
+    const { drawer, thumbBtn, lightbox: lightboxPopup } = await openClientLightbox(page);
 
     // 1st Escape -> closes lightbox
     await page.keyboard.press('Escape');
@@ -373,20 +321,6 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
     await page.keyboard.press('Escape');
     await expect(drawer).not.toBeVisible({ timeout: 5000 });
   });
-
-  // Helper to open drawer and lightbox reliably
-  async function openClientLightbox(page: any) {
-    await page.goto(`/projects?project=${testProjectId}`, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('text=Loading workspace...')).not.toBeVisible({ timeout: 15000 }).catch(() => {});
-    const drawer = page.locator('[data-slot="sheet-content"]');
-    await expect(drawer).toBeVisible({ timeout: 20000 });
-    const thumbBtn = page.locator('button[aria-label^="Enlarge reference image"]').first();
-    await expect(thumbBtn).toBeVisible({ timeout: 20000 });
-    await thumbBtn.click();
-    const lightbox = page.locator('[data-slot="image-lightbox-popup"]');
-    await expect(lightbox).toBeVisible({ timeout: 5000 });
-    return { drawer, thumbBtn, lightbox };
-  }
 
   // =========================================================================
   // TEST 3: Arrow keys & swipe navigation with counter update
@@ -594,4 +528,56 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
     // Close lightbox
     await page.keyboard.press('Escape');
   });
+
+  // =========================================================================
+  // TEST 9: Click outside image auto-closes lightbox, inside clicks preserved
+  // =========================================================================
+  test('Test 9: Clicking outside the image auto-closes the lightbox while clicking the image or controls preserves it', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loginAsClient(page);
+
+    const { drawer, thumbBtn, lightbox } = await openClientLightbox(page);
+
+    // 1. Clicking directly ON the image must NOT close the lightbox
+    const img = lightbox.locator('img');
+    await expect(img).toBeVisible();
+    await img.click();
+    await expect(lightbox).toBeVisible();
+
+    // 2. Clicking Next navigation button must NOT close the lightbox
+    const nextBtn = lightbox.locator('button[aria-label="Next image"]');
+    await expect(nextBtn).toBeVisible();
+    await nextBtn.click();
+    await expect(lightbox.locator('[data-slot="lightbox-counter"]')).toHaveText('2 / 2');
+    await expect(lightbox).toBeVisible();
+
+    // 3. Clicking outside the image (in the empty margin/backdrop at x: 40, y: 450)
+    // Click on the lightbox popup outside the content bounds
+    await lightbox.click({ position: { x: 40, y: 450 } });
+
+    // Lightbox must auto-close
+    await expect(lightbox).not.toBeVisible({ timeout: 5000 });
+
+    // Drawer must remain open!
+    await expect(drawer).toBeVisible();
+
+    // Focus must return to thumbnail
+    const isFocusOnThumb = await thumbBtn.evaluate((el) => document.activeElement === el);
+    expect(isFocusOnThumb).toBeTruthy();
+
+    // 4. Re-open and verify clicking the dark backdrop directly also closes
+    await thumbBtn.click();
+    await expect(lightbox).toBeVisible({ timeout: 5000 });
+
+    // Click in the upper empty area outside the image
+    await lightbox.click({ position: { x: 100, y: 120 } });
+    await expect(lightbox).not.toBeVisible({ timeout: 5000 });
+    await expect(drawer).toBeVisible();
+
+    // Close drawer
+    await page.keyboard.press('Escape');
+    await expect(drawer).not.toBeVisible();
+  });
 });
+

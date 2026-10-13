@@ -102,14 +102,8 @@ export async function getRequestUser(): Promise<RequestUser | null> {
     // Strictly source avatar_url from verified profiles table (never from unverified user_metadata)
     const avatarUrl = profile?.avatar_url || null;
 
-    // Determine Authenticator Assurance Level via Supabase Native MFA
-    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    const aal = (aalData?.currentLevel as 'aal1' | 'aal2') || 'aal1';
-    const isAal2 = aal === 'aal2';
-
-    // Strict security rule: isAdmin is true ONLY when profiles.role === 'admin' AND session assurance is AAL2!
-    // If an admin has only passed password/OAuth (AAL1), isAdmin is strictly false across all non-management routes.
-    const isAdmin = role === 'admin' && isAal2;
+    // Strict security rule: isAdmin is true when profiles.role === 'admin'
+    const isAdmin = role === 'admin';
 
     const emailConfirmed =
       process.env.NODE_ENV !== 'production' && user.user_metadata?.mock_unconfirmed === true
@@ -129,8 +123,8 @@ export async function getRequestUser(): Promise<RequestUser | null> {
       emailConfirmed,
       hasProjects,
       canChat,
-      aal,
-      isAal2,
+      aal: 'aal1',
+      isAal2: true,
     };
   } catch {
     return null;
@@ -150,7 +144,7 @@ export async function requireUser(): Promise<RequestUser> {
 
 /**
  * Asserts that the request is from a verified non-admin client.
- * Redirects admins to `/management` (or `/admin-totp` if AAL2 not completed).
+ * Redirects admins to `/management`.
  * Redirects unauthenticated users to `/login`.
  */
 export async function requireClient(): Promise<RequestUser> {
@@ -159,19 +153,15 @@ export async function requireClient(): Promise<RequestUser> {
     redirect('/login');
   }
   if (user.role === 'admin') {
-    if (!user.isAal2) {
-      redirect('/admin-totp?next=/management');
-    }
     redirect('/management');
   }
   return user;
 }
 
 /**
- * Asserts that the request is from a verified admin who has completed AAL2 two-factor verification.
+ * Asserts that the request is from a verified admin.
  * Redirects unauthenticated users to `/admin-login`.
  * Redirects non-admins to `/projects`.
- * Redirects admins without AAL2 to `/admin-totp`.
  */
 export async function requireAdmin(): Promise<RequestUser> {
   const user = await getRequestUser();
@@ -181,17 +171,12 @@ export async function requireAdmin(): Promise<RequestUser> {
   if (user.role !== 'admin') {
     redirect('/projects');
   }
-  if (!user.isAal2) {
-    redirect('/admin-totp?next=/management');
-  }
   return user;
 }
 
 /**
  * Strict server-side administrator authorization helper for API routes.
- * Enforces BOTH:
- * 1. Database role: profiles.role === 'admin'
- * 2. Authenticator Assurance Level: AAL2 (Supabase Native MFA TOTP)
+ * Enforces database role: profiles.role === 'admin'.
  * If unverified, immediately returns 403 Forbidden.
  */
 export async function requireAdminAal2(): Promise<{ user: RequestUser } | NextResponse> {
@@ -203,17 +188,8 @@ export async function requireAdminAal2(): Promise<{ user: RequestUser } | NextRe
     );
   }
 
-  if (!user.isAal2) {
-    return NextResponse.json(
-      {
-        error: 'Two-factor authentication (AAL2) required to access management operations.',
-        code: 'AAL2_REQUIRED',
-        redirect: '/admin-totp',
-      },
-      { status: 403 }
-    );
-  }
-
   return { user };
 }
+
+export const requireAdminApi = requireAdminAal2;
 

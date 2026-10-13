@@ -47,6 +47,13 @@ export function ImageLightbox({
   // Touch tracking for mobile swipe
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
+  const didSwipeRef = useRef(false);
+
+  // Content refs to distinguish background clicks from content clicks
+  const headerRef = useRef<HTMLElement | null>(null);
+  const footerRef = useRef<HTMLElement | null>(null);
+  const errorCardRef = useRef<HTMLDivElement | null>(null);
+  const isPointerDownOutsideRef = useRef(false);
 
   // Sync index when initialIndex changes or modal opens
   useEffect(() => {
@@ -109,6 +116,7 @@ export function ImageLightbox({
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
+    didSwipeRef.current = false;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -118,6 +126,7 @@ export function ImageLightbox({
 
     // Minimum swipe threshold: 45px horizontal and more horizontal than vertical
     if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      didSwipeRef.current = true;
       if (deltaX < 0) {
         goToNext();
       } else {
@@ -126,6 +135,42 @@ export function ImageLightbox({
     }
     touchStartXRef.current = null;
     touchStartYRef.current = null;
+  };
+
+  // Helper to determine whether an element is part of interactive content
+  const isTargetInsideContent = (target: HTMLElement | null): boolean => {
+    if (!target) return false;
+    return Boolean(
+      target.closest('img') ||
+      errorCardRef.current?.contains(target) ||
+      headerRef.current?.contains(target) ||
+      footerRef.current?.contains(target) ||
+      target.closest('button') ||
+      target.closest('a')
+    );
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    isPointerDownOutsideRef.current = !isTargetInsideContent(target);
+  };
+
+  const handlePopupClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // If mobile swipe just occurred, suppress click closure
+    if (didSwipeRef.current) {
+      didSwipeRef.current = false;
+      isPointerDownOutsideRef.current = false;
+      return;
+    }
+
+    // Only close if pointerdown also originated on the backdrop / outside area
+    if (!isPointerDownOutsideRef.current) return;
+    isPointerDownOutsideRef.current = false;
+
+    const target = e.target as HTMLElement | null;
+    if (!isTargetInsideContent(target)) {
+      onOpenChange(false);
+    }
   };
 
   // Image load error handler
@@ -163,14 +208,17 @@ export function ImageLightbox({
         {/* Layer Scale: z-60 (z-lightbox) strictly above drawer z-50. Plain dark dim background, ZERO backdrop blur */}
         <DialogPrimitive.Backdrop
           data-slot="image-lightbox-backdrop"
+          onClick={() => onOpenChange(false)}
           className="fixed inset-0 z-60 bg-black/85 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0"
         />
 
         <DialogPrimitive.Popup
           data-slot="image-lightbox-popup"
-          className="fixed inset-0 z-60 flex flex-col justify-between p-3 sm:p-5 outline-none select-none overflow-hidden"
+          className="fixed inset-0 z-60 flex flex-col justify-between p-3 sm:p-5 outline-none select-none overflow-hidden cursor-default"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
+          onPointerDown={handlePointerDown}
+          onClick={handlePopupClick}
           onKeyDown={(e) => {
             if (e.key === 'ArrowLeft') {
               e.preventDefault();
@@ -190,7 +238,11 @@ export function ImageLightbox({
           </DialogPrimitive.Description>
 
           {/* Top Control Bar */}
-          <header className="w-full flex items-center justify-between text-zinc-100 z-10 py-1 px-1 sm:px-2 pointer-events-auto">
+          <header
+            ref={headerRef}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full flex items-center justify-between text-zinc-100 z-10 py-1 px-1 sm:px-2 pointer-events-auto"
+          >
             <div className="flex items-center gap-2 min-w-0 pr-3">
               <span
                 data-slot="lightbox-counter"
@@ -213,6 +265,7 @@ export function ImageLightbox({
                   href={currentImage.url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-400 hover:text-amber-300 hover:bg-white/10 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-400"
                 >
                   <span>Open original</span>
@@ -239,7 +292,11 @@ export function ImageLightbox({
           {/* Center Display Area */}
           <main className="relative flex-1 flex items-center justify-center min-h-0 w-full overflow-hidden my-auto pointer-events-auto">
             {isFailed ? (
-              <div className="flex flex-col items-center justify-center p-6 text-center rounded-2xl border border-white/10 bg-zinc-900/90 text-zinc-200 max-w-sm shadow-2xl">
+              <div
+                ref={errorCardRef}
+                onClick={(e) => e.stopPropagation()}
+                className="flex flex-col items-center justify-center p-6 text-center rounded-2xl border border-white/10 bg-zinc-900/90 text-zinc-200 max-w-sm shadow-2xl"
+              >
                 <AlertCircle className="size-10 text-amber-400 mb-3" />
                 <h3 className="text-sm font-bold text-zinc-100">Unable to load image</h3>
                 <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
@@ -281,7 +338,8 @@ export function ImageLightbox({
                   src={currentImage.url}
                   alt={currentImage.filename || `Reference image ${currentIndex + 1}`}
                   onError={handleImageError}
-                  className="max-h-[75vh] sm:max-h-[82vh] w-auto max-w-[92vw] sm:max-w-[85vw] object-contain rounded-lg shadow-2xl transition-all duration-150 select-none pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                  className="max-h-[75vh] sm:max-h-[82vh] w-auto max-w-[92vw] sm:max-w-[85vw] object-contain rounded-lg shadow-2xl transition-all duration-150 select-none pointer-events-auto cursor-default"
                 />
               </div>
             )}
@@ -317,7 +375,11 @@ export function ImageLightbox({
           </main>
 
           {/* Mobile Bottom Navigation & Thumbnails */}
-          <footer className="w-full flex items-center justify-center z-10 py-1 pointer-events-auto">
+          <footer
+            ref={footerRef}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full flex items-center justify-center z-10 py-1 pointer-events-auto"
+          >
             {hasMultiple && (
               <div className="flex sm:hidden items-center justify-between w-full px-2">
                 <Button

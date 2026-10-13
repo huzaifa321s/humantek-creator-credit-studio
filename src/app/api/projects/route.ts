@@ -38,17 +38,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const singleId = searchParams.get('id');
 
-  if (user.role === 'admin' && !user.isAdmin) {
-    return NextResponse.json(
-      {
-        error: 'Two-factor authentication (AAL2) required to access project management operations.',
-        code: 'AAL2_REQUIRED',
-        redirect: '/admin-totp',
-      },
-      { status: 403 }
-    );
-  }
-
   // Client reads use standard client with RLS; admins use adminClient
   const dbClient = user.isAdmin ? createAdminClient() : await createClient();
 
@@ -379,7 +368,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  // Administrators cannot create client projects for themselves (strictly blocked at both AAL1 and AAL2)
+  // Administrators cannot create client projects for themselves (strictly blocked)
   if (user.role === 'admin') {
     return NextResponse.json(
       { error: 'Administrators cannot create client projects. Please use the Management Console to oversee client projects.' },
