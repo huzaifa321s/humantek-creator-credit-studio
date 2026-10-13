@@ -71,6 +71,9 @@ export async function GET(req: NextRequest) {
           console.error('Error fetching project detail:', error);
           return NextResponse.json({ error: 'Failed to retrieve project' }, { status: 500 });
         }
+        if (!data) {
+          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        }
         if (Array.isArray(data.uploaded_files) && data.uploaded_files.length > 0) {
           data.uploaded_files = await signReferenceFiles(createAdminClient(), data.uploaded_files, 900);
         }

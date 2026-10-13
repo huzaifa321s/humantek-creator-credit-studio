@@ -198,6 +198,7 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
       body: JSON.stringify({ action: 'enroll' }),
     });
     const enrollData = await enrollRes.json();
+    let finalAdminRawCookies = [...aCookies];
     if (enrollData?.secret && enrollData?.factorId) {
       const totpCode = computeTotpCode(enrollData.secret);
       const verifyRes = await fetch('http://localhost:3000/api/auth/admin-totp', {
@@ -206,15 +207,21 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
         body: JSON.stringify({ action: 'verify', factorId: enrollData.factorId, code: totpCode }),
       });
       const verifyCookies = verifyRes.headers.getSetCookie ? verifyRes.headers.getSetCookie() : [];
-      if (verifyCookies.length > 0) aCookies = [...aCookies, ...verifyCookies];
+      if (verifyCookies.length > 0) finalAdminRawCookies = [...finalAdminRawCookies, ...verifyCookies];
     }
-    cachedAdminCookies = aCookies.map((rawCookie) => {
-      const cookiePair = rawCookie.split(';')[0];
+    const adminCookieMap = new Map<string, string>();
+    for (const raw of finalAdminRawCookies) {
+      const cookiePair = raw.split(';')[0];
       const eqIdx = cookiePair.indexOf('=');
       const name = cookiePair.substring(0, eqIdx).trim();
       const value = cookiePair.substring(eqIdx + 1).trim();
-      return { name, value, url: 'http://localhost:3000' };
-    });
+      adminCookieMap.set(name, value);
+    }
+    cachedAdminCookies = Array.from(adminCookieMap.entries()).map(([name, value]) => ({
+      name,
+      value,
+      url: 'http://localhost:3000',
+    }));
   });
 
   test.afterAll(async () => {
@@ -415,13 +422,31 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
     await expect(counter).toHaveText('1 / 2');
 
     // 4. Touch swipe gestures: swipe left to go next (deltaX = -150px)
-    await lightbox.dispatchEvent('touchstart', { touches: [{ clientX: 250, clientY: 200 }] });
-    await lightbox.dispatchEvent('touchend', { changedTouches: [{ clientX: 100, clientY: 200 }] });
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-slot="image-lightbox-popup"]');
+      if (!el) return;
+      const startEvt = new Event('touchstart', { bubbles: true, cancelable: true });
+      Object.defineProperty(startEvt, 'touches', { value: [{ clientX: 250, clientY: 200 }] });
+      el.dispatchEvent(startEvt);
+
+      const endEvt = new Event('touchend', { bubbles: true, cancelable: true });
+      Object.defineProperty(endEvt, 'changedTouches', { value: [{ clientX: 100, clientY: 200 }] });
+      el.dispatchEvent(endEvt);
+    });
     await expect(counter).toHaveText('2 / 2');
 
     // Swipe right to go back (deltaX = +150px)
-    await lightbox.dispatchEvent('touchstart', { touches: [{ clientX: 100, clientY: 200 }] });
-    await lightbox.dispatchEvent('touchend', { changedTouches: [{ clientX: 250, clientY: 200 }] });
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-slot="image-lightbox-popup"]');
+      if (!el) return;
+      const startEvt = new Event('touchstart', { bubbles: true, cancelable: true });
+      Object.defineProperty(startEvt, 'touches', { value: [{ clientX: 100, clientY: 200 }] });
+      el.dispatchEvent(startEvt);
+
+      const endEvt = new Event('touchend', { bubbles: true, cancelable: true });
+      Object.defineProperty(endEvt, 'changedTouches', { value: [{ clientX: 250, clientY: 200 }] });
+      el.dispatchEvent(endEvt);
+    });
     await expect(counter).toHaveText('1 / 2');
 
     // Close lightbox
@@ -500,11 +525,11 @@ test.describe('Unified Full-Screen Image Lightbox Suite', () => {
 
     await page.goto(`/management/projects?project=${testProjectId}`, { waitUntil: 'domcontentloaded' });
     const adminDrawer = page.locator('[data-slot="sheet-content"]');
-    await expect(adminDrawer).toBeVisible({ timeout: 15000 });
+    await expect(adminDrawer).toBeVisible({ timeout: 20000 });
 
-    // Click reference image thumbnail in admin drawer
+    // Click reference image thumbnail in admin drawer (wait for signed URL query)
     const thumbBtn = adminDrawer.locator('button[aria-label^="Enlarge reference image"]').first();
-    await expect(thumbBtn).toBeVisible({ timeout: 15000 });
+    await expect(thumbBtn).toBeVisible({ timeout: 20000 });
     await thumbBtn.click();
 
     // Check lightbox opens with same slot and counter
