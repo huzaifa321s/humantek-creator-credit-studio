@@ -14,6 +14,13 @@ import {
   buildPurchaseUnit,
   PAYPAL_APPLICATION_CONTEXT,
 } from '@/lib/paypal-order-details';
+import {
+  isPayPalClientConfigured,
+  PAYPAL_CLIENT_ID,
+  PAYPAL_CURRENCY,
+  PAYPAL_ENABLE_FUNDING,
+  PAYPAL_MERCHANT_ID,
+} from '@/lib/paypal-config';
 
 /** Payment captured in the browser (client-id-only checkout); verified by the studio in PayPal. */
 export interface ClientCapturedPayment {
@@ -159,15 +166,8 @@ export function PayPalButtonWrapper({
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<'server' | 'client' | null>(null);
-  const rawClientId = (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '').trim();
-  const isPlaceholderClientId =
-    !rawClientId ||
-    rawClientId === 'sb' ||
-    rawClientId === 'your-paypal-client-id' ||
-    rawClientId.includes('your-') ||
-    rawClientId === 'placeholder' ||
-    rawClientId.length < 10;
-  const clientId = rawClientId;
+  const isPlaceholderClientId = !isPayPalClientConfigured();
+  const clientId = PAYPAL_CLIENT_ID;
 
   useEffect(() => {
     if (isPlaceholderClientId) return;
@@ -322,10 +322,12 @@ export function PayPalButtonWrapper({
         <PayPalScriptProvider
           options={{
             clientId: clientId,
-            currency: 'USD',
+            merchantId: PAYPAL_MERCHANT_ID,
+            currency: PAYPAL_CURRENCY,
             intent: 'capture',
-            enableFunding: 'venmo',
+            enableFunding: PAYPAL_ENABLE_FUNDING,
             components: 'buttons',
+            dataSdkIntegrationSource: 'button-factory',
           }}
         >
           {mode ? (

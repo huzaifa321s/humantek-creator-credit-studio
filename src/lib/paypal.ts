@@ -1,10 +1,11 @@
+import { PAYPAL_CLIENT_ID as CONFIGURED_PAYPAL_CLIENT_ID } from '@/lib/paypal-config';
 import {
   buildPurchaseUnit,
   PAYPAL_APPLICATION_CONTEXT,
   type PayPalOrderDetails,
 } from '@/lib/paypal-order-details';
 
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
+const PAYPAL_CLIENT_ID = CONFIGURED_PAYPAL_CLIENT_ID;
 const RAW_PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
 // Treat the .env.example placeholder as "no secret" (client-id-only checkout).
 const PAYPAL_CLIENT_SECRET = RAW_PAYPAL_CLIENT_SECRET.startsWith('your-') ? '' : RAW_PAYPAL_CLIENT_SECRET;

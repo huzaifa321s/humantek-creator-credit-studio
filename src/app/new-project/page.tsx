@@ -29,6 +29,7 @@ import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
 import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
 import { PayPalButtonWrapper, type ClientCapturedPayment } from '@/components/PayPalButtonWrapper';
+import { isPayPalClientConfigured } from '@/lib/paypal-config';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { ClientOnly } from '@/components/ClientOnly';
 import { FieldError } from '@/components/ui/field-error';
@@ -1555,14 +1556,7 @@ export default function CreatorStudioPage() {
                   loading={isSubmitting}
                   loadingText="Submitting order..."
                   onClick={() => {
-                    const rawClientId = (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '').trim();
-                    const isOffline =
-                      !rawClientId ||
-                      rawClientId === 'sb' ||
-                      rawClientId === 'your-paypal-client-id' ||
-                      rawClientId.includes('your-') ||
-                      rawClientId === 'placeholder' ||
-                      rawClientId.length < 10;
+                    const isOffline = !isPayPalClientConfigured();
                     if (isOffline) {
                       handleSubmitForReview();
                     } else {
