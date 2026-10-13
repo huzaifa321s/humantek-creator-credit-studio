@@ -39,6 +39,8 @@ function SessionSync() {
             !currentUser ||
             currentUser.id !== data.user.id ||
             currentUser.email !== data.user.email ||
+            currentUser.name !== data.user.name ||
+            currentUser.avatarUrl !== data.user.avatarUrl ||
             currentUser.role !== (data.user.role || 'client') ||
             currentUser.emailVerified !== Boolean(data.user.emailConfirmed) ||
             currentUser.hasProjects !== Boolean(data.user.hasProjects) ||
@@ -48,6 +50,8 @@ function SessionSync() {
             useUserStore.getState().updateUser({
               id: data.user.id,
               email: data.user.email,
+              name: data.user.name || undefined,
+              avatarUrl: data.user.avatarUrl || null,
               role: data.user.role || 'client',
               emailVerified: Boolean(data.user.emailConfirmed),
               hasProjects: Boolean(data.user.hasProjects),
@@ -56,7 +60,7 @@ function SessionSync() {
           }
         } else if (!data.authenticated) {
           // If server session is unauthenticated, clear stale user state
-          if (currentUser?.email && currentUser.email !== 'dev@localhost') {
+          if (currentUser?.email) {
             useUserStore.getState().signOut();
           }
         }
@@ -76,6 +80,8 @@ export interface AuthProviderProps {
   initialUser?: {
     id: string;
     email: string;
+    name?: string;
+    avatarUrl?: string | null;
     role: string;
     isAdmin: boolean;
     emailConfirmed: boolean;
@@ -89,13 +95,23 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   useState(() => {
     if (initialUser && initialUser.email) {
       const current = useUserStore.getState().user;
-      if (!current || current.id !== initialUser.id || current.email !== initialUser.email) {
+      const userName = initialUser.name || current?.name || initialUser.email.split('@')[0];
+      const avatarUrl = initialUser.avatarUrl !== undefined ? initialUser.avatarUrl : (current?.avatarUrl ?? null);
+
+      if (
+        !current ||
+        current.id !== initialUser.id ||
+        current.email !== initialUser.email ||
+        current.name !== userName ||
+        current.avatarUrl !== avatarUrl
+      ) {
         useUserStore.setState({
           user: {
             id: initialUser.id,
-            name: current?.name || initialUser.email.split('@')[0],
+            name: userName,
             email: initialUser.email,
-            avatarInitials: (current?.name ? current.name.slice(0, 2) : initialUser.email.slice(0, 2)).toUpperCase(),
+            avatarUrl,
+            avatarInitials: (userName ? userName.slice(0, 2) : initialUser.email.slice(0, 2)).toUpperCase(),
             walletBalance: current?.walletBalance ?? 0,
             role: initialUser.role || 'client',
             emailVerified: initialUser.emailConfirmed,

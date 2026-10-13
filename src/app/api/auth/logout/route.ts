@@ -19,3 +19,19 @@ export async function POST() {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  try {
+    if (isRealSupabaseConfigured()) {
+      try {
+        const supabase = await createClient();
+        await supabase.auth.signOut();
+      } catch {
+        // Silently handle if session is already expired
+      }
+    }
+  } catch {}
+
+  const url = new URL(request.url);
+  return NextResponse.redirect(new URL('/new-project', url.origin));
+}

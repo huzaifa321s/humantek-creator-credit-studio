@@ -1,9 +1,14 @@
 import { StudioCardLayout } from "@/components/StudioCardLayout";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StudioNewProjectButton } from "@/components/StudioNewProjectButton";
 
 export default function Loading() {
   return (
-    <StudioCardLayout mode="standalone" backLabel="Back to Studio">
+    <StudioCardLayout
+      mode="standalone"
+      backLabel="Back to Studio"
+      topRightBadge={<StudioNewProjectButton />}
+    >
       <div
         role="status"
         aria-busy="true"

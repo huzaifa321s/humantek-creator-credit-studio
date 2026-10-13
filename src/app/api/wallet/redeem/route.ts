@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
+import { createNotification } from '@/lib/notifications';
 import { adjustUserBalance, getUserBalance } from '@/lib/store';
 
 // Rate limiting: in-memory sliding window for brute-force protection
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (user.isAdmin) {
+    if (user.role === 'admin') {
       return NextResponse.json(
         { error: 'Administrators cannot redeem promo codes.' },
         { status: 403 }
@@ -95,6 +96,16 @@ export async function POST(req: NextRequest) {
         new_balance: number;
         code: string;
       };
+
+      // Major action notification: Credits added
+      void createNotification({
+        userId: user.id,
+        type: 'wallet_credit',
+        title: 'Credits added',
+        message: `+${result.credits_granted} credits added to your studio wallet.`,
+        link: '/billing',
+        actionLabel: 'View Balance',
+      });
 
       return NextResponse.json({
         success: true,

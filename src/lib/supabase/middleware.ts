@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSafeSupabaseCredentials, isRealSupabaseConfigured } from './config';
-import { ADMIN_EMAILS, isSystemAdminEmail } from '@/lib/auth/roles';
 
 const ADMIN_ONLY_PATHS = ['/management', '/admin'];
 const CLIENT_ONLY_PATHS = [
@@ -15,17 +14,27 @@ const CLIENT_ONLY_PATHS = [
 
 const AUTH_PREFIXES = ['/login', '/sign-in'];
 const ADMIN_AUTH_PATH = '/admin-login';
+const ADMIN_TOTP_PATH = '/admin-totp';
 
+/**
+ * Strict single-slash path sanitizer:
+ * Only accepts paths starting with a single '/', not '//', no '\', no scheme/protocol, no colons.
+ * Prevents open redirect attacks across the board.
+ */
 function sanitizeRedirectUrl(urlParam: string | null | undefined, fallback = '/projects'): string {
   if (!urlParam) return fallback;
-  const trimmed = urlParam.trim();
+  let decoded = urlParam.trim();
+  try {
+    decoded = decodeURIComponent(decoded);
+  } catch {}
   if (
-    trimmed.startsWith('/') &&
-    !trimmed.startsWith('//') &&
-    !trimmed.startsWith('/\\') &&
-    !trimmed.includes(':')
+    decoded.startsWith('/') &&
+    !decoded.startsWith('//') &&
+    !decoded.startsWith('/\\') &&
+    !decoded.includes(':') &&
+    !decoded.includes('\\')
   ) {
-    return trimmed;
+    return decoded;
   }
   return fallback;
 }
@@ -37,14 +46,25 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  // Whitelist OAuth callback, cron endpoints, and webhooks so external callers pass cleanly
+  if (
+    pathname === '/auth/callback' ||
+    pathname.startsWith('/auth/callback/') ||
+    pathname.startsWith('/api/cron/') ||
+    pathname.startsWith('/api/paypal/webhook')
+  ) {
+    return supabaseResponse;
+  }
+
   if (!isRealSupabaseConfigured()) {
     return supabaseResponse;
   }
 
   const { url, key } = getSafeSupabaseCredentials();
 
-  let user: { id: string; email?: string; app_metadata?: Record<string, unknown> } | null = null;
+  let user: { id: string; email?: string } | null = null;
   let userRole: 'admin' | 'client' = 'client';
+  let isAal2 = false;
 
   try {
     const supabase = createServerClient(url, key, {
@@ -72,18 +92,17 @@ export async function updateSession(request: NextRequest) {
     user = authedUser;
 
     if (user && user.email) {
-      const email = user.email.toLowerCase().trim();
-      const appRole = (user.app_metadata as Record<string, unknown> | undefined)?.role;
-      if (appRole === 'admin' || isSystemAdminEmail(email)) {
-        userRole = 'admin';
-      } else {
-        // Query database profile if available
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        userRole = profile?.role === 'admin' ? 'admin' : 'client';
+      // Query authoritative role strictly from profiles table (no email allowlist)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      userRole = profile?.role === 'admin' ? 'admin' : 'client';
+
+      if (userRole === 'admin') {
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        isAal2 = aalData?.currentLevel === 'aal2';
       }
     }
   } catch {
@@ -92,8 +111,9 @@ export async function updateSession(request: NextRequest) {
 
   const isAuthenticated = Boolean(user && user.email);
   const isAdminAuthPage = pathname === ADMIN_AUTH_PATH || pathname === `${ADMIN_AUTH_PATH}/`;
+  const isAdminTotpPage = pathname === ADMIN_TOTP_PATH || pathname === `${ADMIN_TOTP_PATH}/`;
   const isClientAuthPage = AUTH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
-  const isAdminPath = !isAdminAuthPage && ADMIN_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const isAdminPath = !isAdminAuthPage && !isAdminTotpPage && ADMIN_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isClientPath = !isClientAuthPage && CLIENT_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isNewProjectPath = pathname === '/new-project' || pathname.startsWith('/new-project/');
 
@@ -103,14 +123,14 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL('/new-project', request.url));
     }
     if (userRole === 'admin') {
-      return NextResponse.redirect(new URL('/management', request.url));
+      return NextResponse.redirect(new URL(isAal2 ? '/management' : '/admin-totp?next=/management', request.url));
     }
     return NextResponse.redirect(new URL('/projects', request.url));
   }
 
   // 1. UNHEALTHY / UNAUTHENTICATED USERS
   if (!isAuthenticated) {
-    if (isAdminPath) {
+    if (isAdminPath || isAdminTotpPage) {
       return NextResponse.redirect(new URL('/admin-login', request.url));
     }
     if (isClientPath) {
@@ -127,21 +147,40 @@ export async function updateSession(request: NextRequest) {
 
   // 2. AUTHENTICATED ADMINISTRATORS
   if (userRole === 'admin') {
+    // If on TOTP verification page
+    if (isAdminTotpPage) {
+      if (isAal2) {
+        return NextResponse.redirect(new URL('/management', request.url));
+      }
+      return supabaseResponse;
+    }
+
+    // Admins must verify TOTP (AAL2) before accessing /management or admin console
+    if (isAdminPath) {
+      if (!isAal2) {
+        const nextUrl = sanitizeRedirectUrl(pathname + request.nextUrl.search, '/management');
+        return NextResponse.redirect(new URL(`/admin-totp?next=${encodeURIComponent(nextUrl)}`, request.url));
+      }
+      return supabaseResponse;
+    }
+
     // Admins are prohibited from accessing client project creation & self-service pages
     if (isClientPath || isNewProjectPath) {
-      return NextResponse.redirect(new URL('/management', request.url));
+      return NextResponse.redirect(new URL(isAal2 ? '/management' : '/admin-totp?next=/management', request.url));
     }
-    // Admins accessing any login route are redirected to management
+
+    // Admins accessing login routes are redirected to console (or TOTP if not verified)
     if (isClientAuthPage || isAdminAuthPage) {
-      return NextResponse.redirect(new URL('/management', request.url));
+      return NextResponse.redirect(new URL(isAal2 ? '/management' : '/admin-totp?next=/management', request.url));
     }
+
     return supabaseResponse;
   }
 
   // 3. AUTHENTICATED CREATOR CLIENTS
   if (userRole === 'client') {
-    // Clients attempting to access administration console are redirected to their projects
-    if (isAdminPath) {
+    // Clients attempting to access administration console or TOTP are redirected to their projects
+    if (isAdminPath || isAdminTotpPage) {
       return NextResponse.redirect(new URL('/projects', request.url));
     }
     // Clients visiting login/sign-in are redirected to their projects or target next
@@ -150,7 +189,7 @@ export async function updateSession(request: NextRequest) {
       const target = sanitizeRedirectUrl(nextParam, '/projects');
       return NextResponse.redirect(new URL(target, request.url));
     }
-    // Allow /admin-login so clients can elevate or switch to staff administrator credentials
+    // Allow /admin-login so users can authenticate with staff credentials if they possess them
     if (isAdminAuthPage) {
       return supabaseResponse;
     }

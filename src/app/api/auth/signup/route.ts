@@ -63,60 +63,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Dev bypass strictly for local testing when running locally or explicit env flag is active
-    const isDevAutoConfirm =
-      process.env.DEV_AUTO_CONFIRM === 'true' ||
-      process.env.NODE_ENV !== 'production';
-
-    if (isDevAutoConfirm) {
-      const admin = createAdminClient();
-      const { data: created, error: adminErr } = await admin.auth.admin.createUser({
-        email: userEmail,
-        password,
-        email_confirm: true,
-        user_metadata: { name: userName },
-      });
-
-      if (adminErr || !created.user) {
-        const isAlreadyRegistered =
-          adminErr?.message?.toLowerCase().includes('already') ||
-          (adminErr as any)?.code === 'email_exists';
-        return NextResponse.json(
-          {
-            error: isAlreadyRegistered
-              ? 'An account with this email already exists. Please sign in.'
-              : adminErr?.message || 'Unable to complete registration. Please try again.',
-          },
-          { status: 400 }
-        );
-      }
-
-      try {
-        await admin.from('profiles').update({ full_name: userName }).eq('id', created.user.id);
-      } catch (e) {
-        console.warn('Could not update profile full_name on dev auto-confirm:', e);
-      }
-
-      const supabase = await createClient();
-      await supabase.auth.signInWithPassword({
-        email: userEmail,
-        password,
-      });
-
-      return NextResponse.json({
-        ok: true,
-        requiresVerification: false,
-        user: {
-          id: created.user.id,
-          email: userEmail,
-          name: userName,
-          role: 'client',
-          walletBalance: 0,
-        },
-      });
-    }
-
-    // Production flow: Call Supabase auth.signUp with standard email confirmation
+    // Public registration flow: strictly call Supabase auth.signUp with unconfirmed email
+    // NEVER auto-confirm via admin.createUser in public signup to prevent pre-account-takeover attacks
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signUp({
       email: userEmail,
@@ -125,6 +73,7 @@ export async function POST(req: NextRequest) {
         data: { name: userName },
       },
     });
+
 
     if (error) {
       if (
@@ -144,11 +93,19 @@ export async function POST(req: NextRequest) {
         error.message?.toLowerCase().includes('already') ||
         (error as any)?.code === 'user_already_exists';
 
+      if (isAlreadyRegistered) {
+        return NextResponse.json(
+          {
+            error: 'An account with this email already exists. Please sign in with your password.',
+            alreadyRegistered: true,
+          },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
         {
-          error: isAlreadyRegistered
-            ? 'An account with this email already exists. Please sign in.'
-            : error.message || 'Unable to complete registration. Please try again.',
+          error: error.message || 'Unable to complete registration. Please try again.',
         },
         { status: 400 }
       );
@@ -166,6 +123,33 @@ export async function POST(req: NextRequest) {
       await admin.from('profiles').update({ full_name: userName }).eq('id', data.user.id);
     } catch (e) {
       console.warn('Could not update profile full_name on signup:', e);
+    }
+
+    // In development mode, auto-confirm user if SMTP/email sending is disabled so dev works seamlessly
+    if (process.env.NODE_ENV === 'development' && data.user && !data.session) {
+      try {
+        const admin = createAdminClient();
+        await admin.auth.admin.updateUserById(data.user.id, { email_confirm: true });
+        const { data: signInData } = await supabase.auth.signInWithPassword({
+          email: userEmail,
+          password,
+        });
+        if (signInData?.session) {
+          return NextResponse.json({
+            ok: true,
+            requiresVerification: false,
+            user: {
+              id: data.user.id,
+              email: userEmail,
+              name: userName,
+              role: 'client',
+              walletBalance: 0,
+            },
+          });
+        }
+      } catch (devErr) {
+        console.warn('[DEV Auto-Confirm] Error:', devErr);
+      }
     }
 
     // If Supabase auto-confirmed or session is present (e.g. SMTP confirmation disabled)
@@ -187,7 +171,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       requiresVerification: true,
-      message: 'Account created! Please check your email to verify your address before signing in.',
+      message: 'Account created! Check your email for a verification code. If you already have an account, sign in instead.',
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Sign up failed';

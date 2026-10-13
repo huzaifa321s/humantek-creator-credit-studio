@@ -94,6 +94,7 @@ interface DashboardHeaderProps {
   walletBalance?: number;
   userEmail?: string | null;
   userName?: string | null;
+  userAvatarUrl?: string | null;
   topRightBadge?: React.ReactNode;
   currentStep?: number;
   onSignInClick?: () => void;
@@ -109,6 +110,7 @@ export function DashboardHeader({
   walletBalance,
   userEmail = null,
   userName = null,
+  userAvatarUrl = null,
   topRightBadge,
   currentStep = 1,
   onSignInClick,
@@ -134,6 +136,7 @@ export function DashboardHeader({
   };
   const effectiveName = isHydrated ? resolveEffectiveName() : (userName || 'Welcome');
   const effectiveEmail = isHydrated ? (userEmail || user?.email) : userEmail;
+  const effectiveAvatarUrl = isHydrated ? (userAvatarUrl || user?.avatarUrl) : userAvatarUrl;
   const { data: walletData, isSuccess: isWalletSuccess, isPending: isWalletPending } = useWalletQuery(effectiveEmail);
   const hasServerBalance = isWalletSuccess && typeof walletData?.walletBalance === 'number';
   const effectiveBalance =
@@ -157,13 +160,13 @@ export function DashboardHeader({
       : pathname === '/management'
       ? 'Studio Overview'
       : pathname === '/management/projects'
-      ? 'Briefs Queue'
+      ? 'Client Projects'
       : pathname === '/management/inbox'
-      ? 'Studio Desk'
+      ? 'Client Messages'
       : pathname === '/management/orders'
       ? 'Manual Payments'
       : pathname === '/management/ledger'
-      ? 'Credit Ledger'
+      ? 'Credit History'
       : pathname?.startsWith('/management')
       ? 'Studio Management'
       : pathname === '/redeem-code'
@@ -415,6 +418,7 @@ export function DashboardHeader({
               <DashboardProfileDropdown
                 userEmail={effectiveEmail}
                 userName={effectiveName}
+                userAvatarUrl={effectiveAvatarUrl}
                 walletBalance={effectiveBalance}
               />
             </>

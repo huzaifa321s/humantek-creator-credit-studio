@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  if (user.isAdmin) {
+  if (user.role === 'admin') {
     return NextResponse.json(
       { error: 'Administrators cannot create package purchase orders.' },
       { status: 403 }

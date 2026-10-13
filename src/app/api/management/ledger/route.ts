@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestUser } from '@/lib/auth';
+import { requireAdminAal2 } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { clampLimit, decodeCursor, encodeCursor, PAGINATION_LIMITS } from '@/lib/pagination';
 import type { LedgerTransaction } from '@/components/AgencyDataGrid';
@@ -7,9 +7,9 @@ import type { LedgerTransaction } from '@/components/AgencyDataGrid';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const user = await getRequestUser();
-  if (!user || !user.isAdmin) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const authRes = await requireAdminAal2();
+  if (authRes instanceof NextResponse) {
+    return authRes;
   }
 
   const { searchParams } = new URL(req.url);

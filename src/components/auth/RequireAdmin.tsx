@@ -43,10 +43,7 @@ export function RequireAdmin({ children }: RequireAdminProps) {
             });
 
             const role = (data.user.role || '').toLowerCase();
-            const email = (data.user.email || '').toLowerCase();
-            const isAdminUser =
-              role === 'admin' ||
-              ['dev@localhost', 'admin@humantek.art', 'huzaifa14321furqan@gmail.com', 'huzaifafurqan22@gmail.com'].includes(email);
+            const isAdminUser = role === 'admin';
 
             if (isAdminUser) {
               setIsVerifying(false);

@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Avatar,
+  AvatarImage,
   AvatarFallback,
-  AvatarBadge,
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,48 +33,14 @@ import { cn } from '@/lib/utils';
 interface DashboardProfileDropdownProps {
   userEmail?: string | null;
   userName?: string | null;
+  userAvatarUrl?: string | null;
   walletBalance?: number;
-}
-
-/**
- * Clean circular SVG avatar matching the Shadcn Studio reference.
- */
-function CharacterAvatar({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-    >
-      {/* Light circle background */}
-      <circle cx="20" cy="20" r="20" fill="#E4E4E7" />
-      {/* Hair */}
-      <path
-        d="M10 18C10 11.5 14.5 8 20 8C25.5 8 30 11.5 30 18C30 19 29 20 28 20C27 18 25.5 17 23.5 17C21.5 17 20 18 20 18C20 18 18.5 17 16.5 17C14.5 17 13 18 12 20C11 20 10 19 10 18Z"
-        fill="#18181B"
-      />
-      {/* Sunglasses */}
-      <rect x="13" y="16.5" width="6.2" height="4.2" rx="1.2" fill="#18181B" />
-      <rect x="20.8" y="16.5" width="6.2" height="4.2" rx="1.2" fill="#18181B" />
-      <path d="M19.2 18H20.8" stroke="#18181B" strokeWidth="1.5" strokeLinecap="round" />
-      {/* Smirk Smile */}
-      <path
-        d="M18 24.5C19.5 25.3 22 25 23.2 23.5"
-        stroke="#18181B"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      {/* Nose */}
-      <path d="M20 20.5V21.5" stroke="#18181B" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 export function DashboardProfileDropdown({
   userEmail,
   userName,
+  userAvatarUrl,
   walletBalance,
 }: DashboardProfileDropdownProps) {
   const router = useRouter();
@@ -92,6 +58,7 @@ export function DashboardProfileDropdown({
 
   const effectiveName = userName || user?.name;
   const effectiveEmail = userEmail || user?.email;
+  const avatarUrl = userAvatarUrl || user?.avatarUrl;
   const effectiveBalance =
     walletBalance !== undefined && walletBalance !== null
       ? walletBalance
@@ -107,6 +74,22 @@ export function DashboardProfileDropdown({
     }
     return 'Welcome';
   }, [effectiveName, effectiveEmail]);
+
+  // Compute initials for clean fallback (2 capital letters)
+  const effectiveInitials = useMemo(() => {
+    if (user?.avatarInitials) return user.avatarInitials;
+    if (displayName && displayName !== 'Welcome') {
+      const parts = displayName.trim().split(/\s+/);
+      if (parts.length > 1) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+      }
+      return displayName.slice(0, 2).toUpperCase();
+    }
+    if (effectiveEmail && effectiveEmail.includes('@')) {
+      return effectiveEmail.slice(0, 2).toUpperCase();
+    }
+    return 'CR';
+  }, [user?.avatarInitials, displayName, effectiveEmail]);
 
   // Only show role badge for staff/admin roles; clients don't need a role badge
   const isStaff = Boolean(
@@ -132,7 +115,7 @@ export function DashboardProfileDropdown({
   return (
     <DropdownMenu>
       {/* =================================================================== */}
-      {/* 1. Reusable Avatar Trigger with Online Status Badge                 */}
+      {/* 1. Reusable Avatar Trigger (Accessible, zero fake presence dot)     */}
       {/* =================================================================== */}
       <DropdownMenuTrigger
         render={
@@ -140,16 +123,23 @@ export function DashboardProfileDropdown({
             type="button"
             variant="ghost"
             size="icon"
-            aria-label="User Account Menu"
+            aria-label="Account menu"
             className="relative size-8.5 rounded-full p-0 border border-white/15 bg-zinc-900 hover:border-white/30 hover:ring-2 hover:ring-amber-400/30 focus-visible:ring-2 focus-visible:ring-amber-400/50 cursor-pointer select-none transition-all shrink-0"
           />
         }
       >
         <Avatar size="default" className="size-8.5 ring-1 ring-white/10 hover:ring-amber-400/40 transition-all">
-          <AvatarFallback className="bg-zinc-800 text-zinc-100 font-bold text-xs p-0 overflow-hidden">
-            <CharacterAvatar className="size-full object-cover" />
+          {avatarUrl && (
+            <AvatarImage
+              src={avatarUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="aspect-square size-full object-cover rounded-full"
+            />
+          )}
+          <AvatarFallback className="bg-zinc-800 text-amber-300 font-bold text-xs select-none">
+            {effectiveInitials}
           </AvatarFallback>
-          <AvatarBadge className="bg-emerald-500 ring-2 ring-zinc-950 size-2.5" />
         </Avatar>
       </DropdownMenuTrigger>
 
@@ -164,10 +154,17 @@ export function DashboardProfileDropdown({
         {/* 1. Identity Block: Avatar, Name & Email (No boxed card, no duplicate CLIENT badge) */}
         <div className="flex items-center gap-2.5 px-2.5 py-2 select-none">
           <Avatar size="default" className="size-8.5 shrink-0 ring-1 ring-white/15">
-            <AvatarFallback className="bg-zinc-800 text-zinc-100 font-semibold text-xs p-0 overflow-hidden">
-              <CharacterAvatar className="size-full object-cover" />
+            {avatarUrl && (
+              <AvatarImage
+                src={avatarUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="aspect-square size-full object-cover rounded-full"
+              />
+            )}
+            <AvatarFallback className="bg-zinc-800 text-amber-300 font-semibold text-xs select-none">
+              {effectiveInitials}
             </AvatarFallback>
-            <AvatarBadge className="bg-emerald-500 ring-2 ring-zinc-950 size-2" />
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1.5">

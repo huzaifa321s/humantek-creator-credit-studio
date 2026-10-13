@@ -23,6 +23,26 @@ export function formatStudioDate(dateInput?: string | number | Date | null): str
   })
 }
 
+export function formatStudioRelativeTime(dateInput?: string | number | Date | null): string {
+  if (!dateInput) return ''
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return ''
+  const now = Date.now()
+  const diffMs = now - d.getTime()
+  if (diffMs < 0) return 'Just now'
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHours = Math.floor(diffMin / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffSec < 60) return 'Just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays}d ago`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 /**
  * Safely formats any date/time string or timestamp for chat message displays.
  * Defends against `null`, `undefined`, `"Invalid Date"`, ISO timestamps, and relative strings.
@@ -101,30 +121,56 @@ export function getTransactionTypeLabel(type?: string): string {
 
 /**
  * Validates a redirect URL to guarantee it is a safe relative internal route.
- * Defends against open-redirect attacks (e.g. `//evil.com`, `https://evil.com`, `/\evil.com`).
+ * Defends against open-redirect attacks including scheme injection, backslash tricks,
+ * protocol-relative URLs, and whitespace/control-character bypasses (e.g. `/%09/evil.com`, `//\evil.com`, `\n`).
  */
 export function getSafeRedirectUrl(
   nextParam: string | null | undefined,
   fallback = '/projects'
 ): string {
-  if (!nextParam) return fallback;
-  const trimmed = nextParam.trim();
-  if (
-    trimmed.startsWith('/') &&
-    !trimmed.startsWith('//') &&
-    !trimmed.startsWith('/\\') &&
-    !trimmed.includes(':')
-  ) {
+  if (!nextParam || typeof nextParam !== 'string') return fallback;
+
+  let decoded = nextParam.trim();
+  // Decode iterative percent-encoding to catch multi-layered bypasses (%252f etc.)
+  for (let i = 0; i < 3; i++) {
     try {
-      const parsed = new URL(trimmed, 'http://localhost');
-      if (parsed.origin === 'http://localhost' && parsed.pathname.startsWith('/')) {
-        return parsed.pathname + parsed.search;
-      }
+      const nextDecoded = decodeURIComponent(decoded);
+      if (nextDecoded === decoded) break;
+      decoded = nextDecoded;
     } catch {
-      return fallback;
+      break;
     }
   }
-  return fallback;
+
+  // Reject any string containing control characters (ASCII 0-31, including \r, \n, \t, \0)
+  if (/[\x00-\x1F\x7F]/.test(decoded)) {
+    return fallback;
+  }
+
+  // Reject backslashes anywhere, colons anywhere (schemes, data:, javascript:), protocol relative
+  if (
+    decoded.includes('\\') ||
+    decoded.includes(':') ||
+    decoded.startsWith('//') ||
+    !decoded.startsWith('/')
+  ) {
+    return fallback;
+  }
+
+  // Parse against trusted dummy host to verify path integrity
+  try {
+    const parsed = new URL(decoded, 'http://localhost');
+    if (parsed.origin !== 'http://localhost' || !parsed.pathname.startsWith('/')) {
+      return fallback;
+    }
+    // Verify pathname doesn't have double slashes
+    if (parsed.pathname.startsWith('//')) {
+      return fallback;
+    }
+    return parsed.pathname + parsed.search;
+  } catch {
+    return fallback;
+  }
 }
 
 

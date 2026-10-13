@@ -15,7 +15,7 @@ test.describe('Confirmation Route & Checkout UX Safety Suite', () => {
 
   let testUser: any;
   let testUserEmail: string;
-  let testUserPass = 'PlaywrightTestPass2026!';
+  const testUserPass = 'PlaywrightTestPass2026!';
   let authCookie: { name: string; value: string; url: string }[] = [];
 
   test.beforeAll(async () => {
@@ -307,7 +307,12 @@ test.describe('Confirmation Route & Checkout UX Safety Suite', () => {
       projectId: retryProjectId,
       packageId: 'studio-wallet',
       fundingSource: 'wallet',
+      channelName: 'Playwright Replay Channel',
+      platform: 'Twitch',
+      style: 'Modern Clean',
+      colors: 'Dark Gold & Charcoal',
       instructions: 'Testing network lost-response replay scenario with identical key.',
+      uploadedFiles: [],
       additions: [],
       selections: [{ id: 'logo', name: 'Logo Design', level: 0, quantity: 1, credits: 32 }],
     };

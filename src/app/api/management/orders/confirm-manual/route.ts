@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestUser } from '@/lib/auth';
+import { requireAdminAal2 } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
+import { createNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getRequestUser();
-    if (!user || !user.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    const userOrRes = await requireAdminAal2();
+    if (userOrRes instanceof NextResponse) {
+      return userOrRes;
     }
+    const user = userOrRes.user;
 
     const body = await req.json();
     const { orderId, bankReference, amountCents, notes } = body;
@@ -38,6 +40,25 @@ export async function POST(req: NextRequest) {
         { error: error.message || 'Failed to confirm manual payment' },
         { status: 400 }
       );
+    }
+
+    // Major action notification: Payment approved
+    const { data: confirmedOrder } = await admin
+      .from('orders')
+      .select('user_id, credits_to_grant, expected_amount_cents')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (confirmedOrder?.user_id) {
+      void createNotification({
+        userId: confirmedOrder.user_id,
+        type: 'payment_confirmed',
+        title: 'Payment approved',
+        message: `Your payment was confirmed. +${confirmedOrder.credits_to_grant} credits added to your wallet.`,
+        link: '/billing',
+        actionLabel: 'View Balance',
+        actionId: orderId,
+      });
     }
 
     return NextResponse.json({

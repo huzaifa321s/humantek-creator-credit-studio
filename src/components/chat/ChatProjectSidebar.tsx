@@ -11,7 +11,7 @@ import {
   RotateCcw,
   MessageSquare,
 } from 'lucide-react';
-import { cn, formatChatTimestamp } from '@/lib/utils';
+import { cn, formatChatTimestamp, getProjectStatusLabel } from '@/lib/utils';
 import { ChatMessage, GLOBAL_CHAT_ID } from '@/lib/chatStore';
 import { useInfiniteProjectsQuery } from '@/lib/queries/projects';
 import { useUserStore } from '@/lib/userStore';
@@ -122,7 +122,7 @@ export function ChatProjectSidebar({
 
   const isGlobalSelected = activeProjectId === GLOBAL_CHAT_ID;
   const globalUnread = unreadCounts[GLOBAL_CHAT_ID] || 0;
-  const lastGlobalPreview = 'Packages, credits, or anything else';
+  const lastGlobalPreview = 'Questions about packages, credits, or custom ideas';
 
   const totalProjectUnread = useMemo(() => {
     return Object.entries(unreadCounts).reduce((acc, [id, count]) => {
@@ -215,31 +215,53 @@ export function ChatProjectSidebar({
     const pUnread = unreadCounts[p.id] || 0;
     const lastPreview = p.lastMessagePreview?.trim() || 'No messages yet';
 
-    // In client role, never show the user's own name as the project title.
-    // If the project has a distinct custom channel name (e.g. "Tech Gaming"), use that.
-    // Otherwise, use the package name (e.g. "Creator Forge", "Studio Momentum").
-    // In admin role, display channel + package or client + package.
-    const rawChannel = p.channelName?.trim();
-    const isSelfName =
-      viewerRole === 'client' &&
-      Boolean(rawChannel) &&
-      (rawChannel?.toLowerCase() === (user?.name || '').toLowerCase() ||
-        rawChannel?.toLowerCase() === (user?.email || '').toLowerCase() ||
-        rawChannel?.toLowerCase() === (p.clientName || '').toLowerCase());
+    // Primary title on Line 1:
+    // If the creator gave a Channel / Brand name (e.g. "Jakeem Herrera", "PixelGamer"), honor it directly!
+    // If no channel name was provided, fall back to Package Name + Order Number (e.g. "Creator Forge #1238").
+    const rawChannel = p.channelName?.trim() || '';
+    const hasChannelName = Boolean(rawChannel);
 
-    const hasDistinctChannel = Boolean(rawChannel && !isSelfName);
+    // Extract short numeric order ID (e.g. "#2562" from "HT-2562-MOMENTUM")
+    const codeDigits = p.projectCode.match(/\d+/);
+    const orderNumber = codeDigits ? `#${codeDigits[0]}` : p.projectCode;
 
-    // Primary title on Line 1 (clean, un-concatenated so it doesn't truncate)
-    const displayTitle = hasDistinctChannel
+    // Compact code for Line 2 when accompanied by secondary package text (e.g. "HT-2562" instead of "HT-2562-MOMENTUM")
+    const shortCode = p.projectCode.split('-').slice(0, 2).join('-');
+
+    const displayTitle = hasChannelName
       ? rawChannel
       : viewerRole === 'admin' && p.clientName
       ? p.clientName
-      : p.packageName || 'Project Workspace';
+      : p.packageName
+      ? `${p.packageName} ${orderNumber}`
+      : `Project ${orderNumber}`;
 
-    // Secondary detail on Line 2 next to the monospace code pill
-    const secondaryDetail = hasDistinctChannel
-      ? viewerRole === 'admin' && p.clientName ? p.clientName : p.packageName
-      : viewerRole === 'admin' ? p.packageName : '';
+    // Secondary detail on Line 2:
+    // If Line 1 is the Channel Name, show the Package Name on Line 2.
+    // If Line 1 is already the Package Name, leave Line 2 clean.
+    const secondaryDetail = hasChannelName
+      ? viewerRole === 'admin' && p.clientName
+        ? p.clientName
+        : p.packageName
+      : viewerRole === 'admin'
+      ? p.packageName
+      : '';
+
+    const statusLabel = getProjectStatusLabel(p.status);
+    const getStatusStyle = (status: string) => {
+      switch (status) {
+        case 'payment_confirmed':
+        case 'delivered':
+          return 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/25';
+        case 'in_production':
+          return 'text-blue-700 dark:text-blue-300 bg-blue-500/10 border-blue-500/25';
+        case 'declined':
+        case 'cancelled':
+          return 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/25';
+        default:
+          return 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/25';
+      }
+    };
 
     return (
       <SidebarMenuItem key={p.id}>
@@ -278,12 +300,14 @@ export function ChatProjectSidebar({
                   {pUnread} new
                 </Badge>
               ) : (
-                <Badge
-                  variant="outline"
-                  className="text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                <span
+                  className={cn(
+                    'text-3xs font-medium px-1.5 py-0.2 rounded-md border shrink-0 inline-flex items-center leading-normal',
+                    getStatusStyle(p.status)
+                  )}
                 >
-                  {p.status.replace(/_/g, ' ').toLowerCase()}
-                </Badge>
+                  {statusLabel}
+                </span>
               )}
             </div>
           </div>
@@ -292,7 +316,7 @@ export function ChatProjectSidebar({
           <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1 w-full gap-1">
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-mono text-3xs text-brand-text dark:text-amber-300 bg-amber-400/10 dark:bg-amber-400/15 px-1 py-0.2 rounded border border-amber-400/25 shrink-0 font-semibold">
-                {p.projectCode}
+                {secondaryDetail ? shortCode : p.projectCode}
               </span>
               {secondaryDetail && (
                 <span className="text-3xs text-muted-foreground truncate">
@@ -309,7 +333,8 @@ export function ChatProjectSidebar({
           <p
             className={cn(
               'text-2xs line-clamp-1 leading-relaxed w-full break-words text-muted-foreground/80',
-              pUnread > 0 && 'font-medium text-foreground dark:text-amber-200'
+              pUnread > 0 && 'font-medium text-foreground dark:text-amber-200',
+              lastPreview === 'No messages yet' && 'italic text-muted-foreground/60'
             )}
           >
             {lastPreview}
@@ -362,7 +387,7 @@ export function ChatProjectSidebar({
                         : 'text-foreground'
                     )}
                   >
-                    {viewerRole === 'admin' ? 'Studio Support Desk' : 'Studio Support'}
+                    {viewerRole === 'admin' ? 'General Inquiries' : 'Ask the Studio Team'}
                   </span>
                 </div>
 
@@ -373,6 +398,13 @@ export function ChatProjectSidebar({
                       className="text-2xs font-mono font-bold tabular-nums px-1.5 py-0 h-4 shrink-0 animate-pulse"
                     >
                       {globalUnread} new
+                    </Badge>
+                  ) : viewerRole === 'admin' ? (
+                    <Badge
+                      variant="outline"
+                      className="text-3xs font-medium px-1.5 py-0 h-4 border-amber-400/30 text-brand-text dark:text-amber-300 bg-amber-400/10 rounded-md"
+                    >
+                      General
                     </Badge>
                   ) : (
                     <span className="text-3xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
@@ -393,8 +425,8 @@ export function ChatProjectSidebar({
                 )}
               >
                 {viewerRole === 'admin'
-                  ? 'General creator inquiries & billing'
-                  : lastGlobalPreview || 'General questions & studio support'}
+                  ? 'General questions and pre-order inquiries'
+                  : 'Questions about packages, credits, or custom ideas'}
               </p>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -411,7 +443,7 @@ export function ChatProjectSidebar({
               <FolderKanban className="size-3" />
             </span>
             <span className="text-2xs font-bold tracking-wider uppercase text-muted-foreground/80">
-              PROJECTS
+              {viewerRole === 'admin' ? 'CLIENT PROJECTS' : 'MY PROJECTS'}
             </span>
             <Badge variant="outline" className="text-2xs font-mono tabular-nums h-4 px-1.5 font-semibold text-muted-foreground">
               {totalSessions}
@@ -449,7 +481,7 @@ export function ChatProjectSidebar({
         <div className="relative">
           <Search className="size-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <Input
-            placeholder="Search projects..."
+            placeholder={viewerRole === 'admin' ? 'Search projects or clients...' : 'Search projects...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-7.5 pl-7 pr-6 text-xs bg-card/90 rounded-md border-border/70 focus-visible:border-amber-400 placeholder:text-muted-foreground/70"
@@ -521,11 +553,11 @@ export function ChatProjectSidebar({
                 <FolderKanban className="size-4" />
               </EmptyMedia>
               <EmptyTitle className="text-xs font-semibold tracking-tight">
-                No projects yet
+                {viewerRole === 'admin' ? 'No active project chats' : 'No projects yet'}
               </EmptyTitle>
               <EmptyDescription className="text-2xs text-muted-foreground leading-normal">
                 {viewerRole === 'admin'
-                  ? 'Client projects will appear here once submitted.'
+                  ? 'Client project chats will appear here once submitted.'
                   : 'Start a project to open a dedicated workspace.'}
               </EmptyDescription>
               {viewerRole !== 'admin' && (
@@ -547,6 +579,8 @@ export function ChatProjectSidebar({
               <EmptyTitle className="text-xs font-semibold tracking-tight">
                 {activeTab === 'unread' && !debouncedSearch
                   ? 'All caught up'
+                  : viewerRole === 'admin'
+                  ? 'No project chats found'
                   : 'No projects found'}
               </EmptyTitle>
               <EmptyDescription className="text-2xs text-muted-foreground leading-normal">

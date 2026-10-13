@@ -43,6 +43,7 @@ import {
   ArrowRight,
   Wallet,
 } from 'lucide-react';
+import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
 
 import { useUserStore } from '@/lib/userStore';
 import { useWalletQuery, useRedeemPromoCode } from '@/lib/queries/wallet';
@@ -118,20 +119,7 @@ export default function RedeemCodePage() {
     <StudioCardLayout
       mode="standalone"
       backLabel="Back to Studio"
-      topRightBadge={
-        <Link href="/new-project">
-          <Button
-            type="button"
-            variant="gold"
-            size="sm"
-            className="gap-1 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="hidden min-[400px]:inline">New Project</span>
-            <span className="min-[400px]:hidden">New</span>
-          </Button>
-        </Link>
-      }
+      topRightBadge={<StudioNewProjectButton />}
     >
       <div className="space-y-6 animate-in fade-in duration-200 pb-24 sm:pb-12">
         {/* Step Top Header */}

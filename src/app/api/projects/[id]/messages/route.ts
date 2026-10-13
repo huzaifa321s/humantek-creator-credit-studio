@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
+import { createNotification, notifyAdmins } from '@/lib/notifications';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
@@ -315,6 +316,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const admin = createAdminClient();
     const isGlobal = id === 'global';
     let postProjectClientName: string | null = null;
+    let projectUserId: string | null = null;
 
     if (!isGlobal) {
       // Verify membership or admin
@@ -333,6 +335,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
 
       postProjectClientName = project.client_name || null;
+      projectUserId = project.user_id || null;
     }
 
     const body = await req.json().catch(() => null);
@@ -491,7 +494,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const parsedNew = parseMessageBody(newMsg.body);
     const newSenderProfile = extractSenderProfile((newMsg as unknown as MessageRow).profiles);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: {
         id: newMsg.id,
@@ -517,6 +520,35 @@ export async function POST(req: NextRequest, context: RouteContext) {
         attachments: createdAttachments,
       },
     });
+
+    // Major action notification: New message
+    if (!isGlobal) {
+      if (user.isAdmin) {
+        if (projectUserId && projectUserId !== user.id) {
+          void createNotification({
+            userId: projectUserId,
+            type: 'chat_message',
+            title: 'New message',
+            message: 'Studio team sent you a message.',
+            link: `/projects/${id}?tab=chat`,
+            actionLabel: 'Open Chat',
+            actionId: id,
+          });
+        }
+      } else {
+        const senderDisplay = postProjectClientName || (user.email ? user.email.split('@')[0] : 'Client');
+        void notifyAdmins({
+          type: 'chat_message',
+          title: 'New client message',
+          message: `${senderDisplay} sent a message.`,
+          link: `/management?tab=projects&id=${id}&subtab=chat`,
+          actionLabel: 'Open Chat',
+          actionId: id,
+        });
+      }
+    }
+
+    return response;
   } catch (err: unknown) {
     console.error('Error in POST /api/projects/[id]/messages:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

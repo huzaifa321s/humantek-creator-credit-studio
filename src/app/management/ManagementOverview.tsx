@@ -97,7 +97,7 @@ export function ManagementOverview() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* Card 1: Briefs Queue */}
+            {/* Card 1: Client Projects */}
             <Card className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-400/50 transition-all flex flex-col justify-between group">
               <CardHeader className="p-4 sm:p-5 pb-3 space-y-3">
                 <div className="flex items-center justify-between">
@@ -110,17 +110,17 @@ export function ManagementOverview() {
                     </Badge>
                   ) : (
                     <Badge variant="outline" size="sm" className="text-muted-foreground">
-                      {counts.projects} briefs
+                      {counts.projects} projects
                     </Badge>
                   )}
                 </div>
 
                 <div>
                   <CardTitle className="text-base font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
-                    Briefs Queue
+                    Client Projects
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-1">
-                    Manage client briefs, milestone scoping, and delivery sign-offs.
+                    Manage client orders, production stages, and delivery status.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -144,14 +144,14 @@ export function ManagementOverview() {
                     size="sm"
                     className="w-full justify-between group-hover:border-amber-400/50 group-hover:bg-amber-400/10 transition-colors cursor-pointer"
                   >
-                    <span>Open Queue</span>
+                    <span>View Projects</span>
                     <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                   </Button>
                 </Link>
               </CardFooter>
             </Card>
 
-            {/* Card 2: Studio Desk */}
+            {/* Card 2: Client Messages */}
             <Card className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-400/50 transition-all flex flex-col justify-between group">
               <CardHeader className="p-4 sm:p-5 pb-3 space-y-3">
                 <div className="flex items-center justify-between">
@@ -164,17 +164,17 @@ export function ManagementOverview() {
                     </Badge>
                   ) : (
                     <Badge variant="outline" size="sm" className="text-muted-foreground">
-                      live desk
+                      live chat
                     </Badge>
                   )}
                 </div>
 
                 <div>
                   <CardTitle className="text-base font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
-                    Studio Desk
+                    Client Messages
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-1">
-                    Direct real-time conversations with creators across active briefs.
+                    Chat with clients and review project discussions in real time.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -257,7 +257,7 @@ export function ManagementOverview() {
               </CardFooter>
             </Card>
 
-            {/* Card 4: Credit Ledger */}
+            {/* Card 4: Credit History */}
             <Card className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-400/50 transition-all flex flex-col justify-between group">
               <CardHeader className="p-4 sm:p-5 pb-3 space-y-3">
                 <div className="flex items-center justify-between">
@@ -265,16 +265,16 @@ export function ManagementOverview() {
                     <Receipt className="size-4" />
                   </span>
                   <Badge variant="outline" size="sm" className="text-muted-foreground">
-                    audit ledger
+                    history
                   </Badge>
                 </div>
 
                 <div>
                   <CardTitle className="text-base font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
-                    Credit Ledger
+                    Credit History
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-1">
-                    Audit package grants, balance top-ups, and studio redemptions.
+                    Track all client credit purchases, deductions, and promo codes.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -294,7 +294,7 @@ export function ManagementOverview() {
                     size="sm"
                     className="w-full justify-between group-hover:border-amber-400/50 group-hover:bg-amber-400/10 transition-colors cursor-pointer"
                   >
-                    <span>View Ledger</span>
+                    <span>View History</span>
                     <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                   </Button>
                 </Link>
@@ -304,7 +304,7 @@ export function ManagementOverview() {
         )}
       </div>
 
-      {/* 2. Recent Project Briefs */}
+      {/* 2. Recent Client Projects */}
       <Card className="rounded-xl border border-border/80 bg-card shadow-xs overflow-hidden">
         <CardHeader className="p-4 sm:p-5 border-b border-border/60 bg-secondary/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
@@ -313,10 +313,10 @@ export function ManagementOverview() {
             </span>
             <div>
               <CardTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground">
-                Recent Project Briefs
+                Recent Client Projects
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Latest client briefs submitted across all packages
+                Latest client projects submitted across all packages
               </CardDescription>
             </div>
           </div>
@@ -328,7 +328,7 @@ export function ManagementOverview() {
               size="sm"
               className="gap-1.5 cursor-pointer text-xs font-semibold"
             >
-              <span>View All Queue ({counts.projects})</span>
+              <span>View All Projects ({counts.projects})</span>
               <ArrowRight className="size-3.5" />
             </Button>
           </Link>
@@ -354,10 +354,10 @@ export function ManagementOverview() {
                   <FolderKanban className="size-6 text-muted-foreground" />
                 </EmptyMedia>
                 <EmptyTitle className="text-lg font-bold text-foreground">
-                  No project briefs yet
+                  No client projects yet
                 </EmptyTitle>
                 <EmptyDescription className="text-xs text-muted-foreground">
-                  Client project briefs will appear here once submitted.
+                  Client projects will appear here once submitted.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

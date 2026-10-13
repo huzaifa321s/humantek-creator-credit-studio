@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { capturePayPalOrder } from '@/lib/paypal';
+import { createNotification, notifyAdmins } from '@/lib/notifications';
 import { adjustUserBalance, getUserBalance } from '@/lib/store';
+import { attachProjectReferences, verifyReferenceFiles } from '@/lib/references';
 
 export async function POST(req: NextRequest) {
   const user = await getRequestUser();
@@ -133,7 +135,15 @@ export async function POST(req: NextRequest) {
             p_style: raw.style || '',
             p_colors: raw.colors || '',
             p_instructions: raw.instructions || '',
-            p_uploaded_files: raw.uploadedFiles || [],
+            p_uploaded_files: await attachProjectReferences(
+              adminClient,
+              user.id,
+              String(raw.projectId || ''),
+              Array.isArray(raw.uploadedFiles) ? raw.uploadedFiles : []
+            ).catch((refErr) => {
+              console.error('Reference attachment failed after capture:', refErr);
+              return [];
+            }),
             p_selections: raw.selections || [],
             p_additions: raw.additions || [],
             p_idempotency_key: raw.projectId,
@@ -186,6 +196,26 @@ export async function POST(req: NextRequest) {
             }
           }
         }
+
+        // Major action notification: Payment received
+        void createNotification({
+          userId: order.user_id,
+          type: 'payment_confirmed',
+          title: 'Payment received',
+          message: `We received your payment of $${(capturedAmountCents / 100).toFixed(2)}.`,
+          link: '/billing',
+          actionLabel: 'View Receipt',
+          actionId: order.id,
+        });
+
+        void notifyAdmins({
+          type: 'order_status',
+          title: 'New paid order',
+          message: `${user.email} paid $${(capturedAmountCents / 100).toFixed(2)}.`,
+          link: `/management?tab=orders&id=${order.id}`,
+          actionLabel: 'View Order',
+          actionId: order.id,
+        });
 
         return NextResponse.json({
           success: true,

@@ -33,7 +33,8 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { ClientOnly } from '@/components/ClientOnly';
 import { FieldError } from '@/components/ui/field-error';
 import { useBriefValidation, briefFieldId } from '@/lib/hooks/useBriefValidation';
-import { BRIEF_LIMITS, PLATFORM_OPTIONS, redeemCodeSchema } from '@/lib/validation';
+import { BRIEF_LIMITS, PLATFORM_OPTIONS, REFERENCE_LIMITS, redeemCodeSchema } from '@/lib/validation';
+import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import {
   Card,
@@ -115,6 +116,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
+import {
+  getConfirmationState,
+  type ConfirmationPaymentState,
+} from '@/app/new-project/confirmation/[projectId]/ConfirmationContent';
 import {
   Table,
   TableHeader,
@@ -204,6 +209,14 @@ import { useCreateProject } from '@/lib/queries/projects';
 import { STUDIO_WALLET_PACKAGE } from '@/lib/pricing';
 import { useWizardStore } from '@/lib/wizardStore';
 import { useNotificationStore } from '@/lib/notificationStore';
+
+/** Same headings the confirmation page shows, so the hand-off reads as one continuous step. */
+const OVERLAY_HEADINGS: Record<ConfirmationPaymentState, string> = {
+  paid_credits: 'Project started',
+  online_completed: 'Payment received',
+  online_pending: 'Payment processing',
+  manual_order: 'Order received',
+};
 
 function getServiceIcon(serviceId: string, category: string) {
   switch (serviceId) {
@@ -313,13 +326,77 @@ const CORE_RESTRICTED_ITEMS = [
 
 type PriceFilterType = (typeof PRICE_FILTER_OPTIONS)[number]['id'];
 
+/**
+ * Client-side image compression:
+ * Scales oversized images down to max 2048px and converts to WebP (quality 0.85).
+ * Falls back safely to original file if unsupported or if original is already smaller.
+ */
+async function compressImageForUpload(file: File): Promise<File> {
+  if (typeof window === 'undefined' || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    return file;
+  }
+  return new Promise((resolve) => {
+    try {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX_DIM = 2048;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(file);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob || blob.size >= file.size) {
+              return resolve(file);
+            }
+            const cleanName = file.name.replace(/\.[^.]+$/, '') + '.webp';
+            const compressed = new File([blob], cleanName, { type: 'image/webp' });
+            resolve(compressed);
+          },
+          'image/webp',
+          0.85
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    } catch {
+      resolve(file);
+    }
+  });
+}
+
 export default function CreatorStudioPage() {
   // User store & TanStack Query synchronized server state
-  const { user, isHydrated, addCredits, deductCredits } = useUserStore();
+  const { user, isHydrated, addCredits, deductCredits, signOut } = useUserStore();
   const userBalance = user?.walletBalance ?? 0;
   const userEmail = user?.email || '';
   const userName = user?.name || '';
   const router = useRouter();
+
+  const handleSwitchAccount = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    signOut();
+    setShowAuthModal(true);
+  };
   const walletQuery = useWalletQuery(userEmail);
   const isWalletLoading = !isHydrated || walletQuery.isPending;
   const createProjectMutation = useCreateProject();
@@ -409,6 +486,8 @@ export default function CreatorStudioPage() {
   const [policyError, setPolicyError] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [isNavigatingToConfirmation, setIsNavigatingToConfirmation] = useState(false);
+  const [confirmationState, setConfirmationState] = useState<ConfirmationPaymentState>('online_completed');
+  const confirmationIsPending = confirmationState === 'online_pending' || confirmationState === 'manual_order';
 
   useEffect(() => {
     setMounted(true);
@@ -791,14 +870,15 @@ export default function CreatorStudioPage() {
           if (!brief.validateAll()) {
             toast.error(
               brief.errorCount === 1
-                ? 'Please fix the highlighted field.'
-                : `Please fix the ${brief.errorCount} highlighted fields.`
+                ? 'Please complete the highlighted mandatory field.'
+                : `Please complete all ${brief.errorCount} highlighted mandatory fields.`
             );
           } else if (!termsAccepted) {
             setTermsError(true);
             const el = document.getElementById('terms-ack') || document.getElementById('terms-ack-card');
             el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             el?.focus({ preventScroll: true });
+            toast.error('Please accept the Terms & Conditions to proceed.');
           }
         }
         return;
@@ -870,50 +950,106 @@ export default function CreatorStudioPage() {
   };
 
   const uploadFiles = async (incoming: File[]) => {
-    const files = incoming.filter((f) => f.type.startsWith('image/'));
-    if (incoming.length && !files.length) {
-      toast.error('Only image files (PNG, JPG, WebP) are supported');
+    if (!incoming.length) return;
+    if (!projectId) {
+      toast.error('Your draft is still loading. Please try again in a moment.');
       return;
     }
-    if (!files.length) return;
+
+    const currentUser = useUserStore.getState().user;
+    if (!currentUser) {
+      toast.error('Please sign in to upload reference images, or paste reference links in your brief instructions.');
+      setShowAuthModal(true);
+      return;
+    }
+    if (!currentUser.emailVerified) {
+      toast.error('Please verify your email address to upload reference images.');
+      return;
+    }
+
+    const allowed = REFERENCE_LIMITS.allowedTypes as readonly string[];
+    const maxMb = REFERENCE_LIMITS.maxFileBytes / (1024 * 1024);
+    const accepted: File[] = [];
+    let slots = REFERENCE_LIMITS.maxFiles - uploadedFiles.length;
+    let totalBytes = uploadedFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+
+    for (const rawFile of incoming) {
+      if (rawFile.type === 'image/svg+xml' || rawFile.name.toLowerCase().endsWith('.svg')) {
+        toast.error(`${rawFile.name}: SVG vector files cannot be uploaded as references. Please use PNG, JPG or WebP.`);
+        continue;
+      }
+
+      // Compress and resize raster images before preparing upload
+      const file = await compressImageForUpload(rawFile);
+
+      if (!allowed.includes(file.type)) {
+        toast.error(`${file.name}: only PNG, JPG or WebP images are allowed`);
+        continue;
+      }
+      if (file.size === 0 || file.size > REFERENCE_LIMITS.maxFileBytes) {
+        toast.error(`${file.name}: images must be ${maxMb} MB or smaller`);
+        continue;
+      }
+      if (slots <= 0) {
+        toast.error(`You can attach up to ${REFERENCE_LIMITS.maxFiles} reference images`);
+        break;
+      }
+      if (totalBytes + file.size > REFERENCE_LIMITS.maxTotalBytes) {
+        toast.error(`Reference images can total up to ${REFERENCE_LIMITS.maxTotalBytes / (1024 * 1024)} MB`);
+        break;
+      }
+      accepted.push(file);
+      slots--;
+      totalBytes += file.size;
+    }
+    if (!accepted.length) return;
 
     setIsUploading(true);
     setErrorMessage('');
-    try {
-      for (const file of files) {
-        setUploadingNames((prev) => [...prev, file.name]);
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('projectId', projectId);
+    const storage = createBrowserSupabaseClient().storage.from(REFERENCE_LIMITS.bucket);
 
+    for (const file of accepted) {
+      setUploadingNames((prev) => [...prev, file.name]);
+      try {
+        // 1. Server validates limits and issues a 2-hour signed upload URL.
         const res = await fetch('/api/uploads', {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, filename: file.name, size: file.size, mimeType: file.type }),
         });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not prepare the upload');
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'File upload failed');
+        // 2. Browser uploads straight to Supabase Storage (bypasses the app server).
+        const { error: uploadErr } = await storage.uploadToSignedUrl(data.upload.storagePath, data.upload.token, file, {
+          contentType: file.type,
+        });
+        if (uploadErr) throw new Error(uploadErr.message || 'Upload failed');
 
+        // 3. Draft keeps only metadata + a local preview (never the image bytes).
         setUploadedFiles((prev) => [
           ...prev,
           {
             id: data.file.id,
             filename: data.file.filename,
             size: data.file.size,
-            url: data.file.url,
+            mimeType: data.file.mimeType,
+            storagePath: data.file.storagePath,
+            url: URL.createObjectURL(file),
           },
         ]);
-        setUploadingNames((prev) => prev.filter((n) => n !== file.name));
         toast.success(`Uploaded ${file.name}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        toast.error(`${file.name}: ${msg}`);
+        if (/limit|up to|already submitted/i.test(msg)) break;
+      } finally {
+        setUploadingNames((prev) => prev.filter((n) => n !== file.name));
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Upload failed';
-      setErrorMessage(msg);
-      toast.error(msg);
-    } finally {
-      setUploadingNames([]);
-      setIsUploading(false);
     }
+
+    setUploadingNames([]);
+    setIsUploading(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -928,10 +1064,62 @@ export default function CreatorStudioPage() {
     void uploadFiles(Array.from(e.dataTransfer.files ?? []));
   };
 
-  const removeUploadedFile = (fileId: string) => {
+  const removeUploadedFile = async (fileId: string) => {
+    const file = uploadedFiles.find((f) => f.id === fileId);
     setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
-    toast.info('Removed reference file');
+    if (file?.url?.startsWith('blob:')) URL.revokeObjectURL(file.url);
+
+    if (file?.storagePath && projectId) {
+      try {
+        const res = await fetch('/api/uploads', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, storagePath: file.storagePath }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        // The draft no longer references it, so it won't be attached; the daily cleanup removes leftovers.
+        console.warn('Could not delete reference image from storage:', file.storagePath);
+      }
+    }
+    toast.info('Removed reference image');
   };
+
+  // Blob previews die on reload: once per draft, refresh the previews of files
+  // restored from the saved draft with fresh signed URLs.
+  const refreshedPreviewsFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!wizard.isHydrated || !projectId || submittedProject) return;
+    if (refreshedPreviewsFor.current === projectId) return;
+    refreshedPreviewsFor.current = projectId; // decide once, even if there is nothing to restore
+
+    // Restored entries have no preview URL (the store persists metadata only).
+    const restored = uploadedFiles.filter((f) => !f.url);
+    if (restored.length === 0) return;
+    const restoredIds = new Set(restored.map((f) => f.id));
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/uploads?projectId=${encodeURIComponent(projectId)}`);
+        if (!res.ok) return;
+        const { files } = (await res.json()) as { files: UploadedFile[] };
+        const byPath = new Map(files.map((f) => [f.storagePath, f]));
+        setUploadedFiles((prev) =>
+          prev
+            // Only judge files that were restored; anything uploaded meanwhile is kept as-is.
+            // Restored entries missing from storage (incl. legacy stub uploads) are dropped.
+            .filter((f) => !restoredIds.has(f.id) || (f.storagePath && byPath.has(f.storagePath)))
+            .map((f) =>
+              restoredIds.has(f.id) && f.storagePath
+                ? { ...f, url: byPath.get(f.storagePath)?.url || f.url }
+                : f
+            )
+        );
+      } catch {
+        // Previews are cosmetic; submission re-verifies files server-side.
+      }
+    })();
+  }, [wizard.isHydrated, projectId, submittedProject, uploadedFiles, setUploadedFiles]);
 
   const completeCheckout = async (project: ProjectRecord | null) => {
     // 1. Validate response has a project id
@@ -949,6 +1137,7 @@ export default function CreatorStudioPage() {
 
     // 2. Set submittedProjectId and activate immediate transition state
     setSubmittedProjectId(project.id);
+    setConfirmationState(getConfirmationState(project));
     setIsNavigatingToConfirmation(true);
 
     // 3. Synchronize server session and register project in client stores
@@ -1389,43 +1578,42 @@ export default function CreatorStudioPage() {
         {getStepAnnouncement(currentStep, Boolean(submittedProject))}
       </p>
 
-      {/* Immediate High-Fidelity Order Received Transition Overlay */}
+      {/* Hand-off overlay while the confirmation page loads (mirrors its status icon) */}
       {isNavigatingToConfirmation && (
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-md animate-in fade-in duration-200 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 p-4"
         >
-          <div className="w-full max-w-sm sm:max-w-md p-6 sm:p-8 rounded-2xl bg-card border border-border/80 shadow-2xl space-y-5 text-center flex flex-col items-center">
-            <div className="relative">
-              <div className="size-16 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-inner">
-                <CheckCircle className="size-8 animate-in zoom-in-75 duration-300" />
-              </div>
-              <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
-              </span>
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-                Order Received!
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-                Your order is confirmed. Opening your project receipt and creative workspace...
-              </p>
-            </div>
-
-            <div className="w-full space-y-2.5 pt-1">
-              <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 w-full animate-pulse rounded-full" />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-2xs text-muted-foreground font-mono">
-                <Spinner className="size-3 text-muted-foreground" />
-                <span>Loading studio confirmation...</span>
-              </div>
-            </div>
-          </div>
+          <Card className="w-full max-w-sm rounded-2xl border border-border/80 bg-card shadow-sm">
+            <Empty className="gap-5 p-6 sm:p-8">
+              <EmptyHeader>
+                <EmptyMedia
+                  className={cn(
+                    'size-12 rounded-full ring-8',
+                    confirmationIsPending
+                      ? 'bg-amber-400/15 text-brand-text dark:text-amber-400 ring-amber-400/10'
+                      : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/10'
+                  )}
+                >
+                  {confirmationIsPending ? (
+                    <Clock className="size-6 stroke-[2.5]" />
+                  ) : (
+                    <Check className="size-6 stroke-[2.5]" />
+                  )}
+                </EmptyMedia>
+                <EmptyTitle className="text-xl font-extrabold tracking-tight text-foreground">
+                  {OVERLAY_HEADINGS[confirmationState]}
+                </EmptyTitle>
+                <EmptyDescription className="text-xs sm:text-sm">
+                  Opening your confirmation…
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Spinner className="size-5 text-brand-text dark:text-amber-400" />
+              </EmptyContent>
+            </Empty>
+          </Card>
         </div>
       )}
 
@@ -1448,12 +1636,7 @@ export default function CreatorStudioPage() {
                 Choose how to fund your creative project.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed">
-                <span className="hidden sm:inline">
-                  Deploy instantly with your available Studio Wallet balance ($0 USD checkout), select a new package, or combine both for higher project scopes.
-                </span>
-                <span className="sm:hidden">
-                  Use your wallet, buy a package, or combine both.
-                </span>
+                Pick a package to get credits, or deploy instantly with your available wallet balance.
               </p>
             </div>
           </div>
@@ -1506,13 +1689,13 @@ export default function CreatorStudioPage() {
                     {/* Desktop detailed copy */}
                     <h3 className="hidden sm:block text-base sm:text-lg font-bold text-foreground leading-tight">
                       {isWalletFunding
-                        ? 'Funding with Existing Studio Wallet Balance'
-                        : 'Active Studio Credit Balance Available'}
+                        ? 'Funding with Studio Wallet Balance'
+                        : 'Active Studio Credits Available'}
                     </h3>
                     <p className="hidden sm:block text-xs text-muted-foreground leading-relaxed">
                       {isWalletFunding
-                        ? `Deploy your project with $0.00 USD checkout using your current ${userBalance} CR. Any unused credits remain preserved in your wallet.`
-                        : `You have ${userBalance} CR available. You can apply these credits alongside a package below to increase your total project purchasing power.`}
+                        ? `Deploy with $0.00 checkout using your current ${userBalance} CR. Unused credits remain in your wallet.`
+                        : `Apply your ${userBalance} CR alongside any package below to expand your total project budget.`}
                     </p>
                   </div>
                 </div>
@@ -1826,8 +2009,8 @@ export default function CreatorStudioPage() {
                   tabIndex={-1}
                   className="scroll-mt-[140px] text-xl sm:text-3xl font-extrabold tracking-tight text-foreground outline-none"
                 >
-                  <span className="hidden sm:inline">Choose everything you need in one go.</span>
-                  <span className="sm:hidden">Choose everything you need</span>
+                  <span className="hidden sm:inline">Choose your project deliverables.</span>
+                  <span className="sm:hidden">Choose deliverables</span>
                 </h1>
                 <button
                   type="button"
@@ -1838,7 +2021,7 @@ export default function CreatorStudioPage() {
                 </button>
               </div>
               <p className="hidden sm:block text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Select the services, set the size and quantity, and watch your credits update instantly.
+                Select the creative services you need. Your credit budget updates in real time.
               </p>
             </div>
 
@@ -2127,7 +2310,7 @@ export default function CreatorStudioPage() {
                                   </span>
                                 </span>
                               </ServiceImageHoverCard>
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 leading-relaxed">
                                 {svc.description}
                               </p>
                             </div>
@@ -2422,10 +2605,10 @@ export default function CreatorStudioPage() {
                 tabIndex={-1}
                 className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
               >
-                Check what your credits can be used for.
+                What your credits cover.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Please review before continuing. Briefs containing restricted content will be declined.
+                Review covered deliverables and studio standards before continuing.
               </p>
             </div>
 
@@ -2436,15 +2619,6 @@ export default function CreatorStudioPage() {
 
           {/* ReUI Standardized Announcement & Status Banner */}
           <StudioNoticeBanner type="step3-coverage" />
-
-          {/* Important Prohibited Content Callout Notice */}
-          <div className="flex items-center gap-2.5 p-2.5 sm:p-3 px-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-foreground text-xs shadow-2xs">
-            <ShieldAlert className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
-            <p className="leading-snug text-xs">
-              <strong className="font-bold text-rose-700 dark:text-rose-400">Important: </strong>
-              Some content types are prohibited. Please review the Restricted list below before continuing.
-            </p>
-          </div>
 
           {/* Two Equal Neutral Cards: Supported Deliverables | Restricted Guidelines (5-to-5 Symmetry) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
@@ -2877,8 +3051,7 @@ export default function CreatorStudioPage() {
                   Required Acknowledgement <span className={policyError && !policyAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
                 </Label>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  I understand that credits can only be applied to eligible creative services supported by Humantek Art,
-                  and that briefs with non-compliant content may be declined even if sufficient credits are available.
+                  I confirm my brief follows studio standards and does not contain prohibited content.
                 </p>
                 {policyError && !policyAccepted && (
                   <div
@@ -2904,17 +3077,17 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                4 OF 5 · YOUR PROJECT DETAILS
+                4 OF 5 · PROJECT BRIEF
               </div>
               <h1
                 ref={headingRef}
                 tabIndex={-1}
                 className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
               >
-                Tell us what each item should include.
+                Project details &amp; creative brief.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Add your brief, reference images, and any extras, then confirm the terms.
+                Tell our team about your channel, preferred style, and requirements.
               </p>
             </div>
 
@@ -2931,7 +3104,7 @@ export default function CreatorStudioPage() {
               {/* Channel / Brand Name */}
               <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('channelName')} className="text-xs font-semibold text-foreground">
-                  Channel / Brand Name
+                  Channel / Brand Name <span className="text-destructive font-semibold">*</span>
                 </Label>
                 <Input
                   {...brief.fieldProps('channelName')}
@@ -2948,7 +3121,7 @@ export default function CreatorStudioPage() {
               {/* Primary Platform */}
               <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('platform')} className="text-xs font-semibold text-foreground">
-                  Primary Platform
+                  Primary Platform <span className="text-destructive font-semibold">*</span>
                 </Label>
                 <Select
                   value={platform}
@@ -2977,7 +3150,7 @@ export default function CreatorStudioPage() {
               {/* Preferred Art Style */}
               <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('style')} className="text-xs font-semibold text-foreground">
-                  Preferred Art Style
+                  Preferred Art Style <span className="text-destructive font-semibold">*</span>
                 </Label>
                 <Input
                   {...brief.fieldProps('style')}
@@ -2993,7 +3166,7 @@ export default function CreatorStudioPage() {
               {/* Color Palette */}
               <div className="space-y-1 scroll-mt-[140px]">
                 <Label htmlFor={briefFieldId('colors')} className="text-xs font-semibold text-foreground">
-                  Color Palette / Themes
+                  Color Palette / Themes <span className="text-destructive font-semibold">*</span>
                 </Label>
                 <Input
                   {...brief.fieldProps('colors')}
@@ -3026,7 +3199,7 @@ export default function CreatorStudioPage() {
                 <Textarea
                   {...brief.fieldProps('instructions')}
                   maxLength={BRIEF_LIMITS.instructions.max}
-                  placeholder="Detail exact text, expressions for emotes, character poses, references, and delivery formats..."
+                  placeholder="Share any key text, expressions, poses, or instructions. You can also refine further with our team in project messages..."
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   rows={4}
@@ -3047,13 +3220,25 @@ export default function CreatorStudioPage() {
                       <b className="text-xs font-bold text-foreground">
                         Reference Art &amp; Files
                       </b>
+                      <Badge variant="outline" className="text-3xs font-medium py-0 px-1.5 text-muted-foreground border-border/60">
+                        Optional
+                      </Badge>
+                      <span
+                        className={cn(
+                          'text-3xs font-mono tabular-nums',
+                          uploadedFiles.length >= REFERENCE_LIMITS.maxFiles ? 'text-brand-text dark:text-amber-400 font-semibold' : 'text-muted-foreground'
+                        )}
+                        aria-label={`${uploadedFiles.length} of ${REFERENCE_LIMITS.maxFiles} images attached`}
+                      >
+                        {uploadedFiles.length}/{REFERENCE_LIMITS.maxFiles}
+                      </span>
                     </div>
                     <input
                       ref={fileInputRef}
                       id="reference-file-input"
                       type="file"
                       multiple
-                      accept="image/png,image/jpeg,image/webp,image/*"
+                      accept={REFERENCE_LIMITS.allowedTypes.join(',')}
                       onChange={handleFileUpload}
                       className="hidden"
                     />
@@ -3062,51 +3247,92 @@ export default function CreatorStudioPage() {
                       type="button"
                       variant="outline"
                       size="xs"
-                      disabled={isUploading}
-                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading || uploadedFiles.length >= REFERENCE_LIMITS.maxFiles}
+                      onClick={() => {
+                        if (!user) {
+                          setShowAuthModal(true);
+                        } else if (!user.emailVerified) {
+                          toast.error('Please verify your email address to upload reference images.');
+                        } else {
+                          fileInputRef.current?.click();
+                        }
+                      }}
                       className="w-full sm:w-auto mt-1 sm:mt-0 shrink-0 rounded-lg font-semibold shadow-2xs h-8 sm:h-7"
                     >
                       {isUploading ? (
                         <Spinner className="size-3" />
+                      ) : !user ? (
+                        <Lock className="size-3 text-muted-foreground" />
                       ) : (
                         <Upload className="size-3 text-brand-text dark:text-amber-400" />
                       )}
-                      Upload Files
+                      {!user ? 'Sign in to Upload' : 'Upload Images'}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug mt-0.5">
-                    Attach PNG, JPG, or WebP references up to 10MB (optional).
+                    Up to {REFERENCE_LIMITS.maxFiles} images · {REFERENCE_LIMITS.maxFileBytes / (1024 * 1024)} MB each · PNG, JPG or WebP.
                   </p>
                 </div>
 
-                {/* Drag & drop zone */}
-                <div
-                  id="reference-dropzone"
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Drop reference images here or click to browse"
-                  onClick={() => !isUploading && fileInputRef.current?.click()}
-                  onKeyDown={(e) => {
-                    if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
+                {/* Guest / Unverified Notice OR Active Dropzone */}
+                {!user ? (
+                  <div className="rounded-lg border border-dashed border-border bg-background/50 p-3 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <Lock className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
+                      <span className="leading-snug">
+                        Sign in with a verified account to upload files, or paste links (Google Drive, Pinterest, Figma) in your instructions.
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => setShowAuthModal(true)}
+                      className="shrink-0 font-semibold h-7 text-3xs text-brand-text dark:text-amber-400 hover:bg-amber-400/10"
+                    >
+                      Sign In
+                    </Button>
+                  </div>
+                ) : !user.emailVerified ? (
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                    <Lock className="size-3.5 shrink-0" />
+                    <span className="leading-snug">
+                      Please verify your email address to unlock file uploads, or paste reference links directly in the brief.
+                    </span>
+                  </div>
+                ) : uploadedFiles.length < REFERENCE_LIMITS.maxFiles ? (
+                  <div
+                    id="reference-dropzone"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Drop reference images here or click to browse"
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
+                        e.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onDragOver={(e) => {
                       e.preventDefault();
-                      fileInputRef.current?.click();
-                    }
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (!isDragOver) setIsDragOver(true);
-                  }}
-                  onDragLeave={() => setIsDragOver(false)}
-                  onDrop={handleFileDrop}
-                  data-dragging={isDragOver || undefined}
-                  className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground text-center sm:text-left cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-400/[0.04] focus-visible:ring-2 focus-visible:ring-amber-400/40 data-[dragging]:border-amber-400 data-[dragging]:bg-amber-400/15 data-[dragging]:text-brand-text dark:hover:bg-amber-400/5 dark:data-[dragging]:bg-amber-400/15"
-                >
-                  <ImageIcon className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
-                  <span className="leading-snug">
-                    <span className="font-semibold text-foreground">Drag &amp; drop</span>{' '}
-                    images here, or click to browse
-                  </span>
-                </div>
+                      if (!isDragOver) setIsDragOver(true);
+                    }}
+                    onDragLeave={() => setIsDragOver(false)}
+                    onDrop={handleFileDrop}
+                    data-dragging={isDragOver || undefined}
+                    className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground text-center sm:text-left cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-400/[0.04] focus-visible:ring-2 focus-visible:ring-amber-400/40 data-[dragging]:border-amber-400 data-[dragging]:bg-amber-400/15 data-[dragging]:text-brand-text dark:hover:bg-amber-400/5 dark:data-[dragging]:bg-amber-400/15"
+                  >
+                    <ImageIcon className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
+                    <span className="leading-snug">
+                      <span className="font-semibold text-foreground">Drag &amp; drop</span>{' '}
+                      images here, or click to browse
+                    </span>
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed border-border/70 bg-background/40 px-3 py-2.5 text-xs text-muted-foreground text-center">
+                    Limit reached. Remove an image to add another, or share more in project chat after submitting.
+                  </p>
+                )}
 
                 {(uploadedFiles.length > 0 || uploadingNames.length > 0) && (
                   <AttachmentGroup className="pt-0.5">
@@ -3117,8 +3343,12 @@ export default function CreatorStudioPage() {
                         className="min-w-0 max-w-[200px] border-border/80 shadow-2xs"
                       >
                         <AttachmentMedia variant="image">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={f.url} alt={f.filename} />
+                          {f.url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={f.url} alt={f.filename} />
+                          ) : (
+                            <ImageIcon className="text-brand-text dark:text-amber-400" />
+                          )}
                         </AttachmentMedia>
                         <AttachmentContent>
                           <AttachmentTitle className="text-xs">{f.filename}</AttachmentTitle>
@@ -3169,6 +3399,9 @@ export default function CreatorStudioPage() {
                     <b className="text-xs font-bold text-foreground">
                       Promo Code
                     </b>
+                    <Badge variant="outline" className="text-3xs font-medium py-0 px-1.5 text-muted-foreground border-border/60">
+                      Optional
+                    </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug mt-0.5">
                     Have a sponsor or promo code? Apply it to your project.
@@ -3316,11 +3549,10 @@ export default function CreatorStudioPage() {
                       termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'
                     )}
                   >
-                    Terms Confirmation <span className={termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
+                    Terms &amp; Conditions <span className={termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
                   </Label>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    I agree to the Humantek Studio Terms & Conditions, revision policies, and understand
-                    that production commences upon scope confirmation and payment verification.
+                    I agree to the Humantek Studio Terms &amp; Conditions and understand production starts upon order confirmation.
                   </p>
                   {termsError && !termsAccepted && (
                     <div
@@ -3356,17 +3588,17 @@ export default function CreatorStudioPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                    5 OF 5 · REVIEW &amp; PAY
+                    5 OF 5 · REVIEW &amp; LAUNCH
                   </div>
                   <h1
                     ref={headingRef}
                     tabIndex={-1}
                     className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
                   >
-                    Ready to submit?
+                    Review &amp; Launch.
                   </h1>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                    Check your package, services, brief, and balance, then pay securely with PayPal.
+                    Review your project scope and launch with your wallet balance or PayPal.
                   </p>
                 </div>
 
@@ -3669,12 +3901,12 @@ export default function CreatorStudioPage() {
                   <Card className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-5">
                     <div>
                       <h3 className="text-base sm:text-lg font-bold text-foreground">
-                        {isWalletFunding ? 'Wallet Credit Settlement' : 'Secure Studio Checkout'}
+                        {isWalletFunding ? 'Instant Wallet Launch' : 'Checkout & Launch'}
                       </h3>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                         {isWalletFunding
-                          ? 'Settle project scope instantly using your active Studio Credit balance ($0.00 USD).'
-                          : 'Pay with PayPal, credit/debit card, or submit for agency invoice.'}
+                          ? 'Launch your project instantly using your available studio credits ($0.00 USD).'
+                          : 'Complete your order securely with PayPal or card to start production.'}
                       </p>
                     </div>
 
@@ -3711,23 +3943,19 @@ export default function CreatorStudioPage() {
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span>Funding Source</span>
                               <span className="font-semibold text-foreground flex items-center gap-1.5">
-                                <Wallet className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" /> Global Studio Wallet
+                                <Wallet className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" /> Wallet Balance
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
-                              <span>Current Available Balance</span>
+                              <span>Available Balance</span>
                               <span className="font-semibold text-foreground font-mono tabular-nums">{userBalance} CR</span>
                             </div>
                             <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
-                              <span>Service Scope Total</span>
-                              <span className="font-mono tabular-nums">{usedCredits} CR</span>
-                            </div>
-                            <div className="flex items-center justify-between text-muted-foreground">
-                              <span>Wallet Deduction</span>
-                              <span className="font-semibold text-foreground font-mono tabular-nums">-{usedCredits} CR</span>
+                              <span>Project Scope Debited</span>
+                              <span className="font-mono tabular-nums">-{usedCredits} CR</span>
                             </div>
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                              <span>Remaining Balance After Launch</span>
+                              <span>Remaining Wallet Balance</span>
                               <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} CR</span>
                             </div>
                             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
@@ -3880,26 +4108,47 @@ export default function CreatorStudioPage() {
                             <ArrowRight className="w-4 h-4" />
                           </Button>
                         </div>
-                      ) : isWalletFunding ? (
-                        <div className="space-y-2">
-                          <Button
-                            type="button"
-                            size="lg"
-                            loading={isSubmitting}
-                            loadingText="Starting project..."
-                            disabled={userBalance < usedCredits}
-                            onClick={handleLaunchWithWallet}
-                            className="w-full h-11 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black rounded-xl shadow-md shadow-amber-400/25 cursor-pointer flex items-center justify-center gap-2"
-                          >
-                            <Sparkles className="w-4 h-4" /> Confirm & Launch with {usedCredits} Credits ($0.00 USD)
-                          </Button>
-                          <p className="text-2xs text-center text-muted-foreground leading-normal">
-                            Instantly debits {usedCredits} CR from your Studio Wallet. Project moves directly to active production.
-                          </p>
-                        </div>
                       ) : (
                         <>
-                          {/* Prominent Creator Benefit: Credit Rollover */}
+                          <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/60 text-xs">
+                            <div className="min-w-0 pr-2">
+                              <span className="text-2xs text-muted-foreground block font-medium">Order will be registered to:</span>
+                              <span className="font-semibold text-foreground truncate block">
+                                {user.name && user.name.trim().toLowerCase() !== 'client' && user.name.trim().toLowerCase() !== 'creator'
+                                  ? user.name
+                                  : user.email.split('@')[0]}{' '}
+                                <span className="text-muted-foreground font-normal">({user.email})</span>
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleSwitchAccount}
+                              className="text-xs text-brand-text dark:text-amber-400 hover:underline shrink-0 font-medium cursor-pointer"
+                            >
+                              Not you? Switch account
+                            </button>
+                          </div>
+
+                          {isWalletFunding ? (
+                            <div className="space-y-2">
+                              <Button
+                                type="button"
+                                size="lg"
+                                loading={isSubmitting}
+                                loadingText="Starting project..."
+                                disabled={userBalance < usedCredits}
+                                onClick={handleLaunchWithWallet}
+                                className="w-full h-11 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black rounded-xl shadow-md shadow-amber-400/25 cursor-pointer flex items-center justify-center gap-2"
+                              >
+                                <Sparkles className="w-4 h-4" /> Confirm & Launch with {usedCredits} Credits ($0.00 USD)
+                              </Button>
+                              <p className="text-2xs text-center text-muted-foreground leading-normal">
+                                Instantly debits {usedCredits} CR from your Studio Wallet. Project moves directly to active production.
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Prominent Creator Benefit: Credit Rollover */}
                           {totalUsableCredits > usedCredits && (
                             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-200 text-xs">
                               <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -3962,7 +4211,9 @@ export default function CreatorStudioPage() {
                           )}
                         </>
                       )}
-                    </div>
+                    </>
+                  )}
+                </div>
 
                     {/* Secondary Alternative Path: Quiet link for users needing PO / sponsor sign-off */}
                     <div className="pt-1.5 border-t border-border/60 text-center">

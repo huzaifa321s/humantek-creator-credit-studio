@@ -108,7 +108,7 @@ export function AdminKpiStrip({
             </div>
           )}
           <span className="text-2xs text-muted-foreground font-medium block truncate mt-0.5">
-            Briefs awaiting scoping
+            Projects awaiting review
           </span>
         </div>
       </Card>

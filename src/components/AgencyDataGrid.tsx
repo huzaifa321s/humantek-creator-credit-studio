@@ -243,7 +243,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
             <EmptyMedia variant="icon" className="size-12 rounded-lg">
               <FileSpreadsheet className="w-6 h-6 text-muted-foreground" />
             </EmptyMedia>
-            <EmptyTitle className="text-base font-bold">No Ledger Records Found</EmptyTitle>
+            <EmptyTitle className="text-base font-bold">No Credit Records Found</EmptyTitle>
             <EmptyDescription className="text-xs sm:text-sm">
               No transactions match your search &ldquo;{searchQuery || typeFilter}&rdquo;. Try clearing filters.
             </EmptyDescription>

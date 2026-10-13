@@ -60,7 +60,11 @@ export interface UploadedFile {
   id: string;
   filename: string;
   size: number;
+  /** Display-only preview (blob: URL or short-lived signed URL). */
   url: string;
+  /** Object path in the private `project-references` bucket. Absent on legacy records. */
+  storagePath?: string;
+  mimeType?: string;
 }
 
 export interface ProjectRecord {

@@ -375,7 +375,7 @@ function ChatFloatingWidgetInner() {
                     variant="outline"
                     size="icon-sm"
                     onClick={() => setUserToggledSidebar(!isSidebarOpen)}
-                    title={isSidebarOpen ? 'Collapse Project Sessions' : 'Show Project Sessions'}
+                    title={isSidebarOpen ? 'Collapse Project Chats' : 'Show Project Chats'}
                     className={cn(
                       'hidden sm:inline-flex h-8 w-8 rounded-lg cursor-pointer transition-colors',
                       isSidebarOpen && 'bg-accent text-accent-foreground'
@@ -395,7 +395,7 @@ function ChatFloatingWidgetInner() {
                     <span className="text-xs text-muted-foreground hidden xs:inline">· Studio Team</span>
                   </div>
                   <div className="text-2xs text-muted-foreground truncate">
-                    Studio Support &amp; Production
+                    Project Messages &amp; Direct Support
                   </div>
                 </div>
               </div>

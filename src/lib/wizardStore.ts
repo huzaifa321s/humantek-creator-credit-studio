@@ -316,6 +316,17 @@ export const useWizardStore = create<WizardStoreState>()(
           colors: state.brief.colors,
           instructions: state.brief.instructions,
         },
+        // Metadata only: previews are re-signed on load; image bytes stay in Supabase Storage.
+        uploadedFiles: state.uploadedFiles
+          .filter((f) => f.storagePath)
+          .map((f) => ({
+            id: f.id,
+            filename: f.filename,
+            size: f.size,
+            mimeType: f.mimeType,
+            storagePath: f.storagePath,
+            url: '',
+          })),
         savedAt: Date.now(),
       }),
       onRehydrateStorage: () => (state) => {
@@ -349,3 +360,52 @@ export const useWizardStore = create<WizardStoreState>()(
     }
   )
 );
+
+/**
+ * Hook to inspect whether the user has an active, unsaved wizard draft in progress.
+ * Safe against hydration mismatches.
+ */
+export function useActiveWizardDraft() {
+  const isHydrated = useWizardStore((s) => s.isHydrated);
+  const selectedPackageId = useWizardStore((s) => s.selectedPackageId);
+  const selections = useWizardStore((s) => s.selections);
+  const currentStep = useWizardStore((s) => s.currentStep);
+  const brief = useWizardStore((s) => s.brief);
+  const submittedProject = useWizardStore((s) => s.submittedProject);
+  const resetWizard = useWizardStore((s) => s.resetWizard);
+
+  if (!isHydrated || submittedProject) {
+    return {
+      hasDraft: false,
+      step: 1,
+      packageName: '',
+      channelName: '',
+      itemsCount: 0,
+      resetWizard,
+    };
+  }
+
+  const itemsCount = Object.keys(selections || {}).length;
+  const hasContent = Boolean(
+    selectedPackageId ||
+    itemsCount > 0 ||
+    brief.channelName.trim() ||
+    brief.instructions.trim() ||
+    currentStep > 1
+  );
+
+  const matchedPkg = PACKAGES.find((p) => p.id === selectedPackageId);
+  const packageName =
+    selectedPackageId === 'studio-wallet'
+      ? 'Studio Wallet Deployment'
+      : matchedPkg?.name || (selectedPackageId ? 'Custom Package' : '');
+
+  return {
+    hasDraft: hasContent,
+    step: currentStep,
+    packageName,
+    channelName: brief.channelName.trim(),
+    itemsCount,
+    resetWizard,
+  };
+}

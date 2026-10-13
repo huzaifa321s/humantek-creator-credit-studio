@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { PACKAGES } from '@/lib/catalog';
+import { notifyAdmins } from '@/lib/notifications';
 import { ManualPaymentAdapter } from '@/lib/payments/adapter';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  if (user.isAdmin) {
+  if (user.role === 'admin') {
     return NextResponse.json(
       { error: 'Administrators cannot create client purchase orders.' },
       { status: 403 }
@@ -65,6 +66,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
       }
       order = inserted;
+
+      // Major action notification: Payment pending approval
+      void notifyAdmins({
+        type: 'order_status',
+        title: 'Payment needs approval',
+        message: `${user.email} placed a manual order for $${pkg.price}.`,
+        link: `/management?tab=orders&id=${order.id}`,
+        actionLabel: 'Check Payment',
+        actionId: order.id,
+      });
     }
 
     // Format manual payment instructions

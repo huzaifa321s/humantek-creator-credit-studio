@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ChatFullView } from '@/components/chat/ChatFullView';
 import { ChatGate } from '@/components/chat/ChatGate';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
 
 function RedirectToProjects() {
   const router = useRouter();
@@ -22,19 +21,7 @@ export default function MessagesPage() {
     <StudioCardLayout
       mode="standalone"
       backLabel="Back to Studio"
-      topRightBadge={
-        <Link href="/new-project">
-          <Button
-            variant="gold"
-            size="sm"
-            className="gap-1 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="hidden min-[400px]:inline">New Project</span>
-            <span className="min-[400px]:hidden">New</span>
-          </Button>
-        </Link>
-      }
+      topRightBadge={<StudioNewProjectButton />}
     >
       <div className="space-y-4 pb-20 sm:pb-28 animate-in fade-in duration-200">
         <ChatGate fallback={<RedirectToProjects />}>

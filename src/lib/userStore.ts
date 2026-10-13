@@ -7,6 +7,7 @@ export interface StudioUser {
   id: string;
   name: string;
   email: string;
+  avatarUrl?: string | null;
   avatarInitials: string;
   walletBalance: number;
   channelName?: string;
@@ -28,7 +29,8 @@ interface UserStoreState {
     email?: string,
     walletBalance?: number,
     id?: string,
-    role?: string
+    role?: string,
+    avatarUrl?: string | null
   ) => void;
   addCredits: (amount: number, description?: string) => void;
   deductCredits: (amount: number, description?: string) => boolean;
@@ -93,13 +95,15 @@ export const useUserStore = create<UserStoreState>()(
         email = '',
         walletBalance = 0,
         id = `user-${Date.now()}`,
-        role = 'client'
+        role = 'client',
+        avatarUrl = null
       ) =>
         set({
           user: {
             id,
             name,
             email,
+            avatarUrl,
             avatarInitials: computeInitials(name, email),
             walletBalance: typeof walletBalance === 'number' ? walletBalance : 0,
             role,
@@ -142,7 +146,7 @@ export const useUserStore = create<UserStoreState>()(
       isAdmin: () => {
         const u = get().user;
         if (!u) return false;
-        return u.role === 'admin' || u.email === 'admin@humantek.art' || u.email === 'huzaifafurqan22@gmail.com';
+        return u.role === 'admin';
       },
       isClient: () => {
         const u = get().user;
@@ -206,6 +210,8 @@ export async function refreshUserSession(): Promise<boolean> {
       useUserStore.getState().updateUser({
         id: data.user.id,
         email: data.user.email,
+        name: data.user.name || undefined,
+        avatarUrl: data.user.avatarUrl || null,
         role: data.user.role || 'client',
         emailVerified: Boolean(data.user.emailConfirmed),
         hasProjects: Boolean(data.user.hasProjects),
@@ -214,7 +220,7 @@ export async function refreshUserSession(): Promise<boolean> {
       return true;
     } else if (!data.authenticated) {
       const current = useUserStore.getState().user;
-      if (current?.email && current.email !== 'dev@localhost') {
+      if (current?.email) {
         useUserStore.getState().signOut();
       }
     }

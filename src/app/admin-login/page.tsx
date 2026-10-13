@@ -174,7 +174,7 @@ export default function AdminLoginPage() {
                 <Field className="space-y-1.5">
                   <FieldLabel className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Lock className="size-3.5 text-muted-foreground" />
-                    Master Password
+                    Administrator Password
                   </FieldLabel>
                   <div className="relative">
                     <Input

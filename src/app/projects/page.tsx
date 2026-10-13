@@ -37,6 +37,8 @@ import {
   useProjectDetailQuery,
 } from '@/lib/queries/projects';
 import { ChatGate } from '@/components/chat/ChatGate';
+import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
+import { DashboardDraftBanner } from '@/components/DashboardDraftBanner';
 
 function ProjectCardChatButton({ projectId }: { projectId: string }) {
   const { setIsOpen, unreadCounts } = useStudioChat();
@@ -312,15 +314,7 @@ export default function ProjectsPage() {
     <StudioCardLayout
       mode="standalone"
       backLabel="Back to Studio"
-      topRightBadge={
-        <Link href="/new-project">
-          <Button variant="gold" size="sm" className="gap-1 cursor-pointer">
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="hidden min-[400px]:inline">New Project</span>
-            <span className="min-[400px]:hidden">New</span>
-          </Button>
-        </Link>
-      }
+      topRightBadge={<StudioNewProjectButton />}
     >
       <div className="space-y-6 pb-24 sm:pb-32 animate-in fade-in duration-200">
         {/* Step Top Header */}
@@ -334,6 +328,9 @@ export default function ProjectsPage() {
             </p>
           </div>
         </div>
+
+        {/* Active Saved Draft Alert Banner */}
+        <DashboardDraftBanner />
 
         {/* Filter Bar with Tabs and Search — only shown when client has more than 3 projects */}
         {totalCount > 3 && (

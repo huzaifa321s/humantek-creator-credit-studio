@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestUser } from '@/lib/auth';
+import { requireAdminAal2 } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -21,9 +21,9 @@ export interface ManagementSummaryData {
 }
 
 export async function GET(_req: NextRequest) {
-  const user = await getRequestUser();
-  if (!user || !user.isAdmin) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const authRes = await requireAdminAal2();
+  if (authRes instanceof NextResponse) {
+    return authRes;
   }
 
   try {

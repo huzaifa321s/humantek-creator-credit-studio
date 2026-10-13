@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { orderRequestSchema, patchProjectSchema, firstIssue } from '@/lib/validation';
+import { createNotification, notifyAdmins } from '@/lib/notifications';
 import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import {
   getProjects,
@@ -14,6 +15,7 @@ import {
 import { computeOrderQuote } from '@/lib/pricing';
 import { buildProjectRecord, formatDbProject } from '@/lib/orders';
 import { PACKAGES, SERVICES } from '@/lib/catalog';
+import { attachProjectReferences, signReferenceFiles, verifyReferenceFiles } from '@/lib/references';
 import {
   clampLimit,
   decodeCursor,
@@ -23,15 +25,7 @@ import {
   PAGINATION_LIMITS,
 } from '@/lib/pagination';
 
-/**
- * Admins see every project; signed-in creators only see their own.
- * Supports:
- * - Single project retrieval: GET /api/projects?id=<projectId> (full details including selections & additions)
- * - Keyset cursor pagination: GET /api/projects?cursor=<base64url>&limit=20
- * - Server-side search & filtering: GET /api/projects?search=HT-8531&status=active
- * - Lightweight summary-only responses: summary=true (default for lists)
- * - RLS enforcement for clients; Server-Timing performance headers
- */
+
 export async function GET(req: NextRequest) {
   const tStart = performance.now();
   const user = await getRequestUser();
@@ -42,6 +36,17 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const singleId = searchParams.get('id');
+
+  if (user.role === 'admin' && !user.isAdmin) {
+    return NextResponse.json(
+      {
+        error: 'Two-factor authentication (AAL2) required to access project management operations.',
+        code: 'AAL2_REQUIRED',
+        redirect: '/admin-totp',
+      },
+      { status: 403 }
+    );
+  }
 
   // Client reads use standard client with RLS; admins use adminClient
   const dbClient = user.isAdmin ? createAdminClient() : await createClient();
@@ -68,7 +73,9 @@ export async function GET(req: NextRequest) {
         if (!data) {
           return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
-        return NextResponse.json({ project: formatDbProject(data) });
+        const project = formatDbProject(data);
+        project.uploadedFiles = await signReferenceFiles(createAdminClient(), project.uploadedFiles);
+        return NextResponse.json({ project });
       } catch (err) {
         console.error('Single project query exception in GET /api/projects:', err);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -114,14 +121,14 @@ export async function GET(req: NextRequest) {
       // Build data query
       let dataQuery = summaryParam
         ? dbClient
-            .from('projects')
-            .select(
-              'id, user_id, project_code, package_id, package_name, package_price_usd, package_credits, total_credits, status, payment_status, payment_method, funding_source, applied_wallet_credits, client_name, channel_name, email, platform, style, colors, instructions, uploaded_files, last_message_at, last_message_preview, created_at',
-              { count: 'exact' }
-            )
+          .from('projects')
+          .select(
+            'id, user_id, project_code, package_id, package_name, package_price_usd, package_credits, total_credits, status, payment_status, payment_method, funding_source, applied_wallet_credits, client_name, channel_name, email, platform, style, colors, instructions, uploaded_files, last_message_at, last_message_preview, created_at',
+            { count: 'exact' }
+          )
         : dbClient
-            .from('projects')
-            .select('*, project_items(*), project_additions(*)', { count: 'exact' });
+          .from('projects')
+          .select('*, project_items(*), project_additions(*)', { count: 'exact' });
 
       // Tenant isolation: clients only see their own projects (enforced both in query & RLS)
       if (!user.isAdmin) {
@@ -366,8 +373,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  // Administrators cannot create client projects for themselves
-  if (user.isAdmin) {
+  // Administrators cannot create client projects for themselves (strictly blocked at both AAL1 and AAL2)
+  if (user.role === 'admin') {
     return NextResponse.json(
       { error: 'Administrators cannot create client projects. Please use the Management Console to oversee client projects.' },
       { status: 403 }
@@ -457,6 +464,22 @@ export async function POST(req: NextRequest) {
     try {
       const adminClient = createAdminClient();
 
+      // Authoritative reference verification: Attach pending uploads from project_uploads
+      // If a claimed file is missing, expired, or belongs to another user, fail submission clearly.
+      let verifiedReferences: Awaited<ReturnType<typeof verifyReferenceFiles>> = [];
+      if (Array.isArray(parsed.data.uploadedFiles) && parsed.data.uploadedFiles.length > 0) {
+        try {
+          verifiedReferences = await attachProjectReferences(
+            adminClient,
+            user.id,
+            parsed.data.projectId,
+            parsed.data.uploadedFiles
+          );
+        } catch (refErr) {
+          const msg = refErr instanceof Error ? refErr.message : 'Reference verification failed';
+          return NextResponse.json({ error: msg }, { status: 400 });
+        }
+      }
       const pkgCodeMap: Record<string, string> = {
         'creator-forge': 'FORGE',
         'studio-momentum': 'MOMENTUM',
@@ -525,7 +548,7 @@ export async function POST(req: NextRequest) {
             style: parsed.data.style || '',
             colors: parsed.data.colors || '',
             instructions: parsed.data.instructions || '',
-            uploaded_files: parsed.data.uploadedFiles || [],
+            uploaded_files: verifiedReferences,
             idempotency_key: parsed.data.projectId,
           })
           .select('*, project_items(*), project_additions(*)')
@@ -575,6 +598,26 @@ export async function POST(req: NextRequest) {
           .eq('id', parsed.data.projectId)
           .single();
 
+        // Major action notification: Brief submitted
+        void createNotification({
+          userId: user.id,
+          type: 'project_status',
+          title: 'Project submitted',
+          message: 'We received your brief and will review it shortly.',
+          link: `/projects/${parsed.data.projectId}`,
+          actionLabel: 'View Project',
+          actionId: parsed.data.projectId,
+        });
+
+        void notifyAdmins({
+          type: 'project_status',
+          title: 'New project request',
+          message: `${ownerName} submitted a new brief for review.`,
+          link: `/management?tab=projects&id=${parsed.data.projectId}`,
+          actionLabel: 'Review Brief',
+          actionId: parsed.data.projectId,
+        });
+
         return NextResponse.json({
           success: true,
           project: freshProj ? formatDbProject(freshProj) : null,
@@ -619,7 +662,7 @@ export async function POST(req: NextRequest) {
         p_style: parsed.data.style || '',
         p_colors: parsed.data.colors || '',
         p_instructions: parsed.data.instructions || '',
-        p_uploaded_files: parsed.data.uploadedFiles || [],
+        p_uploaded_files: verifiedReferences,
         p_selections: parsed.data.selections,
         p_additions: parsed.data.additions || [],
         p_idempotency_key: parsed.data.projectId,
@@ -664,6 +707,28 @@ export async function POST(req: NextRequest) {
         .single();
 
       const project = projRow ? formatDbProject(projRow) : null;
+
+      // Major action notification: Project started with credits (only on initial creation, not replay)
+      if (!rpcRes?.replayed) {
+        void createNotification({
+          userId: user.id,
+          type: 'project_status',
+          title: 'Project started',
+          message: 'Your project was funded with credits and is now queued.',
+          link: `/projects/${parsed.data.projectId}`,
+          actionLabel: 'View Project',
+          actionId: parsed.data.projectId,
+        });
+
+        void notifyAdmins({
+          type: 'project_status',
+          title: 'New credit project',
+          message: `${ownerName} started a new project with wallet credits.`,
+          link: `/management?tab=projects&id=${parsed.data.projectId}`,
+          actionLabel: 'View Project',
+          actionId: parsed.data.projectId,
+        });
+      }
 
       return NextResponse.json({
         success: true,
@@ -814,6 +879,29 @@ export async function PATCH(req: NextRequest) {
         .eq('id', id)
         .single();
 
+      if (updatedProj) {
+        if (user.isAdmin && updatedProj.user_id !== user.id) {
+          void createNotification({
+            userId: updatedProj.user_id,
+            type: 'project_status',
+            title: 'Project cancelled',
+            message: 'Your project was cancelled and any credits were refunded.',
+            link: `/projects/${id}`,
+            actionLabel: 'View Details',
+            actionId: id,
+          });
+        } else if (!user.isAdmin) {
+          void notifyAdmins({
+            type: 'project_status',
+            title: 'Project cancelled',
+            message: `${user.email} cancelled project ${updatedProj.project_code || id}.`,
+            link: `/management?tab=projects&id=${id}`,
+            actionLabel: 'View Project',
+            actionId: id,
+          });
+        }
+      }
+
       return NextResponse.json({ success: true, project: formatDbProject(updatedProj) });
     }
 
@@ -848,6 +936,51 @@ export async function PATCH(req: NextRequest) {
       .select('*, project_items(*), project_additions(*)')
       .eq('id', id)
       .single();
+
+    // Major action notifications on status transitions
+    if (updatedProj && updatedProj.user_id) {
+      if (status === 'in_production') {
+        void createNotification({
+          userId: updatedProj.user_id,
+          type: 'project_status',
+          title: 'Production started',
+          message: 'We started working on your project.',
+          link: `/projects/${id}`,
+          actionLabel: 'View Project',
+          actionId: id,
+        });
+      } else if (status === 'review_round') {
+        void createNotification({
+          userId: updatedProj.user_id,
+          type: 'project_status',
+          title: 'Preview ready',
+          message: 'Your design preview is ready to review.',
+          link: `/projects/${id}`,
+          actionLabel: 'Review Now',
+          actionId: id,
+        });
+      } else if (status === 'delivered') {
+        void createNotification({
+          userId: updatedProj.user_id,
+          type: 'project_status',
+          title: 'Project completed! 🎉',
+          message: 'Your final files are ready to download.',
+          link: `/projects/${id}`,
+          actionLabel: 'Download Files',
+          actionId: id,
+        });
+      } else if (status === 'declined') {
+        void createNotification({
+          userId: updatedProj.user_id,
+          type: 'project_status',
+          title: 'Brief declined',
+          message: 'Your project brief could not be accepted. Check project details.',
+          link: `/projects/${id}`,
+          actionLabel: 'View Details',
+          actionId: id,
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, project: formatDbProject(updatedProj) });
   }

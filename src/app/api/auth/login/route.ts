@@ -59,10 +59,36 @@ export async function POST(req: NextRequest) {
     // 1. Authenticate with Supabase Auth via @supabase/ssr server client
     // This automatically sets the standard Supabase auth cookies (sb-*-auth-token)
     const supabase = await createClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
+    let { data, error } = await supabase.auth.signInWithPassword({
       email: userEmail,
       password: userPass,
     });
+
+    if (error) {
+      if (
+        process.env.NODE_ENV === 'development' &&
+        error.message?.toLowerCase().includes('email not confirmed')
+      ) {
+        try {
+          const admin = createAdminClient();
+          const { data: usersData } = await admin.auth.admin.listUsers();
+          const targetUser = usersData.users.find((u) => u.email?.toLowerCase() === userEmail);
+          if (targetUser) {
+            await admin.auth.admin.updateUserById(targetUser.id, { email_confirm: true });
+            const retry = await supabase.auth.signInWithPassword({
+              email: userEmail,
+              password: userPass,
+            });
+            if (!retry.error && retry.data.user) {
+              data = retry.data;
+              error = null;
+            }
+          }
+        } catch (devErr) {
+          console.warn('[DEV Auto-Confirm Login] Error:', devErr);
+        }
+      }
+    }
 
     if (error || !data.user) {
       return NextResponse.json(
@@ -70,30 +96,63 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+    if (!data.user.email_confirmed_at) {
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const admin = createAdminClient();
+          await admin.auth.admin.updateUserById(data.user.id, { email_confirm: true });
+        } catch (devErr) {
+          console.warn('[DEV Auto-Confirm] Error:', devErr);
+        }
+      } else {
+        await supabase.auth.signOut();
+        return NextResponse.json(
+          {
+            error: 'Please verify your email address before signing in. Check your email for the verification code.',
+            requiresVerification: true,
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const userId = data.user.id;
     const admin = createAdminClient();
 
-    // 2. Fetch authoritative profile (role, full name) from Postgres
-    const { data: profile } = await admin
+    // 2. Fetch authoritative profile (role, full name) strictly from Postgres (no email allowlist)
+    let { data: profile } = await admin
       .from('profiles')
       .select('role, full_name')
       .eq('id', userId)
       .maybeSingle();
 
-    const ADMIN_EMAILS = [
-      'dev@localhost',
-      'admin@humantek.art',
-      'huzaifa14321furqan@gmail.com',
-      'huzaifaf22@gmail.com',
-      'huzaifafurqan22@gmail.com',
-      ...(process.env.ADMIN_EMAILS || '')
-        .split(',')
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean),
-    ];
+    // Security & Data Integrity: If profile row is missing, raise an alert and auto-heal
+    if (!profile) {
+      try {
+        await admin.from('admin_alerts').insert({
+          type: 'missing_profile',
+          message: `User ${userId} (${userEmail}) signed in but has no profile row. Auto-healing client profile.`,
+          metadata: { userId, userEmail, severity: 'warning' },
+        });
+        const fallbackName = (data.user.user_metadata?.name || data.user.user_metadata?.full_name || (userEmail.split('@')[0]) || 'Creator').slice(0, 80);
+        await admin.from('profiles').upsert({
+          id: userId,
+          email: userEmail,
+          full_name: fallbackName,
+          role: 'client',
+        }, { onConflict: 'id', ignoreDuplicates: true });
+        await admin.from('wallets').upsert({
+          user_id: userId,
+          balance_purchased: 0,
+          balance_promo: 0,
+        }, { onConflict: 'user_id', ignoreDuplicates: true });
+        profile = { role: 'client', full_name: fallbackName };
+      } catch (alertErr) {
+        console.warn('Could not record missing profile alert:', alertErr);
+      }
+    }
 
-    const isAdmin = profile?.role === 'admin' || ADMIN_EMAILS.includes(userEmail);
+    const isAdmin = profile?.role === 'admin';
     const userRole = isAdmin ? 'admin' : 'client';
 
     // If this request came from the restricted /admin-login portal, strictly enforce admin role

@@ -42,10 +42,10 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
             </span>
             <p className="text-xs text-foreground/90 font-medium leading-tight sm:leading-normal">
               <span className="hidden sm:inline">
-                <strong className="font-semibold text-foreground">Customized Creator Services:</strong> Prepaid credits for custom graphics, VTubers & stream branding · Commercial rights & revisions included.
+                <strong className="font-semibold text-foreground">Prepaid Studio Credits:</strong> Choose a package to fund your project · Commercial streaming rights &amp; revisions included.
               </span>
               <span className="sm:hidden text-2xs">
-                <strong className="font-semibold text-foreground">Prepaid Studio Credits:</strong> Commercial rights & revisions included.
+                <strong className="font-semibold text-foreground">Prepaid Credits:</strong> Commercial rights &amp; revisions included.
               </span>
             </p>
           </div>
@@ -63,41 +63,27 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
     <Alert
       variant="warning"
       className={cn(
-        'relative rounded-xl border border-amber-400/30 bg-amber-400/5 dark:bg-amber-950/20 p-4 sm:p-5 shadow-2xs transition-all',
+        'relative rounded-xl border border-amber-400/30 bg-amber-400/5 dark:bg-amber-950/20 px-3.5 sm:px-4 py-2.5 sm:py-3 shadow-2xs transition-all',
         props.className
       )}
     >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 w-full">
-        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
-            <ShieldCheck className="w-5 h-5" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
+            <ShieldCheck className="w-4 h-4" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <AlertTitle className="text-sm font-bold text-foreground">
-                Clear Scopes, Fast Delivery
+              <AlertTitle className="text-xs sm:text-sm font-bold text-foreground">
+                Clear Scopes &amp; Fast Delivery
               </AlertTitle>
               <Badge variant="gold" className="text-2xs py-0 px-2 font-bold uppercase tracking-wider">
-                3–7 Day SLA
+                3–7 Day Turnaround
               </Badge>
             </div>
             <AlertDescription className="text-xs text-muted-foreground leading-normal">
-              Transparent production scopes protect design quality and honor our 3–7 business day turnaround guarantee.
+              Transparent scopes guarantee fast delivery. Commercial streaming rights and 2–3 revision rounds are included with every project.
             </AlertDescription>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-0.5 text-xs text-foreground font-medium">
-              <div className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                <span>2–3 revision rounds included</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                <span>Stream-ready PNG, WebM & master files</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                <span>12-month credit validity & rollover</span>
-              </div>
-            </div>
           </div>
         </div>
 

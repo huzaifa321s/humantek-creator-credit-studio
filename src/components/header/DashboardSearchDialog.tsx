@@ -58,10 +58,7 @@ export function DashboardSearchDialog({
     (
       user.role.toLowerCase() === 'admin' ||
       user.role.toLowerCase() === 'producer' ||
-      user.role.toLowerCase() === 'staff' ||
-      user.email === 'dev@localhost' ||
-      user.email === 'admin@humantek.art' ||
-      user.email === 'huzaifa14321furqan@gmail.com'
+      user.role.toLowerCase() === 'staff'
     )
   );
 

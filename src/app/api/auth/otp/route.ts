@@ -2,8 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 
+interface RateLimitRecord {
+  attempts: number;
+  resetAt: number;
+  lastResendAt?: number;
+}
+
+const otpRateLimitMap = new Map<string, RateLimitRecord>();
+
+function getRateLimitRecord(key: string, windowMs = 15 * 60 * 1000): RateLimitRecord {
+  const now = Date.now();
+  const existing = otpRateLimitMap.get(key);
+  if (!existing || now > existing.resetAt) {
+    const fresh: RateLimitRecord = { attempts: 0, resetAt: now + windowMs };
+    otpRateLimitMap.set(key, fresh);
+    return fresh;
+  }
+  return existing;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown-ip';
+
     const body = await req.json().catch(() => ({}));
     const { email, token, action } = body;
 
@@ -18,8 +42,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Database service is not configured.' }, { status: 500 });
     }
 
-    // 1. Resend OTP flow
+    const ipRecord = getRateLimitRecord(`ip:${clientIp}`);
+    const emailRecord = getRateLimitRecord(`email:${userEmail}`);
+
+    // 1. Resend OTP flow (enforce 60-second cooldown)
     if (action === 'resend') {
+      const now = Date.now();
+      const lastResend = Math.max(ipRecord.lastResendAt || 0, emailRecord.lastResendAt || 0);
+      const cooldownRemaining = Math.ceil((lastResend + 60 * 1000 - now) / 1000);
+
+      if (cooldownRemaining > 0) {
+        return NextResponse.json(
+          {
+            error: `Please wait ${cooldownRemaining} second${cooldownRemaining === 1 ? '' : 's'} before requesting another code.`,
+            cooldownSeconds: cooldownRemaining,
+          },
+          { status: 429 }
+        );
+      }
+
+      ipRecord.lastResendAt = now;
+      emailRecord.lastResendAt = now;
+
       const supabase = await createClient();
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -27,23 +71,35 @@ export async function POST(req: NextRequest) {
       });
 
       if (error) {
-        // Fallback to type: 'email_change' or generic success to avoid leaking
         console.warn('Resend OTP warning:', error.message);
       }
 
       return NextResponse.json({
         ok: true,
         message: 'A fresh 6-digit verification code has been dispatched to your email.',
+        cooldownSeconds: 60,
       });
     }
 
-    // 2. Verification flow
+    // 2. Verification flow (enforce max 5 failed attempts per 15-minute window)
+    if (ipRecord.attempts >= 5 || emailRecord.attempts >= 5) {
+      return NextResponse.json(
+        {
+          error: 'Too many incorrect verification attempts. For your security, please wait 15 minutes or request a new code.',
+        },
+        { status: 429 }
+      );
+    }
+
     if (!otpToken || otpToken.length < 6) {
-      return NextResponse.json({ error: 'Please enter the complete 6-digit verification code.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Please enter the complete 6-digit verification code.' },
+        { status: 400 }
+      );
     }
 
     const supabase = await createClient();
-    
+
     // Attempt signup OTP verification first
     let verifyRes = await supabase.auth.verifyOtp({
       email: userEmail,
@@ -60,36 +116,39 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Dev fallback for testing when running in non-production with test code 123456
-    const isDev = process.env.NODE_ENV !== 'production';
-    if (verifyRes.error && isDev && (otpToken === '123456' || otpToken === '000000')) {
+    let user = verifyRes.data?.user;
+
+    if (!user && process.env.NODE_ENV === 'development') {
+      // In dev mode, allow dev test codes (123456 or 000000) so developer is never stuck when emails are disabled
       const admin = createAdminClient();
       const { data: usersData } = await admin.auth.admin.listUsers();
-      const existingUser = usersData?.users?.find((u) => u.email?.toLowerCase() === userEmail);
-      if (existingUser) {
-        await admin.auth.admin.updateUserById(existingUser.id, { email_confirm: true });
-        // Sign in to establish session
-        const { data: signInData, error: signInErr } = await admin.auth.admin.generateLink({
-          type: 'magiclink',
-          email: userEmail,
-        });
-        if (!signInErr && signInData) {
-          verifyRes = {
-            data: { user: existingUser, session: null },
-            error: null,
-          } as any;
-        }
+      const targetUser = usersData?.users.find((u) => u.email?.toLowerCase() === userEmail);
+      if (targetUser && (otpToken === '123456' || otpToken === '000000' || process.env.DEV_AUTO_CONFIRM === 'true')) {
+        await admin.auth.admin.updateUserById(targetUser.id, { email_confirm: true });
+        user = targetUser as any;
       }
     }
 
-    if (verifyRes.error || !verifyRes.data.user) {
+    if (!user) {
+      ipRecord.attempts += 1;
+      emailRecord.attempts += 1;
+      const remainingAttempts = Math.max(0, 5 - Math.max(ipRecord.attempts, emailRecord.attempts));
+
       return NextResponse.json(
-        { error: 'Invalid or expired verification code. Please check your email or request a new code.' },
+        {
+          error:
+            remainingAttempts > 0
+              ? `Invalid or expired verification code. ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining.`
+              : 'Invalid verification code. Maximum attempts exceeded. Please wait 15 minutes.',
+        },
         { status: 400 }
       );
     }
 
-    const user = verifyRes.data.user;
+    // Reset rate-limit records on success
+    otpRateLimitMap.delete(`ip:${clientIp}`);
+    otpRateLimitMap.delete(`email:${userEmail}`);
+
     const admin = createAdminClient();
 
     // Fetch authoritative profile (role, full_name)

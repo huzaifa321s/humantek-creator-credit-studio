@@ -8,19 +8,23 @@ import { ShieldCheck } from 'lucide-react';
 const ROUTE_HEADERS: Record<string, { title: string; description: string }> = {
   '/management': {
     title: 'Studio Overview',
-    description: 'Real-time brief pipeline, creator inquiries, and studio operations.',
+    description: 'Real-time project pipeline, creator inquiries, and studio operations.',
   },
   '/management/projects': {
-    title: 'Project Briefs Queue',
-    description: 'Track client briefs, milestone approvals, and delivery status.',
+    title: 'Client Projects',
+    description: 'Track client orders, production stages, and delivery status.',
+  },
+  '/management/inbox': {
+    title: 'Client Messages',
+    description: 'Chat with clients and review project discussions in real time.',
   },
   '/management/orders': {
     title: 'Manual Payment Orders',
     description: 'Review and verify offline payments, wire transfers, and receipts.',
   },
   '/management/ledger': {
-    title: 'Studio Credit Ledger',
-    description: 'Audit credit allocations, redemptions, and package grants.',
+    title: 'Credit History',
+    description: 'Review all client credit purchases, deductions, and balance changes.',
   },
   '/management/alerts': {
     title: 'Studio Alerts',
@@ -55,7 +59,7 @@ export function ManagementLayoutShell({ children }: { children: React.ReactNode 
   const currentHeader =
     ROUTE_HEADERS[pathname] || {
       title: 'Studio Management',
-      description: 'Manage creator briefs, workflows, and studio communications.',
+      description: 'Manage creator projects, workflows, and studio communications.',
     };
 
   return (

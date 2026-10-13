@@ -53,11 +53,13 @@ import {
   Check,
   Loader2,
   FileText,
+  Image as ImageIcon,
   Package,
 } from 'lucide-react';
 import {
   cn,
   formatStudioDate,
+  formatStudioRelativeTime,
   getProjectStatusLabel,
   getPaymentStatusLabel,
 } from '@/lib/utils';
@@ -153,9 +155,10 @@ export function AdminProjectsTable({
 
   // Tabs for quick studio status switching
   const filterTabs = useMemo(() => [
-    { value: 'all', label: 'All Briefs', count: summaryCounts?.projects ?? totalCount },
+    { value: 'all', label: 'All Projects', count: summaryCounts?.projects ?? totalCount },
     { value: 'pending_review', label: 'Pending Review', count: summaryCounts?.pendingReview },
     { value: 'in_production', label: 'In Production', count: adminCounts?.active },
+    { value: 'review_round', label: 'Review Round' },
     { value: 'delivered', label: 'Delivered', count: adminCounts?.delivered },
   ], [totalCount, summaryCounts, adminCounts]);
 
@@ -216,7 +219,7 @@ export function AdminProjectsTable({
       <div className="flex flex-col gap-3">
         {/* Top: Status Tabs using FilterTabs */}
         <FilterTabs
-          value={['all', 'pending_review', 'in_production', 'delivered'].includes(statusFilter) ? statusFilter : 'all'}
+          value={['all', 'pending_review', 'in_production', 'review_round', 'delivered'].includes(statusFilter) ? statusFilter : 'all'}
           onValueChange={(val) => {
             setStatusFilter(val);
             setPage(1);
@@ -233,48 +236,12 @@ export function AdminProjectsTable({
               <Search className="size-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <Input
                 type="text"
-                placeholder="Search code, client, platform, package..."
+                placeholder="Search by code, client, or package..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-8 text-xs bg-card rounded-lg border-border/80 focus-visible:border-amber-400"
               />
             </div>
-
-            {/* Granular Status Select */}
-            <Select
-              value={statusFilter}
-              onValueChange={(val) => {
-                setStatusFilter((val as string) || 'all');
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-8 text-xs bg-card w-full sm:w-[155px] rounded-lg border-border/80">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">
-                  All Statuses
-                </SelectItem>
-                <SelectItem value="pending_review" className="text-xs">
-                  Pending Review
-                </SelectItem>
-                <SelectItem value="payment_confirmed" className="text-xs">
-                  Payment Confirmed
-                </SelectItem>
-                <SelectItem value="in_production" className="text-xs">
-                  In Production
-                </SelectItem>
-                <SelectItem value="review_round" className="text-xs">
-                  Review Round
-                </SelectItem>
-                <SelectItem value="delivered" className="text-xs">
-                  Delivered
-                </SelectItem>
-                <SelectItem value="declined" className="text-xs">
-                  Declined
-                </SelectItem>
-              </SelectContent>
-            </Select>
 
             {/* Payment Filter Select */}
             <Select
@@ -351,9 +318,9 @@ export function AdminProjectsTable({
                 Credits
               </TableHead>
               <TableHead className="font-bold text-2xs uppercase tracking-wider text-muted-foreground py-3 px-4 text-right">
-                Created
+                Submitted
               </TableHead>
-              <TableHead className="w-[170px] py-3 px-4 text-right">
+              <TableHead className="w-[110px] py-3 px-4 text-right">
                 <span className="sr-only">Actions</span>
               </TableHead>
             </TableRow>
@@ -369,7 +336,7 @@ export function AdminProjectsTable({
                   <TableCell className="p-4"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                   <TableCell className="p-4 text-right"><Skeleton className="h-5 w-16 ml-auto rounded-md" /></TableCell>
                   <TableCell className="p-4 text-right"><Skeleton className="h-5 w-20 ml-auto rounded-md" /></TableCell>
-                  <TableCell className="p-4 text-right"><Skeleton className="h-8 w-28 ml-auto rounded-md" /></TableCell>
+                  <TableCell className="p-4 text-right"><Skeleton className="h-8 w-20 ml-auto rounded-md" /></TableCell>
                 </TableRow>
               ))
             ) : projects.length === 0 ? (
@@ -381,12 +348,12 @@ export function AdminProjectsTable({
                         <FolderKanban className="size-6 text-muted-foreground" />
                       </EmptyMedia>
                       <EmptyTitle className="text-lg font-bold text-foreground">
-                        No matching creative briefs found
+                        No matching client projects found
                       </EmptyTitle>
                       <EmptyDescription className="text-xs text-muted-foreground">
                         {searchQuery || statusFilter !== 'all' || paymentFilter !== 'all'
                           ? `No projects matched your active filters. Try adjusting your search query or reset filters.`
-                          : 'No client project briefs have been submitted yet.'}
+                          : 'No client projects have been submitted yet.'}
                       </EmptyDescription>
                     </EmptyHeader>
                     {(searchQuery || statusFilter !== 'all' || paymentFilter !== 'all') && (
@@ -407,10 +374,6 @@ export function AdminProjectsTable({
               </TableRow>
             ) : (
               projects.map((p) => {
-                const title = p.channelName
-                  ? `${p.channelName} · ${p.packageName}`
-                  : p.packageName || 'Creative Brief';
-
                 return (
                   <TableRow
                     key={p.id}
@@ -438,11 +401,13 @@ export function AdminProjectsTable({
                         </Avatar>
                         <div className="min-w-0">
                           <div className="text-xs font-bold text-foreground truncate">
-                            {p.clientName}
+                            {p.channelName || p.clientName}
                           </div>
-                          <div className="text-2xs text-muted-foreground truncate">
-                            {p.email} · {p.platform || 'General'}
-                          </div>
+                          {p.channelName && p.clientName && p.channelName !== p.clientName && (
+                            <div className="text-2xs text-muted-foreground truncate">
+                              {p.clientName}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </TableCell>
@@ -452,9 +417,6 @@ export function AdminProjectsTable({
                       <Badge variant="gold" size="sm" className="font-bold">
                         {p.packageName || 'Creative Scope'}
                       </Badge>
-                      <div className="text-2xs font-mono tabular-nums text-muted-foreground mt-0.5">
-                        ${p.packagePrice.toLocaleString()} USD
-                      </div>
                     </TableCell>
 
                     {/* Production Status */}
@@ -498,31 +460,17 @@ export function AdminProjectsTable({
                       />
                     </TableCell>
 
-                    {/* Created */}
-                    <TableCell className="py-3.5 px-4 text-right text-xs text-muted-foreground font-mono tabular-nums">
-                      {formatStudioDate(p.createdAt)}
+                    {/* Submitted */}
+                    <TableCell
+                      className="py-3.5 px-4 text-right text-xs text-muted-foreground font-mono tabular-nums"
+                      title={formatStudioDate(p.createdAt)}
+                    >
+                      {formatStudioRelativeTime(p.createdAt)}
                     </TableCell>
 
                     {/* Actions */}
                     <TableCell className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {onOpenChat && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onOpenChat(p.id);
-                            }}
-                            className="h-8 px-2.5 text-xs font-medium gap-1 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
-                            title="Open in studio desk"
-                          >
-                            <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
-                            <span className="hidden xl:inline">Chat</span>
-                          </Button>
-                        )}
-
+                      <div className="flex items-center justify-end">
                         <Button
                           type="button"
                           variant="gold"
@@ -531,7 +479,7 @@ export function AdminProjectsTable({
                             e.stopPropagation();
                             handleSelectProject(p.id);
                           }}
-                          className="h-8 px-2.5 text-xs font-bold gap-1 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
+                          className="h-8 px-3 text-xs font-bold gap-1 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
                         >
                           <span>Manage</span>
                           <ArrowRight className="size-3.5" />
@@ -598,7 +546,7 @@ export function AdminProjectsTable({
                   {selectedProject.projectCode}
                 </Badge>
                 <Badge variant="gold" size="sm" className="font-bold">
-                  {selectedProject.packageName} (${selectedProject.packagePrice.toLocaleString()})
+                  {selectedProject.packageName} (${(selectedProject.packagePrice ?? 0).toLocaleString()})
                 </Badge>
               </div>
               <SheetTitle className="text-xl font-bold tracking-tight text-foreground">
@@ -769,6 +717,46 @@ export function AdminProjectsTable({
                 )}
               </div>
 
+              {/* Reference Images (Step 4) */}
+              {(selectedProject.uploadedFiles?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <ImageIcon className="size-3.5 text-brand-text dark:text-amber-400" />
+                    <span>Reference Images ({selectedProject.uploadedFiles.length})</span>
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedProject.uploadedFiles.map((file) =>
+                      file.url ? (
+                        <a
+                          key={file.id}
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={file.filename}
+                          className="group relative aspect-square overflow-hidden rounded-lg border border-border/80 bg-secondary/20 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={file.url}
+                            alt={file.filename}
+                            loading="lazy"
+                            className="size-full object-cover transition-transform group-hover:scale-105"
+                          />
+                        </a>
+                      ) : (
+                        <div
+                          key={file.id}
+                          title={`${file.filename} (preview unavailable)`}
+                          className="aspect-square flex items-center justify-center rounded-lg border border-dashed border-border/80 text-muted-foreground"
+                        >
+                          <ImageIcon className="size-4" />
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Service Items Breakdown */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -778,9 +766,7 @@ export function AdminProjectsTable({
                       Deliverable Items ({selectedProject.selections?.length || 0})
                     </span>
                   </span>
-                  <span className="font-mono tabular-nums text-xs font-bold text-foreground">
-                    {selectedProject.usedCredits} CR Total
-                  </span>
+                  <CreditValue value={selectedProject.usedCredits || 0} size="xs" variant="pill" />
                 </div>
 
                 <div className="rounded-xl border border-border/80 bg-card divide-y divide-border/60 overflow-hidden shadow-2xs">
@@ -828,7 +814,7 @@ export function AdminProjectsTable({
                   className="h-8 text-xs font-bold gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
                 >
                   <MessageSquare className="size-3.5" />
-                  <span>Open Client Discussion</span>
+                  <span>Open Client Messages</span>
                 </Button>
               )}
             </div>

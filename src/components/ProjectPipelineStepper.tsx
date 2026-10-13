@@ -25,8 +25,8 @@ export const PIPELINE_STAGES: PipelineStageInfo[] = [
     id: 'request_received',
     name: 'Request Received',
     shortName: 'Request',
-    description: 'Brief logged and queued with the team.',
-    signoff: 'Studio Desk',
+    description: 'Project received and logged with the team.',
+    signoff: 'Studio Team',
   },
   {
     number: 2,

@@ -254,10 +254,10 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                       <MessageSquare className="size-3.5" />
                     </span>
                     <span className="text-sm font-bold tracking-tight text-foreground truncate">
-                      Studio Support Desk
+                      General Inquiries
                     </span>
                     <Badge variant="gold" className="text-3xs font-bold uppercase tracking-wider px-1.5 py-0 h-4">
-                      Global
+                      General
                     </Badge>
                   </div>
                 ) : (
@@ -300,7 +300,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
             {/* Subtitle Line */}
             {isGlobal ? (
               <p className="text-2xs text-muted-foreground truncate pl-0 sm:pl-9">
-                General creator inquiries · Pre-sales, packages, billing &amp; studio credits
+                General client questions and pre-order inquiries
               </p>
             ) : (
               activeProject && (

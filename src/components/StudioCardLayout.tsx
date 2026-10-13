@@ -11,6 +11,9 @@ import {
   Landmark,
   ShieldAlert,
   Receipt,
+  Bell,
+  Plus,
+  PencilLine,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -33,7 +36,10 @@ import { DashboardHeader } from '@/components/header/DashboardHeader';
 import { cn } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
 import { useUserStore, type StudioUser } from '@/lib/userStore';
+import { useNotificationStore } from '@/lib/notificationStore';
 import { ChatGate } from '@/components/chat/ChatGate';
+import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
+import { useActiveWizardDraft } from '@/lib/wizardStore';
 
 interface StudioCardLayoutProps {
   children: React.ReactNode;
@@ -47,6 +53,7 @@ interface StudioCardLayoutProps {
   showBack?: boolean;
   walletBalance?: number;
   userEmail?: string | null;
+  userAvatarUrl?: string | null;
   topRightBadge?: React.ReactNode;
   footerActions?: React.ReactNode;
   selectedPackageName?: string;
@@ -83,7 +90,7 @@ function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
         isActive={isActive}
         onClick={handleNavClick}
         render={<Link href="/management/inbox" onClick={handleNavClick} />}
-        tooltip="Client Communications"
+        tooltip="Client Messages"
         className={cn(
           'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
           isActive
@@ -97,7 +104,7 @@ function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
             isActive ? 'text-brand-text dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
           )}
         />
-        <span className="truncate group-data-[collapsible=icon]:hidden">Communications</span>
+        <span className="truncate group-data-[collapsible=icon]:hidden">Client Messages</span>
         {totalUnreadChat > 0 && (
           <SidebarMenuBadge className="bg-amber-400 text-zinc-950 font-black font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1 shadow-xs shadow-amber-400/25">
             {totalUnreadChat}
@@ -154,6 +161,83 @@ function SidebarClientMessagesItem() {
   );
 }
 
+function SidebarNotificationsItem({ pathname }: { pathname: string }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
+  const isActive = pathname.startsWith('/notifications');
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={isActive}
+        onClick={handleNavClick}
+        render={<Link href="/notifications" onClick={handleNavClick} />}
+        tooltip="Notifications"
+        className={cn(
+          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+          isActive
+            ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
+            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+        )}
+      >
+        <Bell
+          className={cn(
+            'size-4 shrink-0 transition-colors',
+            isActive ? 'text-brand-text dark:text-amber-400' : 'text-muted-foreground group-hover/menu-button:text-foreground'
+          )}
+        />
+        <span className="truncate group-data-[collapsible=icon]:hidden">Notifications</span>
+        {unreadCount > 0 && (
+          <SidebarMenuBadge className="bg-amber-400 text-zinc-950 font-black font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1 shadow-xs shadow-amber-400/25">
+            {unreadCount}
+          </SidebarMenuBadge>
+        )}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+/**
+ * Draft-aware sidebar entry point into the project wizard.
+ * Shows "Resume Project" (with current step) when a saved draft exists,
+ * otherwise "New Project".
+ */
+function SidebarNewProjectItem() {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { hasDraft, step } = useActiveWizardDraft();
+
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
+  const label = hasDraft ? 'Resume Project' : 'New Project';
+  const Icon = hasDraft ? PencilLine : Plus;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        onClick={handleNavClick}
+        render={<Link href="/new-project" onClick={handleNavClick} />}
+        tooltip={hasDraft ? `Resume Project (Step ${step})` : 'New Project'}
+        className="h-9 min-h-9 px-2.5 rounded-lg text-sm font-semibold gap-2.5 transition-colors cursor-pointer text-brand-text dark:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30"
+      >
+        <Icon className="size-4 shrink-0 text-brand-text dark:text-amber-400" />
+        <span className="truncate group-data-[collapsible=icon]:hidden">{label}</span>
+        {hasDraft && (
+          <SidebarMenuBadge className="bg-amber-400 text-zinc-950 font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:hidden shadow-xs shadow-amber-400/25">
+            Step {step}
+          </SidebarMenuBadge>
+        )}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProps) {
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -165,15 +249,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
 
   const isAdmin = Boolean(
     user?.role &&
-    user.role.toLowerCase() !== 'client' &&
-    user.role.toLowerCase() !== 'user' &&
-    (
-      user.role.toLowerCase() === 'admin' ||
-      user.email === 'dev@localhost' ||
-      user.email === 'admin@humantek.art' ||
-      user.email === 'huzaifa14321furqan@gmail.com' ||
-      user.email === 'huzaifafurqan22@gmail.com'
-    )
+    user.role.toLowerCase() === 'admin'
   );
 
   return (
@@ -212,13 +288,13 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 2. Projects Queue */}
+                {/* 2. Client Projects */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={pathname.startsWith('/management/projects')}
                     onClick={handleNavClick}
                     render={<Link href="/management/projects" onClick={handleNavClick} />}
-                    tooltip="Projects Queue"
+                    tooltip="Client Projects"
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                       pathname.startsWith('/management/projects')
@@ -234,20 +310,20 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
                     />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Projects Queue</span>
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Client Projects</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 3. Client Communications (Realtime Chat) */}
+                {/* 3. Client Messages (Realtime Chat) */}
                 <SidebarAdminCommunicationsItem pathname={pathname} />
 
-                {/* 4. Credit Ledger */}
+                {/* 4. Credit History */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={pathname.startsWith('/management/ledger')}
                     onClick={handleNavClick}
                     render={<Link href="/management/ledger" onClick={handleNavClick} />}
-                    tooltip="Credit Ledger"
+                    tooltip="Credit History"
                     className={cn(
                       'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
                       pathname.startsWith('/management/ledger')
@@ -263,7 +339,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
                     />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Credit Ledger</span>
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Credit History</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
@@ -318,12 +394,18 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     <span className="truncate group-data-[collapsible=icon]:hidden">Security Alerts</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+
+                {/* 7. Notifications */}
+                <SidebarNotificationsItem pathname={pathname} />
               </>
             ) : (
               // =========================================================
               // CREATOR CLIENT NAVIGATION MENU (Clean Self-Service)
               // =========================================================
               <>
+                {/* 0. New / Resume Project (draft-aware) */}
+                <SidebarNewProjectItem />
+
                 {/* 1. My Projects */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -378,6 +460,9 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     <span className="truncate group-data-[collapsible=icon]:hidden">Promo Code</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+
+                {/* 4. Notifications */}
+                <SidebarNotificationsItem pathname={pathname} />
               </>
             )}
           </SidebarMenu>
@@ -399,6 +484,7 @@ export function StudioCardLayout({
   showBack = true,
   walletBalance,
   userEmail = null,
+  userAvatarUrl = null,
   topRightBadge,
   footerActions,
   selectedPackageName,
@@ -442,11 +528,7 @@ export function StudioCardLayout({
       return;
     }
 
-    const isAdminUser =
-      user.role === 'admin' ||
-      user.email === 'admin@humantek.art' ||
-      user.email === 'huzaifafurqan22@gmail.com' ||
-      user.email === 'dev@localhost';
+    const isAdminUser = Boolean(user.role && user.role.toLowerCase() === 'admin');
 
     if (isAdminUser && !pathname.startsWith('/management')) {
       router.replace('/management');
@@ -457,6 +539,7 @@ export function StudioCardLayout({
 
   const effectiveName = isHydrated ? (user?.name || '') : '';
   const effectiveEmail = isHydrated ? (userEmail || user?.email || '') : (userEmail || '');
+  const effectiveAvatarUrl = isHydrated ? (userAvatarUrl || user?.avatarUrl) : userAvatarUrl;
   const effectiveBalance =
     walletBalance !== undefined
       ? walletBalance
@@ -487,7 +570,8 @@ export function StudioCardLayout({
           walletBalance={effectiveBalance}
           userEmail={effectiveEmail}
           userName={effectiveName}
-          topRightBadge={topRightBadge}
+          userAvatarUrl={effectiveAvatarUrl}
+          topRightBadge={topRightBadge === undefined ? <StudioNewProjectButton /> : topRightBadge}
           onSignInClick={onSignInClick}
         />
 
@@ -571,6 +655,7 @@ export function StudioCardLayout({
           walletBalance={effectiveBalance}
           userEmail={effectiveEmail}
           userName={effectiveName}
+          userAvatarUrl={effectiveAvatarUrl}
           topRightBadge={topRightBadge}
         />
 
