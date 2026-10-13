@@ -9,13 +9,6 @@ export interface ClientReferenceFile {
   mimeType?: string;
 }
 
-export interface ClientAdditionalNote {
-  id: string;
-  note: string;
-  createdAt: string;
-  authorRole: 'client' | 'admin';
-}
-
 export interface ClientProjectView {
   id: string;
   projectCode: string;
@@ -28,7 +21,6 @@ export interface ClientProjectView {
   instructions: string; // Plain text brief snapshot
   referenceLinks: string[];
   uploadedFiles: ClientReferenceFile[];
-  additionalNotes: ClientAdditionalNote[];
   selections: {
     id: string;
     name: string;
@@ -69,17 +61,6 @@ export function serializeClientProject(p: any): ClientProjectView {
     mimeType: typeof f.mimeType === 'string' ? f.mimeType : undefined,
   }));
 
-  const rawNotes: any[] = Array.isArray(p.additional_notes || p.additionalNotes)
-    ? (p.additional_notes || p.additionalNotes)
-    : [];
-
-  const additionalNotes: ClientAdditionalNote[] = rawNotes.map((n: any) => ({
-    id: String(n.id || ''),
-    note: String(n.note || '').trim(),
-    createdAt: String(n.createdAt || n.created_at || new Date().toISOString()),
-    authorRole: n.authorRole === 'admin' ? 'admin' : 'client',
-  }));
-
   const selections = Array.isArray(p.selections)
     ? p.selections
     : (p.project_items || []).map((i: any) => ({
@@ -106,7 +87,6 @@ export function serializeClientProject(p: any): ClientProjectView {
     instructions: String(p.instructions || ''),
     referenceLinks,
     uploadedFiles,
-    additionalNotes,
     selections,
     additions,
     status: p.status,

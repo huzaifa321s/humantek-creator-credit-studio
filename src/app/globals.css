@@ -88,6 +88,36 @@
   animation: like-pop 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
+/* ========================================================= */
+/* UNIFIED STUDIO LAYER SCALE                                */
+/* Header / Navbar:      z-40 (40)                           */
+/* Drawers & Overlays:   z-50 (50)                           */
+/* Lightbox & Popups:    z-60 (60)                           */
+/* Global Toasts:        z-70 (70)                           */
+/* ========================================================= */
+@utility z-header {
+  z-index: 40;
+}
+@utility z-drawer {
+  z-index: 50;
+}
+@utility z-lightbox {
+  z-index: 60;
+}
+@utility z-toast {
+  z-index: 70;
+}
+@utility z-60 {
+  z-index: 60;
+}
+@utility z-70 {
+  z-index: 70;
+}
+
+[data-sonner-toaster] {
+  z-index: 70 !important;
+}
+
 @theme inline {
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-outfit: var(--font-outfit), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

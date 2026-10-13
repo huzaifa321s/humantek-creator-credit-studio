@@ -13,8 +13,10 @@ export const projectIdSchema = z
 
 export const orderLineSchema = z.object({
   id: z.string().trim().min(1).max(64),
+  name: z.string().trim().optional(),
   level: z.number().int().min(0).max(2),
   quantity: z.number().int().min(1).max(20),
+  credits: z.number().int().nonnegative().optional(),
 });
 
 /**

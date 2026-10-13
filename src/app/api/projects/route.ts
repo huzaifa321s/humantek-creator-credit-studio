@@ -121,12 +121,12 @@ export async function GET(req: NextRequest) {
         statusQuery = statusQuery.eq('user_id', user.id);
       }
 
-      // Build data query
+      // Build data query (always include project_items and additions so cards display selected services accurately)
       let dataQuery = summaryParam
         ? dbClient
           .from('projects')
           .select(
-            'id, user_id, project_code, package_id, package_name, package_price_usd, package_credits, total_credits, status, payment_status, payment_method, funding_source, applied_wallet_credits, client_name, channel_name, email, platform, style, colors, instructions, uploaded_files, last_message_at, last_message_preview, created_at',
+            'id, user_id, project_code, package_id, package_name, package_price_usd, package_credits, total_credits, status, payment_status, payment_method, funding_source, applied_wallet_credits, client_name, channel_name, email, platform, style, colors, instructions, uploaded_files, last_message_at, last_message_preview, created_at, project_items(*), project_additions(*)',
             { count: 'exact' }
           )
         : dbClient
@@ -501,8 +501,24 @@ export async function POST(req: NextRequest) {
           credits: 0,
         };
 
-        const totalCreditsRequired = (parsed.data.selections || []).reduce(
-          (sum: number, s: any) => sum + (s.credits || 0),
+        const itemsToInsert = (parsed.data.selections || []).map((sel: any) => {
+          const serviceDef = validServices.get(sel.id) || SERVICES.find((s) => s.id === sel.id);
+          const serviceName = serviceDef ? serviceDef.name : (sel.name || sel.id);
+          const unitCredits = serviceDef ? (serviceDef.quoteOnly ? 0 : serviceDef.prices[sel.level] ?? 0) : 0;
+          const totalCredits = unitCredits * sel.quantity;
+          return {
+            project_id: parsed.data.projectId,
+            service_id: sel.id,
+            service_name: serviceName,
+            tier_level: sel.level,
+            quantity: sel.quantity,
+            unit_credits: unitCredits,
+            total_credits: totalCredits,
+          };
+        });
+
+        const totalCreditsRequired = itemsToInsert.reduce(
+          (sum: number, item) => sum + item.total_credits,
           0
         );
 
@@ -528,7 +544,6 @@ export async function POST(req: NextRequest) {
         }
 
         const { data: insertedProj, error: insertErr } = await adminClient
-
           .from('projects')
           .insert({
             id: parsed.data.projectId,
@@ -564,17 +579,11 @@ export async function POST(req: NextRequest) {
         }
 
         // Insert project items
-        if (parsed.data.selections && parsed.data.selections.length > 0) {
-          const itemsToInsert = parsed.data.selections.map((sel: any) => ({
-            project_id: parsed.data.projectId,
-            service_id: sel.id,
-            service_name: sel.name,
-            tier_level: sel.level,
-            quantity: sel.quantity,
-            unit_credits: Math.round(sel.credits / Math.max(1, sel.quantity)),
-            total_credits: sel.credits,
-          }));
-          await adminClient.from('project_items').insert(itemsToInsert);
+        if (itemsToInsert.length > 0) {
+          const { error: itemsErr } = await adminClient.from('project_items').insert(itemsToInsert);
+          if (itemsErr) {
+            console.error('Failed to insert project items:', itemsErr);
+          }
         }
 
         // Insert additions

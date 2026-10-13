@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/empty';
 import {
   useNotificationStore,
+  getNotificationHref,
   type StudioNotification,
   type NotificationType,
 } from '@/lib/notificationStore';
@@ -100,16 +101,16 @@ export function DashboardNotificationDropdown() {
 
   const handleItemClick = (item: StudioNotification) => {
     void markAsRead(item.id);
+    if (isMobile) {
+      setOpenMobile(false);
+    }
     if (item.actionId === 'open-chat') {
       useChatStore.getState().setIsOpen(true);
-      if (isMobile) {
-        setOpenMobile(false);
-      }
-    } else if (item.link) {
-      if (isMobile) {
-        setOpenMobile(false);
-      }
-      router.push(item.link);
+      return;
+    }
+    const href = getNotificationHref(item, user?.role || 'client');
+    if (href) {
+      router.push(href);
     } else {
       router.push('/notifications');
     }

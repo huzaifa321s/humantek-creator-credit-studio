@@ -65,6 +65,7 @@ import {
 } from '@/lib/utils';
 import { useAdminProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
 import { useManagementSummaryQuery } from '@/lib/queries/management';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
 
 interface AdminProjectsTableProps {
   projects?: ProjectRecord[];
@@ -98,6 +99,7 @@ export function AdminProjectsTable({
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
   const [draftStatus, setDraftStatus] = useState<ProjectRecord['status'] | null>(null);
   const [draftPayment, setDraftPayment] = useState<ProjectRecord['paymentStatus'] | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setSelectedProjectId(urlProjectId);
@@ -725,15 +727,15 @@ export function AdminProjectsTable({
                     <span>Reference Images ({selectedProject.uploadedFiles.length})</span>
                   </span>
                   <div className="grid grid-cols-3 gap-2">
-                    {selectedProject.uploadedFiles.map((file) =>
+                    {selectedProject.uploadedFiles.map((file, i) =>
                       file.url ? (
-                        <a
+                        <button
                           key={file.id}
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          type="button"
+                          onClick={() => setActiveImageIndex(i)}
                           title={file.filename}
-                          className="group relative aspect-square overflow-hidden rounded-lg border border-border/80 bg-secondary/20 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
+                          aria-label={`Enlarge reference image: ${file.filename}`}
+                          className="group relative aspect-square overflow-hidden rounded-lg border border-border/80 bg-secondary/20 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 cursor-pointer"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -742,7 +744,7 @@ export function AdminProjectsTable({
                             loading="lazy"
                             className="size-full object-cover transition-transform group-hover:scale-105"
                           />
-                        </a>
+                        </button>
                       ) : (
                         <div
                           key={file.id}
@@ -821,6 +823,23 @@ export function AdminProjectsTable({
           </SheetContent>
         )}
       </Sheet>
+
+      {/* Unified Accessible Full-Screen Lightbox Portal (Layer Scale z-60) */}
+      <ImageLightbox
+        images={(selectedProject?.uploadedFiles || []).map((f) => ({
+          id: f.id,
+          url: f.url || '',
+          filename: f.filename,
+          size: f.size,
+          mimeType: f.mimeType,
+          storagePath: f.storagePath,
+        }))}
+        initialIndex={activeImageIndex ?? 0}
+        open={activeImageIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setActiveImageIndex(null);
+        }}
+      />
     </div>
   );
 }

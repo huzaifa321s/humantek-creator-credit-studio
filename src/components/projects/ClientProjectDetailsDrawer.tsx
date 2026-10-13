@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Sheet,
   SheetContent,
@@ -13,7 +13,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
 import { CreditValue } from '@/components/ui/credit-value';
 import { toast } from 'sonner';
 import {
@@ -21,7 +20,6 @@ import {
   FileText,
   ImageIcon,
   ExternalLink,
-  Plus,
   Loader2,
   Clock,
   CheckCircle2,
@@ -34,6 +32,7 @@ import {
 } from 'lucide-react';
 import { cn, formatStudioDate } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
 import type { ClientProjectView, ClientReferenceFile } from '@/lib/serializers/project';
 
 interface ClientProjectDetailsDrawerProps {
@@ -92,12 +91,9 @@ export function ClientProjectDetailsDrawer({
   projectId,
   onClose,
 }: ClientProjectDetailsDrawerProps) {
-  const queryClient = useQueryClient();
   const { setIsOpen: setChatOpen } = useStudioChat();
 
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
-  const [newNote, setNewNote] = useState('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
 
   // On-demand project details fetch (signed URLs generated only when drawer opens)
@@ -122,61 +118,16 @@ export function ClientProjectDetailsDrawer({
     },
     enabled: Boolean(projectId),
     staleTime: 0, // Always ensure fresh signed URLs upon opening
-  });
-
-  // Additional note mutation (only available before production)
-  const noteMutation = useMutation({
-    mutationFn: async (noteText: string) => {
-      if (!projectId) return;
-      const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: noteText }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit additional note');
+    retry: (failureCount, err) => {
+      if (err instanceof Error && err.message === 'Project not found') {
+        return false;
       }
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Additional note recorded on your brief');
-      setNewNote('');
-      setIsAddingNote(false);
-      void queryClient.invalidateQueries({ queryKey: ['projects', 'detail', projectId] });
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Could not add note');
+      return failureCount < 1;
     },
   });
 
   const files = useMemo(() => project?.uploadedFiles || [], [project]);
   const hasImages = files.length > 0;
-
-  // Keyboard navigation for Lightbox modal
-  useEffect(() => {
-    if (activeImageIndex === null) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setActiveImageIndex(null);
-      } else if (e.key === 'ArrowRight') {
-        setActiveImageIndex((prev) =>
-          prev !== null ? (prev + 1) % files.length : 0
-        );
-      } else if (e.key === 'ArrowLeft') {
-        setActiveImageIndex((prev) =>
-          prev !== null ? (prev - 1 + files.length) % files.length : 0
-        );
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeImageIndex, files.length]);
-
-  const canAddNote =
-    project?.status === 'pending_review' || project?.status === 'payment_confirmed';
 
   const statusMeta = project ? getStatusDetails(project.status) : null;
 
@@ -236,15 +187,34 @@ export function ClientProjectDetailsDrawer({
                 <Skeleton className="h-28 w-full rounded-xl" />
               </div>
             ) : isError || !project ? (
-              <div className="p-8 text-center space-y-3">
-                <AlertCircle className="size-8 text-destructive mx-auto" />
-                <h3 className="font-bold text-foreground text-sm">Could not load project details</h3>
-                <p className="text-muted-foreground text-xs">
-                  {error instanceof Error ? error.message : 'Please check your connection and try again.'}
-                </p>
-                <Button variant="outline" size="sm" onClick={() => refetch()}>
-                  Retry
-                </Button>
+              <div className="p-8 text-center space-y-4 my-auto">
+                <div className="size-12 rounded-full bg-muted/60 border border-border flex items-center justify-center mx-auto text-muted-foreground">
+                  <AlertCircle className="size-6 text-muted-foreground" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="font-bold text-foreground text-base">This project isn’t available</h3>
+                  <p className="text-muted-foreground text-xs max-w-xs mx-auto leading-relaxed">
+                    This project may have been deleted, moved, or belongs to another account.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onClose}
+                    className="font-semibold text-xs rounded-lg"
+                  >
+                    Back to Projects
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => refetch()}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Retry
+                  </Button>
+                </div>
               </div>
             ) : (
               <>
@@ -398,11 +368,11 @@ export function ClientProjectDetailsDrawer({
                   </div>
                 )}
 
-                {/* 6. Deliverable Assets Breakdown */}
+                {/* 6. Selected Services Breakdown */}
                 <div className="space-y-2">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Sparkles className="size-3.5 text-brand-text dark:text-amber-400" />
-                    <span>Included Deliverables ({project.selections.length})</span>
+                    <span>Selected Services ({project.selections.length})</span>
                   </span>
                   {project.selections.length > 0 ? (
                     <div className="divide-y divide-border/50 rounded-xl border border-border/70 bg-card overflow-hidden">
@@ -419,97 +389,7 @@ export function ClientProjectDetailsDrawer({
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground italic">
-                      Custom package deliverables finalized during studio review.
-                    </p>
-                  )}
-                </div>
-
-                {/* 7. Additional Notes Section (Dated additions post-submission) */}
-                <div className="space-y-2.5 pt-2 border-t border-border/70">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-foreground">
-                      Additional Notes ({project.additionalNotes?.length || 0})
-                    </span>
-                    {canAddNote && !isAddingNote && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        onClick={() => setIsAddingNote(true)}
-                        className="h-7 px-2 text-xs font-semibold gap-1 rounded-md"
-                      >
-                        <Plus className="size-3" />
-                        <span>Add note</span>
-                      </Button>
-                    )}
-                  </div>
-
-                  {project.additionalNotes && project.additionalNotes.length > 0 ? (
-                    <div className="space-y-2">
-                      {project.additionalNotes.map((note) => (
-                        <div
-                          key={note.id}
-                          className="p-3 rounded-lg border border-border/70 bg-secondary/15 space-y-1"
-                        >
-                          <div className="flex items-center justify-between text-2xs text-muted-foreground font-mono">
-                            <span>{note.authorRole === 'admin' ? 'Studio Team' : 'You (Client)'}</span>
-                            <span>{formatStudioDate(note.createdAt)}</span>
-                          </div>
-                          <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">
-                            {note.note}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-2xs text-muted-foreground">
-                      No additional notes added yet.
-                    </p>
-                  )}
-
-                  {/* Add Note Form */}
-                  {isAddingNote && (
-                    <div className="p-3 rounded-xl border border-amber-400/40 bg-card space-y-2.5">
-                      <Textarea
-                        placeholder="Add extra clarification, styling preference or reference link..."
-                        value={newNote}
-                        onChange={(e) => setNewNote(e.target.value)}
-                        rows={3}
-                        className="text-xs resize-none"
-                      />
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          disabled={noteMutation.isPending}
-                          onClick={() => {
-                            setIsAddingNote(false);
-                            setNewNote('');
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="gold"
-                          size="xs"
-                          disabled={newNote.trim().length < 5 || noteMutation.isPending}
-                          onClick={() => noteMutation.mutate(newNote)}
-                        >
-                          {noteMutation.isPending ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            'Save Note'
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {!canAddNote && (
-                    <p className="text-2xs text-muted-foreground/80 italic">
-                      Project is in active production. To request scope changes or submit extra files, please use project messages.
+                      Custom package services will be finalized during studio review.
                     </p>
                   )}
                 </div>
@@ -547,89 +427,18 @@ export function ClientProjectDetailsDrawer({
         </SheetContent>
       </Sheet>
 
-      {/* Accessible Full-Screen Lightbox Modal */}
-      {activeImageIndex !== null && files[activeImageIndex] && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Image Preview Lightbox"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-in fade-in duration-150"
-          onClick={() => setActiveImageIndex(null)}
-        >
-          <div
-            className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center select-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Top Bar */}
-            <div className="w-full flex items-center justify-between text-white/90 pb-3 px-2">
-              <span className="text-xs font-mono tabular-nums">
-                {activeImageIndex + 1} / {files.length} · {files[activeImageIndex].filename}
-              </span>
-              <div className="flex items-center gap-2">
-                {files[activeImageIndex].url && (
-                  <a
-                    href={files[activeImageIndex].url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-amber-400 hover:underline flex items-center gap-1 px-2 py-1"
-                  >
-                    <span>Open full</span>
-                    <ExternalLink className="size-3" />
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setActiveImageIndex(null)}
-                  aria-label="Close image preview"
-                  className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 cursor-pointer"
-                >
-                  <X className="size-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Main Preview Image */}
-            <div className="relative max-h-[75vh] flex items-center justify-center overflow-hidden rounded-xl bg-black/40 border border-white/10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={files[activeImageIndex].url}
-                alt={files[activeImageIndex].filename}
-                className="max-h-[75vh] w-auto max-w-full object-contain"
-              />
-            </div>
-
-            {/* Prev / Next Buttons */}
-            {files.length > 1 && (
-              <div className="absolute inset-y-1/2 -translate-y-1/2 left-0 right-0 flex justify-between px-2 pointer-events-none">
-                <button
-                  type="button"
-                  aria-label="Previous image"
-                  onClick={() =>
-                    setActiveImageIndex((prev) =>
-                      prev !== null ? (prev - 1 + files.length) % files.length : 0
-                    )
-                  }
-                  className="pointer-events-auto size-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-colors shadow-lg"
-                >
-                  <ChevronLeft className="size-5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next image"
-                  onClick={() =>
-                    setActiveImageIndex((prev) =>
-                      prev !== null ? (prev + 1) % files.length : 0
-                    )
-                  }
-                  className="pointer-events-auto size-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-colors shadow-lg"
-                >
-                  <ChevronRight className="size-5" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Unified Accessible Full-Screen Lightbox Portal (Layer Scale z-60) */}
+      <ImageLightbox
+        images={files}
+        initialIndex={activeImageIndex ?? 0}
+        open={activeImageIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setActiveImageIndex(null);
+        }}
+        onRetry={async () => {
+          await refetch();
+        }}
+      />
     </>
   );
 }

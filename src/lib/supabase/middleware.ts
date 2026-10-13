@@ -10,6 +10,7 @@ const CLIENT_ONLY_PATHS = [
   '/messages',
   '/redeem-code',
   '/account',
+  '/notifications',
 ];
 
 const AUTH_PREFIXES = ['/login', '/sign-in'];
@@ -188,6 +189,17 @@ export async function updateSession(request: NextRequest) {
       const nextParam = request.nextUrl.searchParams.get('next');
       const target = sanitizeRedirectUrl(nextParam, '/projects');
       return NextResponse.redirect(new URL(target, request.url));
+    }
+
+    // Canonical Redirect Bridge: /projects/:id -> /projects?project=:id (HTTP 307 Temporary Redirect)
+    const projectDetailMatch = pathname.match(/^\/projects\/([a-zA-Z0-9_-]+)$/);
+    if (projectDetailMatch && projectDetailMatch[1]) {
+      const targetUrl = new URL('/projects', request.url);
+      targetUrl.searchParams.set('project', projectDetailMatch[1]);
+      request.nextUrl.searchParams.forEach((val, key) => {
+        if (key !== 'project') targetUrl.searchParams.set(key, val);
+      });
+      return NextResponse.redirect(targetUrl, 307);
     }
     // Allow /admin-login so users can authenticate with staff credentials if they possess them
     if (isAdminAuthPage) {

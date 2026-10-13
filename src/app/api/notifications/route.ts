@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('notifications')
-      .select('id, type, title, message, link, action_label, action_id, is_read, created_at')
+      .select('id, type, title, message, link, action_label, action_id, entity_type, entity_id, is_read, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(limit);

@@ -11,6 +11,8 @@ export type NotificationType =
   | 'order_status'
   | 'system_alert';
 
+export type NotificationEntityType = 'project' | 'order' | 'wallet' | 'chat' | 'system';
+
 export type NotificationIconType = 'message' | 'credits' | 'sparkles' | 'check' | 'alert';
 
 export interface StudioNotification {
@@ -21,6 +23,8 @@ export interface StudioNotification {
   link?: string | null;
   actionLabel?: string | null;
   actionId?: string | null;
+  entityType?: NotificationEntityType | null;
+  entityId?: string | null;
   isRead: boolean;
   createdAt: string;
 
@@ -66,6 +70,126 @@ export function getIconTypeForNotification(type: NotificationType): Notification
   }
 }
 
+/**
+ * Strict internal URL sanitizer:
+ * Rejects external hosts, double-slashes, protocols/schemes (javascript:, https:), backslashes.
+ */
+export function sanitizeInternalHref(rawHref: string | null | undefined): string | null {
+  if (!rawHref || typeof rawHref !== 'string') return null;
+  const trimmed = rawHref.trim();
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    !trimmed.startsWith('/\\') &&
+    !trimmed.includes('\\') &&
+    !trimmed.includes(':')
+  ) {
+    return trimmed;
+  }
+  return null;
+}
+
+/**
+ * Shared role-aware notification link resolver.
+ * Enforces role isolation (admins to /management, clients to /projects or /wallet),
+ * deep links directly to projects/drawers, and supports section deep links (&section=files).
+ */
+export function getNotificationHref(
+  item: Partial<StudioNotification> | null | undefined,
+  role: string = 'client'
+): string | null {
+  if (!item) return null;
+
+  // Chat action opens the chat drawer, not a direct URL navigation
+  if (item.actionId === 'open-chat') {
+    return null;
+  }
+
+  const isAdmin = role === 'admin';
+  const entityType = item.entityType;
+  const entityId = item.entityId ? item.entityId.trim() : null;
+
+  // 1. Resolve via Entity Type & Entity ID (First-class canonical routing)
+  if (entityType === 'project' && entityId) {
+    if (isAdmin) {
+      return `/management?tab=projects&id=${encodeURIComponent(entityId)}`;
+    }
+    // Check if original link had specific sub-parameters (like section=files)
+    let sectionParam = '';
+    if (item.link && item.link.includes('section=')) {
+      try {
+        const dummyUrl = new URL(item.link, 'http://localhost');
+        const sec = dummyUrl.searchParams.get('section');
+        if (sec) sectionParam = `&section=${encodeURIComponent(sec)}`;
+      } catch {}
+    }
+    return `/projects?project=${encodeURIComponent(entityId)}${sectionParam}`;
+  }
+
+  if (entityType === 'order' && entityId) {
+    if (isAdmin) {
+      return `/management?tab=orders&id=${encodeURIComponent(entityId)}`;
+    }
+    return `/projects`;
+  }
+
+  if (entityType === 'wallet') {
+    if (isAdmin) {
+      return `/management?tab=credits`;
+    }
+    return `/wallet`;
+  }
+
+  // 2. Resolve via Raw Link with strict validation and role isolation
+  if (item.link) {
+    const sanitized = sanitizeInternalHref(item.link);
+    if (!sanitized) return null;
+
+    if (isAdmin) {
+      // Never send admin to client pages
+      if (sanitized.startsWith('/projects/') || sanitized.startsWith('/projects?')) {
+        const match = sanitized.match(/\/projects\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+          return `/management?tab=projects&id=${encodeURIComponent(match[1])}`;
+        }
+        try {
+          const u = new URL(sanitized, 'http://localhost');
+          const pId = u.searchParams.get('project');
+          if (pId) {
+            return `/management?tab=projects&id=${encodeURIComponent(pId)}`;
+          }
+        } catch {}
+        return '/management?tab=projects';
+      }
+      if (sanitized.startsWith('/wallet')) {
+        return '/management?tab=credits';
+      }
+      if (sanitized.startsWith('/management')) {
+        return sanitized;
+      }
+      return '/management';
+    } else {
+      // Client role: never send client to admin console
+      if (sanitized.startsWith('/management') || sanitized.startsWith('/admin')) {
+        return entityId ? `/projects?project=${encodeURIComponent(entityId)}` : '/projects';
+      }
+
+      // Convert legacy /projects/<id> directly to drawer link /projects?project=<id>
+      const match = sanitized.match(/^\/projects\/([a-zA-Z0-9_-]+)(.*)$/);
+      if (match && match[1]) {
+        const id = match[1];
+        const rest = match[2] || '';
+        const search = rest.startsWith('?') ? `&${rest.slice(1)}` : '';
+        return `/projects?project=${encodeURIComponent(id)}${search}`;
+      }
+
+      return sanitized;
+    }
+  }
+
+  return null;
+}
+
 export function transformApiNotification(raw: any): StudioNotification {
   const isRead = Boolean(raw.is_read ?? raw.isRead);
   const type: NotificationType = raw.type || 'system_alert';
@@ -80,6 +204,8 @@ export function transformApiNotification(raw: any): StudioNotification {
     link: raw.link || null,
     actionLabel: raw.action_label || raw.actionLabel || null,
     actionId: raw.action_id || raw.actionId || null,
+    entityType: raw.entity_type || raw.entityType || null,
+    entityId: raw.entity_id || raw.entityId || null,
     isRead,
     createdAt,
     description: message,

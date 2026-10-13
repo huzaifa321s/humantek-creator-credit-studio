@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
@@ -214,16 +214,16 @@ function CompactProjectRow({
             </div>
           </div>
 
-          {/* Deliverables */}
-          <div className="pt-3 border-t border-border/50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground">
-                Deliverable Assets
-              </span>
-              <span className="text-2xs text-muted-foreground font-mono">
-                {selections.length} items
-              </span>
-            </div>
+            {/* Services */}
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Selected Services
+                </span>
+                <span className="text-2xs text-muted-foreground font-mono">
+                  {selections.length} items
+                </span>
+              </div>
             {detailQuery.isPending ? (
               <div className="space-y-2">
                 <Skeleton className="h-7 w-full rounded-md" />
@@ -271,7 +271,7 @@ function CompactProjectRow({
   );
 }
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlProjectId = searchParams.get('project');
@@ -293,11 +293,21 @@ export default function ProjectsPage() {
         }
         const query = params.toString();
         const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
-        router.replace(newUrl, { scroll: false });
+        window.history.pushState(null, '', newUrl);
       }
     },
-    [router]
+    []
   );
+
+  // Sync drawer open/closed state on browser Back/Forward navigation
+  useEffect(() => {
+    const onPopState = () => {
+      const p = new URLSearchParams(window.location.search).get('project');
+      setSelectedProjectId(p);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'delivered'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -676,10 +686,10 @@ export default function ProjectsPage() {
                       </div>
                     </div>
 
-                    {/* Deliverable Assets List */}
+                    {/* Selected Services List */}
                     <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-border/60 pt-4">
                       <div className="flex items-center justify-between mb-2.5">
-                        <span className="text-2xs sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Deliverable Assets</span>
+                        <span className="text-2xs sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">Selected Services</span>
                         <span className="text-xs text-muted-foreground font-mono tabular-nums">{(proj.selections || []).length} items</span>
                       </div>
                       {(proj.selections || []).length > 0 ? (
@@ -696,8 +706,8 @@ export default function ProjectsPage() {
                         </div>
                       ) : (
                         <div className="p-3 rounded-lg border border-dashed border-border/70 bg-muted/10 text-xs text-muted-foreground flex items-center justify-between">
-                          <span>We’ll finalize the exact deliverables together during the brief review.</span>
-                          <span className="font-mono text-2xs text-muted-foreground/60">Awaiting Brief</span>
+                          <span>Services will be tailored with your lead during brief review.</span>
+                          <span className="font-mono text-2xs text-muted-foreground/60">Custom Scope</span>
                         </div>
                       )}
                     </div>
@@ -744,5 +754,13 @@ export default function ProjectsPage() {
         onClose={() => handleSelectProject(null)}
       />
     </StudioCardLayout>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectsPageContent />
+    </Suspense>
   );
 }

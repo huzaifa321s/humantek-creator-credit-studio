@@ -9,6 +9,8 @@ export type NotificationType =
   | 'order_status'
   | 'system_alert';
 
+export type NotificationEntityType = 'project' | 'order' | 'wallet' | 'chat' | 'system';
+
 export interface CreateNotificationParams {
   userId: string;
   type: NotificationType;
@@ -17,6 +19,8 @@ export interface CreateNotificationParams {
   link?: string;
   actionLabel?: string;
   actionId?: string;
+  entityType?: NotificationEntityType;
+  entityId?: string;
 }
 
 /**
@@ -26,6 +30,9 @@ export interface CreateNotificationParams {
 export async function createNotification(params: CreateNotificationParams): Promise<string | null> {
   try {
     const admin = createAdminClient();
+    const resolvedEntityType = params.entityType || (params.type === 'project_status' ? 'project' : null);
+    const resolvedEntityId = params.entityId || (params.actionId && params.actionId !== 'open-chat' ? params.actionId : null);
+
     const { data, error } = await admin
       .from('notifications')
       .insert({
@@ -36,6 +43,8 @@ export async function createNotification(params: CreateNotificationParams): Prom
         link: params.link || null,
         action_label: params.actionLabel || null,
         action_id: params.actionId || null,
+        entity_type: resolvedEntityType,
+        entity_id: resolvedEntityId,
         is_read: false,
       })
       .select('id')
@@ -67,6 +76,9 @@ export async function notifyAdmins(
 
     if (error || !admins?.length) return;
 
+    const resolvedEntityType = params.entityType || (params.type === 'project_status' ? 'project' : null);
+    const resolvedEntityId = params.entityId || (params.actionId && params.actionId !== 'open-chat' ? params.actionId : null);
+
     const rows = admins.map((a) => ({
       user_id: a.id,
       type: params.type,
@@ -75,6 +87,8 @@ export async function notifyAdmins(
       link: params.link || null,
       action_label: params.actionLabel || null,
       action_id: params.actionId || null,
+      entity_type: resolvedEntityType,
+      entity_id: resolvedEntityId,
       is_read: false,
     }));
 

@@ -85,7 +85,7 @@ function SignInContent() {
             isPage={true}
             nextUrl={getSafeRedirectUrl()}
             onSuccess={() => {
-              router.replace(getSafeRedirectUrl());
+              window.location.href = getSafeRedirectUrl();
             }}
           />
         </CardContent>

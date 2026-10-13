@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/empty';
 import {
   useNotificationStore,
+  getNotificationHref,
   type StudioNotification,
   type NotificationType,
 } from '@/lib/notificationStore';
@@ -74,8 +75,11 @@ export default function NotificationsPage() {
     void markAsRead(item.id);
     if (item.actionId === 'open-chat') {
       useChatStore.getState().setIsOpen(true);
-    } else if (item.link) {
-      router.push(item.link);
+      return;
+    }
+    const href = getNotificationHref(item, user?.role || 'client');
+    if (href) {
+      router.push(href);
     }
   };
 
@@ -149,7 +153,8 @@ export default function NotificationsPage() {
           <Card className="divide-y divide-border/60">
             {notifications.map((item) => {
               const Icon = TYPE_ICONS[item.type] || Bell;
-              const isClickable = Boolean(item.link || item.actionId === 'open-chat');
+              const href = getNotificationHref(item, user?.role || 'client');
+              const isClickable = Boolean(href || item.actionId === 'open-chat');
 
               return (
                 <button
