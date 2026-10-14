@@ -22,8 +22,16 @@ const envClientId = (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '').trim();
 const envMerchantId = (process.env.NEXT_PUBLIC_PAYPAL_MERCHANT_ID || '').trim();
 
 export const PAYPAL_CLIENT_ID = isPlaceholder(envClientId) ? DEFAULT_PAYPAL_CLIENT_ID : envClientId;
-export const PAYPAL_MERCHANT_ID =
-  envMerchantId && !envMerchantId.includes('your-') ? envMerchantId : DEFAULT_PAYPAL_MERCHANT_ID;
+/**
+ * The default merchant id belongs to the default (live) client id. With a custom client id
+ * (e.g. sandbox) only an explicit NEXT_PUBLIC_PAYPAL_MERCHANT_ID is sent, otherwise none.
+ */
+export const PAYPAL_MERCHANT_ID: string | undefined =
+  envMerchantId && !envMerchantId.includes('your-')
+    ? envMerchantId
+    : PAYPAL_CLIENT_ID === DEFAULT_PAYPAL_CLIENT_ID
+      ? DEFAULT_PAYPAL_MERCHANT_ID
+      : undefined;
 
 export const PAYPAL_ENABLE_FUNDING = 'venmo';
 export const PAYPAL_CURRENCY = 'USD';
