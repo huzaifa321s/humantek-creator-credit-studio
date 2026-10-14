@@ -1,46 +1,13 @@
-import { PAYPAL_API_URL, PAYPAL_CLIENT_ID as CONFIGURED_PAYPAL_CLIENT_ID } from '@/lib/paypal-config';
-import {
-  buildPurchaseUnit,
-  PAYPAL_APPLICATION_CONTEXT,
-  type PayPalOrderDetails,
-} from '@/lib/paypal-order-details';
-
-const PAYPAL_CLIENT_ID = CONFIGURED_PAYPAL_CLIENT_ID;
-const RAW_PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
-// Treat the .env.example placeholder as "no secret" (client-id-only checkout).
-const PAYPAL_CLIENT_SECRET = RAW_PAYPAL_CLIENT_SECRET.startsWith('your-') ? '' : RAW_PAYPAL_CLIENT_SECRET;
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb';
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
+const PAYPAL_API_URL = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
 const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || '';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
 /** True when no real PayPal credentials are configured. */
 export function isPayPalMockMode(): boolean {
-  return !PAYPAL_CLIENT_SECRET;
-}
-
-let serverCheckoutCheck: { ok: boolean; expiresAt: number } | null = null;
-
-/**
- * True when the server can really talk to PayPal (client id + secret are valid for PAYPAL_API_URL).
- * A wrong or mismatched secret falls back to the client-id-only checkout instead of breaking it.
- * The result is cached (10 min on success, 1 min on failure).
- */
-export async function canUseServerCheckout(): Promise<boolean> {
-  if (isPayPalMockMode()) return false;
-  if (serverCheckoutCheck && serverCheckoutCheck.expiresAt > Date.now()) return serverCheckoutCheck.ok;
-  let ok = false;
-  try {
-    await getPayPalAccessToken();
-    ok = true;
-  } catch (err) {
-    console.error(
-      `[PayPal] Server credentials rejected by ${PAYPAL_API_URL}; using client-side checkout. ` +
-        'Check PAYPAL_CLIENT_SECRET is the live secret for this client id.',
-      err
-    );
-  }
-  serverCheckoutCheck = { ok, expiresAt: Date.now() + (ok ? 10 * 60_000 : 60_000) };
-  return ok;
+  return !PAYPAL_CLIENT_SECRET || PAYPAL_CLIENT_ID === 'sb';
 }
 
 /**
@@ -91,8 +58,7 @@ export async function getPayPalAccessToken(): Promise<string> {
 export async function createPayPalOrder(
   amountUSD: number,
   customId?: string,
-  idempotencyKey?: string,
-  details?: PayPalOrderDetails
+  idempotencyKey?: string
 ): Promise<{ id: string; status: string }> {
   if (isPayPalMockMode()) {
     assertMockAllowed();
@@ -116,8 +82,16 @@ export async function createPayPalOrder(
     headers,
     body: JSON.stringify({
       intent: 'CAPTURE',
-      purchase_units: [buildPurchaseUnit(amountUSD, customId, details)],
-      application_context: PAYPAL_APPLICATION_CONTEXT,
+      purchase_units: [
+        {
+          custom_id: customId,
+          description: 'Humantek Art Creator Credits Package',
+          amount: {
+            currency_code: 'USD',
+            value: amountUSD.toFixed(2),
+          },
+        },
+      ],
     }),
     cache: 'no-store',
   });

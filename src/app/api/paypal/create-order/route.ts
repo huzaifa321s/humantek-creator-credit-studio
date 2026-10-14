@@ -3,7 +3,6 @@ import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { createPayPalOrder } from '@/lib/paypal';
 import { PACKAGES } from '@/lib/catalog';
-import { buildPayPalOrderDetails } from '@/lib/paypal-order-details';
 
 export async function POST(req: NextRequest) {
   const user = await getRequestUser();
@@ -98,14 +97,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Call PayPal with intent: CAPTURE, formatted USD string, custom_id, and PayPal-Request-Id header
-      // Attach the selected package, deliverables and brief so buyer + merchant both see them in PayPal
-      const orderDetails = buildPayPalOrderDetails({
-        internalOrderId: newOrder.id,
-        package: { name: pkg.name, credits: pkg.credits },
-        customer: { name: user.name, email: user.email },
-        body: { ...(body as Record<string, unknown>), packageId: pkg.id },
-      });
-      const paypalOrder = await createPayPalOrder(priceUSD, newOrder.id, idempKey, orderDetails);
+      const paypalOrder = await createPayPalOrder(priceUSD, newOrder.id, idempKey);
 
       // Save PayPal's provider_order_id in orders
       await adminClient
