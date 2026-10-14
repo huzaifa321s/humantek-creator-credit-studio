@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { ProjectRecord } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,6 @@ import {
   Search,
   MessageSquare,
   Sparkles,
-  Plus,
   ChevronDown,
   CheckCircle2,
   Loader2,
@@ -45,7 +44,13 @@ import { ChatGate } from '@/components/chat/ChatGate';
 import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
 import { DashboardDraftBanner } from '@/components/DashboardDraftBanner';
 
-function ProjectCardChatButton({ projectId }: { projectId: string }) {
+function ProjectCardChatButton({
+  projectId,
+  className,
+}: {
+  projectId: string;
+  className?: string;
+}) {
   const { setIsOpen, unreadCounts } = useStudioChat();
   const unread = unreadCounts[projectId] ?? 0;
 
@@ -57,15 +62,18 @@ function ProjectCardChatButton({ projectId }: { projectId: string }) {
         variant="outline"
         size="sm"
         onClick={() => setIsOpen(true, projectId)}
-        className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer w-full md:w-auto justify-center"
+        className={cn(
+          'h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer flex-1 min-w-0 shrink md:flex-initial md:w-auto justify-center',
+          className
+        )}
       >
-        <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
-        <span>Messages</span>
+        <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+        <span className="truncate">Messages</span>
         {unread > 0 && (
           <Badge
             variant="destructive"
             size="xs"
-            className="size-4 p-0 font-bold font-mono tabular-nums text-2xs rounded-full"
+            className="size-4 p-0 font-bold font-mono tabular-nums text-2xs rounded-full shrink-0"
           >
             {unread}
           </Badge>
@@ -109,45 +117,77 @@ function CompactProjectRow({
             onToggle();
           }
         }}
-        className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none bg-card hover:bg-muted/30 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
+        className="p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer select-none bg-card hover:bg-muted/30 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <Badge
-            variant="outline"
-            size="sm"
-            className="font-mono tabular-nums text-brand-text dark:text-amber-300 bg-amber-400/10 border-amber-400/30 font-bold shrink-0"
-          >
-            {project.projectCode}
-          </Badge>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-foreground truncate">
-              {project.channelName || project.packageName}
-            </h3>
-            <p className="text-2xs text-muted-foreground truncate">
-              {project.packageName} · {formatStudioDate(project.createdAt)}
-            </p>
+        <div className="flex items-start sm:items-center justify-between md:justify-start gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <Badge
+              variant="outline"
+              size="sm"
+              className="font-mono tabular-nums text-brand-text dark:text-amber-300 bg-amber-400/10 border-amber-400/30 font-bold shrink-0"
+            >
+              {project.projectCode}
+            </Badge>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-foreground truncate">
+                {project.channelName || project.packageName}
+              </h3>
+              <p className="text-2xs text-muted-foreground truncate">
+                {project.packageName} · {formatStudioDate(project.createdAt)}
+              </p>
+            </div>
+          </div>
+
+          {/* Mobile Status & Credits on top-right */}
+          <div className="flex md:hidden items-center gap-1.5 shrink-0">
+            {project.usedCredits > 0 && (
+              <CreditValue value={project.usedCredits} size="xs" variant="pill" />
+            )}
+            <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1">
+              <CheckCircle2 className="size-3" />
+              <span>Delivered</span>
+            </Badge>
           </div>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t border-border/40 sm:border-t-0">
-          <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1">
-            <CheckCircle2 className="size-3" />
-            <span>Delivered</span>
-          </Badge>
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between md:justify-end gap-2 shrink-0 pt-2.5 md:pt-0 border-t border-border/40 md:border-t-0">
+          <div className="hidden md:flex items-center gap-2">
+            <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1">
+              <CheckCircle2 className="size-3" />
+              <span>Delivered</span>
+            </Badge>
 
-          {project.usedCredits > 0 && (
-            <CreditValue value={project.usedCredits} size="xs" variant="pill" />
-          )}
+            {project.usedCredits > 0 && (
+              <CreditValue value={project.usedCredits} size="xs" variant="pill" />
+            )}
+          </div>
 
-          <div className="flex items-center gap-1.5 ml-1">
-            <div onClick={(e) => e.stopPropagation()}>
-              <ProjectCardChatButton projectId={project.id} />
-            </div>
+          <div
+            className="flex items-center gap-2 w-full md:w-auto justify-end min-w-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ProjectCardChatButton projectId={project.id} />
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenDetails();
+              }}
+              className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer flex-1 min-w-0 shrink md:flex-initial md:w-auto justify-center"
+            >
+              <FileText className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+              <span className="truncate">View details</span>
+            </Button>
+
             <Button
               type="button"
               variant="ghost"
               size="icon-xs"
-              className="text-muted-foreground hover:text-foreground cursor-pointer rounded-md"
+              onClick={onToggle}
+              className="size-8 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg shrink-0"
               aria-label={isExpanded ? 'Collapse project details' : 'Expand project details'}
               aria-expanded={isExpanded}
               aria-controls={`project-details-${project.id}`}
@@ -272,14 +312,15 @@ function CompactProjectRow({
 }
 
 function ProjectsPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const urlProjectId = searchParams.get('project');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
+  const [prevUrlProjectId, setPrevUrlProjectId] = useState<string | null>(urlProjectId);
 
-  useEffect(() => {
+  if (urlProjectId !== prevUrlProjectId) {
+    setPrevUrlProjectId(urlProjectId);
     setSelectedProjectId(urlProjectId);
-  }, [urlProjectId]);
+  }
 
   const handleSelectProject = useCallback(
     (id: string | null) => {
@@ -573,7 +614,7 @@ function ProjectsPageContent() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between md:justify-end md:flex-col md:items-end gap-2 pt-2 md:pt-0 border-t border-border/40 md:border-t-0 shrink-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between md:justify-end md:flex-col md:items-end gap-2.5 pt-3 md:pt-0 border-t border-border/40 md:border-t-0 min-w-0 shrink-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
                           variant={
@@ -598,17 +639,17 @@ function ProjectsPageContent() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center md:justify-end gap-2 w-full md:w-auto">
+                      <div className="flex items-center md:justify-end gap-2 w-full sm:w-auto min-w-0">
                         <ProjectCardChatButton projectId={proj.id} />
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => handleSelectProject(proj.id)}
-                          className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer w-full md:w-auto justify-center"
+                          className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer flex-1 min-w-0 shrink md:flex-initial md:w-auto justify-center"
                         >
-                          <FileText className="size-3.5 text-brand-text dark:text-amber-400" />
-                          <span>View details</span>
+                          <FileText className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                          <span className="truncate">View details</span>
                         </Button>
                       </div>
                     </div>
@@ -628,10 +669,10 @@ function ProjectsPageContent() {
                     </div>
 
                     {/* What Happens Next status line & indicators */}
-                    <div className="px-4 sm:px-6 py-2.5 bg-muted/20 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Clock className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                        <p className="text-muted-foreground truncate">
+                    <div className="px-4 sm:px-6 py-2.5 bg-muted/20 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div className="flex items-start sm:items-center gap-2 min-w-0">
+                        <Clock className="size-3.5 text-brand-text dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+                        <p className="text-muted-foreground leading-snug break-words">
                           <b className="text-foreground font-semibold">Next step:</b>{' '}
                           {proj.status === 'pending_review' && 'Studio lead review in progress (expected 2–4h)'}
                           {proj.status === 'payment_confirmed' && 'Queued for artist assignment'}
@@ -662,7 +703,7 @@ function ProjectsPageContent() {
                       'p-4 sm:p-6 grid gap-3 sm:gap-4 border-t border-border/60',
                       proj.platform && proj.platform.toLowerCase() !== 'general'
                         ? 'grid-cols-2 sm:grid-cols-4'
-                        : 'grid-cols-1 sm:grid-cols-3'
+                        : 'grid-cols-2 sm:grid-cols-3'
                     )}>
                       <div className="min-w-0">
                         <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Aesthetic Style</span>
@@ -751,6 +792,7 @@ function ProjectsPageContent() {
       {/* URL-Addressable Client Project Details Drawer */}
       <ClientProjectDetailsDrawer
         projectId={selectedProjectId}
+        initialProject={allProjects.find((p) => p.id === selectedProjectId) ?? null}
         onClose={() => handleSelectProject(null)}
       />
     </StudioCardLayout>

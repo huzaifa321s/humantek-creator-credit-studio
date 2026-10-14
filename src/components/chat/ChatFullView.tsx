@@ -52,6 +52,14 @@ export function ChatFullView() {
   const [replyingTo, setReplyingTo] = useState<ChatReplyTo | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
 
+  const [syncedThreadId, setSyncedThreadId] = useState(projectId);
+  if (syncedThreadId !== projectId) {
+    setSyncedThreadId(projectId);
+    setReplyingTo(null);
+    setEditingMessage(null);
+    setPreviewAttachment(null);
+  }
+
   const projectsQuery = useProjectsQuery();
   const projects = projectsQuery.data ?? EMPTY_PROJECTS;
 
@@ -105,15 +113,17 @@ export function ChatFullView() {
       return [];
     }
     const clientName = isGlobal ? (user?.name || 'You') : (activeProject?.clientName || user?.name || 'You');
-    const mappedDb = (dbMessages || []).map((m) =>
+    const scopedDb = (dbMessages || []).filter((m) => m.projectId === targetProjectId);
+    const mappedDb = scopedDb.map((m) =>
       mapProjectChatMessage(m, { clientName, lastReadId })
     );
 
     const confirmedClientIds = new Set(
-      dbMessages.map((m) => m.clientMessageId).filter(Boolean)
+      scopedDb.map((m) => m.clientMessageId).filter(Boolean)
     );
     const pendingOptimistic = outbox.filter(
       (m: ChatMessage) =>
+        m.projectId === targetProjectId &&
         m.clientMessageId &&
         !confirmedClientIds.has(m.clientMessageId) &&
         (m.status === 'sending' || m.status === 'failed')
@@ -208,9 +218,11 @@ export function ChatFullView() {
     }
   };
 
-  // Real attachments uploaded in the active conversation
+  // Real attachments uploaded in the active conversation (excluding soft-deleted messages)
   const displayAttachments = useMemo(() => {
-    const rawAttachments: ChatAttachment[] = displayMessages.flatMap((m) => m.attachments || []);
+    const rawAttachments: ChatAttachment[] = displayMessages
+      .filter((m) => !m.isDeleted)
+      .flatMap((m) => m.attachments || []);
     const seen = new Set<string>();
     const unique: ChatAttachment[] = [];
     for (const att of rawAttachments) {
@@ -272,12 +284,12 @@ export function ChatFullView() {
 
               <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-bold text-foreground truncate">Humantek Studio</h3>
+                  <h3 className="text-sm font-bold text-foreground truncate">Studio Team</h3>
                   <Badge variant="gold" className="text-2xs font-mono font-bold uppercase tracking-wider py-0 px-1.5 h-4">
-                    Team
+                    Live
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground truncate">Studio Production Team</p>
+                <p className="text-xs text-muted-foreground truncate">Project Messages &amp; Direct Support</p>
                 <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground font-medium">
                   Direct Studio Line
                 </span>

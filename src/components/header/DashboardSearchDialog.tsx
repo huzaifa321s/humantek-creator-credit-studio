@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import {
   Search,
   FolderKanban,
@@ -45,11 +46,24 @@ export function DashboardSearchDialog({
   walletBalance = 0,
 }: DashboardSearchDialogProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const topLoader = useTopLoader();
   const { user } = useUserStore();
   const { isMobile, setOpenMobile } = useSidebar();
   const { canChat } = useChatGate();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const navigateTo = useCallback(
+    (href: string) => {
+      if (isMobile) setOpenMobile(false);
+      if (href.split('?')[0] !== pathname) {
+        topLoader.start();
+      }
+      router.push(href);
+    },
+    [isMobile, setOpenMobile, pathname, topLoader, router]
+  );
 
   const isStaffOrAdmin = Boolean(
     user?.role &&
@@ -71,10 +85,7 @@ export function DashboardSearchDialog({
         description: 'See where each project is and how many credits it uses',
         icon: FolderKanban,
         keywords: ['projects', 'status', 'deliverables', 'history', 'milestones', 'progress'],
-        action: () => {
-          if (isMobile) setOpenMobile(false);
-          router.push('/projects');
-        },
+        action: () => navigateTo('/projects'),
       },
       {
         id: 'nav-wizard',
@@ -83,10 +94,7 @@ export function DashboardSearchDialog({
         description: 'Configure and start your next creative media project',
         icon: Plus,
         keywords: ['new', 'project', 'brief', 'create', 'order', 'package', 'home', 'services', 'wizard'],
-        action: () => {
-          if (isMobile) setOpenMobile(false);
-          router.push('/new-project');
-        },
+        action: () => navigateTo('/new-project'),
       },
       ...(canChat
         ? [
@@ -112,10 +120,7 @@ export function DashboardSearchDialog({
         description: 'Enter promotional codes to claim instant studio credits',
         icon: Ticket,
         keywords: ['promo', 'code', 'redeem', 'voucher', 'coupon', 'discount', 'free credits'],
-        action: () => {
-          if (isMobile) setOpenMobile(false);
-          router.push('/redeem-code');
-        },
+        action: () => navigateTo('/redeem-code'),
       },
       ...(isStaffOrAdmin
         ? [
@@ -126,11 +131,7 @@ export function DashboardSearchDialog({
               description: 'Administrative workspace, client overview, and billing',
               icon: ShieldCheck,
               keywords: ['agency', 'management', 'admin', 'console', 'workspace', 'billing'],
-              action: () => {
-                if (isMobile) setOpenMobile(false);
-                router.push('/management');
-              },
-              badge: 'Admin',
+              action: () => navigateTo('/management'),
             },
           ]
         : []),
@@ -158,10 +159,10 @@ export function DashboardSearchDialog({
         description: 'Review credit utilization, top-ups, and balance breakdown',
         icon: Coins,
         keywords: ['balance', 'credits', 'wallet', 'funds', 'cr', 'coins'],
-        action: () => router.push('/redeem-code'),
+        action: () => navigateTo('/redeem-code'),
       },
     ],
-    [router, isMobile, setOpenMobile, canChat, isStaffOrAdmin, walletBalance]
+    [navigateTo, isMobile, setOpenMobile, canChat, isStaffOrAdmin, walletBalance]
   );
 
   const filteredItems = useMemo(() => {

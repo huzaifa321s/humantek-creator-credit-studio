@@ -100,19 +100,36 @@ export function getNotificationHref(
 ): string | null {
   if (!item) return null;
 
-  // Chat action opens the chat drawer, not a direct URL navigation
+  const isAdmin = role === 'admin';
+  const entityType = item.entityType || (item.type === 'chat_message' ? 'chat' : null);
+  const rawEntityId =
+    item.entityId ||
+    (item.actionId && item.actionId !== 'open-chat' ? item.actionId : null);
+  const entityId = rawEntityId ? rawEntityId.trim() : null;
+
+  // Chat notifications: admins go to /management/inbox?thread=<id>, clients open chat or /messages?project=<id>
+  if (entityType === 'chat' || item.type === 'chat_message') {
+    if (isAdmin) {
+      return entityId
+        ? `/management/inbox?thread=${encodeURIComponent(entityId)}`
+        : '/management/inbox';
+    }
+    if (item.actionId === 'open-chat') {
+      return null;
+    }
+    return entityId
+      ? `/messages?project=${encodeURIComponent(entityId)}`
+      : '/messages';
+  }
+
   if (item.actionId === 'open-chat') {
     return null;
   }
 
-  const isAdmin = role === 'admin';
-  const entityType = item.entityType;
-  const entityId = item.entityId ? item.entityId.trim() : null;
-
   // 1. Resolve via Entity Type & Entity ID (First-class canonical routing)
   if (entityType === 'project' && entityId) {
     if (isAdmin) {
-      return `/management?tab=projects&id=${encodeURIComponent(entityId)}`;
+      return `/management/projects?project=${encodeURIComponent(entityId)}`;
     }
     // Check if original link had specific sub-parameters (like section=files)
     let sectionParam = '';
@@ -128,16 +145,16 @@ export function getNotificationHref(
 
   if (entityType === 'order' && entityId) {
     if (isAdmin) {
-      return `/management?tab=orders&id=${encodeURIComponent(entityId)}`;
+      return `/management/orders?id=${encodeURIComponent(entityId)}`;
     }
     return `/projects`;
   }
 
   if (entityType === 'wallet') {
     if (isAdmin) {
-      return `/management?tab=credits`;
+      return `/management/ledger`;
     }
-    return `/wallet`;
+    return `/redeem-code`;
   }
 
   // 2. Resolve via Raw Link with strict validation and role isolation
@@ -147,24 +164,47 @@ export function getNotificationHref(
 
     if (isAdmin) {
       // Never send admin to client pages
-      if (sanitized.startsWith('/projects/') || sanitized.startsWith('/projects?')) {
+      if (sanitized.startsWith('/projects/') || sanitized.startsWith('/projects?') || sanitized.startsWith('/messages')) {
         const match = sanitized.match(/\/projects\/([a-zA-Z0-9_-]+)/);
+        const isChatLink = sanitized.includes('tab=chat') || sanitized.startsWith('/messages');
         if (match && match[1]) {
-          return `/management?tab=projects&id=${encodeURIComponent(match[1])}`;
+          return isChatLink
+            ? `/management/inbox?thread=${encodeURIComponent(match[1])}`
+            : `/management/projects?project=${encodeURIComponent(match[1])}`;
         }
         try {
           const u = new URL(sanitized, 'http://localhost');
-          const pId = u.searchParams.get('project');
+          const pId = u.searchParams.get('project') || u.searchParams.get('thread');
           if (pId) {
-            return `/management?tab=projects&id=${encodeURIComponent(pId)}`;
+            return isChatLink
+              ? `/management/inbox?thread=${encodeURIComponent(pId)}`
+              : `/management/projects?project=${encodeURIComponent(pId)}`;
           }
         } catch {}
-        return '/management?tab=projects';
+        return isChatLink ? '/management/inbox' : '/management/projects';
       }
-      if (sanitized.startsWith('/wallet')) {
-        return '/management?tab=credits';
+      if (sanitized.startsWith('/wallet') || sanitized.startsWith('/billing') || sanitized.includes('tab=credits')) {
+        return '/management/ledger';
       }
       if (sanitized.startsWith('/management')) {
+        try {
+          const u = new URL(sanitized, 'http://localhost');
+          const tab = u.searchParams.get('tab');
+          const id = u.searchParams.get('id') || u.searchParams.get('project') || u.searchParams.get('thread');
+          const subtab = u.searchParams.get('subtab');
+          if (subtab === 'chat' || tab === 'messages') {
+            return id ? `/management/inbox?thread=${encodeURIComponent(id)}` : '/management/inbox';
+          }
+          if (tab === 'projects') {
+            return id ? `/management/projects?project=${encodeURIComponent(id)}` : '/management/projects';
+          }
+          if (tab === 'orders' || tab === 'wire-orders') {
+            return id ? `/management/orders?id=${encodeURIComponent(id)}` : '/management/orders';
+          }
+          if (tab === 'ledger' || tab === 'credits') {
+            return '/management/ledger';
+          }
+        } catch {}
         return sanitized;
       }
       return '/management';
@@ -174,11 +214,18 @@ export function getNotificationHref(
         return entityId ? `/projects?project=${encodeURIComponent(entityId)}` : '/projects';
       }
 
-      // Convert legacy /projects/<id> directly to drawer link /projects?project=<id>
+      if (sanitized.startsWith('/wallet') || sanitized.startsWith('/billing')) {
+        return '/redeem-code';
+      }
+
+      // Convert legacy /projects/<id> directly to /messages?project=<id> (if chat) or /projects?project=<id>
       const match = sanitized.match(/^\/projects\/([a-zA-Z0-9_-]+)(.*)$/);
       if (match && match[1]) {
         const id = match[1];
         const rest = match[2] || '';
+        if (rest.includes('tab=chat')) {
+          return `/messages?project=${encodeURIComponent(id)}`;
+        }
         const search = rest.startsWith('?') ? `&${rest.slice(1)}` : '';
         return `/projects?project=${encodeURIComponent(id)}${search}`;
       }

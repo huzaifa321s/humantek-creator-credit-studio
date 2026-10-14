@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
         type: 'wallet_credit',
         title: 'Credits added',
         message: `+${result.credits_granted} credits added to your studio wallet.`,
-        link: '/billing',
+        link: '/redeem-code',
         actionLabel: 'View Balance',
       });
 

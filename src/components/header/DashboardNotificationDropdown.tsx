@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import {
   Bell,
   CheckCircle2,
@@ -53,6 +54,8 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
 
 export function DashboardNotificationDropdown() {
   const router = useRouter();
+  const pathname = usePathname();
+  const topLoader = useTopLoader();
   const { isMobile, setOpenMobile } = useSidebar();
   const user = useUserStore((s) => s.user);
   const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } =
@@ -104,16 +107,25 @@ export function DashboardNotificationDropdown() {
     if (isMobile) {
       setOpenMobile(false);
     }
-    if (item.actionId === 'open-chat') {
-      useChatStore.getState().setIsOpen(true);
+    const isClientRole = (user?.role || 'client') !== 'admin';
+    if (isClientRole && (item.actionId === 'open-chat' || item.type === 'chat_message' || item.entityType === 'chat')) {
+      const targetChatId =
+        item.entityId ||
+        (item.actionId && item.actionId !== 'open-chat' ? item.actionId : undefined);
+      if (pathname === '/messages') {
+        if (targetChatId) {
+          useChatStore.getState().setActiveProjectId(targetChatId);
+        }
+      } else {
+        useChatStore.getState().setIsOpen(true, targetChatId || undefined);
+      }
       return;
     }
-    const href = getNotificationHref(item, user?.role || 'client');
-    if (href) {
-      router.push(href);
-    } else {
-      router.push('/notifications');
+    const href = getNotificationHref(item, user?.role || 'client') || '/notifications';
+    if (href.split('?')[0] !== pathname) {
+      topLoader.start();
     }
+    router.push(href);
   };
 
   return (

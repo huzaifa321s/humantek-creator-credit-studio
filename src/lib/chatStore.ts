@@ -226,10 +226,9 @@ export const useChatStore = create<ChatState>()(
       name: STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
-        activeProjectId: s.activeProjectId,
         drafts: s.drafts,
       }),
-      version: 7,
+      version: 8,
       skipHydration: true,
     }
   )

@@ -23,6 +23,23 @@ export interface CreateNotificationParams {
   entityId?: string;
 }
 
+function inferEntityType(params: Omit<CreateNotificationParams, 'userId'>): NotificationEntityType | null {
+  if (params.entityType) return params.entityType;
+  switch (params.type) {
+    case 'project_status':
+      return 'project';
+    case 'chat_message':
+      return 'chat';
+    case 'wallet_credit':
+    case 'payment_confirmed':
+      return 'wallet';
+    case 'order_status':
+      return 'order';
+    default:
+      return null;
+  }
+}
+
 /**
  * Creates a persistent notification for a specific user.
  * Handled via service role client (bypasses RLS for secure system insertion).
@@ -30,7 +47,7 @@ export interface CreateNotificationParams {
 export async function createNotification(params: CreateNotificationParams): Promise<string | null> {
   try {
     const admin = createAdminClient();
-    const resolvedEntityType = params.entityType || (params.type === 'project_status' ? 'project' : null);
+    const resolvedEntityType = inferEntityType(params);
     const resolvedEntityId = params.entityId || (params.actionId && params.actionId !== 'open-chat' ? params.actionId : null);
 
     const { data, error } = await admin
@@ -76,7 +93,7 @@ export async function notifyAdmins(
 
     if (error || !admins?.length) return;
 
-    const resolvedEntityType = params.entityType || (params.type === 'project_status' ? 'project' : null);
+    const resolvedEntityType = inferEntityType(params);
     const resolvedEntityId = params.entityId || (params.actionId && params.actionId !== 'open-chat' ? params.actionId : null);
 
     const rows = admins.map((a) => ({

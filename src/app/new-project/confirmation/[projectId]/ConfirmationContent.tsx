@@ -10,11 +10,11 @@ import {
   ArrowRight,
   MessageSquare,
   Plus,
-  Building2,
 } from 'lucide-react';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { CreditValue } from '@/components/ui/credit-value';
 import { ChatGate } from '@/components/chat/ChatGate';
 import { useUserStore, refreshUserSession } from '@/lib/userStore';
 import { useChatStore } from '@/lib/chatStore';
@@ -141,39 +141,29 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
     return () => clearTimeout(timer);
   }, []);
 
-  // Context-dependent copy
+  // Concise, beginner-friendly context copy
   let heading = 'Payment received';
-  let description = 'Your payment went through and your project has started.';
+  let description = 'Your project is now in production.';
   let statusBadgeText = 'In production';
-  let nextStepText = 'Studio brief review & creative queue';
-  let paymentSummary = `Paid $${project.packagePrice.toLocaleString('en-US')} USD`;
   let isPendingOrManual = false;
 
   if (confirmationState === 'paid_credits') {
     heading = 'Project started';
-    description = 'We’ve started your project. Next, we review your brief and message you if we need anything.';
+    description = 'Your brief is with our team. Track progress anytime in your dashboard.';
     statusBadgeText = 'In production';
-    nextStepText = 'Studio brief review & creative queue';
-    paymentSummary = `Funded with ${project.usedCredits} credits`;
   } else if (confirmationState === 'online_completed') {
     heading = 'Payment received';
-    description = 'Your payment went through and your project has started.';
+    description = 'Your payment went through and your project is in production.';
     statusBadgeText = 'In production';
-    nextStepText = 'Studio brief review & creative queue';
-    paymentSummary = `Paid $${project.packagePrice.toLocaleString('en-US')} USD`;
   } else if (confirmationState === 'online_pending') {
     heading = 'Payment processing';
-    description = 'We’ll start as soon as the payment clears.';
+    description = 'We’ll start production as soon as your payment clears.';
     statusBadgeText = 'Payment processing';
-    nextStepText = 'Awaiting payment clearance';
-    paymentSummary = `Pending payment of $${project.packagePrice.toLocaleString('en-US')} USD`;
     isPendingOrManual = true;
   } else if (confirmationState === 'manual_order') {
     heading = 'Order received';
-    description = 'We’ve received your brief. Our team will review it and send payment details within 1 business day.';
-    statusBadgeText = 'Pending review & payment';
-    nextStepText = 'Waiting for payment';
-    paymentSummary = `Amount due: $${project.packagePrice.toLocaleString('en-US')} USD`;
+    description = 'We’ll send your invoice and payment details via email and studio chat.';
+    statusBadgeText = 'Awaiting payment';
     isPendingOrManual = true;
   }
 
@@ -205,8 +195,8 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
       showBack={false}
       topRightBadge={null}
     >
-      <div className="w-full flex items-center justify-center py-6 sm:py-10 pb-24 sm:pb-14 animate-in fade-in duration-300">
-        <Card className="max-w-lg w-full mx-auto rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-6 shadow-sm text-center">
+      <div className="w-full flex items-center justify-center py-3 sm:py-8 pb-16 sm:pb-12 animate-in fade-in duration-300">
+        <Card className="max-w-md w-full mx-auto rounded-2xl border border-border/80 bg-card p-4 sm:p-7 space-y-4 sm:space-y-5 shadow-sm text-center overflow-hidden">
           {/* Screen reader announcement */}
           <div aria-live="polite" className="sr-only">
             {heading}. {description}
@@ -215,40 +205,40 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
           {/* Top Status Icon */}
           <div
             className={cn(
-              'size-12 rounded-full flex items-center justify-center mx-auto ring-8',
+              'size-11 sm:size-12 rounded-full flex items-center justify-center mx-auto ring-6 sm:ring-8',
               isPendingOrManual
                 ? 'bg-amber-400/15 text-brand-text dark:text-amber-400 ring-amber-400/10'
                 : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/10'
             )}
           >
             {isPendingOrManual ? (
-              <Clock className="size-6 stroke-[2.5]" />
+              <Clock className="size-5 sm:size-6 stroke-[2.5]" />
             ) : (
-              <Check className="size-6 stroke-[2.5]" />
+              <Check className="size-5 sm:size-6 stroke-[2.5]" />
             )}
           </div>
 
-          {/* Title & Subtitle */}
-          <div className="space-y-1.5">
+          {/* Title & Concise Subtitle */}
+          <div className="space-y-1">
             <h1
               ref={headingRef}
               tabIndex={-1}
-              className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground outline-none"
+              className="scroll-mt-[140px] text-xl sm:text-2xl font-extrabold tracking-tight text-foreground outline-none"
             >
               {heading}
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-xs sm:max-w-sm mx-auto leading-relaxed">
               {description}
             </p>
           </div>
 
           {/* Order Spec Snapshot Card */}
-          <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5 text-left text-xs divide-y divide-border/60 shadow-2xs space-y-3">
+          <div className="rounded-xl border border-border/70 bg-secondary/20 p-3.5 sm:p-4 text-left text-xs divide-y divide-border/60 shadow-2xs space-y-2.5">
             {/* 1. Project Code with Copy */}
-            <div className="flex items-center justify-between pt-0 first:pt-0">
-              <span className="text-muted-foreground font-medium">Project code</span>
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono font-bold text-foreground text-xs sm:text-sm tracking-wide">
+            <div className="flex items-center justify-between gap-3 pt-0 first:pt-0">
+              <span className="text-muted-foreground font-medium shrink-0">Project code</span>
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="font-mono font-bold text-foreground text-xs sm:text-sm tracking-wide truncate">
                   {project.projectCode}
                 </span>
                 <Button
@@ -256,7 +246,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                   variant="ghost"
                   size="icon-xs"
                   onClick={handleCopyCode}
-                  className="size-6 text-muted-foreground hover:text-foreground rounded cursor-pointer"
+                  className="size-6 shrink-0 text-muted-foreground hover:text-foreground rounded cursor-pointer"
                   title="Copy project code"
                   aria-label="Copy project code"
                 >
@@ -266,104 +256,90 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
             </div>
 
             {/* 2. Package */}
-            <div className="flex items-center justify-between pt-3">
-              <span className="text-muted-foreground font-medium">Package</span>
-              <span className="font-semibold text-foreground text-xs sm:text-sm">
+            <div className="flex items-center justify-between gap-3 pt-2.5">
+              <span className="text-muted-foreground font-medium shrink-0">Package</span>
+              <span className="font-semibold text-foreground text-xs sm:text-sm text-right truncate">
                 {project.packageName || matchedPack?.name || 'Studio Custom'}
               </span>
             </div>
 
             {/* 3. Credits */}
-            <div className="flex items-center justify-between pt-3">
-              <span className="text-muted-foreground font-medium">Credits</span>
-              <span className="font-semibold text-foreground text-xs sm:text-sm">
-                {confirmationState === 'manual_order'
-                  ? `${resolvedPackageCredits || project.usedCredits} CR · added after payment is confirmed`
-                  : project.fundingSource === 'wallet'
-                  ? `${project.usedCredits} credits used`
-                  : `${project.usedCredits} of ${resolvedPackageCredits || project.usedCredits} used`}
-              </span>
+            <div className="flex items-center justify-between gap-3 pt-2.5">
+              <span className="text-muted-foreground font-medium shrink-0">Credits</span>
+              <div className="text-right">
+                {confirmationState === 'manual_order' ? (
+                  <CreditValue
+                    value={resolvedPackageCredits || project.usedCredits}
+                    size="xs"
+                  />
+                ) : project.fundingSource === 'wallet' ? (
+                  <CreditValue
+                    value={project.usedCredits}
+                    size="xs"
+                    suffix="CR used"
+                  />
+                ) : (
+                  <CreditValue
+                    value={`${project.usedCredits} / ${resolvedPackageCredits || project.usedCredits}`}
+                    size="xs"
+                    suffix="CR"
+                  />
+                )}
+              </div>
             </div>
 
-            {/* 4. Deliverables Count */}
+            {/* 4. Services Count */}
             {project.selections && project.selections.length > 0 && (
-              <div className="flex items-center justify-between pt-3">
-                <span className="text-muted-foreground font-medium">Deliverables</span>
-                <span className="font-semibold text-foreground text-xs sm:text-sm">
-                  {project.selections.length} {project.selections.length === 1 ? 'service' : 'services'} ({totalQuantity} total items)
+              <div className="flex items-center justify-between gap-3 pt-2.5">
+                <span className="text-muted-foreground font-medium shrink-0">Services</span>
+                <span className="font-semibold text-foreground text-xs sm:text-sm text-right">
+                  {project.selections.length} {project.selections.length === 1 ? 'service' : 'services'} ({totalQuantity} {totalQuantity === 1 ? 'item' : 'items'})
                 </span>
               </div>
             )}
 
             {/* 5. Status */}
-            <div className="flex items-center justify-between pt-3">
-              <span className="text-muted-foreground font-medium">Status</span>
-              <span className="inline-flex items-center gap-1.5 font-medium text-xs sm:text-sm text-foreground">
+            <div className="flex items-center justify-between gap-3 pt-2.5">
+              <span className="text-muted-foreground font-medium shrink-0">Status</span>
+              <span className="inline-flex items-center justify-end gap-1.5 font-medium text-xs sm:text-sm text-foreground text-right">
                 <span
                   className={cn(
-                    'size-2 rounded-full',
+                    'size-2 rounded-full shrink-0',
                     isPendingOrManual ? 'bg-amber-400' : 'bg-emerald-500'
                   )}
                 />
-                {statusBadgeText}
+                <span className="truncate">{statusBadgeText}</span>
               </span>
             </div>
 
-            {/* 6. Next step */}
-            <div className="flex items-center justify-between pt-3">
-              <span className="text-muted-foreground font-medium">Next step</span>
-              <span className="font-medium text-muted-foreground text-xs sm:text-sm text-right">
-                {nextStepText}
-              </span>
-            </div>
-
-            {/* 7. Total Due / Amount Due Row */}
-            <div className="flex items-center justify-between pt-3 border-t border-border/80">
-              <span className="text-foreground font-bold text-xs sm:text-sm">
-                {confirmationState === 'manual_order' ? 'Amount due' : 'Total paid'}
-              </span>
-              <span className="font-mono font-bold text-foreground text-sm sm:text-base">
-                ${project.packagePrice.toLocaleString('en-US')} USD
-              </span>
-            </div>
+            {/* 6. Total Due / Total Paid Row */}
+            {project.fundingSource !== 'wallet' && (
+              <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-border/80">
+                <span className="text-foreground font-bold text-xs sm:text-sm shrink-0">
+                  {confirmationState === 'manual_order' ? 'Amount due' : 'Total paid'}
+                </span>
+                <span className="font-mono font-bold text-foreground text-sm sm:text-base text-right">
+                  ${project.packagePrice.toLocaleString('en-US')} USD
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Payment Instructions (Only for manual_order) */}
-          {confirmationState === 'manual_order' && (
-            <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-text dark:text-amber-400">
-                <Building2 className="size-3.5" />
-                <span>How payment works</span>
-              </div>
-              <p className="text-2xs sm:text-xs text-muted-foreground leading-relaxed">
-                We’ll review your brief and send an invoice + bank/PayPal details to your email and studio chat. Always quote project code{' '}
-                <strong className="font-mono font-bold text-foreground">{project.projectCode}</strong>.
-              </p>
-            </div>
-          )}
-
-          {/* Receipt Note for paid orders */}
-          {project.email && confirmationState !== 'manual_order' && (
-            <p className="text-xs text-muted-foreground leading-normal">
-              Receipt sent to {project.email}
-            </p>
-          )}
-
-          {/* Actions: Primary View Button & Secondary Links */}
-          <div className="space-y-3 pt-1 w-full">
+          {/* Actions: Primary View Button & Responsive Secondary Actions */}
+          <div className="space-y-2.5 pt-0.5 w-full">
             <Link href="/projects" className="block w-full">
               <Button
                 type="button"
                 variant="default"
                 size="lg"
-                className="w-full h-11 font-bold text-sm bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground rounded-xl shadow-xs shadow-amber-400/20 cursor-pointer transition-colors"
+                className="w-full h-10 sm:h-11 font-bold text-sm bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground rounded-xl shadow-xs shadow-amber-400/20 cursor-pointer transition-colors"
               >
                 <span>View my project</span>
                 <ArrowRight className="size-4 ml-1" />
               </Button>
             </Link>
 
-            <div className="flex items-center justify-center gap-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:items-center sm:justify-center gap-2 w-full">
               <ChatGate>
                 <Button
                   type="button"
@@ -371,10 +347,10 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                   size="sm"
                   data-chat-entry="confirmation-chat"
                   onClick={() => useChatStore.getState().setIsOpen(true, project.id)}
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 rounded-lg cursor-pointer border-border/70 hover:bg-secondary/60"
+                  className="w-full sm:w-auto text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-9 sm:h-8 rounded-lg cursor-pointer border-border/70 hover:bg-secondary/60"
                 >
-                  <MessageSquare className="size-3.5" />
-                  <span>Message our team</span>
+                  <MessageSquare className="size-3.5 shrink-0" />
+                  <span className="truncate">Message our team</span>
                 </Button>
               </ChatGate>
               <Button
@@ -382,10 +358,10 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                 variant="ghost"
                 size="sm"
                 onClick={handleStartAnother}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-8 rounded-lg cursor-pointer"
+                className="w-full sm:w-auto text-xs font-medium text-muted-foreground hover:text-foreground gap-1.5 h-9 sm:h-8 rounded-lg cursor-pointer"
               >
-                <Plus className="size-3.5" />
-                <span>Start another project</span>
+                <Plus className="size-3.5 shrink-0" />
+                <span className="truncate">Start another project</span>
               </Button>
             </div>
           </div>

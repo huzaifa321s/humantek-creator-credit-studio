@@ -3,10 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { ApiError } from '@/components/Providers';
 import type { ManagementSummaryData } from '@/app/api/management/summary/route';
-import type { LedgerTransaction } from '@/components/AgencyDataGrid';
+import type { LedgerTransaction, LedgerCustomerSummary } from '@/components/AgencyDataGrid';
 
 interface LedgerResponse {
   transactions: LedgerTransaction[];
+  customers?: LedgerCustomerSummary[];
   totalCount: number;
   hasMore: boolean;
   nextCursor: string | null;
@@ -47,17 +48,19 @@ export function useManagementLedgerQuery(filters?: {
   limit?: number;
   type?: string;
   status?: string;
+  customer?: string;
 }) {
-  const { page = 1, limit = 50, type, status } = filters || {};
+  const { page = 1, limit = 50, type, status, customer } = filters || {};
 
   return useQuery<LedgerResponse, ApiError>({
-    queryKey: ['management', 'ledger', { page, limit, type, status }],
+    queryKey: ['management', 'ledger', { page, limit, type, status, customer }],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('limit', String(limit));
       if (type && type !== 'all') params.set('type', type);
       if (status && status !== 'all') params.set('status', status);
+      if (customer && customer !== 'all') params.set('customer', customer);
 
       const res = await fetch(`/api/management/ledger?${params.toString()}`);
       if (res.status === 401 || res.status === 403) {

@@ -2,22 +2,19 @@
 
 import React, { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import { AdminProjectsTable } from '@/components/management/AdminProjectsTable';
-import { useProjectsQuery, useUpdateProjectStatus } from '@/lib/queries/projects';
+import { useUpdateProjectStatus } from '@/lib/queries/projects';
 import { useStudioChat } from '@/lib/chatStore';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ProjectRecord } from '@/types';
 
-const EMPTY_PROJECTS: ProjectRecord[] = [];
-
 function InnerProjectsQueue() {
   const router = useRouter();
+  const topLoader = useTopLoader();
   const { setActiveProjectId } = useStudioChat();
 
-  const projectsQuery = useProjectsQuery();
-  const projects = projectsQuery.data ?? EMPTY_PROJECTS;
-  const isLoading = projectsQuery.isPending;
   const updateStatus = useUpdateProjectStatus();
   const isUpdating = updateStatus.isPending ? updateStatus.variables?.id ?? null : null;
 
@@ -38,14 +35,13 @@ function InnerProjectsQueue() {
 
   const handleOpenChat = (projectId: string) => {
     setActiveProjectId(projectId);
+    topLoader.start();
     router.push(`/management/inbox?thread=${projectId}`);
   };
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
       <AdminProjectsTable
-        projects={projects}
-        isLoading={isLoading}
         onOpenChat={handleOpenChat}
         onUpdateStatus={handleUpdateStatus}
         isUpdatingId={isUpdating}

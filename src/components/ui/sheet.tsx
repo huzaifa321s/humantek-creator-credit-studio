@@ -53,7 +53,15 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
+          "fixed z-50 flex flex-col bg-popover bg-clip-padding text-sm text-popover-foreground shadow-2xl transition duration-200 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 outline-none",
+          side === "right" &&
+            "inset-y-0 right-0 h-dvh w-full max-w-full sm:max-w-lg border-l border-border/80 data-ending-style:translate-x-[2.5rem] data-starting-style:translate-x-[2.5rem]",
+          side === "left" &&
+            "inset-y-0 left-0 h-dvh w-full max-w-full sm:max-w-sm border-r border-border/80 data-ending-style:translate-x-[-2.5rem] data-starting-style:translate-x-[-2.5rem]",
+          side === "top" &&
+            "inset-x-0 top-0 h-auto w-full border-b border-border/80 data-ending-style:translate-y-[-2.5rem] data-starting-style:translate-y-[-2.5rem]",
+          side === "bottom" &&
+            "inset-x-0 bottom-0 h-auto w-full border-t border-border/80 data-ending-style:translate-y-[2.5rem] data-starting-style:translate-y-[2.5rem]",
           className
         )}
         {...props}
@@ -65,13 +73,12 @@ function SheetContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-3 right-3"
+                className="absolute top-3.5 right-3.5 z-10 size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 cursor-pointer"
                 size="icon-sm"
               />
             }
           >
-            <XIcon
-            />
+            <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
         )}

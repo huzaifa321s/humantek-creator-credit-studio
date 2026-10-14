@@ -29,19 +29,6 @@ function Message({
   )
 }
 
-function MessageAvatar({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="message-avatar"
-      className={cn(
-        "flex w-fit min-w-8 shrink-0 items-center justify-center self-end overflow-hidden rounded-full bg-muted group-has-data-[slot=message-footer]/message:-translate-y-8",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
 function MessageContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -84,7 +71,6 @@ function MessageFooter({ className, ...props }: React.ComponentProps<"div">) {
 export {
   MessageGroup,
   Message,
-  MessageAvatar,
   MessageContent,
   MessageFooter,
   MessageHeader,

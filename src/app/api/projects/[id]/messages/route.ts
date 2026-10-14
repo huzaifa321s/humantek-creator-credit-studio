@@ -29,6 +29,7 @@ const MAX_ATTACHMENT_SIZE = 52428800; // 50 MB
 interface MessageEnvelope {
   v: 1;
   text: string;
+  clientUserId?: string | null;
   replyTo?: {
     id: string;
     senderName: string;
@@ -86,6 +87,7 @@ function extractSenderProfile(
 
 function parseMessageBody(rawBody: string): {
   body: string;
+  clientUserId: string | null;
   replyTo: { id: string; senderName: string; senderRole?: string; content: string } | null;
   likes: Array<{ userId: string; userName: string; likedAt?: string }>;
   isEdited: boolean;
@@ -97,6 +99,7 @@ function parseMessageBody(rawBody: string): {
       const parsed: MessageEnvelope = JSON.parse(rawBody);
       return {
         body: parsed.text || '',
+        clientUserId: parsed.clientUserId || null,
         replyTo: parsed.replyTo || null,
         likes: Array.isArray(parsed.likes) ? parsed.likes : [],
         isEdited: Boolean(parsed.isEdited),
@@ -109,6 +112,7 @@ function parseMessageBody(rawBody: string): {
   }
   return {
     body: rawBody || '',
+    clientUserId: null,
     replyTo: null,
     likes: [],
     isEdited: false,
@@ -120,6 +124,7 @@ function parseMessageBody(rawBody: string): {
 function encodeMessageBody(
   text: string,
   meta?: {
+    clientUserId?: string | null;
     replyTo?: { id: string; senderName: string; senderRole?: string; content: string } | null;
     likes?: Array<{ userId: string; userName: string; likedAt?: string }>;
     isEdited?: boolean;
@@ -127,15 +132,26 @@ function encodeMessageBody(
     isDeleted?: boolean;
   }
 ): string {
-  if (meta && (meta.replyTo || (meta.likes && meta.likes.length > 0) || meta.isEdited || meta.isDeleted)) {
+  // Always use the JSON envelope when text is empty (e.g. image-only messages) or when metadata is present,
+  // guaranteeing char_length(body) >= 1 to satisfy the PostgreSQL check constraint.
+  if (
+    !text ||
+    (meta &&
+      (meta.clientUserId ||
+        meta.replyTo ||
+        (meta.likes && meta.likes.length > 0) ||
+        meta.isEdited ||
+        meta.isDeleted))
+  ) {
     const envelope: MessageEnvelope = {
       v: 1,
-      text: meta.isDeleted ? '' : text,
-      replyTo: meta.isDeleted ? null : (meta.replyTo || null),
-      likes: meta.isDeleted ? [] : (meta.likes || []),
-      isEdited: Boolean(meta.isEdited),
-      editedAt: meta.editedAt || null,
-      isDeleted: Boolean(meta.isDeleted),
+      text: meta?.isDeleted ? '' : text,
+      ...(meta?.clientUserId ? { clientUserId: meta.clientUserId } : {}),
+      replyTo: meta?.isDeleted ? null : (meta?.replyTo || null),
+      likes: meta?.isDeleted ? [] : (meta?.likes || []),
+      isEdited: Boolean(meta?.isEdited),
+      editedAt: meta?.editedAt || null,
+      isDeleted: Boolean(meta?.isDeleted),
     };
     return JSON.stringify(envelope);
   }
@@ -205,30 +221,48 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: msgErr.message }, { status: 500 });
     }
 
-    const messages = isReversed ? (rawMessages || []).reverse() : rawMessages || [];
+    const orderedMessages = isReversed ? (rawMessages || []).reverse() : rawMessages || [];
 
-    // Attachments query with signed URLs
-    const messageIds = messages.map((m) => m.id);
+    // Multi-tenant isolation for 'global' support channel:
+    // Non-admin clients must ONLY see their own messages or admin replies addressed to them.
+    const messages = isGlobal && !user.isAdmin
+      ? orderedMessages.filter((m) => {
+          const row = m as unknown as MessageRow;
+          if (row.sender_id === user.id) return true;
+          const parsed = parseMessageBody(row.body);
+          return parsed.clientUserId === user.id;
+        })
+      : orderedMessages;
+
+    // Only load attachments for non-deleted messages
+    const activeMessageIds = messages
+      .filter((m) => !parseMessageBody((m as unknown as MessageRow).body).isDeleted)
+      .map((m) => m.id);
     const attachmentsByMsgId: Record<number, AttachmentItem[]> = {};
 
-    if (messageIds.length > 0) {
+    if (activeMessageIds.length > 0) {
       const { data: attachments } = await admin
         .from('project_message_attachments')
         .select('*')
-        .in('message_id', messageIds);
+        .in('message_id', activeMessageIds);
 
       if (attachments && attachments.length > 0) {
-        for (const att of attachments) {
-          let signedUrl = null;
-          try {
-            const { data: signed } = await admin.storage
-              .from('project-attachments')
-              .createSignedUrl(att.storage_path, 3600);
-            signedUrl = signed?.signedUrl || null;
-          } catch {
-            signedUrl = null;
+        const paths = attachments.map((att) => att.storage_path);
+        const signedMap = new Map<string, string>();
+        try {
+          const { data: signedList } = await admin.storage
+            .from('project-attachments')
+            .createSignedUrls(paths, 3600);
+          for (const item of signedList || []) {
+            if (item.path && item.signedUrl) {
+              signedMap.set(item.path, item.signedUrl);
+            }
           }
+        } catch {
+          // Fallback handled below
+        }
 
+        for (const att of attachments) {
           if (!attachmentsByMsgId[att.message_id]) {
             attachmentsByMsgId[att.message_id] = [];
           }
@@ -238,7 +272,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
             fileSize: att.file_size,
             mimeType: att.mime_type,
             storagePath: att.storage_path,
-            url: signedUrl,
+            url: signedMap.get(att.storage_path) || null,
             isDeliverable: att.is_deliverable,
             createdAt: att.created_at,
           });
@@ -263,9 +297,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
         projectId: row.project_id,
         senderId: row.sender_id,
         kind: row.kind,
-        body: parsed.body,
-        replyTo: parsed.replyTo,
-        likes: parsed.likes,
+        body: parsed.isDeleted ? '' : parsed.body,
+        replyTo: parsed.isDeleted ? null : parsed.replyTo,
+        likes: parsed.isDeleted ? [] : parsed.likes,
         isEdited: parsed.isEdited,
         editedAt: parsed.editedAt,
         isDeleted: parsed.isDeleted,
@@ -274,12 +308,15 @@ export async function GET(req: NextRequest, context: RouteContext) {
         sender: profile
           ? {
               id: profile.id || row.sender_id,
-              name: profile.full_name || (profile.role === 'admin' || profile.role === 'manager' ? 'Humantek Studio' : (projectClientName || null)),
-              email: profile.email,
+              name:
+                profile.role === 'admin' || profile.role === 'manager'
+                  ? 'Studio Team'
+                  : profile.full_name || projectClientName || null,
+              email: user.isAdmin || row.sender_id === user.id ? profile.email : null,
               role: profile.role,
             }
           : null,
-        attachments: attachmentsByMsgId[row.id] || [],
+        attachments: parsed.isDeleted ? [] : (attachmentsByMsgId[row.id] || []),
       };
     });
 
@@ -397,13 +434,63 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const replyTo = body.replyTo && body.replyTo.id
       ? {
           id: String(body.replyTo.id),
-          senderName: String(body.replyTo.senderName || 'Humantek Studio'),
+          senderName:
+            !body.replyTo.senderName ||
+            body.replyTo.senderName === 'Humantek Admin' ||
+            body.replyTo.senderName === 'Humantek Studio'
+              ? 'Studio Team'
+              : String(body.replyTo.senderName),
           senderRole: body.replyTo.senderRole ? String(body.replyTo.senderRole) : undefined,
           content: String(body.replyTo.content || '').slice(0, 300),
         }
       : null;
 
-    const encodedBody = encodeMessageBody(content, { replyTo });
+    // Resolve clientUserId for global support thread isolation
+    let globalClientUserId: string | null = null;
+    if (isGlobal) {
+      if (!user.isAdmin) {
+        globalClientUserId = user.id;
+      } else {
+        // Admin replying in global chat: resolve target client from replyTo message or latest client inquiry
+        if (replyTo?.id && !isNaN(Number(replyTo.id))) {
+          const { data: repliedMsg } = await admin
+            .from('project_messages')
+            .select('sender_id, body')
+            .eq('id', Number(replyTo.id))
+            .eq('project_id', 'global')
+            .maybeSingle();
+          if (repliedMsg) {
+            const parsedReplied = parseMessageBody(repliedMsg.body);
+            globalClientUserId = parsedReplied.clientUserId || (repliedMsg.sender_id !== user.id ? repliedMsg.sender_id : null);
+          }
+        }
+        if (!globalClientUserId) {
+          const { data: latestClientMsgs } = await admin
+            .from('project_messages')
+            .select('sender_id, body')
+            .eq('project_id', 'global')
+            .neq('sender_id', user.id)
+            .order('id', { ascending: false })
+            .limit(10);
+          for (const m of latestClientMsgs || []) {
+            const parsedM = parseMessageBody(m.body);
+            if (parsedM.clientUserId) {
+              globalClientUserId = parsedM.clientUserId;
+              break;
+            }
+            if (m.sender_id && m.sender_id !== user.id) {
+              globalClientUserId = m.sender_id;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    const encodedBody = encodeMessageBody(content, {
+      clientUserId: globalClientUserId,
+      replyTo,
+    });
 
     // Insert message via service_role admin client
     const { data: newMsg, error: insertErr } = await admin
@@ -436,7 +523,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           message: existingMsg
             ? {
                 ...existingMsg,
-                body: parsedExisting?.body || existingMsg.body,
+                body: parsedExisting?.body ?? existingMsg.body,
                 replyTo: parsedExisting?.replyTo || null,
                 likes: parsedExisting?.likes || [],
                 isEdited: parsedExisting?.isEdited || false,
@@ -451,45 +538,48 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
-    // Insert validated attachments
-    const createdAttachments = [];
-    for (const att of attachments) {
-      const { data: attRow, error: attErr } = await admin
-        .from('project_message_attachments')
-        .insert({
-          message_id: newMsg.id,
-          project_id: id,
-          storage_path: att.storagePath,
-          file_name: att.fileName || 'attachment',
-          file_size: att.fileSize,
-          mime_type: att.mimeType,
-          is_deliverable: Boolean(user.isAdmin && att.isDeliverable),
-        })
-        .select()
-        .single();
+    // Insert validated attachments in parallel
+    const createdAttachments = (
+      await Promise.all(
+        attachments.map(async (att: { storagePath: string; fileName?: string; fileSize: number; mimeType: string; isDeliverable?: boolean }) => {
+          const { data: attRow, error: attErr } = await admin
+            .from('project_message_attachments')
+            .insert({
+              message_id: newMsg.id,
+              project_id: id,
+              storage_path: att.storagePath,
+              file_name: att.fileName || 'attachment',
+              file_size: att.fileSize,
+              mime_type: att.mimeType,
+              is_deliverable: Boolean(user.isAdmin && att.isDeliverable),
+            })
+            .select()
+            .single();
 
-      if (!attErr && attRow) {
-        let signedUrl: string | null = null;
-        try {
-          const { data: signed } = await admin.storage
-            .from('project-attachments')
-            .createSignedUrl(attRow.storage_path, 3600);
-          signedUrl = signed?.signedUrl || null;
-        } catch {
-          signedUrl = null;
-        }
-        createdAttachments.push({
-          id: attRow.id,
-          fileName: attRow.file_name,
-          fileSize: attRow.file_size,
-          mimeType: attRow.mime_type,
-          storagePath: attRow.storage_path,
-          url: signedUrl,
-          isDeliverable: attRow.is_deliverable,
-          createdAt: attRow.created_at,
-        });
-      }
-    }
+          if (attErr || !attRow) return null;
+
+          let signedUrl: string | null = null;
+          try {
+            const { data: signed } = await admin.storage
+              .from('project-attachments')
+              .createSignedUrl(attRow.storage_path, 3600);
+            signedUrl = signed?.signedUrl || null;
+          } catch {
+            signedUrl = null;
+          }
+          return {
+            id: attRow.id,
+            fileName: attRow.file_name,
+            fileSize: attRow.file_size,
+            mimeType: attRow.mime_type,
+            storagePath: attRow.storage_path,
+            url: signedUrl,
+            isDeliverable: attRow.is_deliverable,
+            createdAt: attRow.created_at,
+          };
+        })
+      )
+    ).filter((item): item is NonNullable<typeof item> => item !== null);
 
     const parsedNew = parseMessageBody(newMsg.body);
     const newSenderProfile = extractSenderProfile((newMsg as unknown as MessageRow).profiles);
@@ -512,7 +602,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
         sender: newSenderProfile
           ? {
               id: newSenderProfile.id || newMsg.sender_id,
-              name: newSenderProfile.full_name || (user.isAdmin ? 'Humantek Studio' : (postProjectClientName || null)),
+              name:
+                user.isAdmin ||
+                newSenderProfile.role === 'admin' ||
+                newSenderProfile.role === 'manager'
+                  ? 'Studio Team'
+                  : newSenderProfile.full_name || postProjectClientName || null,
               email: newSenderProfile.email || user.email,
               role: newSenderProfile.role || user.role,
             }
@@ -521,31 +616,41 @@ export async function POST(req: NextRequest, context: RouteContext) {
       },
     });
 
-    // Major action notification: New message
-    if (!isGlobal) {
-      if (user.isAdmin) {
-        if (projectUserId && projectUserId !== user.id) {
-          void createNotification({
-            userId: projectUserId,
-            type: 'chat_message',
-            title: 'New message',
-            message: 'Studio team sent you a message.',
-            link: `/projects/${id}?tab=chat`,
-            actionLabel: 'Open Chat',
-            actionId: id,
-          });
-        }
-      } else {
-        const senderDisplay = postProjectClientName || (user.email ? user.email.split('@')[0] : 'Client');
-        void notifyAdmins({
+    // Major action notification: New message (both project threads and global support inquiries)
+    if (user.isAdmin) {
+      const targetUserId = isGlobal ? globalClientUserId : projectUserId;
+      if (targetUserId && targetUserId !== user.id) {
+        void createNotification({
+          userId: targetUserId,
           type: 'chat_message',
-          title: 'New client message',
-          message: `${senderDisplay} sent a message.`,
-          link: `/management?tab=projects&id=${id}&subtab=chat`,
+          title: isGlobal ? 'New support reply' : 'New message',
+          message: isGlobal
+            ? 'Studio team replied to your support inquiry.'
+            : 'Studio team sent you a message.',
+          link: `/messages?project=${encodeURIComponent(id)}`,
           actionLabel: 'Open Chat',
-          actionId: id,
+          actionId: 'open-chat',
+          entityType: 'chat',
+          entityId: id,
         });
       }
+    } else {
+      const senderDisplay =
+        newSenderProfile?.full_name ||
+        postProjectClientName ||
+        (user.email ? user.email.split('@')[0] : 'Client');
+      void notifyAdmins({
+        type: 'chat_message',
+        title: isGlobal ? 'New support inquiry' : 'New client message',
+        message: isGlobal
+          ? `${senderDisplay} sent a support inquiry.`
+          : `${senderDisplay} sent a message.`,
+        link: `/management/inbox?thread=${encodeURIComponent(id)}`,
+        actionLabel: 'Open Chat',
+        actionId: id,
+        entityType: 'chat',
+        entityId: id,
+      });
     }
 
     return response;
@@ -609,6 +714,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       }
 
       const parsed = parseMessageBody(targetMsg.body);
+      if (isGlobal && !user.isAdmin && targetMsg.sender_id !== user.id && parsed.clientUserId !== user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       if (parsed.isDeleted) {
         return NextResponse.json({ error: 'Cannot like deleted message' }, { status: 400 });
       }
@@ -734,7 +842,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: 'Only the author or admin can delete this message' }, { status: 403 });
       }
 
-      const newBody = encodeMessageBody('', { isDeleted: true });
+      const parsed = parseMessageBody(targetMsg.body);
+      const newBody = encodeMessageBody('', {
+        clientUserId: parsed.clientUserId,
+        isDeleted: true,
+      });
 
       const { error: updateErr } = await admin
         .from('project_messages')
@@ -744,6 +856,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       if (updateErr) {
         return NextResponse.json({ error: updateErr.message }, { status: 500 });
       }
+
+      // Remove attachment rows for the deleted message so they no longer appear in galleries
+      await admin
+        .from('project_message_attachments')
+        .delete()
+        .eq('message_id', requestedId);
 
       return NextResponse.json({
         success: true,

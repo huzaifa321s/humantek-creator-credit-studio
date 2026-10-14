@@ -8,9 +8,6 @@ import {
   ThumbsUp,
   CornerUpLeft,
   Trash2,
-  Play,
-  Pause,
-  Volume2,
   Clock,
   AlertCircle,
   RotateCw,
@@ -30,11 +27,8 @@ import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Attachment,
-  AttachmentContent,
-  AttachmentDescription,
   AttachmentGroup,
   AttachmentMedia,
-  AttachmentTitle,
   AttachmentTrigger,
 } from '@/components/ui/attachment';
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker';
@@ -94,7 +88,6 @@ export const ChatMessageItem = React.memo(
     onScrollToMessage,
     compact = false,
   }: ChatMessageItemProps) {
-    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [likePopKey, setLikePopKey] = useState(0);
@@ -106,11 +99,23 @@ export const ChatMessageItem = React.memo(
     const likes = useMemo(() => (isDeleted ? [] : message.likes ?? []), [isDeleted, message.likes]);
     const hasLikes = likes.length > 0;
     const hasAttachments = !isDeleted && !!message.attachments && message.attachments.length > 0;
+    const hasText = Boolean(message.content?.trim());
+    const hasTextOrReply = Boolean(hasText || message.replyTo);
+    const shouldShowBubbleContent = isDeleted || hasTextOrReply || !hasAttachments;
 
     const myId = currentUserId || (viewerRole === 'admin' ? 'agent-me' : 'client-me');
     const isLiked = useMemo(() => likes.some((l) => l.userId === myId), [likes, myId]);
     const likedByLabel = useMemo(
-      () => likes.map((l) => (l.userId === myId ? 'You' : l.userName || 'Humantek Studio')).join(', '),
+      () =>
+        likes
+          .map((l) => {
+            if (l.userId === myId) return 'You';
+            if (!l.userName || l.userName === 'Humantek Studio' || l.userName === 'Humantek Admin') {
+              return 'Studio Team';
+            }
+            return l.userName;
+          })
+          .join(', '),
       [likes, myId]
     );
 
@@ -166,13 +171,17 @@ export const ChatMessageItem = React.memo(
           {/* Header: Name · Role · Timestamp · (edited) · desktop actions */}
           <MessageHeader className="gap-1.5 text-xs text-muted-foreground items-center">
             <span className="font-semibold text-foreground/90 truncate">
-              {isOutgoing ? 'You' : message.senderName}
+              {isOutgoing ? 'You' : message.sender === 'agent' ? 'Studio Team' : message.senderName}
             </span>
-            {message.senderRole && !isOutgoing && !compact && (
-              <span className="text-2xs font-mono text-brand-text/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
-                · {message.senderRole}
-              </span>
-            )}
+            {message.senderRole &&
+              !isOutgoing &&
+              !compact &&
+              message.sender !== 'agent' &&
+              message.senderRole !== message.senderName && (
+                <span className="text-2xs font-mono text-brand-text/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
+                  · {message.senderRole}
+                </span>
+              )}
             <span className="text-2xs font-mono tabular-nums whitespace-nowrap text-muted-foreground/80 ml-1 inline-flex items-center gap-1">
               <span>{formatChatTimestamp(message.timestamp)}</span>
               {isOutgoing && !isDeleted && message.status !== 'failed' && message.status !== 'sending' && (
@@ -190,7 +199,8 @@ export const ChatMessageItem = React.memo(
             align={isOutgoing ? 'end' : 'start'}
             {...gestures}
             className={cn(
-              'relative max-w-[85%] sm:max-w-[75%] min-w-[80px] rounded-xl transition-shadow',
+              'relative max-w-[85%] sm:max-w-[75%] rounded-xl transition-shadow',
+              shouldShowBubbleContent ? 'min-w-[80px]' : 'min-w-0',
               '[@media(pointer:coarse)]:select-none [@media(pointer:coarse)]:[-webkit-touch-callout:none]',
               isActionDrawerOpen && 'ring-2 ring-amber-400/70'
             )}
@@ -222,7 +232,7 @@ export const ChatMessageItem = React.memo(
                 <Trash2 className="size-3 text-muted-foreground/60 shrink-0" />
                 <span>This message was deleted</span>
               </BubbleContent>
-            ) : (
+            ) : shouldShowBubbleContent ? (
               <BubbleContent
                 className={cn(
                   'px-3.5 py-2.5 text-sm leading-relaxed',
@@ -247,7 +257,8 @@ export const ChatMessageItem = React.memo(
                     }}
                     aria-label={`Jump to message from ${message.replyTo.senderName}`}
                     className={cn(
-                      'mb-2 p-2 rounded-lg text-left border-l-3 text-2xs cursor-pointer select-none transition-colors group/quote outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60',
+                      ' p-2 rounded-lg text-left border-l-3 text-2xs cursor-pointer select-none transition-colors group/quote outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60',
+                      hasText && 'mb-2',
                       isOutgoing
                         ? 'bg-black/15 border-zinc-900/60 text-zinc-900 hover:bg-black/20'
                         : 'bg-secondary/70 border-amber-400 text-foreground hover:bg-secondary'
@@ -258,13 +269,45 @@ export const ChatMessageItem = React.memo(
                       <span className="truncate">{message.replyTo.senderName}</span>
                     </div>
                     <p className="truncate mt-0.5 font-medium text-2xs opacity-85 group-hover/quote:opacity-100">
-                      {message.replyTo.content}
+                      {message.replyTo.content || '📷 Image attachment'}
                     </p>
                   </div>
                 )}
 
-                {message.content && <p className="whitespace-pre-wrap break-words">{message.content}</p>}
+                {hasText && <p className="whitespace-pre-wrap break-words">{message.content}</p>}
               </BubbleContent>
+            ) : null}
+
+            {/* Reference images */}
+            {hasAttachments && (
+              <AttachmentGroup className={isOutgoing ? 'justify-end self-end' : 'self-start'}>
+                {message.attachments!.map((att, idx) => (
+                  <Attachment
+                    key={`${message.id}-${att.id || 'att'}-${idx}`}
+                    orientation="vertical"
+                    className="w-48 sm:w-56 p-1! rounded-xl border-border/80 shadow-xs hover:border-amber-400/60 overflow-hidden"
+                  >
+                    <AttachmentMedia
+                      variant="image"
+                      className="rounded-lg group/media aspect-video min-h-[104px] w-full bg-secondary/40 relative overflow-hidden"
+                    >
+                      {att.previewUrl ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={att.previewUrl} alt={att.name || 'Attachment'} className="w-full h-full object-cover" />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition-opacity group-hover/attachment:opacity-100">
+                            <Eye className="size-4" />
+                          </span>
+                        </>
+                      ) : null}
+                    </AttachmentMedia>
+                    <AttachmentTrigger
+                      aria-label={`Preview image`}
+                      onClick={() => onPreviewAttachment(att)}
+                    />
+                  </Attachment>
+                ))}
+              </AttachmentGroup>
             )}
 
             {/* Thumbs-up count — names on hover (desktop) or in the action drawer (touch) */}
@@ -281,16 +324,12 @@ export const ChatMessageItem = React.memo(
                         'mt-1.5 inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold shadow-2xs transition-all select-none',
                         isOutgoing ? 'self-end' : 'self-start',
                         canLike ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default',
-                        isLiked
-                          ? 'bg-amber-400/20 border-amber-400/50 text-brand-text dark:text-amber-300'
-                          : 'bg-secondary/80 hover:bg-secondary border-border/70 text-muted-foreground'
+                        'bg-amber-400/20 border-amber-400/50 text-brand-text dark:text-amber-300'
                       )}
                     />
                   }
                 >
-                  <ThumbsUp
-                    className={cn('size-3 shrink-0', isLiked ? 'fill-current text-amber-500' : 'text-muted-foreground')}
-                  />
+                  <ThumbsUp className="size-3 shrink-0 fill-current text-amber-500" />
                   <span className="text-2xs font-mono tabular-nums font-bold">{likes.length}</span>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[220px] text-2xs">
@@ -299,81 +338,6 @@ export const ChatMessageItem = React.memo(
               </Tooltip>
             )}
           </Bubble>
-
-          {/* Audio Voice Note memo pill */}
-          {!isDeleted && message.audioNote && (
-            <div
-              className={cn(
-                'flex items-center gap-2.5 px-3 py-2 rounded-lg bg-secondary/50 border border-border/70 max-w-xs text-xs min-h-[52px]',
-                isOutgoing ? 'self-end' : 'self-start'
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                className="size-7 rounded-full bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground flex items-center justify-center shrink-0 cursor-pointer shadow-xs shadow-amber-400/20 transition-transform active:scale-95"
-                aria-label={isPlayingAudio ? 'Pause audio note' : 'Play audio note'}
-              >
-                {isPlayingAudio ? (
-                  <Pause className="size-3.5 fill-current" />
-                ) : (
-                  <Play className="size-3.5 fill-current ml-0.5" />
-                )}
-              </button>
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-0.5 h-3">
-                  {[40, 70, 30, 90, 60, 100, 45, 80, 50, 75, 35, 65, 85, 40].map((h, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        'w-1 rounded-full transition-all duration-300',
-                        isPlayingAudio ? 'bg-amber-400 animate-pulse' : 'bg-muted-foreground/40'
-                      )}
-                      style={{ height: `${h}%` }}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-2xs text-muted-foreground">
-                  <span className="flex items-center gap-1 font-mono font-medium">
-                    <Volume2 className="size-2.5 text-brand-text dark:text-amber-400" /> Voice Note
-                  </span>
-                  <span className="font-mono tabular-nums">{message.audioNote.duration}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Reference images */}
-          {hasAttachments && (
-            <AttachmentGroup className={isOutgoing ? 'justify-end self-end' : 'self-start'}>
-              {message.attachments!.map((att, idx) => (
-                <Attachment
-                  key={`${message.id}-${att.id || 'att'}-${idx}`}
-                  orientation="vertical"
-                  className="w-40 has-data-[slot=attachment-content]:w-40 rounded-xl border-border/80 shadow-2xs hover:border-amber-400/50"
-                >
-                  <AttachmentMedia variant="image" className="rounded-lg group/media aspect-video min-h-[85px] w-full bg-secondary/40 relative overflow-hidden">
-                    {att.previewUrl ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={att.previewUrl} alt={att.name} className="w-full h-full object-cover" />
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition-opacity group-hover/attachment:opacity-100">
-                          <Eye className="size-4" />
-                        </span>
-                      </>
-                    ) : null}
-                  </AttachmentMedia>
-                  <AttachmentContent>
-                    <AttachmentTitle className="text-2xs font-medium">{att.name}</AttachmentTitle>
-                    {att.size && (
-                      <AttachmentDescription className="text-2xs font-mono tabular-nums">{att.size}</AttachmentDescription>
-                    )}
-                  </AttachmentContent>
-                  <AttachmentTrigger aria-label={`Preview ${att.name}`} onClick={() => onPreviewAttachment(att)} />
-                </Attachment>
-              ))}
-            </AttachmentGroup>
-          )}
 
           {/* Message Delivery Status Indicator: only show for sending or failed error, removing repetitive 'Sent to client' clutter */}
           {isOutgoing && !isDeleted && (message.status === 'sending' || message.status === 'failed') && (

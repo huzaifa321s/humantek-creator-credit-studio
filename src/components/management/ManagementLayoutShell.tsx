@@ -26,10 +26,6 @@ const ROUTE_HEADERS: Record<string, { title: string; description: string }> = {
     title: 'Credit History',
     description: 'Review all client credit purchases, deductions, and balance changes.',
   },
-  '/management/alerts': {
-    title: 'Studio Alerts',
-    description: 'Review flagged transactions, refund requests, and notifications.',
-  },
 };
 
 export function ManagementLayoutShell({ children }: { children: React.ReactNode }) {

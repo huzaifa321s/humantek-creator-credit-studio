@@ -4,24 +4,24 @@ import { useEffect, useRef } from 'react';
 
 export const STEP_METADATA: Record<number, { title: string; announcement: string }> = {
   1: {
-    title: 'Choose how to fund your creative project',
-    announcement: 'Step 1 of 5: Funding source and package selection',
+    title: 'Choose your package or wallet',
+    announcement: 'Step 1 of 5: Package',
   },
   2: {
-    title: 'Choose everything you need in one go',
-    announcement: 'Step 2 of 5: Pick your services',
+    title: 'Select the services you need',
+    announcement: 'Step 2 of 5: Services',
   },
   3: {
-    title: 'Check what your credits can be used for',
-    announcement: 'Step 3 of 5: What credits cover',
+    title: 'Quick studio rules check',
+    announcement: 'Step 3 of 5: Guidelines',
   },
   4: {
-    title: 'Tell us what each item should include',
-    announcement: 'Step 4 of 5: Your project details',
+    title: 'Share your project details',
+    announcement: 'Step 4 of 5: Details',
   },
   5: {
-    title: 'Ready to submit?',
-    announcement: 'Step 5 of 5: Review and pay',
+    title: 'Review and launch your project',
+    announcement: 'Step 5 of 5: Review',
   },
 };
 

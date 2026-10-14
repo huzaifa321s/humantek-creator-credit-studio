@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { ChatAttachment } from '@/lib/chatStore';
 import { Button } from '@/components/ui/button';
-import { Download, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 interface ChatAttachmentModalProps {
   attachment: ChatAttachment | null;
@@ -31,7 +30,7 @@ export function ChatAttachmentModal({ attachment, onClose }: ChatAttachmentModal
                 {attachment.name}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Reference Moodboard · {attachment.size || 'Image Asset'}
+                Shared Attachment · {attachment.size || 'Image Asset'}
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2 pr-6">
@@ -50,6 +49,7 @@ export function ChatAttachmentModal({ attachment, onClose }: ChatAttachmentModal
 
         <div className="relative mt-3 rounded-xl overflow-hidden bg-black/40 border border-border/60 flex items-center justify-center min-h-[300px] max-h-[65vh]">
           {attachment.previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={attachment.previewUrl}
               alt={attachment.name}

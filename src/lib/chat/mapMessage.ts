@@ -2,20 +2,36 @@ import type { ChatMessage } from '@/types';
 import { formatChatTimestamp } from '@/lib/utils';
 import type { ProjectChatMessage } from './useProjectChat';
 
-/** Display name used when a staff member has no name on their profile. */
-export const STUDIO_TEAM_NAME = 'Humantek Studio';
+/** Unified display name used for all studio/admin messages across the chat system. */
+export const STUDIO_TEAM_NAME = 'Studio Team';
 
 const STAFF_ROLES = new Set(['admin', 'manager']);
+const LEGACY_STAFF_NAMES = new Set([
+  'humantek admin',
+  'humantek studio',
+  'studio member',
+  'studio team',
+  'admin',
+]);
 
 export function isStaffRole(role?: string | null): boolean {
   return Boolean(role && STAFF_ROLES.has(role));
 }
 
-function staffDisplayName(name?: string | null): string {
-  const trimmed = name?.trim();
-  return trimmed && trimmed !== 'Studio Member' && trimmed !== 'Studio Team'
-    ? trimmed
-    : STUDIO_TEAM_NAME;
+function normalizeReplyTo(
+  replyTo?: ProjectChatMessage['replyTo']
+): ChatMessage['replyTo'] {
+  if (!replyTo) return undefined;
+  const rawName = (replyTo.senderName || '').trim();
+  const isStaffQuote =
+    replyTo.senderRole === 'Studio Team' ||
+    isStaffRole(replyTo.senderRole) ||
+    LEGACY_STAFF_NAMES.has(rawName.toLowerCase());
+
+  return {
+    ...replyTo,
+    senderName: isStaffQuote ? STUDIO_TEAM_NAME : rawName || STUDIO_TEAM_NAME,
+  };
 }
 
 function clientDisplayName(name?: string | null, fallbackClientName?: string): string {
@@ -38,7 +54,7 @@ function formatFileSize(bytes: number): string {
 
 /**
  * Maps a server message into the shared `ChatMessage` shape used by the chat UI.
- * Staff (admin / manager) messages render as `agent`; everyone else as `client`.
+ * Staff (admin / manager) messages render as `agent` under the single `Studio Team` identity.
  */
 export function mapProjectChatMessage(
   m: ProjectChatMessage,
@@ -53,11 +69,11 @@ export function mapProjectChatMessage(
     projectId: m.projectId,
     sender: m.kind === 'system' ? 'system' : isStaff ? 'agent' : 'client',
     senderName: isStaff
-      ? staffDisplayName(m.sender?.name)
+      ? STUDIO_TEAM_NAME
       : clientDisplayName(m.sender?.name, options.clientName),
-    senderRole: isStaff ? 'Studio Team' : 'Creator',
+    senderRole: isStaff ? STUDIO_TEAM_NAME : 'Creator',
     content: m.body,
-    replyTo: m.replyTo || undefined,
+    replyTo: normalizeReplyTo(m.replyTo),
     likes: m.likes || [],
     isEdited: Boolean(m.isEdited),
     editedAt: m.editedAt || undefined,

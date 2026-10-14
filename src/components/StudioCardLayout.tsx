@@ -3,13 +3,13 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import {
   FolderKanban,
   Ticket,
   MessageSquare,
   LayoutDashboard,
   Landmark,
-  ShieldAlert,
   Receipt,
   Bell,
   Plus,
@@ -369,33 +369,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 6. Security Alerts */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={pathname.startsWith('/management/alerts')}
-                    onClick={handleNavClick}
-                    render={<Link href="/management/alerts" onClick={handleNavClick} />}
-                    tooltip="Security Alerts"
-                    className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      pathname.startsWith('/management/alerts')
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                    )}
-                  >
-                    <ShieldAlert
-                      className={cn(
-                        'size-4 shrink-0 transition-colors',
-                        pathname.startsWith('/management/alerts')
-                          ? 'text-brand-text dark:text-amber-400'
-                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                      )}
-                    />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Security Alerts</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                {/* 7. Notifications */}
+                {/* 6. Notifications */}
                 <SidebarNotificationsItem pathname={pathname} />
               </>
             ) : (
@@ -500,6 +474,7 @@ export function StudioCardLayout({
 }: StudioCardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const topLoader = useTopLoader();
 
   const handleBack = () => {
     if (onBack) {
@@ -507,6 +482,7 @@ export function StudioCardLayout({
     } else if (currentStep > 1 && mode === 'wizard') {
       onSelectStep(currentStep - 1);
     } else if (pathname !== '/projects') {
+      topLoader.start();
       router.push('/projects');
     }
   };

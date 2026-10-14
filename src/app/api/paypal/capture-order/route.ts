@@ -203,8 +203,8 @@ export async function POST(req: NextRequest) {
           type: 'payment_confirmed',
           title: 'Payment received',
           message: `We received your payment of $${(capturedAmountCents / 100).toFixed(2)}.`,
-          link: '/billing',
-          actionLabel: 'View Receipt',
+          link: '/projects',
+          actionLabel: 'View Projects',
           actionId: order.id,
         });
 
@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
           type: 'order_status',
           title: 'New paid order',
           message: `${user.email} paid $${(capturedAmountCents / 100).toFixed(2)}.`,
-          link: `/management?tab=orders&id=${order.id}`,
+          link: `/management/orders?id=${order.id}`,
           actionLabel: 'View Order',
           actionId: order.id,
         });

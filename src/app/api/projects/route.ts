@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
       // Server-side search filter with strict PostgREST injection sanitization
       if (cleanSearch) {
         const s = `%${cleanSearch}%`;
-        dataQuery = dataQuery.or(`project_code.ilike.${s},client_name.ilike.${s},channel_name.ilike.${s},package_name.ilike.${s}`);
+        dataQuery = dataQuery.or(`project_code.ilike.${s},client_name.ilike.${s},channel_name.ilike.${s},package_name.ilike.${s},email.ilike.${s}`);
       }
 
       // Keyset cursor or offset page
@@ -187,6 +187,10 @@ export async function GET(req: NextRequest) {
 
       let allCount = 0;
       let activeCount = 0;
+      let pendingReviewCount = 0;
+      let paymentConfirmedCount = 0;
+      let inProductionCount = 0;
+      let reviewRoundCount = 0;
       let deliveredCount = 0;
       let cancelledCount = 0;
       let declinedCount = 0;
@@ -201,6 +205,10 @@ export async function GET(req: NextRequest) {
           declinedCount++;
         } else {
           activeCount++;
+          if (row.status === 'pending_review') pendingReviewCount++;
+          else if (row.status === 'payment_confirmed') paymentConfirmedCount++;
+          else if (row.status === 'in_production') inProductionCount++;
+          else if (row.status === 'review_round') reviewRoundCount++;
         }
       });
 
@@ -229,6 +237,10 @@ export async function GET(req: NextRequest) {
         counts: {
           all: allCount,
           active: activeCount,
+          pending_review: pendingReviewCount,
+          payment_confirmed: paymentConfirmedCount,
+          in_production: inProductionCount,
+          review_round: reviewRoundCount,
           delivered: deliveredCount,
           cancelled: cancelledCount,
           declined: declinedCount,
@@ -257,6 +269,10 @@ export async function GET(req: NextRequest) {
 
   let allCount = 0;
   let activeCount = 0;
+  let pendingReviewCount = 0;
+  let paymentConfirmedCount = 0;
+  let inProductionCount = 0;
+  let reviewRoundCount = 0;
   let deliveredCount = 0;
   let cancelledCount = 0;
   let declinedCount = 0;
@@ -266,7 +282,13 @@ export async function GET(req: NextRequest) {
     if (p.status === 'delivered') deliveredCount++;
     else if (p.status === 'cancelled') cancelledCount++;
     else if (p.status === 'declined') declinedCount++;
-    else activeCount++;
+    else {
+      activeCount++;
+      if (p.status === 'pending_review') pendingReviewCount++;
+      else if (p.status === 'payment_confirmed') paymentConfirmedCount++;
+      else if (p.status === 'in_production') inProductionCount++;
+      else if (p.status === 'review_round') reviewRoundCount++;
+    }
   });
 
   let filtered = all;
@@ -342,6 +364,10 @@ export async function GET(req: NextRequest) {
     counts: {
       all: allCount,
       active: activeCount,
+      pending_review: pendingReviewCount,
+      payment_confirmed: paymentConfirmedCount,
+      in_production: inProductionCount,
+      review_round: reviewRoundCount,
       delivered: deliveredCount,
       cancelled: cancelledCount,
       declined: declinedCount,
@@ -548,7 +574,7 @@ export async function POST(req: NextRequest) {
             payment_status: 'unpaid',
             payment_method: 'unpaid',
             package_price_usd: pkg.price || 0,
-            package_credits: 0,
+            package_credits: pkg.credits || 0,
             total_credits: totalCreditsRequired,
             applied_wallet_credits: 0,
             client_name: ownerName,
@@ -915,6 +941,115 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
+    // Load current project before updating so paymentStatus transitions can be applied first
+    // (allowing an admin to confirm payment and transition to in_production in a single save)
+    const { data: currentProj } = await adminClient
+      .from('projects')
+      .select('id, user_id, project_code, package_id, package_name, package_credits, total_credits, payment_status, funding_source')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!currentProj) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    if (paymentStatus && paymentStatus !== currentProj.payment_status) {
+      const catalogPkg = PACKAGES.find((p) => p.id === currentProj.package_id);
+      const effectivePkgCredits =
+        Number(currentProj.package_credits) || catalogPkg?.credits || 0;
+
+      await adminClient
+        .from('projects')
+        .update({
+          payment_status: paymentStatus,
+          ...(effectivePkgCredits > 0 && !currentProj.package_credits
+            ? { package_credits: effectivePkgCredits }
+            : {}),
+        })
+        .eq('id', id);
+
+      // Post audited credit_ledger entries on payment confirmation / refund
+      if (currentProj.user_id && currentProj.project_code) {
+        if (paymentStatus === 'paid') {
+          // 1. Grant package credits if this is a package project and not already granted
+          if (effectivePkgCredits > 0 && currentProj.package_id !== 'studio-wallet') {
+            const { error: grantErr } = await adminClient.rpc('ledger_post', {
+              p_user: currentProj.user_id,
+              p_bucket: 'purchased',
+              p_delta: effectivePkgCredits,
+              p_type: 'package_purchase',
+              p_ref: currentProj.project_code,
+              p_key: `project:${currentProj.id}:grant`,
+              p_desc: `Package purchase confirmed for ${currentProj.package_name || 'Studio Package'} (${currentProj.project_code})`,
+              p_reverses_id: null,
+            });
+            if (grantErr) {
+              console.warn('Ledger grant warning on payment confirmation:', grantErr.message);
+            }
+          }
+
+          // 2. Deduct project service scope credits if not already deducted
+          const totalUsed = Number(currentProj.total_credits) || 0;
+          if (totalUsed > 0) {
+            const { error: spendErr } = await adminClient.rpc('spend_credits', {
+              p_user: currentProj.user_id,
+              p_amount: totalUsed,
+              p_ref: currentProj.project_code,
+              p_key: `${currentProj.id}:spend`,
+              p_desc: `Credits spent for order ${currentProj.project_code}`,
+            });
+            if (spendErr) {
+              console.warn('Ledger spend warning on payment confirmation:', spendErr.message);
+            }
+          }
+        } else if (paymentStatus === 'refunded') {
+          // Reverse any un-reversed service_deduction or package_purchase entries for this project
+          const { data: ledgerRows } = await adminClient
+            .from('credit_ledger')
+            .select('id, bucket, delta, type, idempotency_key')
+            .eq('user_id', currentProj.user_id)
+            .eq('reference_id', currentProj.project_code);
+
+          const { data: existingReversals } = await adminClient
+            .from('credit_ledger')
+            .select('reverses_id')
+            .eq('user_id', currentProj.user_id)
+            .not('reverses_id', 'is', null);
+
+          const reversedSet = new Set(
+            (existingReversals || []).map((r: any) => Number(r.reverses_id))
+          );
+
+          for (const row of ledgerRows || []) {
+            if (reversedSet.has(Number(row.id))) continue;
+            if (row.type === 'service_deduction') {
+              await adminClient.rpc('ledger_post', {
+                p_user: currentProj.user_id,
+                p_bucket: row.bucket,
+                p_delta: -Number(row.delta),
+                p_type: 'refund_wallet',
+                p_ref: currentProj.project_code,
+                p_key: `refund:${row.idempotency_key}`,
+                p_desc: `Refund for project ${currentProj.project_code}`,
+                p_reverses_id: row.id,
+              });
+            } else if (row.type === 'package_purchase') {
+              await adminClient.rpc('ledger_post', {
+                p_user: currentProj.user_id,
+                p_bucket: 'purchased',
+                p_delta: -Number(row.delta),
+                p_type: 'refund_cash',
+                p_ref: currentProj.project_code,
+                p_key: `refund:${row.idempotency_key}`,
+                p_desc: `Cash refund reversal for ${currentProj.project_code}`,
+                p_reverses_id: row.id,
+              });
+            }
+          }
+        }
+      }
+    }
+
     const { data: rpcRes, error: rpcErr } = await adminClient.rpc('update_project_status', {
       p_project_id: id,
       p_new_status: status,
@@ -930,10 +1065,6 @@ export async function PATCH(req: NextRequest) {
         );
       }
       return NextResponse.json({ error: rpcErr.message }, { status: 400 });
-    }
-
-    if (paymentStatus) {
-      await adminClient.from('projects').update({ payment_status: paymentStatus }).eq('id', id);
     }
 
     const { data: updatedProj } = await adminClient

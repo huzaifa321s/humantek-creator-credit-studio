@@ -9,10 +9,10 @@ function ScrollArea({
   return (
     <div
       data-slot="scroll-area"
-      className={cn("relative overflow-auto", className)}
+      className={cn("relative overflow-y-auto overflow-x-hidden scrollbar-custom", className)}
       {...props}
     >
-      <div className="min-h-full w-full rounded-[inherit]">{children}</div>
+      <div className="min-h-full w-full min-w-0 rounded-[inherit]">{children}</div>
     </div>
   )
 }

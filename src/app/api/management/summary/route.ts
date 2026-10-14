@@ -15,7 +15,6 @@ export interface ManagementSummaryData {
     projects: number;
     pendingReview: number;
     wireOrders: number;
-    alerts: number;
     ledger: number;
   };
 }
@@ -36,7 +35,6 @@ export async function GET(_req: NextRequest) {
       activeProjectsRes,
       ordersRes,
       pendingWireOrdersRes,
-      alertsRes,
       ledgerRes,
     ] = await Promise.all([
       admin
@@ -58,9 +56,6 @@ export async function GET(_req: NextRequest) {
         .from('orders')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'pending_manual'),
-      admin
-        .from('admin_alerts')
-        .select('id', { count: 'exact', head: true }),
       admin
         .from('credit_ledger')
         .select('id', { count: 'exact', head: true }),
@@ -109,7 +104,6 @@ export async function GET(_req: NextRequest) {
         projects: allProjectsRes.count ?? projects.length,
         pendingReview: pendingReviewCount,
         wireOrders: pendingWireOrdersRes.count ?? 0,
-        alerts: alertsRes.count ?? 0,
         ledger: ledgerCount,
       },
     };

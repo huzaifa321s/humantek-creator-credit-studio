@@ -23,6 +23,9 @@ import {
   TableRow,
   TableCell,
   TableBody,
+  ResponsiveDesktopView,
+  MobileCardList,
+  MobileDataCard,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CreditValue } from '@/components/ui/credit-value';
@@ -174,7 +177,7 @@ export function ScopeGuideModal() {
           ) : (
             <>
               {/* DESKTOP VIEW (md+): 5-column table */}
-              <div className="hidden md:block">
+              <ResponsiveDesktopView>
                 <Table className="w-full table-fixed">
                   <TableHeader className="bg-muted/30 sticky top-0 z-10 backdrop-blur-xs">
                     <TableRow className="border-b border-border/70 hover:bg-transparent">
@@ -211,7 +214,7 @@ export function ScopeGuideModal() {
                     {paginatedServices.map((s) => (
                       <TableRow key={s.id} className="hover:bg-muted/30 transition-colors border-b border-border/50">
                         {/* Service & Description */}
-                        <TableCell className="py-2.5 px-3 align-top">
+                        <TableCell wrap className="py-2.5 px-3 align-top">
                           <div className="font-semibold text-foreground text-xs leading-snug">{s.name}</div>
                           <div
                             className="text-xs text-muted-foreground line-clamp-1 mt-0.5 leading-normal"
@@ -240,7 +243,7 @@ export function ScopeGuideModal() {
                           s.prices.map((price, idx) => {
                             const detailText = s.scopeDetails?.[idx] ?? DEFAULT_SCOPE_DETAILS[idx];
                             return (
-                              <TableCell key={idx} className="py-2.5 px-3 align-top">
+                              <TableCell key={idx} wrap className="py-2.5 px-3 align-top">
                                 <div className="flex flex-col gap-0.5">
                                   <div>
                                     <CreditValue value={price} size="sm" showUsd />
@@ -260,12 +263,12 @@ export function ScopeGuideModal() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </ResponsiveDesktopView>
 
               {/* MOBILE VIEW (< md): Adaptive Cards with 3-Tier Micro-Grid */}
-              <div className="block md:hidden divide-y divide-border/60 pb-6">
+              <MobileCardList className="pb-6">
                 {paginatedServices.map((s) => (
-                  <div key={s.id} className="p-3 space-y-2">
+                  <MobileDataCard key={s.id} className="p-3 space-y-2">
                     {/* Header Row: Title, Category Badge & Starting Rate Pill */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -361,9 +364,9 @@ export function ScopeGuideModal() {
                         })}
                       </div>
                     )}
-                  </div>
+                  </MobileDataCard>
                 ))}
-              </div>
+              </MobileCardList>
             </>
           )}
         </ScrollArea>

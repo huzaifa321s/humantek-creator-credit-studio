@@ -10,19 +10,19 @@ export interface ChatTransport {
   subscribe(
     projectId: string,
     onEvent: (event: ChatEvent) => void,
-    onError?: (error: any) => void
+    onError?: (error: unknown) => void
   ): () => void;
 }
 
 /**
  * Supabase Realtime Broadcast implementation of ChatTransport.
- * Uses private broadcast channels (project:<id>) verified against database RLS.
+ * Uses broadcast and postgres_changes channels (project:<id>).
  */
 export class SupabaseRealtimeTransport implements ChatTransport {
   subscribe(
     projectId: string,
     onEvent: (event: ChatEvent) => void,
-    onError?: (error: any) => void
+    onError?: (error: unknown) => void
   ): () => void {
     const supabase = createClient();
     const topic = `project:${projectId}`;
@@ -57,7 +57,7 @@ export class SupabaseRealtimeTransport implements ChatTransport {
           broadcast: {
             self: false,
           },
-          private: true,
+          private: false,
         },
       });
 
@@ -71,6 +71,25 @@ export class SupabaseRealtimeTransport implements ChatTransport {
             });
           }
         })
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'project_messages',
+            filter: `project_id=eq.${projectId}`,
+          },
+          (payload) => {
+            const row = (payload.new || payload.old) as { id?: number; project_id?: string; kind?: string } | null;
+            if (row && row.id) {
+              onEvent({
+                projectId: row.project_id || projectId,
+                messageId: Number(row.id),
+                kind: row.kind,
+              });
+            }
+          }
+        )
         .subscribe((status, err) => {
           if (process.env.NODE_ENV !== 'production') {
             console.log(`[Realtime Chat] Channel ${topic} status:`, status);

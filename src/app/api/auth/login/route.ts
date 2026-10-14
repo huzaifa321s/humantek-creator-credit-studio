@@ -126,14 +126,9 @@ export async function POST(req: NextRequest) {
       .eq('id', userId)
       .maybeSingle();
 
-    // Security & Data Integrity: If profile row is missing, raise an alert and auto-heal
+    // Data Integrity: If profile row is missing, auto-heal client profile
     if (!profile) {
       try {
-        await admin.from('admin_alerts').insert({
-          type: 'missing_profile',
-          message: `User ${userId} (${userEmail}) signed in but has no profile row. Auto-healing client profile.`,
-          metadata: { userId, userEmail, severity: 'warning' },
-        });
         const fallbackName = (data.user.user_metadata?.name || data.user.user_metadata?.full_name || (userEmail.split('@')[0]) || 'Creator').slice(0, 80);
         await admin.from('profiles').upsert({
           id: userId,
@@ -147,8 +142,8 @@ export async function POST(req: NextRequest) {
           balance_promo: 0,
         }, { onConflict: 'user_id', ignoreDuplicates: true });
         profile = { role: 'client', full_name: fallbackName };
-      } catch (alertErr) {
-        console.warn('Could not record missing profile alert:', alertErr);
+      } catch (healErr) {
+        console.warn('Could not auto-heal missing profile:', healErr);
       }
     }
 

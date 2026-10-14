@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import { Bell, CheckCheck, Coins, Layers, MessageSquare, Sparkles, ChevronRight } from 'lucide-react';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Card } from '@/components/ui/card';
@@ -38,6 +39,8 @@ const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: str
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const topLoader = useTopLoader();
   const user = useUserStore((s) => s.user);
   const {
     notifications,
@@ -73,12 +76,19 @@ export default function NotificationsPage() {
 
   const handleOpen = (item: StudioNotification) => {
     void markAsRead(item.id);
-    if (item.actionId === 'open-chat') {
-      useChatStore.getState().setIsOpen(true);
+    const isClientRole = (user?.role || 'client') !== 'admin';
+    if (isClientRole && (item.actionId === 'open-chat' || item.type === 'chat_message' || item.entityType === 'chat')) {
+      const targetChatId =
+        item.entityId ||
+        (item.actionId && item.actionId !== 'open-chat' ? item.actionId : undefined);
+      useChatStore.getState().setIsOpen(true, targetChatId || undefined);
       return;
     }
     const href = getNotificationHref(item, user?.role || 'client');
     if (href) {
+      if (href.split('?')[0] !== pathname) {
+        topLoader.start();
+      }
       router.push(href);
     }
   };
@@ -193,7 +203,15 @@ export default function NotificationsPage() {
                     <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-relaxed">
                       {item.message}
                     </p>
-                    <p className="text-2xs text-muted-foreground/80 mt-1">{item.time}</p>
+                    <div className="flex items-center justify-between gap-2 mt-1.5">
+                      <p className="text-2xs text-muted-foreground/80">{item.time}</p>
+                      {isClickable && (
+                        <span className="inline-flex sm:hidden items-center gap-0.5 text-xs font-semibold text-brand-text dark:text-amber-400 shrink-0">
+                          {item.actionLabel || 'View'}
+                          <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {isClickable && (

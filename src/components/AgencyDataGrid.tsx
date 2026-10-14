@@ -9,6 +9,13 @@ import {
   TableBody,
   TableCell,
   TableFooter,
+  ResponsiveTableShell,
+  ResponsiveDesktopView,
+  MobileCardList,
+  MobileDataCard,
+  MobileDataCardHeader,
+  MobileDataCardBody,
+  MobileDataCardFooter,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,13 +41,19 @@ import {
   ArrowUp,
   ArrowDown,
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
   CheckCircle2,
   Clock,
   RotateCcw,
+  Users,
+  UserCheck,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,26 +67,138 @@ export interface LedgerTransaction {
   usdAmount: number;
   date: string;
   timestamp: number;
-  paymentMethod: 'paypal' | 'credits' | 'promo';
+  paymentMethod: 'paypal' | 'credits' | 'promo' | 'manual';
   status: 'completed' | 'pending' | 'reversed';
+  description?: string;
+  bucket?: 'purchased' | 'promo';
+}
+
+export interface LedgerCustomerSummary {
+  clientEmail: string;
+  clientName: string;
+  userId?: string | null;
+  walletBalance: number;
+  walletPurchased: number;
+  walletPromo: number;
+  settledCreditsAllocated: number;
+  pendingCreditsAllocated: number;
+  settledCreditsUsed: number;
+  pendingCreditsUsed: number;
+  settledUsdVolume: number;
+  pendingUsdVolume: number;
+  projectCount: number;
+  transactionCount: number;
 }
 
 interface AgencyDataGridProps {
   transactions: LedgerTransaction[];
+  customers?: LedgerCustomerSummary[];
   className?: string;
 }
 
 type SortField = 'reference' | 'clientEmail' | 'type' | 'creditsDelta' | 'usdAmount' | 'timestamp';
 type SortOrder = 'asc' | 'desc';
 
-export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps) {
+export function AgencyDataGrid({ transactions, customers, className }: AgencyDataGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('timestamp');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [pageSize, setPageSize] = useState<number>(5);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Build or use provided customer summaries
+  const resolvedCustomers = useMemo<LedgerCustomerSummary[]>(() => {
+    if (customers && customers.length > 0) {
+      return customers;
+    }
+    const map = new Map<string, LedgerCustomerSummary & { _refs: Set<string> }>();
+    for (const t of transactions) {
+      const emailKey = (t.clientEmail || 'client@humantek.com').toLowerCase().trim();
+      let entry = map.get(emailKey);
+      if (!entry) {
+        entry = {
+          clientEmail: emailKey,
+          clientName: t.clientName || emailKey.split('@')[0],
+          walletBalance: 0,
+          walletPurchased: 0,
+          walletPromo: 0,
+          settledCreditsAllocated: 0,
+          pendingCreditsAllocated: 0,
+          settledCreditsUsed: 0,
+          pendingCreditsUsed: 0,
+          settledUsdVolume: 0,
+          pendingUsdVolume: 0,
+          projectCount: 0,
+          transactionCount: 0,
+          _refs: new Set<string>(),
+        };
+        map.set(emailKey, entry);
+      }
+      entry.transactionCount += 1;
+      if (t.reference?.startsWith('HT-')) entry._refs.add(t.reference);
+      if (t.status === 'completed') {
+        if (t.creditsDelta > 0) entry.settledCreditsAllocated += t.creditsDelta;
+        else if (t.creditsDelta < 0) entry.settledCreditsUsed += Math.abs(t.creditsDelta);
+        entry.settledUsdVolume += t.usdAmount;
+      } else if (t.status === 'pending') {
+        if (t.creditsDelta > 0) entry.pendingCreditsAllocated += t.creditsDelta;
+        else if (t.creditsDelta < 0) entry.pendingCreditsUsed += Math.abs(t.creditsDelta);
+        entry.pendingUsdVolume += t.usdAmount;
+      }
+    }
+    return Array.from(map.values())
+      .map(({ _refs, ...c }) => {
+        const net = Math.max(0, c.settledCreditsAllocated - c.settledCreditsUsed);
+        return {
+          ...c,
+          walletBalance: net,
+          walletPurchased: net,
+          projectCount: _refs.size,
+        };
+      })
+      .sort((a, b) => b.transactionCount - a.transactionCount || a.clientName.localeCompare(b.clientName));
+  }, [customers, transactions]);
+
+  const selectedCustomer = useMemo(() => {
+    if (customerFilter === 'all') return null;
+    return (
+      resolvedCustomers.find((c) => c.clientEmail.toLowerCase().trim() === customerFilter) || null
+    );
+  }, [resolvedCustomers, customerFilter]);
+
+  // Overall studio summary across all customers
+  const studioSummary = useMemo(() => {
+    return resolvedCustomers.reduce(
+      (acc, c) => {
+        acc.walletBalance += c.walletBalance;
+        acc.walletPurchased += c.walletPurchased;
+        acc.walletPromo += c.walletPromo;
+        acc.settledCreditsAllocated += c.settledCreditsAllocated;
+        acc.pendingCreditsAllocated += c.pendingCreditsAllocated;
+        acc.settledCreditsUsed += c.settledCreditsUsed;
+        acc.pendingCreditsUsed += c.pendingCreditsUsed;
+        acc.settledUsdVolume += c.settledUsdVolume;
+        acc.pendingUsdVolume += c.pendingUsdVolume;
+        acc.projectCount += c.projectCount;
+        return acc;
+      },
+      {
+        walletBalance: 0,
+        walletPurchased: 0,
+        walletPromo: 0,
+        settledCreditsAllocated: 0,
+        pendingCreditsAllocated: 0,
+        settledCreditsUsed: 0,
+        pendingCreditsUsed: 0,
+        settledUsdVolume: 0,
+        pendingUsdVolume: 0,
+        projectCount: 0,
+      }
+    );
+  }, [resolvedCustomers]);
 
   // Sorting helper
   const handleSort = (field: SortField) => {
@@ -86,26 +211,38 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
     setCurrentPage(1);
   };
 
+  const handleSelectCustomer = (email: string) => {
+    const normalized = email.toLowerCase().trim();
+    setCustomerFilter((prev) => (prev === normalized ? 'all' : normalized));
+    setCurrentPage(1);
+  };
+
   // Filtered & Sorted Transactions
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      // 1. Search Query
+      // 1. Customer Filter
+      const matchesCustomer =
+        customerFilter === 'all' ||
+        t.clientEmail.toLowerCase().trim() === customerFilter;
+
+      // 2. Search Query
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
         t.reference.toLowerCase().includes(q) ||
         t.clientEmail.toLowerCase().includes(q) ||
-        t.clientName.toLowerCase().includes(q);
+        t.clientName.toLowerCase().includes(q) ||
+        Boolean(t.description && t.description.toLowerCase().includes(q));
 
-      // 2. Type Filter
+      // 3. Type Filter
       const matchesType = typeFilter === 'all' || t.type === typeFilter;
 
-      // 3. Status Filter
+      // 4. Status Filter
       const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
 
-      return matchesSearch && matchesType && matchesStatus;
+      return matchesCustomer && matchesSearch && matchesType && matchesStatus;
     });
-  }, [transactions, searchQuery, typeFilter, statusFilter]);
+  }, [transactions, customerFilter, searchQuery, typeFilter, statusFilter]);
 
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((a, b) => {
@@ -127,18 +264,33 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
     });
   }, [filteredTransactions, sortField, sortOrder]);
 
+  // Smart dynamic page-size tiers: only show tiers up to the first tier that fits all records
+  const PAGE_SIZE_TIERS = [5, 10, 25, 50] as const;
+  const maxNeededTier =
+    PAGE_SIZE_TIERS.find((t) => t >= Math.max(sortedTransactions.length, 5)) ??
+    PAGE_SIZE_TIERS[PAGE_SIZE_TIERS.length - 1];
+  const availablePageSizes = PAGE_SIZE_TIERS.filter((t) => t <= maxNeededTier);
+  const effectivePageSize = Math.min(pageSize, maxNeededTier);
+
   // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / effectivePageSize));
   const activePage = Math.min(currentPage, totalPages);
-  const startIndex = (activePage - 1) * pageSize;
-  const pageItems = sortedTransactions.slice(startIndex, startIndex + pageSize);
+  const startIndex = (activePage - 1) * effectivePageSize;
+  const pageItems = sortedTransactions.slice(startIndex, startIndex + effectivePageSize);
 
   // Totals for filtered set
   const netCreditsDelta = filteredTransactions.reduce((acc, t) => acc + t.creditsDelta, 0);
   const totalUsdVolume = filteredTransactions.reduce((acc, t) => acc + t.usdAmount, 0);
 
+  const hasActiveFilters =
+    Boolean(searchQuery) ||
+    customerFilter !== 'all' ||
+    typeFilter !== 'all' ||
+    statusFilter !== 'all';
+
   const resetFilters = () => {
     setSearchQuery('');
+    setCustomerFilter('all');
     setTypeFilter('all');
     setStatusFilter('all');
     setCurrentPage(1);
@@ -155,12 +307,157 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
     );
   };
 
+  const activeSummary = selectedCustomer || studioSummary;
+  const totalAllocatedCredits =
+    activeSummary.settledCreditsAllocated + activeSummary.pendingCreditsAllocated;
+  const totalUsedCredits =
+    activeSummary.settledCreditsUsed + activeSummary.pendingCreditsUsed;
+  const totalUsd = activeSummary.settledUsdVolume + activeSummary.pendingUsdVolume;
+
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Control Bar: Search, Type Filter, Status Filter, Reset */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
-        <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-2 min-w-0">
-          <div className="relative flex-1 sm:max-w-sm">
+      {/* Selected Customer Profile Banner (shown when a specific customer is selected) */}
+      {selectedCustomer && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-amber-400/10 border border-amber-400/30 animate-in fade-in duration-150">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-10 rounded-xl bg-amber-400/20 border border-amber-400/40 text-brand-text dark:text-amber-300 flex items-center justify-center font-black text-sm shrink-0">
+              {(selectedCustomer.clientName || selectedCustomer.clientEmail)
+                .slice(0, 2)
+                .toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground truncate">
+                  {selectedCustomer.clientName}
+                </h3>
+                <Badge variant="gold" size="xs" className="font-semibold">
+                  Customer Credit View
+                </Badge>
+                <Badge variant="outline" size="xs" className="font-mono">
+                  {selectedCustomer.projectCount}{' '}
+                  {selectedCustomer.projectCount === 1 ? 'project' : 'projects'}
+                </Badge>
+                <Badge variant="outline" size="xs" className="font-mono">
+                  {selectedCustomer.transactionCount}{' '}
+                  {selectedCustomer.transactionCount === 1 ? 'entry' : 'entries'}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">
+                {selectedCustomer.clientEmail}
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              setCustomerFilter('all');
+              setCurrentPage(1);
+            }}
+            className="h-8 text-xs font-semibold gap-1.5 rounded-lg shrink-0 self-start sm:self-center bg-card hover:bg-secondary cursor-pointer"
+          >
+            <X className="size-3.5" />
+            All Customers
+          </Button>
+        </div>
+      )}
+
+      {/* Credit Summary KPI Cards (Dynamically shows Overall Studio OR Selected Customer Details) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Card 1: Available / Remaining Credits */}
+        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>
+              {selectedCustomer ? 'Customer Available Credits' : 'All Clients Available Credits'}
+            </span>
+            <span className="size-7 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center">
+              <Wallet className="size-3.5" />
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2 pt-1">
+            <CreditValue value={activeSummary.walletBalance} size="lg" />
+            <span className="text-2xs text-muted-foreground font-mono">
+              {activeSummary.walletPromo > 0
+                ? `${activeSummary.walletPurchased} pkg · ${activeSummary.walletPromo} promo`
+                : 'net remaining'}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Total Credits Allocated (+CR) */}
+        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>
+              {selectedCustomer ? 'Customer Credits Purchased' : 'Total Credits Allocated'}
+            </span>
+            <span className="size-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <TrendingUp className="size-3.5" />
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2 pt-1">
+            <CreditValue value={`+${totalAllocatedCredits}`} size="lg" variant="delta" />
+            <span className="text-2xs text-muted-foreground font-mono">
+              {activeSummary.settledCreditsAllocated} settled
+              {activeSummary.pendingCreditsAllocated > 0
+                ? ` · ${activeSummary.pendingCreditsAllocated} pending`
+                : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Credits Used in Scopes (-CR) */}
+        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>
+              {selectedCustomer ? 'Customer Credits Used' : 'Total Scope Deductions'}
+            </span>
+            <span className="size-7 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center">
+              <TrendingDown className="size-3.5" />
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2 pt-1">
+            <CreditValue
+              value={totalUsedCredits > 0 ? `-${totalUsedCredits}` : '0'}
+              size="lg"
+              variant="delta"
+            />
+            <span className="text-2xs text-muted-foreground font-mono">
+              {activeSummary.settledCreditsUsed} settled
+              {activeSummary.pendingCreditsUsed > 0
+                ? ` · ${activeSummary.pendingCreditsUsed} pending`
+                : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: USD Package Volume */}
+        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>{selectedCustomer ? 'Customer USD Volume' : 'Total Package Volume'}</span>
+            <span className="size-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <DollarSign className="size-3.5" />
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2 pt-1">
+            <span className="text-lg font-black font-mono tabular-nums text-foreground">
+              ${totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <span className="text-2xs text-muted-foreground font-mono">
+              ${activeSummary.settledUsdVolume.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} paid
+              {activeSummary.pendingUsdVolume > 0
+                ? ` · $${activeSummary.pendingUsdVolume.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} pending`
+                : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Control Bar: Search, Customer Filter, Type Filter, Status Filter, Reset */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
+        <div className="flex flex-col sm:flex-row flex-wrap flex-1 items-stretch sm:items-center gap-2 min-w-0">
+          <div className="relative flex-1 min-w-[200px] sm:max-w-xs">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               type="text"
@@ -174,17 +471,75 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:flex items-center gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:flex items-center gap-2">
+            {/* By Customer Filter */}
+            <Select
+              value={customerFilter}
+              onValueChange={(val) => {
+                setCustomerFilter((val as string) || 'all');
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs bg-card w-full lg:w-[220px] rounded-lg">
+                <span className="inline-flex items-center gap-1.5 truncate">
+                  {selectedCustomer ? (
+                    <UserCheck className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                  ) : (
+                    <Users className="size-3.5 text-muted-foreground shrink-0" />
+                  )}
+                  <SelectValue>
+                    {selectedCustomer
+                      ? `${selectedCustomer.clientName} (${selectedCustomer.transactionCount})`
+                      : `All Customers (${resolvedCustomers.length})`}
+                  </SelectValue>
+                </span>
+              </SelectTrigger>
+              <SelectContent className="w-72 max-h-80">
+                <SelectItem value="all" className="text-xs font-semibold">
+                  All Customers ({resolvedCustomers.length})
+                </SelectItem>
+                {resolvedCustomers.map((c) => (
+                  <SelectItem
+                    key={c.clientEmail}
+                    value={c.clientEmail}
+                    className="text-xs py-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                      <div className="truncate">
+                        <span className="font-semibold text-foreground">{c.clientName}</span>
+                        <span className="text-2xs text-muted-foreground ml-1.5 font-mono">
+                          ({c.clientEmail})
+                        </span>
+                      </div>
+                      <span className="text-2xs font-mono text-muted-foreground shrink-0">
+                        {c.transactionCount}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {/* Type Filter */}
             <Select
               value={typeFilter}
               onValueChange={(val) => {
-                setTypeFilter(val as string);
+                setTypeFilter((val as string) || 'all');
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[140px] rounded-lg">
-                <SelectValue placeholder="All Types" />
+              <SelectTrigger className="h-9 text-xs bg-card w-full lg:w-[150px] rounded-lg">
+                <SelectValue>
+                  {typeFilter === 'package_purchase'
+                    ? 'Package Purchase'
+                    : typeFilter === 'service_deduction'
+                      ? 'Service Scope'
+                      : typeFilter === 'promo_credit'
+                        ? 'Promo Code'
+                        : typeFilter === 'refund'
+                          ? 'Refund'
+                          : 'All Types'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all" className="text-xs">All Types</SelectItem>
@@ -199,16 +554,24 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
             <Select
               value={statusFilter}
               onValueChange={(val) => {
-                setStatusFilter(val as string);
+                setStatusFilter((val as string) || 'all');
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-9 text-xs bg-card w-full sm:w-[130px] rounded-lg">
-                <SelectValue placeholder="All Status" />
+              <SelectTrigger className="h-9 text-xs bg-card w-full lg:w-[130px] rounded-lg">
+                <SelectValue>
+                  {statusFilter === 'completed'
+                    ? 'Settled'
+                    : statusFilter === 'pending'
+                      ? 'Pending'
+                      : statusFilter === 'reversed'
+                        ? 'Reversed'
+                        : 'All Status'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all" className="text-xs">All Status</SelectItem>
-                <SelectItem value="completed" className="text-xs">Completed</SelectItem>
+                <SelectItem value="completed" className="text-xs">Settled</SelectItem>
                 <SelectItem value="pending" className="text-xs">Pending</SelectItem>
                 <SelectItem value="reversed" className="text-xs">Reversed</SelectItem>
               </SelectContent>
@@ -217,17 +580,17 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
         </div>
 
         {/* Clear Filters / Summary Count */}
-        <div className="flex items-center gap-3 justify-between md:justify-end shrink-0">
+        <div className="flex items-center gap-3 justify-between lg:justify-end shrink-0">
           <span className="text-xs text-muted-foreground font-medium">
             Showing <b className="text-foreground">{sortedTransactions.length}</b> records
           </span>
-          {(searchQuery || typeFilter !== 'all' || statusFilter !== 'all') && (
+          {hasActiveFilters && (
             <Button
               type="button"
               variant="outline"
               size="xs"
               onClick={resetFilters}
-              className="h-8 text-xs font-semibold gap-1.5 rounded-lg"
+              className="h-8 text-xs font-semibold gap-1.5 rounded-lg cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
               Reset
@@ -245,7 +608,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
             </EmptyMedia>
             <EmptyTitle className="text-base font-bold">No Credit Records Found</EmptyTitle>
             <EmptyDescription className="text-xs sm:text-sm">
-              No transactions match your search &ldquo;{searchQuery || typeFilter}&rdquo;. Try clearing filters.
+              No transactions match your current filters. Try clearing filters.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -260,9 +623,42 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
           </EmptyContent>
         </Empty>
       ) : (
-        <div className="rounded-xl border border-border/80 overflow-hidden bg-card shadow-2xs">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[780px]">
+        <ResponsiveTableShell>
+          {/* MOBILE VIEW (< md): Scannable Transaction Cards */}
+          <MobileCardList>
+            {pageItems.map((item) => (
+              <LedgerMobileCard
+                key={item.id}
+                item={item}
+                isSelectedCustomer={
+                  customerFilter !== 'all' &&
+                  item.clientEmail.toLowerCase().trim() === customerFilter
+                }
+                onSelectCustomer={handleSelectCustomer}
+              />
+            ))}
+
+            {/* Mobile Filtered Totals Bar */}
+            <div className="p-3.5 bg-muted/30 border-t border-border/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-foreground">
+                Totals (<span className="font-mono tabular-nums">{filteredTransactions.length}</span>)
+              </span>
+              <div className="flex items-center gap-3">
+                <CreditValue
+                  value={netCreditsDelta >= 0 ? `+${netCreditsDelta}` : `${netCreditsDelta}`}
+                  size="xs"
+                  variant="delta"
+                />
+                <span className="font-bold text-foreground font-mono tabular-nums">
+                  ${totalUsdVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          </MobileCardList>
+
+          {/* DESKTOP VIEW (md+): Full Sortable Table */}
+          <ResponsiveDesktopView>
+            <Table className="min-w-[740px]">
               <TableHeader className="bg-muted/40">
                 <TableRow className="border-b border-border/80 hover:bg-transparent select-none">
                   <TableHead
@@ -275,7 +671,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                     onClick={() => handleSort('clientEmail')}
                     className="font-bold text-xs text-foreground/80 h-11 cursor-pointer hover:text-foreground"
                   >
-                    <span>Client / Channel</span> {getSortIcon('clientEmail')}
+                    <span>Client</span> {getSortIcon('clientEmail')}
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('type')}
@@ -306,75 +702,15 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
 
               <TableBody>
                 {pageItems.map((item) => (
-                  <TableRow
+                  <LedgerTableRow
                     key={item.id}
-                    className="hover:bg-muted/40 transition-colors border-b border-border/60"
-                  >
-                    {/* Reference */}
-                    <TableCell className="pl-5 font-mono font-bold text-brand-text dark:text-amber-400 text-xs">
-                      {item.reference}
-                    </TableCell>
-
-                    {/* Client */}
-                    <TableCell className="text-xs">
-                      <div className="font-semibold text-foreground">{item.clientName || 'Creator'}</div>
-                      <div className="text-muted-foreground text-2xs">{item.clientEmail}</div>
-                    </TableCell>
-
-                    {/* Type Badge with Human Labels */}
-                    <TableCell>
-                      {item.type === 'package_purchase' && (
-                        <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5">
-                          Package Purchase
-                        </Badge>
-                      )}
-                      {item.type === 'service_deduction' && (
-                        <Badge variant="outline" className="text-2xs font-semibold text-brand-text dark:text-amber-400 border-amber-400/30 px-2 py-0.5">
-                          Service Scope
-                        </Badge>
-                      )}
-                      {item.type === 'promo_credit' && (
-                        <Badge variant="gold" className="text-2xs font-semibold px-2 py-0.5">
-                          Promo Code
-                        </Badge>
-                      )}
-                      {item.type === 'refund' && (
-                        <Badge variant="destructive" className="text-2xs font-semibold px-2 py-0.5">
-                          Refund
-                        </Badge>
-                      )}
-                    </TableCell>
-
-                    {/* Credits Delta */}
-                    <TableCell className="text-right text-xs">
-                      <CreditValue
-                        value={item.creditsDelta > 0 ? `+${item.creditsDelta}` : `${item.creditsDelta}`}
-                        size="sm"
-                        variant="delta"
-                      />
-                    </TableCell>
-
-                    {/* USD Amount */}
-                    <TableCell className="text-right font-bold text-foreground text-xs font-mono tabular-nums">
-                      ${item.usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-
-                    {/* Date & Status */}
-                    <TableCell className="pr-5 text-right text-xs">
-                      <div className="font-medium text-foreground text-2xs font-mono tabular-nums">{item.date}</div>
-                      <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground mt-0.5">
-                        {item.status === 'completed' ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                            <CheckCircle2 className="size-3" /> Settled
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-brand-text dark:text-amber-400 font-medium">
-                            <Clock className="size-3" /> Pending
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    item={item}
+                    isSelectedCustomer={
+                      customerFilter !== 'all' &&
+                      item.clientEmail.toLowerCase().trim() === customerFilter
+                    }
+                    onSelectCustomer={handleSelectCustomer}
+                  />
                 ))}
               </TableBody>
 
@@ -397,14 +733,14 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                 </TableRow>
               </TableFooter>
             </Table>
-          </div>
+          </ResponsiveDesktopView>
 
           {/* Clean Pagination Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 border-t border-border/70 bg-card text-xs">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>Rows per page:</span>
               <Select
-                value={String(pageSize)}
+                value={String(effectivePageSize)}
                 onValueChange={(val) => {
                   setPageSize(Number(val));
                   setCurrentPage(1);
@@ -414,9 +750,11 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5" className="text-xs">5</SelectItem>
-                  <SelectItem value="10" className="text-xs">10</SelectItem>
-                  <SelectItem value="25" className="text-xs">25</SelectItem>
+                  {availablePageSizes.map((size) => (
+                    <SelectItem key={size} value={String(size)} className="text-xs">
+                      {size}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <span>
@@ -438,7 +776,7 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
               </Button>
 
               <span className="text-2xs px-2 font-mono font-semibold tabular-nums text-muted-foreground">
-                {startIndex + 1}–{Math.min(startIndex + pageSize, sortedTransactions.length)} of {sortedTransactions.length}
+                {startIndex + 1}–{Math.min(startIndex + effectivePageSize, sortedTransactions.length)} of {sortedTransactions.length}
               </span>
 
               <Button
@@ -454,8 +792,240 @@ export function AgencyDataGrid({ transactions, className }: AgencyDataGridProps)
               </Button>
             </div>
           </div>
-        </div>
+        </ResponsiveTableShell>
       )}
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Memoized Ledger Row & Mobile Card Subcomponents                            */
+/* -------------------------------------------------------------------------- */
+
+const LedgerTypeBadge = React.memo(function LedgerTypeBadge({
+  type,
+}: {
+  type: LedgerTransaction['type'];
+}) {
+  if (type === 'package_purchase') {
+    return (
+      <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5">
+        Package Purchase
+      </Badge>
+    );
+  }
+  if (type === 'service_deduction') {
+    return (
+      <Badge
+        variant="outline"
+        className="text-2xs font-semibold text-brand-text dark:text-amber-400 border-amber-400/30 px-2 py-0.5"
+      >
+        Service Scope
+      </Badge>
+    );
+  }
+  if (type === 'promo_credit') {
+    return (
+      <Badge variant="gold" className="text-2xs font-semibold px-2 py-0.5">
+        Promo Code
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="destructive" className="text-2xs font-semibold px-2 py-0.5">
+      Refund
+    </Badge>
+  );
+});
+
+const LedgerSettlementStatus = React.memo(function LedgerSettlementStatus({
+  status,
+}: {
+  status: LedgerTransaction['status'];
+}) {
+  if (status === 'completed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+        <CheckCircle2 className="size-3" /> Settled
+      </span>
+    );
+  }
+  if (status === 'reversed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
+        <RotateCcw className="size-3" /> Reversed
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-brand-text dark:text-amber-400 font-medium">
+      <Clock className="size-3" /> Pending
+    </span>
+  );
+});
+
+const LedgerMobileCard = React.memo(function LedgerMobileCard({
+  item,
+  isSelectedCustomer,
+  onSelectCustomer,
+}: {
+  item: LedgerTransaction;
+  isSelectedCustomer: boolean;
+  onSelectCustomer: (email: string) => void;
+}) {
+  return (
+    <MobileDataCard className="space-y-2.5">
+      {/* Top Row: Reference & Type Badge */}
+      <MobileDataCardHeader>
+        <div className="min-w-0">
+          <div className="font-mono font-bold text-brand-text dark:text-amber-400 text-xs truncate">
+            {item.reference}
+          </div>
+          {item.description && (
+            <div className="text-2xs text-muted-foreground truncate mt-0.5">
+              {item.description}
+            </div>
+          )}
+        </div>
+        <LedgerTypeBadge type={item.type} />
+      </MobileDataCardHeader>
+
+      {/* Middle Row: Client Identity & Settlement Status */}
+      <MobileDataCardBody className="items-start text-xs">
+        <button
+          type="button"
+          onClick={() => onSelectCustomer(item.clientEmail)}
+          title={
+            isSelectedCustomer
+              ? 'Click to show all customers'
+              : `Filter ledger by ${item.clientName || item.clientEmail}`
+          }
+          className="min-w-0 text-left group cursor-pointer"
+        >
+          <div
+            className={cn(
+              'font-semibold truncate transition-colors',
+              isSelectedCustomer
+                ? 'text-brand-text dark:text-amber-400'
+                : 'text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400'
+            )}
+          >
+            {item.clientName || 'Creator'}
+          </div>
+          <div className="text-muted-foreground text-2xs truncate group-hover:underline">
+            {item.clientEmail}
+          </div>
+        </button>
+        <div className="text-right shrink-0">
+          <div className="font-medium text-foreground text-2xs font-mono tabular-nums">
+            {item.date}
+          </div>
+          <div className="inline-flex items-center gap-1 text-2xs mt-0.5">
+            <LedgerSettlementStatus status={item.status} />
+          </div>
+        </div>
+      </MobileDataCardBody>
+
+      {/* Bottom Row: Credits Delta & USD Amount */}
+      <MobileDataCardFooter className="flex-row items-center pt-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-2xs text-muted-foreground font-medium">Credits:</span>
+          <CreditValue
+            value={item.creditsDelta > 0 ? `+${item.creditsDelta}` : `${item.creditsDelta}`}
+            size="xs"
+            variant="delta"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-2xs text-muted-foreground font-medium">Amount:</span>
+          <span className="font-bold text-foreground text-xs font-mono tabular-nums">
+            ${item.usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+      </MobileDataCardFooter>
+    </MobileDataCard>
+  );
+});
+
+const LedgerTableRow = React.memo(function LedgerTableRow({
+  item,
+  isSelectedCustomer,
+  onSelectCustomer,
+}: {
+  item: LedgerTransaction;
+  isSelectedCustomer: boolean;
+  onSelectCustomer: (email: string) => void;
+}) {
+  return (
+    <TableRow className="hover:bg-muted/40 transition-colors border-b border-border/60">
+      {/* Reference */}
+      <TableCell className="pl-5 text-xs">
+        <div className="font-mono font-bold text-brand-text dark:text-amber-400">
+          {item.reference}
+        </div>
+        {item.description && (
+          <div className="text-2xs text-muted-foreground max-w-[260px] truncate mt-0.5" title={item.description}>
+            {item.description}
+          </div>
+        )}
+      </TableCell>
+
+      {/* Client (clickable to filter by customer) */}
+      <TableCell className="text-xs">
+        <button
+          type="button"
+          onClick={() => onSelectCustomer(item.clientEmail)}
+          title={
+            isSelectedCustomer
+              ? 'Click to show all customers'
+              : `Filter ledger by ${item.clientName || item.clientEmail}`
+          }
+          className="text-left group cursor-pointer"
+        >
+          <div
+            className={cn(
+              'font-semibold transition-colors',
+              isSelectedCustomer
+                ? 'text-brand-text dark:text-amber-400'
+                : 'text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400'
+            )}
+          >
+            {item.clientName || 'Creator'}
+          </div>
+          <div className="text-muted-foreground text-2xs group-hover:underline">
+            {item.clientEmail}
+          </div>
+        </button>
+      </TableCell>
+
+      {/* Type Badge */}
+      <TableCell>
+        <LedgerTypeBadge type={item.type} />
+      </TableCell>
+
+      {/* Credits Delta */}
+      <TableCell className="text-right text-xs">
+        <CreditValue
+          value={item.creditsDelta > 0 ? `+${item.creditsDelta}` : `${item.creditsDelta}`}
+          size="sm"
+          variant="delta"
+        />
+      </TableCell>
+
+      {/* USD Amount */}
+      <TableCell className="text-right font-bold text-foreground text-xs font-mono tabular-nums">
+        ${item.usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </TableCell>
+
+      {/* Date & Status */}
+      <TableCell className="pr-5 text-right text-xs">
+        <div className="font-medium text-foreground text-2xs font-mono tabular-nums">{item.date}</div>
+        <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground mt-0.5">
+          <LedgerSettlementStatus status={item.status} />
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+

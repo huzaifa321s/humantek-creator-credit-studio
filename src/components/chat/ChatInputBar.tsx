@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, Paperclip, Image as ImageIcon, X, Sparkles, Mic, CornerUpLeft, Pencil, Check } from 'lucide-react';
+import { ArrowUp, Paperclip, Image as ImageIcon, X, Sparkles, CornerUpLeft, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -77,6 +77,18 @@ export function ChatInputBar({
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const latestProjectIdRef = useRef<string | undefined>(effectiveId);
+  useEffect(() => {
+    latestProjectIdRef.current = effectiveId;
+  }, [effectiveId]);
+
+  // Reset pending image attachment draft if the user switches conversation threads
+  const [syncedDraftProjectId, setSyncedDraftProjectId] = useState(effectiveId);
+  if (syncedDraftProjectId !== effectiveId) {
+    setSyncedDraftProjectId(effectiveId);
+    setDraft(null);
+    setIsUploadingAttachment(false);
+  }
 
   // Composer source: the message being edited, otherwise the saved draft for this chat.
   const textSourceKey = editingMessage ? `edit:${editingMessage.id}` : `draft:${effectiveId ?? ''}`;
@@ -215,13 +227,14 @@ export function ChatInputBar({
       return;
     }
 
+    const uploadTargetId = projectId;
     setIsUploadingAttachment(true);
     const toastId = toast.loading(`Uploading ${file.name}...`);
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch(`/api/projects/${projectId}/attachments`, {
+      const res = await fetch(`/api/projects/${uploadTargetId}/attachments`, {
         method: 'POST',
         body: formData,
       });
@@ -229,6 +242,11 @@ export function ChatInputBar({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Failed to upload file');
+      }
+
+      if (latestProjectIdRef.current !== uploadTargetId) {
+        toast.dismiss(toastId);
+        return;
       }
 
       const att = data.attachment;
@@ -245,10 +263,16 @@ export function ChatInputBar({
       });
       toast.success(`Attached "${file.name}"`, { id: toastId });
     } catch (err: unknown) {
+      if (latestProjectIdRef.current !== uploadTargetId) {
+        toast.dismiss(toastId);
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Failed to upload image';
       toast.error(msg, { id: toastId });
     } finally {
-      setIsUploadingAttachment(false);
+      if (latestProjectIdRef.current === uploadTargetId) {
+        setIsUploadingAttachment(false);
+      }
     }
   };
 
@@ -417,21 +441,6 @@ export function ChatInputBar({
                 <Paperclip className="size-4" />
               )}
             </InputGroupButton>
-
-            {viewerRole !== 'admin' && (
-              <InputGroupButton
-                size="icon-sm"
-                onClick={() => {
-                  toast.success('Attached creative voice memo (0:24)');
-                  setText((prev) => (prev ? `${prev} 🎙️ [Voice memo: 0:24]` : '🎙️ Recorded voice note (0:24)'));
-                }}
-                className="size-8 rounded-lg text-muted-foreground hover:bg-amber-400/15 hover:text-brand-text dark:hover:text-amber-400"
-                aria-label="Record creative voice memo"
-                title="Record creative voice memo"
-              >
-                <Mic className="size-4" />
-              </InputGroupButton>
-            )}
 
             {!compact && (
               <InputGroupText className="hidden sm:flex text-2xs font-mono">

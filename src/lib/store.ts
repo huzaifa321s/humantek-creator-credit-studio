@@ -77,7 +77,7 @@ if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
       id: 'msg-proj-demo-1',
       projectId: 'proj-demo-1',
       sender: 'system',
-      senderName: 'Humantek Studio',
+      senderName: 'Studio Team',
       content: 'Project HT-9428-FORGE Workspace Initialized · Production Team Assigned',
       timestamp: 'Yesterday at 10:14 AM',
       isRead: true,
@@ -86,7 +86,7 @@ if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
       id: 'msg-proj-demo-2',
       projectId: 'proj-demo-1',
       sender: 'agent',
-      senderName: 'Humantek Studio',
+      senderName: 'Studio Team',
       senderRole: 'Studio Team',
       content:
         "Hi Kira! Welcome to your project workspace for Creator Forge (HT-9428-FORGE). We've reviewed your project scope for the cyberpunk neon theme and custom animated emotes. Our production queue is active and work is in progress!",
@@ -117,7 +117,7 @@ if (!globalStore.__HUMANTEK_PROJECT_MESSAGES__) {
       id: 'msg-proj-demo-4',
       projectId: 'proj-demo-1',
       sender: 'agent',
-      senderName: 'Humantek Studio',
+      senderName: 'Studio Team',
       senderRole: 'Studio Team',
       content:
         "This neon palette is locked in! We are on track for the concept preview. Let us know if you need any adjustments to the twitch badges as well.",

@@ -99,6 +99,7 @@ export interface ProjectRecord {
     credits: number;
   }[];
   uploadedFiles: UploadedFile[];
+  referenceLinks?: string[];
   lastMessageAt?: string | null;
   lastMessagePreview?: string | null;
   createdAt: string;

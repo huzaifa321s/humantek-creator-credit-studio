@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAal2 } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
-import { clampLimit, decodeCursor, encodeCursor, PAGINATION_LIMITS } from '@/lib/pagination';
-import type { LedgerTransaction } from '@/components/AgencyDataGrid';
+import { clampLimit, PAGINATION_LIMITS } from '@/lib/pagination';
+import { PACKAGES } from '@/lib/catalog';
+import type { LedgerTransaction, LedgerCustomerSummary } from '@/components/AgencyDataGrid';
 
 export const dynamic = 'force-dynamic';
+
+function isAutomatedTestEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase();
+  return lower.endsWith('@humantek.art') || lower.endsWith('.test');
+}
 
 export async function GET(req: NextRequest) {
   const authRes = await requireAdminAal2();
@@ -14,131 +21,214 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const limitParam = searchParams.get('limit');
-  const cursorParam = searchParams.get('cursor');
   const pageParam = searchParams.get('page');
   const typeParam = searchParams.get('type');
   const statusParam = searchParams.get('status');
+  const customerParam = searchParams.get('customer')?.toLowerCase().trim();
 
   const limit = clampLimit(limitParam, PAGINATION_LIMITS.ADMIN_DEFAULT, PAGINATION_LIMITS.ADMIN_MAX);
-  const cursor = decodeCursor(cursorParam);
 
   try {
     const admin = createAdminClient();
 
-    // 1. First check if credit_ledger has records
-    let ledgerQuery = admin
-      .from('credit_ledger')
-      .select('id, user_id, reverses_id, bucket, delta, type, reference_id, idempotency_key, description, created_at, profiles(email, full_name)', { count: 'exact' });
+    // Fetch credit_ledger, projects, orders, wallets, and profiles in parallel for full enrichment & customer credit summaries
+    const [ledgerRes, projectsRes, ordersRes, walletsRes, profilesRes] = await Promise.all([
+      admin
+        .from('credit_ledger')
+        .select(
+          'id, user_id, reverses_id, bucket, delta, type, reference_id, idempotency_key, description, created_at, profiles(email, full_name)'
+        )
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(500),
+      admin
+        .from('projects')
+        .select(
+          'id, user_id, project_code, email, client_name, package_id, package_name, package_price_usd, package_credits, total_credits, applied_wallet_credits, payment_status, payment_method, funding_source, created_at'
+        )
+        .order('created_at', { ascending: false })
+        .limit(500),
+      admin
+        .from('orders')
+        .select('id, order_code, package_id, credits_granted, amount_cents, status, payment_provider, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500),
+      admin
+        .from('wallets')
+        .select('user_id, balance_credits, balance_purchased, balance_promo')
+        .limit(500),
+      admin
+        .from('profiles')
+        .select('id, email, full_name, role')
+        .limit(500),
+    ]);
 
-    if (typeParam && typeParam !== 'all') {
-      ledgerQuery = ledgerQuery.eq('type', typeParam);
+    if (ledgerRes.error) {
+      console.error('Error querying credit_ledger:', ledgerRes.error);
     }
 
-    if (cursor) {
-      ledgerQuery = ledgerQuery.or(
-        `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`
-      );
-    } else if (pageParam) {
-      const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
-      const offset = (pageNum - 1) * limit;
-      ledgerQuery = ledgerQuery.range(offset, offset + limit - 1);
+    const ledgerRows = ledgerRes.data || [];
+    const dbProjects = projectsRes.data || [];
+    const dbOrders = ordersRes.data || [];
+    const dbWallets = walletsRes.data || [];
+    const dbProfiles = profilesRes.data || [];
+
+    // Build lookup maps for USD enrichment, wallets, and deduplication
+    const walletByUserId = new Map<string, (typeof dbWallets)[number]>();
+    for (const w of dbWallets) {
+      if (w.user_id) walletByUserId.set(w.user_id, w);
     }
 
-    ledgerQuery = ledgerQuery
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false });
-
-    if (!pageParam) {
-      ledgerQuery = ledgerQuery.limit(limit + 1);
+    const profileByEmail = new Map<string, (typeof dbProfiles)[number]>();
+    for (const prof of dbProfiles) {
+      if (prof.email) {
+        profileByEmail.set(prof.email.toLowerCase().trim(), prof);
+      }
     }
 
-    const { data: rows, error, count } = await ledgerQuery;
-
-    if (error) {
-      console.error('Error querying credit_ledger:', error);
+    const projectByRef = new Map<string, (typeof dbProjects)[number]>();
+    for (const p of dbProjects) {
+      if (p.project_code) projectByRef.set(p.project_code, p);
+      if (p.id) projectByRef.set(p.id, p);
     }
 
-    // 2. If credit_ledger has real records, return them formatted as LedgerTransaction
-    if (rows && rows.length > 0) {
-      const list = rows;
-      let items = list;
-      let hasMore = false;
-      let nextCursor: string | null = null;
+    const orderByRef = new Map<string, (typeof dbOrders)[number]>();
+    for (const o of dbOrders) {
+      if (o.order_code) orderByRef.set(o.order_code, o);
+      if (o.id) orderByRef.set(o.id, o);
+    }
 
-      if (!pageParam) {
-        hasMore = list.length > limit;
-        items = hasMore ? list.slice(0, limit) : list;
-        const lastRow = items[items.length - 1];
-        nextCursor =
-          hasMore && lastRow
-            ? encodeCursor({ createdAt: lastRow.created_at, id: String(lastRow.id) })
-            : null;
-      } else {
-        const pageNum = Math.max(1, parseInt(pageParam, 10) || 1);
-        hasMore = pageNum * limit < (count ?? 0);
+    // Track which ledger row IDs have been reversed by a subsequent row
+    const reversedLedgerIds = new Set<number>();
+    for (const r of ledgerRows) {
+      if (r.reverses_id != null) {
+        reversedLedgerIds.add(Number(r.reverses_id));
+      }
+    }
+
+    // Track which project references already have settled ledger entries
+    const ledgerPurchaseRefs = new Set<string>();
+    const ledgerSpendRefs = new Set<string>();
+
+    const allTransactions: LedgerTransaction[] = [];
+
+    // 1. Map settled/reversed rows from credit_ledger
+    for (const r of ledgerRows as any[]) {
+      const prof = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+      const matchedProject = r.reference_id ? projectByRef.get(r.reference_id) : undefined;
+      const matchedOrder = r.reference_id ? orderByRef.get(r.reference_id) : undefined;
+
+      const clientEmail =
+        prof?.email || matchedProject?.email || 'client@humantek.com';
+
+      if (isAutomatedTestEmail(clientEmail)) {
+        continue;
       }
 
-      const transactions: LedgerTransaction[] = items.map((r: any) => {
-        const prof = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
-        const clientEmail = prof?.email || 'client@humantek.com';
-        const clientName = prof?.full_name || clientEmail.split('@')[0];
+      const clientName =
+        prof?.full_name ||
+        matchedProject?.client_name ||
+        clientEmail.split('@')[0];
 
-        let txType: LedgerTransaction['type'] = 'service_deduction';
-        if (r.type === 'package_purchase') txType = 'package_purchase';
-        else if (r.type === 'promo_redeem') txType = 'promo_credit';
-        else if (r.type?.includes('refund')) txType = 'refund';
+      let txType: LedgerTransaction['type'] = 'service_deduction';
+      if (r.type === 'package_purchase') {
+        txType = 'package_purchase';
+        if (r.reference_id) ledgerPurchaseRefs.add(r.reference_id);
+        if (matchedProject?.project_code) ledgerPurchaseRefs.add(matchedProject.project_code);
+        if (matchedProject?.id) ledgerPurchaseRefs.add(matchedProject.id);
+      } else if (r.type === 'promo_redeem' || r.type === 'manual_Adjustment') {
+        txType = 'promo_credit';
+      } else if (r.type?.includes('refund') || r.type === 'chargeback') {
+        txType = 'refund';
+      } else {
+        txType = 'service_deduction';
+        if (r.reference_id) ledgerSpendRefs.add(r.reference_id);
+        if (matchedProject?.project_code) ledgerSpendRefs.add(matchedProject.project_code);
+        if (matchedProject?.id) ledgerSpendRefs.add(matchedProject.id);
+      }
 
-        return {
-          id: `tx-${r.id}`,
-          reference: r.reference_id || `HT-CR-${String(r.id).padStart(5, '0')}`,
-          clientEmail,
-          clientName,
-          type: txType,
-          creditsDelta: r.delta,
-          usdAmount: 0,
-          date: new Date(r.created_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: '2-digit',
-            year: 'numeric',
-          }),
-          timestamp: new Date(r.created_at).getTime(),
-          paymentMethod: r.bucket === 'promo' ? 'promo' : 'credits',
-          status: 'completed',
-        };
-      });
+      // Resolve real USD amount for package purchases and cash refunds
+      let usdAmount = 0;
+      if (txType === 'package_purchase' || r.type === 'refund_cash' || r.type === 'chargeback') {
+        if (matchedOrder?.amount_cents) {
+          usdAmount = Number(matchedOrder.amount_cents) / 100;
+        } else if (matchedProject?.package_price_usd) {
+          usdAmount = Number(matchedProject.package_price_usd);
+        } else if (matchedProject?.package_id) {
+          const pkg = PACKAGES.find((k) => k.id === matchedProject.package_id);
+          if (pkg) usdAmount = pkg.price;
+        } else {
+          const pkgByCredits = PACKAGES.find((k) => k.credits === Math.abs(Number(r.delta)));
+          if (pkgByCredits) usdAmount = pkgByCredits.price;
+        }
+      }
 
-      return NextResponse.json({
-        transactions,
-        totalCount: count ?? items.length,
-        hasMore,
-        nextCursor,
-        limit,
+      const isReversed = reversedLedgerIds.has(Number(r.id));
+
+      allTransactions.push({
+        id: `tx-${r.id}`,
+        reference:
+          matchedProject?.project_code ||
+          matchedOrder?.order_code ||
+          r.reference_id ||
+          `HT-CR-${String(r.id).padStart(5, '0')}`,
+        clientEmail,
+        clientName,
+        type: txType,
+        creditsDelta: Number(r.delta),
+        usdAmount,
+        date: new Date(r.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: '2-digit',
+          year: 'numeric',
+        }),
+        timestamp: new Date(r.created_at).getTime(),
+        paymentMethod:
+          r.bucket === 'promo'
+            ? 'promo'
+            : txType === 'package_purchase'
+              ? 'paypal'
+              : 'credits',
+        status: isReversed ? 'reversed' : 'completed',
+        description: r.description || undefined,
+        bucket: r.bucket || 'purchased',
       });
     }
 
-    // 3. Fallback: If credit_ledger table has 0 records, build transactions
-    // from real projects and orders in PostgreSQL (100% real data, no fake seed rows)
-    const { data: dbProjects } = await admin
-      .from('projects')
-      .select('id, project_code, email, client_name, package_price_usd, package_credits, total_credits, applied_wallet_credits, payment_status, payment_method, funding_source, created_at')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // 2. Include pending/unpaid or pre-ledger project transactions not yet in credit_ledger
+    for (const p of dbProjects) {
+      if (isAutomatedTestEmail(p.email)) continue;
 
-    const fallbackTransactions: LedgerTransaction[] = [];
-    (dbProjects || []).forEach((p) => {
-      const isWallet =
-        p.funding_source === 'wallet' || p.payment_method === 'credits';
+      const refCode = p.project_code || `HT-${p.id.slice(-6).toUpperCase()}`;
+      const pkg = p.package_id ? PACKAGES.find((k) => k.id === p.package_id) : undefined;
+      const isWallet = p.funding_source === 'wallet' || p.payment_method === 'credits';
 
-      // Deposit purchase transaction
-      if (!isWallet && p.package_price_usd) {
-        fallbackTransactions.push({
+      const effectivePkgCredits =
+        Number(p.package_credits) || pkg?.credits || Number(p.total_credits) || 0;
+      const effectiveUsd =
+        Number(p.package_price_usd) || pkg?.price || 0;
+      const txStatus: LedgerTransaction['status'] =
+        p.payment_status === 'paid'
+          ? 'completed'
+          : p.payment_status === 'refunded'
+            ? 'reversed'
+            : 'pending';
+
+      const hasLedgerPurchase =
+        ledgerPurchaseRefs.has(refCode) || ledgerPurchaseRefs.has(p.id);
+      const hasLedgerSpend =
+        ledgerSpendRefs.has(refCode) || ledgerSpendRefs.has(p.id);
+
+      // Deposit / Package Purchase entry
+      if (!isWallet && effectiveUsd > 0 && !hasLedgerPurchase) {
+        allTransactions.push({
           id: `tx-deposit-${p.id}`,
-          reference: p.project_code || `HT-${p.id.slice(-6).toUpperCase()}`,
+          reference: refCode,
           clientEmail: p.email || 'client@humantek.com',
           clientName: p.client_name || (p.email ? p.email.split('@')[0] : 'Client'),
           type: 'package_purchase',
-          creditsDelta: Number(p.package_credits) || Number(p.total_credits) || 660,
-          usdAmount: Number(p.package_price_usd) || 0,
+          creditsDelta: effectivePkgCredits,
+          usdAmount: effectiveUsd,
           date: new Date(p.created_at).toLocaleDateString('en-US', {
             month: 'short',
             day: '2-digit',
@@ -146,16 +236,18 @@ export async function GET(req: NextRequest) {
           }),
           timestamp: new Date(p.created_at).getTime(),
           paymentMethod: 'paypal',
-          status: p.payment_status === 'paid' ? 'completed' : 'pending',
+          status: txStatus,
+          description: `${p.package_name || pkg?.name || 'Package'} allocation (${refCode})`,
+          bucket: 'purchased',
         });
       }
 
-      // Deduction transaction
+      // Service Scope Deduction entry
       const creditsUsed = Number(p.applied_wallet_credits) || Number(p.total_credits) || 0;
-      if (creditsUsed > 0) {
-        fallbackTransactions.push({
+      if (creditsUsed > 0 && !hasLedgerSpend) {
+        allTransactions.push({
           id: `tx-deduct-${p.id}`,
-          reference: p.project_code || `HT-${p.id.slice(-6).toUpperCase()}`,
+          reference: refCode,
           clientEmail: p.email || 'client@humantek.com',
           clientName: p.client_name || (p.email ? p.email.split('@')[0] : 'Client'),
           type: 'service_deduction',
@@ -168,17 +260,130 @@ export async function GET(req: NextRequest) {
           }),
           timestamp: new Date(p.created_at).getTime() + 1000,
           paymentMethod: 'credits',
-          status: p.payment_status === 'paid' ? 'completed' : 'pending',
+          status: txStatus,
+          description: `Production scope deduction (${refCode})`,
+          bucket: 'purchased',
         });
       }
-    });
+    }
 
-    fallbackTransactions.sort((a, b) => b.timestamp - a.timestamp);
+    // 3. Build comprehensive per-customer credit summaries across all transactions, projects, and wallets
+    const customerMap = new Map<
+      string,
+      LedgerCustomerSummary & { _projectKeys: Set<string> }
+    >();
+
+    const ensureCustomer = (rawEmail: string, fallbackName?: string | null, userId?: string | null) => {
+      const normalizedEmail = (rawEmail || 'client@humantek.com').toLowerCase().trim();
+      let entry = customerMap.get(normalizedEmail);
+      if (!entry) {
+        const prof = profileByEmail.get(normalizedEmail);
+        const resolvedUserId = userId || prof?.id || null;
+        const wallet = resolvedUserId ? walletByUserId.get(resolvedUserId) : undefined;
+        const displayName =
+          prof?.full_name ||
+          fallbackName ||
+          normalizedEmail.split('@')[0];
+
+        entry = {
+          clientEmail: normalizedEmail,
+          clientName: displayName,
+          userId: resolvedUserId,
+          walletBalance: Number(wallet?.balance_credits || 0),
+          walletPurchased: Number(wallet?.balance_purchased || 0),
+          walletPromo: Number(wallet?.balance_promo || 0),
+          settledCreditsAllocated: 0,
+          pendingCreditsAllocated: 0,
+          settledCreditsUsed: 0,
+          pendingCreditsUsed: 0,
+          settledUsdVolume: 0,
+          pendingUsdVolume: 0,
+          projectCount: 0,
+          transactionCount: 0,
+          _projectKeys: new Set<string>(),
+        };
+        customerMap.set(normalizedEmail, entry);
+      } else if (fallbackName && entry.clientName === entry.clientEmail.split('@')[0]) {
+        entry.clientName = fallbackName;
+      }
+      return entry;
+    };
+
+    for (const p of dbProjects) {
+      if (!p.email || isAutomatedTestEmail(p.email)) continue;
+      const entry = ensureCustomer(p.email, p.client_name, p.user_id);
+      const refKey = p.project_code || p.id;
+      if (refKey) entry._projectKeys.add(refKey);
+    }
+
+    for (const t of allTransactions) {
+      if (isAutomatedTestEmail(t.clientEmail)) continue;
+      const entry = ensureCustomer(t.clientEmail, t.clientName);
+      entry.transactionCount += 1;
+      if (t.reference && t.reference.startsWith('HT-')) {
+        entry._projectKeys.add(t.reference);
+      }
+
+      if (t.status === 'completed') {
+        if (t.creditsDelta > 0) {
+          entry.settledCreditsAllocated += t.creditsDelta;
+        } else if (t.creditsDelta < 0) {
+          entry.settledCreditsUsed += Math.abs(t.creditsDelta);
+        }
+        entry.settledUsdVolume += t.usdAmount;
+      } else if (t.status === 'pending') {
+        if (t.creditsDelta > 0) {
+          entry.pendingCreditsAllocated += t.creditsDelta;
+        } else if (t.creditsDelta < 0) {
+          entry.pendingCreditsUsed += Math.abs(t.creditsDelta);
+        }
+        entry.pendingUsdVolume += t.usdAmount;
+      }
+    }
+
+    const customers: LedgerCustomerSummary[] = Array.from(customerMap.values())
+      .map(({ _projectKeys, ...c }) => {
+        const netSettledRemaining = Math.max(0, c.settledCreditsAllocated - c.settledCreditsUsed);
+        const effectiveWalletBalance = Math.max(c.walletBalance, netSettledRemaining);
+        const effectiveWalletPurchased = Math.max(
+          c.walletPurchased,
+          Math.max(0, effectiveWalletBalance - c.walletPromo)
+        );
+        return {
+          ...c,
+          walletBalance: effectiveWalletBalance,
+          walletPurchased: effectiveWalletPurchased,
+          projectCount: _projectKeys.size,
+        };
+      })
+      .sort((a, b) => b.transactionCount - a.transactionCount || a.clientName.localeCompare(b.clientName));
+
+    // Apply optional query filters
+    let filtered = allTransactions;
+    if (customerParam && customerParam !== 'all') {
+      filtered = filtered.filter((t) => t.clientEmail.toLowerCase().trim() === customerParam);
+    }
+    if (typeParam && typeParam !== 'all') {
+      filtered = filtered.filter((t) => t.type === typeParam);
+    }
+    if (statusParam && statusParam !== 'all') {
+      filtered = filtered.filter((t) => t.status === statusParam);
+    }
+
+    // Sort newest first
+    filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+    const totalCount = filtered.length;
+    const pageNum = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+    const offset = (pageNum - 1) * limit;
+    const pagedTransactions = filtered.slice(offset, offset + limit);
+    const hasMore = offset + limit < totalCount;
 
     return NextResponse.json({
-      transactions: fallbackTransactions.slice(0, limit),
-      totalCount: fallbackTransactions.length,
-      hasMore: false,
+      transactions: pagedTransactions,
+      customers,
+      totalCount,
+      hasMore,
       nextCursor: null,
       limit,
     });

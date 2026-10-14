@@ -67,16 +67,28 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   const {
     projectId,
     isGlobal,
+    outbox,
     setActiveProjectId,
     unreadCounts,
     unreadBelowScroll,
     incrementUnreadBelowScroll,
     clearUnreadBelowScroll,
+    queueMessage,
+    removeMessage,
+    markMessageFailed,
   } = useStudioChat();
 
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatReplyTo | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+
+  const [syncedThreadId, setSyncedThreadId] = useState(projectId);
+  if (syncedThreadId !== projectId) {
+    setSyncedThreadId(projectId);
+    setReplyingTo(null);
+    setEditingMessage(null);
+    setPreviewAttachment(null);
+  }
 
   const [showMobileThread, setShowMobileThread] = useState(() => Boolean(initialProjectId));
   const [prevInitialId, setPrevInitialId] = useState(initialProjectId);
@@ -134,7 +146,7 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
   };
 
   const handleToggleLike = async (messageId: string) => {
-    const adminName = user?.name || 'Humantek Studio';
+    const adminName = 'Studio Team';
     const numericId = parseInt(messageId, 10);
     if (targetProjectId && !isNaN(numericId)) {
       try {
@@ -166,17 +178,41 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
       toast.error('Please select an active conversation first');
       return;
     }
+    const senderName = 'Studio Team';
+    const clientMsgId = queueMessage(text, { attachments, replyTo, senderName });
+    if (!clientMsgId) return;
+
     try {
       await sendDbMessage(
         text,
         attachments && attachments.length > 0 ? attachments : undefined,
-        undefined,
+        clientMsgId,
         replyTo || undefined
       );
+      removeMessage(clientMsgId);
       setReplyingTo(null);
-      toast.success('Reply sent to client');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to send reply');
+      const msg = err instanceof Error ? err.message : 'Failed to send reply';
+      markMessageFailed(clientMsgId, msg);
+      toast.error(msg);
+    }
+  };
+
+  const handleRetryMessage = async (clientMsgId: string) => {
+    const target = outbox.find((m) => m.clientMessageId === clientMsgId || m.id === clientMsgId);
+    if (!target) return;
+    removeMessage(clientMsgId);
+    await handleSendMessage(target.content, target.attachments, target.replyTo);
+  };
+
+  const handleScrollToMessage = (messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-amber-400/80', 'rounded-xl', 'transition-all');
+      setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-amber-400/80', 'rounded-xl');
+      }, 1500);
     }
   };
 
@@ -198,10 +234,26 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
       return [];
     }
     const clientName = isGlobal ? 'Creator' : activeProject?.clientName || 'Client';
-    return (dbMessages || []).map((m) =>
+    const scopedDb = (dbMessages || []).filter((m) => m.projectId === targetProjectId);
+    const mappedDb = scopedDb.map((m) =>
       mapProjectChatMessage(m, { clientName, lastReadId })
     );
-  }, [isGlobal, targetProjectId, dbMessages, lastReadId, activeProject]);
+
+    const confirmedClientIds = new Set(
+      scopedDb.map((m) => m.clientMessageId).filter(Boolean)
+    );
+    const pendingOptimistic = outbox
+      .filter(
+        (m: ChatMessage) =>
+          m.projectId === targetProjectId &&
+          m.clientMessageId &&
+          !confirmedClientIds.has(m.clientMessageId) &&
+          (m.status === 'sending' || m.status === 'failed')
+      )
+      .map((m: ChatMessage) => ({ ...m, sender: 'agent' as const }));
+
+    return [...mappedDb, ...pendingOptimistic];
+  }, [isGlobal, targetProjectId, dbMessages, lastReadId, activeProject, outbox]);
 
   return (
     <>
@@ -370,6 +422,8 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
                   onToggleLike={handleToggleLike}
                   onStartEdit={handleStartEdit}
                   onDelete={handleDeleteMessage}
+                  onScrollToMessage={handleScrollToMessage}
+                  onRetry={handleRetryMessage}
                 />
               )}
             />

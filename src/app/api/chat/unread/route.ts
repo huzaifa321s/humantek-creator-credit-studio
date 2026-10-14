@@ -59,7 +59,7 @@ export async function GET() {
 
     const { data: rows, error: msgErr } = await admin
       .from('project_messages')
-      .select('id, project_id')
+      .select('id, project_id, body')
       .in('project_id', projectIds)
       .neq('sender_id', user.id)
       .eq('kind', 'user')
@@ -75,10 +75,27 @@ export async function GET() {
     let total = 0;
     for (const row of rows || []) {
       const pid = row.project_id as string;
-      if (Number(row.id) > (lastRead.get(pid) ?? 0)) {
-        counts[pid] = (counts[pid] || 0) + 1;
-        total += 1;
+      if (Number(row.id) <= (lastRead.get(pid) ?? 0)) continue;
+
+      const rawBody = typeof row.body === 'string' ? row.body : '';
+      if (rawBody.startsWith('{"v":1,')) {
+        try {
+          const parsed = JSON.parse(rawBody);
+          if (parsed.isDeleted) continue;
+          // In global support chat, non-admin clients only count replies addressed to them
+          if (pid === 'global' && !user.isAdmin && parsed.clientUserId !== user.id) {
+            continue;
+          }
+        } catch {
+          if (pid === 'global' && !user.isAdmin) continue;
+        }
+      } else if (pid === 'global' && !user.isAdmin) {
+        // Legacy un-scoped global messages from other clients shouldn't trigger unread badges
+        continue;
       }
+
+      counts[pid] = (counts[pid] || 0) + 1;
+      total += 1;
     }
 
     return NextResponse.json({ counts, total });

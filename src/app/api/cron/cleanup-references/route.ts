@@ -101,15 +101,6 @@ export async function POST(req: NextRequest) {
     if (lastSuccessfulRun && new Date(lastSuccessfulRun.created_at).getTime() < Date.now() - MISSED_RUN_THRESHOLD_MS) {
       missedRunAlert = `Missed cron schedule detected. Previous successful cleanup was at ${lastSuccessfulRun.created_at} (>36 hours ago).`;
       console.warn(`[Cron Alert] ${missedRunAlert}`);
-      try {
-        await admin.from('admin_alerts').insert({
-          type: 'cron_missed_run',
-          message: missedRunAlert,
-          metadata: { lastRunAt: lastSuccessfulRun.created_at, thresholdHours: 36 },
-        });
-      } catch (alertErr) {
-        console.warn('Could not record cron alert to admin_alerts:', alertErr);
-      }
     }
 
     // 3. Paginated query for abandoned pending uploads (status = 'pending' AND created_at < 8 days)

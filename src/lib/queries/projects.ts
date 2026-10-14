@@ -24,7 +24,13 @@ export interface ProjectsResponse {
   counts: {
     all: number;
     active: number;
+    pending_review?: number;
+    payment_confirmed?: number;
+    in_production?: number;
+    review_round?: number;
     delivered: number;
+    declined?: number;
+    cancelled?: number;
   };
   hasMore: boolean;
   nextCursor: string | null;
@@ -200,6 +206,8 @@ export function useUpdateProjectStatus() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['management'] });
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] });
     },
   });
 }

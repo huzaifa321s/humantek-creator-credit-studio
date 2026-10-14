@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import { useTheme } from 'next-themes';
 import {
   FolderKanban,
@@ -45,6 +46,7 @@ export function DashboardProfileDropdown({
 }: DashboardProfileDropdownProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const topLoader = useTopLoader();
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useUserStore();
 
@@ -101,6 +103,7 @@ export function DashboardProfileDropdown({
   const queryClient = useQueryClient();
 
   const handleSignOut = async () => {
+    topLoader.start();
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch {

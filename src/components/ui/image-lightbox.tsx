@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 export interface LightboxImage {
@@ -41,6 +42,7 @@ export function ImageLightbox({
 }: ImageLightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [failedIndices, setFailedIndices] = useState<Set<number>>(new Set());
+  const [loadedKeys, setLoadedKeys] = useState<Set<string>>(new Set());
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -55,13 +57,16 @@ export function ImageLightbox({
   const errorCardRef = useRef<HTMLDivElement | null>(null);
   const isPointerDownOutsideRef = useRef(false);
 
-  // Sync index when initialIndex changes or modal opens
-  useEffect(() => {
+  // Sync index when initialIndex changes or modal opens without cascading effect renders
+  const syncKey = `${open}-${initialIndex}-${images.length}`;
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey);
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
     if (open) {
       const validIndex = Math.max(0, Math.min(initialIndex, Math.max(images.length - 1, 0)));
       setCurrentIndex(validIndex);
     }
-  }, [open, initialIndex, images.length]);
+  }
 
   const currentImage = images[currentIndex];
   const hasMultiple = images.length > 1;
@@ -332,14 +337,35 @@ export function ImageLightbox({
               </div>
             ) : (
               <div className="relative max-h-full max-w-full flex items-center justify-center">
+                {!loadedKeys.has(`${currentImage.url}-${retryKey}`) && (
+                  <Skeleton
+                    data-slot="lightbox-skeleton"
+                    className="w-[75vw] max-w-md aspect-square sm:aspect-video rounded-xl bg-white/10"
+                  />
+                )}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   key={`${currentImage.url}-${retryKey}`}
+                  ref={(node) => {
+                    const imgKey = `${currentImage.url}-${retryKey}`;
+                    if (node && node.complete && node.naturalWidth > 0 && !loadedKeys.has(imgKey)) {
+                      setLoadedKeys((prev) => new Set(prev).add(imgKey));
+                    }
+                  }}
                   src={currentImage.url}
                   alt={currentImage.filename || `Reference image ${currentIndex + 1}`}
+                  onLoad={() => {
+                    const imgKey = `${currentImage.url}-${retryKey}`;
+                    setLoadedKeys((prev) => new Set(prev).add(imgKey));
+                  }}
                   onError={handleImageError}
                   onClick={(e) => e.stopPropagation()}
-                  className="max-h-[75vh] sm:max-h-[82vh] w-auto max-w-[92vw] sm:max-w-[85vw] object-contain rounded-lg shadow-2xl transition-all duration-150 select-none pointer-events-auto cursor-default"
+                  className={cn(
+                    'max-h-[75vh] sm:max-h-[82vh] w-auto max-w-[92vw] sm:max-w-[85vw] object-contain rounded-lg shadow-2xl transition-opacity duration-200 select-none pointer-events-auto cursor-default',
+                    loadedKeys.has(`${currentImage.url}-${retryKey}`)
+                      ? 'opacity-100'
+                      : 'opacity-0 absolute'
+                  )}
                 />
               </div>
             )}

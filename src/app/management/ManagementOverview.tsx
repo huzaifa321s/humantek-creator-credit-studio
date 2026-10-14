@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditValue } from '@/components/ui/credit-value';
+import { MobileDataCardActions } from '@/components/ui/table';
 import {
   Empty,
   EmptyDescription,
@@ -41,18 +42,18 @@ export function ManagementOverview() {
 
   // Backwards compatibility redirect for legacy bookmarks / links with ?tab=
   useEffect(() => {
-    if (tabParam === 'projects') {
-      router.replace('/management/projects');
-    } else if (tabParam === 'messages') {
-      router.replace('/management/inbox');
-    } else if (tabParam === 'wire-orders') {
-      router.replace('/management/orders');
-    } else if (tabParam === 'alerts') {
-      router.replace('/management/alerts');
-    } else if (tabParam === 'ledger') {
+    const idParam = searchParams.get('id') || searchParams.get('project') || searchParams.get('thread');
+    const subtabParam = searchParams.get('subtab');
+    if (subtabParam === 'chat' || tabParam === 'messages') {
+      router.replace(idParam ? `/management/inbox?thread=${encodeURIComponent(idParam)}` : '/management/inbox');
+    } else if (tabParam === 'projects') {
+      router.replace(idParam ? `/management/projects?project=${encodeURIComponent(idParam)}` : '/management/projects');
+    } else if (tabParam === 'orders' || tabParam === 'wire-orders') {
+      router.replace(idParam ? `/management/orders?id=${encodeURIComponent(idParam)}` : '/management/orders');
+    } else if (tabParam === 'ledger' || tabParam === 'credits') {
       router.replace('/management/ledger');
     }
-  }, [tabParam, router]);
+  }, [tabParam, searchParams, router]);
 
   const { data: summary, isPending: isSummaryLoading } = useManagementSummaryQuery();
   const { data: recentProjects = [], isPending: isProjectsLoading } = useProjectsQuery();
@@ -73,7 +74,6 @@ export function ManagementOverview() {
     projects: 0,
     pendingReview: 0,
     wireOrders: 0,
-    alerts: 0,
     ledger: 0,
   };
 
@@ -435,12 +435,12 @@ export function ManagementOverview() {
                     </div>
 
                     {/* Right Column: Values & Action Buttons */}
-                    <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 pt-2 md:pt-0 border-t border-border/40 md:border-t-0">
-                      <div className="text-left md:text-right">
+                    <div className="flex flex-wrap sm:flex-nowrap items-center justify-between md:justify-end gap-3 shrink-0 pt-2.5 md:pt-0 border-t border-border/40 md:border-t-0">
+                      <div className="flex items-center gap-2.5 sm:block text-left md:text-right">
                         <div className="text-sm font-mono font-bold text-foreground tabular-nums">
                           ${project.packagePrice.toLocaleString()} USD
                         </div>
-                        <div className="mt-0.5">
+                        <div className="sm:mt-0.5">
                           <CreditValue
                             value={project.packageCredits || project.usedCredits || 0}
                             size="xs"
@@ -449,13 +449,13 @@ export function ManagementOverview() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <MobileDataCardActions>
                         <Link href={`/management/inbox?thread=${project.id}`}>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
+                            className="w-full h-8 px-3 text-xs font-medium gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
                           >
                             <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
                             <span>Chat</span>
@@ -467,13 +467,13 @@ export function ManagementOverview() {
                             type="button"
                             variant="gold"
                             size="sm"
-                            className="h-8 px-3 text-xs font-bold gap-1 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
+                            className="w-full h-8 px-3 text-xs font-bold gap-1 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
                           >
                             <span>Manage</span>
                             <ArrowRight className="size-3.5" />
                           </Button>
                         </Link>
-                      </div>
+                      </MobileDataCardActions>
                     </div>
                   </div>
                 );

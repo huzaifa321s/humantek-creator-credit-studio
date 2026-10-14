@@ -63,6 +63,9 @@ export function useProjectChat({
   const [isSending, setIsSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const activeProjectIdRef = useRef<string | null>(projectId);
+  const messagesRef = useRef<ProjectChatMessage[]>(messages);
+
   const [prevProjectId, setPrevProjectId] = useState(projectId);
   if (prevProjectId !== projectId) {
     setPrevProjectId(projectId);
@@ -72,38 +75,54 @@ export function useProjectChat({
     setError(null);
   }
 
-  const messagesRef = useRef<ProjectChatMessage[]>(messages);
   useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+    activeProjectIdRef.current = projectId;
+    messagesRef.current = messages.filter((m) => m.projectId === projectId);
+  }, [messages, projectId]);
 
-  // Merge newly fetched messages into current state deduplicating by ID and sorting ascending
-  const mergeMessages = useCallback((newMsgs: ProjectChatMessage[]) => {
-    if (!newMsgs || newMsgs.length === 0) return;
+  // Merge newly fetched messages into current state deduplicating by ID, strictly scoped to targetProjectId
+  const mergeMessages = useCallback((newMsgs: ProjectChatMessage[], targetProjectId: string | null) => {
+    if (!newMsgs || newMsgs.length === 0 || !targetProjectId) return;
+    if (activeProjectIdRef.current !== targetProjectId) return;
+
+    const validNew = newMsgs.filter((m) => m && m.projectId === targetProjectId);
+    if (validNew.length === 0) return;
+
     setMessages((prev) => {
+      if (activeProjectIdRef.current !== targetProjectId) return prev;
       const map = new Map<number, ProjectChatMessage>();
-      for (const m of prev) map.set(m.id, m);
-      for (const m of newMsgs) map.set(m.id, m);
+      for (const m of prev) {
+        if (m.projectId === targetProjectId) {
+          map.set(m.id, m);
+        }
+      }
+      for (const m of validNew) {
+        map.set(m.id, m);
+      }
       return Array.from(map.values()).sort((a, b) => a.id - b.id);
     });
   }, []);
 
-  // Fetch messages incrementally using after_id with overlap
+  // Fetch messages incrementally using after_id with overlap, guarded against stale project switches
   const fetchIncremental = useCallback(
-    async (currentHighestId?: number) => {
-      if (!isRealProject) return;
+    async (currentHighestId?: number, signal?: AbortSignal) => {
+      const targetId = projectId;
+      if (!isRealProject || !targetId) return;
+
+      const scopedExisting = messagesRef.current.filter((m) => m.projectId === targetId);
       const highest =
         currentHighestId ??
-        (messagesRef.current.length > 0
-          ? messagesRef.current[messagesRef.current.length - 1].id
-          : 0);
+        (scopedExisting.length > 0 ? scopedExisting[scopedExisting.length - 1].id : 0);
 
       try {
-        const url = highest > 0
-          ? `/api/projects/${projectId}/messages?after_id=${highest}`
-          : `/api/projects/${projectId}/messages`;
+        const url =
+          highest > 0
+            ? `/api/projects/${targetId}/messages?after_id=${highest}`
+            : `/api/projects/${targetId}/messages`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, { signal });
+        if (activeProjectIdRef.current !== targetId) return;
+
         if (!res.ok) {
           if (res.status === 403 || res.status === 401) {
             setError('Access denied');
@@ -112,30 +131,37 @@ export function useProjectChat({
         }
 
         const data = await res.json();
+        if (activeProjectIdRef.current !== targetId) return;
+
         if (data.messages) {
-          mergeMessages(data.messages);
+          mergeMessages(data.messages, targetId);
         }
         if (typeof data.lastReadId === 'number') {
           setLastReadId(data.lastReadId);
         }
       } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
         console.error('Failed to fetch messages:', err);
       }
     },
     [isRealProject, projectId, mergeMessages]
   );
 
-  // Initial load
+  // Initial load with AbortController cancellation on thread switch
   useEffect(() => {
-    if (!isRealProject) return;
+    const targetId = projectId;
+    if (!isRealProject || !targetId) return;
 
+    const controller = new AbortController();
     let isMounted = true;
 
-    fetch(`/api/projects/${projectId}/messages`)
+    fetch(`/api/projects/${targetId}/messages`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) {
-            setError('Access denied');
+            if (isMounted && activeProjectIdRef.current === targetId) {
+              setError('Access denied');
+            }
             return null;
           }
           throw new Error('Failed to load messages');
@@ -143,38 +169,46 @@ export function useProjectChat({
         return res.json();
       })
       .then((data) => {
-        if (!isMounted || !data) {
+        if (!isMounted || activeProjectIdRef.current !== targetId) return;
+        if (!data) {
           setIsLoading(false);
           return;
         }
-        setMessages(data.messages || []);
+        const scopedMessages = Array.isArray(data.messages)
+          ? data.messages.filter((m: ProjectChatMessage) => m && m.projectId === targetId)
+          : [];
+        setMessages(scopedMessages);
         setLastReadId(data.lastReadId || 0);
         setIsLoading(false);
       })
       .catch((err: unknown) => {
-        if (!isMounted) return;
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (!isMounted || activeProjectIdRef.current !== targetId) return;
         setError(err instanceof Error ? err.message : 'Failed to load messages');
         setIsLoading(false);
       });
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [isRealProject, projectId]);
 
   // Realtime subscription (Doorbell pattern)
   useEffect(() => {
-    if (!isRealProject) return;
+    const targetId = projectId;
+    if (!isRealProject || !targetId) return;
+
+    const controller = new AbortController();
 
     const unsubscribe = transport.subscribe(
-      projectId!,
-      () => {
-        // Doorbell signal: fetch new messages since highest local ID with overlap window
-        const highest =
-          messagesRef.current.length > 0
-            ? messagesRef.current[messagesRef.current.length - 1].id
-            : 0;
-        fetchIncremental(highest);
+      targetId,
+      (evt) => {
+        if (activeProjectIdRef.current !== targetId) return;
+        if (evt?.projectId && evt.projectId !== targetId) return;
+        const scopedExisting = messagesRef.current.filter((m) => m.projectId === targetId);
+        const highest = scopedExisting.length > 0 ? scopedExisting[scopedExisting.length - 1].id : 0;
+        void fetchIncremental(highest, controller.signal);
       },
       (err) => {
         console.warn('Realtime channel error on project chat, falling back to polling:', err);
@@ -182,25 +216,29 @@ export function useProjectChat({
     );
 
     return () => {
+      controller.abort();
       unsubscribe();
     };
   }, [isRealProject, projectId, transport, fetchIncremental]);
 
   // 15-second polling fallback & online/focus listeners
   useEffect(() => {
-    if (!isRealProject || error === 'Access denied') return;
+    if (!isRealProject || !projectId || error === 'Access denied') return;
+
+    const controller = new AbortController();
 
     const interval = setInterval(() => {
-      fetchIncremental();
+      void fetchIncremental(undefined, controller.signal);
     }, pollIntervalMs);
 
-    const onFocus = () => fetchIncremental();
-    const onOnline = () => fetchIncremental();
+    const onFocus = () => void fetchIncremental(undefined, controller.signal);
+    const onOnline = () => void fetchIncremental(undefined, controller.signal);
 
     window.addEventListener('focus', onFocus);
     window.addEventListener('online', onOnline);
 
     return () => {
+      controller.abort();
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
@@ -215,8 +253,9 @@ export function useProjectChat({
       existingClientMsgId?: string,
       replyTo?: ChatReplyTo
     ) => {
+      const targetId = projectId;
       const uploaded = (attachments || []).filter((a) => a.storagePath);
-      if (!isRealProject) return;
+      if (!isRealProject || !targetId) return;
       if (!bodyText.trim() && uploaded.length === 0) return;
       setIsSending(true);
 
@@ -227,7 +266,7 @@ export function useProjectChat({
           : `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
 
       try {
-        const res = await fetch(`/api/projects/${projectId}/messages`, {
+        const res = await fetch(`/api/projects/${targetId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -249,8 +288,8 @@ export function useProjectChat({
         }
 
         const data = await res.json();
-        if (data.message) {
-          mergeMessages([data.message]);
+        if (data.message && activeProjectIdRef.current === targetId) {
+          mergeMessages([data.message], targetId);
         }
       } finally {
         setIsSending(false);
@@ -399,10 +438,13 @@ export function useProjectChat({
     [isRealProject, projectId, lastReadId, invalidateUnread]
   );
 
-  const unreadCount = messages.filter((m) => m.id > lastReadId).length;
+  const scopedMessages = projectId
+    ? messages.filter((m) => m.projectId === projectId)
+    : [];
+  const unreadCount = scopedMessages.filter((m) => m.id > lastReadId).length;
 
   return {
-    messages,
+    messages: scopedMessages,
     lastReadId,
     unreadCount,
     isLoading,

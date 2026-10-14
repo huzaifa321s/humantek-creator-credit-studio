@@ -46,6 +46,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { UploadedAttachmentList } from '@/components/ui/reference-image-grid';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -83,16 +84,6 @@ import {
   NumberFieldIncrement,
   NumberFieldInput,
 } from '@/components/reui/number-field';
-import {
-  Attachment,
-  AttachmentGroup,
-  AttachmentMedia,
-  AttachmentContent,
-  AttachmentTitle,
-  AttachmentDescription,
-  AttachmentActions,
-  AttachmentAction,
-} from '@/components/ui/attachment';
 import { Spinner } from '@/components/ui/spinner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { IconTile } from '@/components/reui/icon-tile';
@@ -1151,9 +1142,12 @@ export default function CreatorStudioPage() {
       price: project.packagePrice,
       credits: project.packageCredits,
     });
+    const formattedCode = project.projectCode?.startsWith('HT-')
+      ? project.projectCode
+      : `HT-${project.projectCode}`;
     useNotificationStore.getState().addNotification({
       title: project.paymentStatus === 'paid' ? 'Project Launched' : 'Project Submitted for Review',
-      description: `Project HT-${project.projectCode} (${project.packageName}) is now in our studio system.`,
+      description: `Project ${formattedCode} (${project.packageName}) is now in our studio system.`,
       iconType: project.paymentStatus === 'paid' ? 'check' : 'sparkles',
       link: `/new-project/confirmation/${project.id}`,
     });
@@ -2802,50 +2796,71 @@ export default function CreatorStudioPage() {
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         Every creative service includes 2–3 structured revision rounds within the approved direction. Modifications after approvals or outside scope adhere to the following rates:
                       </p>
-                      <div className="rounded-xl border border-border/70 overflow-hidden overflow-x-auto bg-background [scrollbar-width:thin]">
-                        <Table className="w-full min-w-[340px] text-xs">
+                      <div className="rounded-xl border border-border/70 overflow-hidden bg-background">
+                        <Table className="w-full text-xs">
                           <TableHeader className="bg-muted/40">
                             <TableRow className="border-b border-border/70 hover:bg-transparent">
-                              <TableHead className="font-semibold text-foreground py-2.5 px-3.5">Modification Scope</TableHead>
-                              <TableHead className="font-semibold text-foreground py-2.5 px-3.5 text-right">Fee Rate</TableHead>
+                              <TableHead wrap className="font-semibold text-foreground py-2.5 px-3 sm:px-3.5">Modification Scope</TableHead>
+                              <TableHead className="font-semibold text-foreground py-2.5 px-3 sm:px-3.5 text-right">Fee Rate</TableHead>
                               <TableHead className="font-semibold text-foreground py-2.5 px-3.5 hidden sm:table-cell">Policy Guideline</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             <TableRow className="border-b border-border/50">
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Humantek Art error correction</TableCell>
-                              <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 py-2.5 px-3.5">0 CR (Free)</TableCell>
-                              <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Corrections required to meet approved brief</TableCell>
+                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
+                                <div>Humantek Art error correction</div>
+                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Corrections required to meet approved brief</div>
+                              </TableCell>
+                              <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">0 CR (Free)</TableCell>
+                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Corrections required to meet approved brief</TableCell>
                             </TableRow>
                             <TableRow className="border-b border-border/50">
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Minor text or color change</TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3.5">5% (min 4 CR)</TableCell>
-                              <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Applies to finalized typography or palette tweaks</TableCell>
+                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
+                                <div>Minor text or color change</div>
+                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Applies to finalized typography or palette tweaks</div>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">5% (min 4 CR)</TableCell>
+                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Applies to finalized typography or palette tweaks</TableCell>
                             </TableRow>
                             <TableRow className="border-b border-border/50">
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Extra revision round</TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3.5">10% (min 4 CR)</TableCell>
-                              <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">One consolidated feedback list after included rounds</TableCell>
+                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
+                                <div>Extra revision round</div>
+                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">One consolidated feedback list after included rounds</div>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">10% (min 4 CR)</TableCell>
+                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">One consolidated feedback list after included rounds</TableCell>
                             </TableRow>
                             <TableRow className="border-b border-border/50">
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Additional size or platform</TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3.5">15% (min 4 CR)</TableCell>
-                              <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Formatting approved design for an extra platform</TableCell>
+                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
+                                <div>Additional size or platform</div>
+                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Formatting approved design for an extra platform</div>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">15% (min 4 CR)</TableCell>
+                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Formatting approved design for an extra platform</TableCell>
                             </TableRow>
                             <TableRow className="border-b border-border/50">
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Direction change after approval</TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3.5">35% (min 12 CR)</TableCell>
-                              <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Requires a new brief and revised timeline</TableCell>
+                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
+                                <div>Direction change after approval</div>
+                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Requires a new brief and revised timeline</div>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">35% (min 12 CR)</TableCell>
+                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Requires a new brief and revised timeline</TableCell>
                             </TableRow>
                             <TableRow className="border-b border-border/50">
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">New concept using same brief</TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3.5">60% (min 12 CR)</TableCell>
-                              <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Replaces standard revision fee for that unit</TableCell>
+                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
+                                <div>New concept using same brief</div>
+                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Replaces standard revision fee for that unit</div>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">60% (min 12 CR)</TableCell>
+                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Replaces standard revision fee for that unit</TableCell>
                             </TableRow>
                             <TableRow>
-                              <TableCell className="font-medium text-foreground py-2.5 px-3.5">Rush delivery request</TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3.5">35% (min 12 CR)</TableCell>
-                              <TableCell className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Subject to studio production availability</TableCell>
+                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
+                                <div>Rush delivery request</div>
+                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Subject to studio production availability</div>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">35% (min 12 CR)</TableCell>
+                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Subject to studio production availability</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -3336,61 +3351,11 @@ export default function CreatorStudioPage() {
                   </p>
                 )}
 
-                {(uploadedFiles.length > 0 || uploadingNames.length > 0) && (
-                  <AttachmentGroup className="pt-0.5">
-                    {uploadedFiles.map((f) => (
-                      <Attachment
-                        key={f.id}
-                        size="xs"
-                        className="min-w-0 max-w-[200px] border-border/80 shadow-2xs"
-                      >
-                        <AttachmentMedia variant="image">
-                          {f.url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={f.url} alt={f.filename} />
-                          ) : (
-                            <ImageIcon className="text-brand-text dark:text-amber-400" />
-                          )}
-                        </AttachmentMedia>
-                        <AttachmentContent>
-                          <AttachmentTitle className="text-xs">{f.filename}</AttachmentTitle>
-                          <AttachmentDescription className="text-2xs">
-                            {f.size >= 1024 * 1024
-                              ? `${(f.size / (1024 * 1024)).toFixed(1)} MB`
-                              : `${Math.max(1, Math.round(f.size / 1024))} KB`}
-                          </AttachmentDescription>
-                        </AttachmentContent>
-                        <AttachmentActions>
-                          <AttachmentAction
-                            aria-label={`Remove ${f.filename}`}
-                            onClick={() => removeUploadedFile(f.id)}
-                            className="text-muted-foreground hover:text-rose-600"
-                          >
-                            <X />
-                          </AttachmentAction>
-                        </AttachmentActions>
-                      </Attachment>
-                    ))}
-                    {uploadingNames.map((name) => (
-                      <Attachment
-                        key={`uploading-${name}`}
-                        size="xs"
-                        state="uploading"
-                        className="min-w-0 max-w-[200px] border-border/80 shadow-2xs"
-                      >
-                        <AttachmentMedia>
-                          <Spinner />
-                        </AttachmentMedia>
-                        <AttachmentContent>
-                          <AttachmentTitle className="text-xs">{name}</AttachmentTitle>
-                          <AttachmentDescription className="text-2xs">
-                            Uploading…
-                          </AttachmentDescription>
-                        </AttachmentContent>
-                      </Attachment>
-                    ))}
-                  </AttachmentGroup>
-                )}
+                <UploadedAttachmentList
+                  files={uploadedFiles}
+                  uploadingNames={uploadingNames}
+                  onRemove={removeUploadedFile}
+                />
               </div>
 
               {/* Promo Code Panel */}
@@ -3687,7 +3652,7 @@ export default function CreatorStudioPage() {
                                   <TableBody>
                                     {selectedEntries.map(({ service, choice, credits }) => (
                                       <TableRow key={service.id} className="hover:bg-secondary/30 border-b border-border/40">
-                                        <TableCell className="py-2 text-xs font-bold text-foreground max-w-[130px] truncate">
+                                        <TableCell wrap className="py-2 text-xs font-bold text-foreground">
                                           {service.name}
                                         </TableCell>
                                         <TableCell className="py-2 text-xs text-muted-foreground">
@@ -3758,7 +3723,7 @@ export default function CreatorStudioPage() {
                             <TableBody>
                               {selectedEntries.map(({ service, choice, credits }) => (
                                 <TableRow key={service.id} className="hover:bg-secondary/30 border-b border-border/40">
-                                  <TableCell className="py-2 text-xs font-bold text-foreground max-w-[130px] sm:max-w-none truncate sm:whitespace-normal">
+                                  <TableCell wrap className="py-2 text-xs font-bold text-foreground">
                                     {service.name}
                                   </TableCell>
                                   <TableCell className="py-2 text-xs text-muted-foreground">
@@ -3831,9 +3796,12 @@ export default function CreatorStudioPage() {
                             </div>
                           )}
                           {uploadedFiles.length > 0 && (
-                            <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground border-t border-border/40">
-                              <Upload className="w-3.5 h-3.5 text-primary shrink-0" />
-                              <span>{uploadedFiles.length} reference file(s) attached</span>
+                            <div className="space-y-1.5 pt-1 border-t border-border/40">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Upload className="w-3.5 h-3.5 text-primary shrink-0" />
+                                <span>{uploadedFiles.length} reference file(s) attached</span>
+                              </div>
+                              <UploadedAttachmentList files={uploadedFiles} />
                             </div>
                           )}
                         </div>
@@ -3889,9 +3857,15 @@ export default function CreatorStudioPage() {
                       )}
 
                       {uploadedFiles.length > 0 && (
-                        <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground border-t border-border/40">
-                          <Upload className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                          <span>{uploadedFiles.length} reference file(s) attached to brief</span>
+                        <div className="space-y-2 pt-2 border-t border-border/40">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="flex items-center gap-2 font-medium text-foreground">
+                              <Upload className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                              <span>{uploadedFiles.length} reference file(s) attached to brief</span>
+                            </span>
+                            <span className="text-2xs text-muted-foreground">Click to preview</span>
+                          </div>
+                          <UploadedAttachmentList files={uploadedFiles} />
                         </div>
                       )}
                     </div>

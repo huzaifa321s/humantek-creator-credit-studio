@@ -73,14 +73,9 @@ export async function getRequestUser(): Promise<RequestUser | null> {
 
     const profile = profileRes.data;
 
-    // Security & Data Integrity: If profile row is missing, raise an alert and auto-heal
+    // Data Integrity: If profile row is missing, auto-heal client profile
     if (!profile && isSupabaseConfigured()) {
       try {
-        await admin.from('admin_alerts').insert({
-          type: 'missing_profile',
-          message: `Authenticated user ${user.id} (${email}) has no profile row. Auto-healing client profile.`,
-          metadata: { userId: user.id, email, severity: 'warning' },
-        });
         await admin.from('profiles').upsert({
           id: user.id,
           email,
@@ -92,8 +87,8 @@ export async function getRequestUser(): Promise<RequestUser | null> {
           balance_purchased: 0,
           balance_promo: 0,
         }, { onConflict: 'user_id', ignoreDuplicates: true });
-      } catch (alertErr) {
-        console.warn('Could not record missing profile alert:', alertErr);
+      } catch (healErr) {
+        console.warn('Could not auto-heal missing profile:', healErr);
       }
     }
 

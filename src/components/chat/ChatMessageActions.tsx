@@ -92,7 +92,8 @@ export function useMessageActions({
   onRequestDelete,
   onCopy,
 }: UseMessageActionsOptions): MessageAction[] {
-  const canEdit = isOwn && isWithinEditWindow(message.createdAtRaw);
+  const hasText = Boolean(message.content?.trim());
+  const canEdit = isOwn && hasText && isWithinEditWindow(message.createdAtRaw);
 
   return React.useMemo(() => {
     if (message.isDeleted || message.sender === 'system') return [];
@@ -112,7 +113,15 @@ export function useMessageActions({
     }
 
     if (onReply) {
-      actions.push({ id: 'reply', label: 'Reply', icon: CornerUpLeft, onSelect: () => onReply(message) });
+      const replyContent =
+        message.content?.trim() ||
+        (message.attachments?.length ? '📷 Photo' : 'Attachment');
+      actions.push({
+        id: 'reply',
+        label: 'Reply',
+        icon: CornerUpLeft,
+        onSelect: () => onReply({ ...message, content: replyContent }),
+      });
     }
 
     if (canEdit && onStartEdit) {
@@ -125,7 +134,7 @@ export function useMessageActions({
       });
     }
 
-    if (message.content && onCopy) {
+    if (hasText && onCopy) {
       actions.push({ id: 'copy', label: 'Copy text', icon: Copy, onSelect: onCopy });
     }
 
@@ -140,7 +149,7 @@ export function useMessageActions({
     }
 
     return actions;
-  }, [message, isOwn, isLiked, likeCount, canEdit, onToggleLike, onReply, onStartEdit, onRequestDelete, onCopy]);
+  }, [message, isOwn, isLiked, likeCount, hasText, canEdit, onToggleLike, onReply, onStartEdit, onRequestDelete, onCopy]);
 }
 
 /* -------------------------------------------------------------------------- */

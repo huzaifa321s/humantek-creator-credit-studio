@@ -31,42 +31,42 @@ export const STUDIO_STEPS: StepItem[] = [
   {
     number: 1,
     stepText: '1 of 5',
-    name: 'Choose a package',
+    name: 'Package',
     shortName: 'Package',
-    headline: 'Start with the right credit wallet.',
-    desc: "Pick a package to get your credits. You'll see your balance update as you build your project.",
+    headline: 'Choose your package or wallet.',
+    desc: 'Pick a credit package or use your available Studio Wallet balance.',
   },
   {
     number: 2,
     stepText: '2 of 5',
-    name: 'Pick your services',
+    name: 'Services',
     shortName: 'Services',
-    headline: 'Choose everything you need in one go.',
-    desc: 'Select the services, set the size and quantity, and watch your credits update instantly.',
+    headline: 'Select the services you need.',
+    desc: 'Pick your creative services, tier level, and quantity.',
   },
   {
     number: 3,
     stepText: '3 of 5',
-    name: 'What credits cover',
-    shortName: 'Credits cover',
-    headline: 'Check what your credits can be used for.',
-    desc: 'Credits work for approved Humantek Art services only, so please check this before you continue.',
+    name: 'Guidelines',
+    shortName: 'Guidelines',
+    headline: 'Quick studio rules check.',
+    desc: 'Review what is covered and accept the studio guidelines before continuing.',
   },
   {
     number: 4,
     stepText: '4 of 5',
-    name: 'Your project details',
-    shortName: 'Project details',
-    headline: 'Tell us what each item should include.',
-    desc: 'Add your brief, reference images, and any extras, then confirm the terms.',
+    name: 'Details',
+    shortName: 'Details',
+    headline: 'Share your project details.',
+    desc: 'Tell us about your channel, style, color palette, and reference images.',
   },
   {
     number: 5,
     stepText: '5 of 5',
-    name: 'Review & pay',
-    shortName: 'Review & pay',
-    headline: 'Ready to submit?',
-    desc: 'Check your package, services, brief, and balance, then pay securely with PayPal.',
+    name: 'Review',
+    shortName: 'Review',
+    headline: 'Review and launch your project.',
+    desc: 'Double-check your summary and launch with your wallet or PayPal.',
   },
 ];
 
@@ -108,7 +108,7 @@ export function HorizontalStepper({
           const accessible = (isPackageSelected && step <= currentStep + 1) || step === 1;
           if (accessible) onSelectStep(step);
         }}
-        indicators={{ completed: <Check className="size-4 stroke-[3]" /> }}
+        indicators={{ completed: <Check className="size-4 sm:size-4.5 stroke-[3]" /> }}
         className="hidden sm:block w-full max-w-4xl select-none"
       >
         <StepperNav className="items-center justify-between w-full">
@@ -117,30 +117,29 @@ export function HorizontalStepper({
             const isAccessible = (isPackageSelected && stepNum <= currentStep + 1) || stepNum === 1;
 
             return (
-              <StepperItem key={step.name} step={stepNum} disabled={!isAccessible} className="gap-2">
+              <StepperItem key={step.number} step={stepNum} disabled={!isAccessible} className="gap-2 sm:gap-2.5">
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <StepperTrigger className="group gap-1.5 sm:gap-2 md:gap-2.5 rounded-xl px-1.5 sm:px-2 md:px-2.5 py-1 sm:py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed" />
+                      <StepperTrigger className="group gap-2 sm:gap-2.5 rounded-xl px-2 sm:px-2.5 py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed" />
                     }
                   >
                     <StepperIndicator
                       className={cn(
-                        'size-7.5 sm:size-8 rounded-full border-2 text-xs font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
+                        'size-8 sm:size-9 rounded-full border-2 text-xs sm:text-sm font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
                         // Inactive / Upcoming step: crisp and legible
                         'border-border/90 bg-card text-foreground/80 font-bold group-hover:border-amber-400/60 group-hover:text-foreground',
                         // Completed step: clean emerald green with white checkmark
                         'data-[state=completed]:border-emerald-500 data-[state=completed]:bg-emerald-500 data-[state=completed]:text-white data-[state=completed]:shadow-xs data-[state=completed]:shadow-emerald-500/20',
                         // Active step: slightly larger size, rich gradient, elevated shadow & vibrant amber-400 ring
-                        'data-[state=active]:size-8.5 sm:data-[state=active]:size-9 data-[state=active]:scale-105 data-[state=active]:border-amber-400 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-400 data-[state=active]:to-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-400/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-400/25'
+                        'data-[state=active]:size-9 sm:data-[state=active]:size-10 data-[state=active]:scale-105 data-[state=active]:border-amber-400 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-400 data-[state=active]:to-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-400/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-400/25'
                       )}
                     >
                       {stepNum}
                     </StepperIndicator>
 
-                    <StepperTitle className="whitespace-nowrap text-xs font-medium tracking-tight text-foreground/75 group-hover:text-foreground transition-colors duration-200 data-[state=completed]:font-semibold data-[state=completed]:text-foreground/90 data-[state=active]:font-extrabold data-[state=active]:text-foreground">
-                      <span className="hidden xl:inline">{step.name}</span>
-                      <span className="hidden md:inline xl:hidden">{step.shortName}</span>
+                    <StepperTitle className="whitespace-nowrap text-xs sm:text-sm font-semibold tracking-tight text-foreground/75 group-hover:text-foreground transition-colors duration-200 data-[state=completed]:font-semibold data-[state=completed]:text-foreground/90 data-[state=active]:font-extrabold data-[state=active]:text-foreground">
+                      {step.name}
                     </StepperTitle>
                   </TooltipTrigger>
 
@@ -250,10 +249,10 @@ export function HorizontalStepper({
       <div className="flex sm:hidden flex-col items-center justify-center w-full max-w-md mx-auto gap-2.5 py-0.5 select-none">
         <div className="flex items-center justify-between w-full px-0.5">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center justify-center size-5.5 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 text-xs font-black font-mono tabular-nums shadow-xs shadow-amber-400/30 shrink-0">
+            <span className="inline-flex items-center justify-center size-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 text-xs font-black font-mono tabular-nums shadow-xs shadow-amber-400/30 shrink-0">
               {currentStep}
             </span>
-            <span className="text-xs font-bold text-foreground truncate">
+            <span className="text-sm font-bold text-foreground truncate">
               {STUDIO_STEPS[currentStep - 1]?.name}
             </span>
           </div>
@@ -280,7 +279,7 @@ export function HorizontalStepper({
               >
                 <span
                   className={cn(
-                    'h-2 w-full rounded-full transition-all duration-300 block',
+                    'h-2.5 w-full rounded-full transition-all duration-300 block',
                     isDone
                       ? 'bg-emerald-500 shadow-2xs'
                       : isCurr

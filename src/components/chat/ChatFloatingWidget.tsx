@@ -57,6 +57,14 @@ function ChatFloatingWidgetInner() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const prevIsOpenRef = useRef(isOpen);
 
+  const [syncedThreadId, setSyncedThreadId] = useState(projectId);
+  if (syncedThreadId !== projectId) {
+    setSyncedThreadId(projectId);
+    setReplyingTo(null);
+    setEditingMessage(null);
+    setPreviewAttachment(null);
+  }
+
   const isMobile = useIsMobile();
   const [userToggledSidebar, setUserToggledSidebar] = useState<boolean | null>(null);
   const isSidebarOpen = userToggledSidebar ?? !isMobile;
@@ -64,6 +72,8 @@ function ChatFloatingWidgetInner() {
   const pathname = usePathname();
   const isMessagesRoute = pathname === '/messages';
   const isWizardRoute = pathname === '/' || pathname === '/new-project';
+  const isAuthRoute = Boolean(pathname?.startsWith('/login') || pathname?.startsWith('/sign-in'));
+  const isManagementRoute = Boolean(pathname?.startsWith('/management'));
   const [hasFooter, setHasFooter] = useState(isWizardRoute);
 
   const projectsQuery = useProjectsQuery();
@@ -81,7 +91,11 @@ function ChatFloatingWidgetInner() {
   const activeProject = projectFromList ?? activeDetailQuery.data ?? undefined;
 
   const { user } = useUserStore();
-  const targetProjectId = isGlobal ? GLOBAL_CHAT_ID : activeProject ? projectId : null;
+  const rawTargetProjectId = isGlobal ? GLOBAL_CHAT_ID : activeProject ? projectId : null;
+  const shouldConnectChat = Boolean(
+    user?.email && !isMessagesRoute && !isAuthRoute && !isManagementRoute && (isOpen || hasOpened)
+  );
+  const targetProjectId = shouldConnectChat ? rawTargetProjectId : null;
 
   // Real Supabase doorbell realtime transport & messages
   const {
@@ -121,16 +135,18 @@ function ChatFloatingWidgetInner() {
       return [];
     }
     const clientName = isGlobal ? (user?.name || 'You') : (activeProject?.clientName || user?.name || 'You');
-    const mappedDb = (dbMessages || []).map((m) =>
+    const scopedDb = (dbMessages || []).filter((m) => m.projectId === targetProjectId);
+    const mappedDb = scopedDb.map((m) =>
       mapProjectChatMessage(m, { clientName, lastReadId })
     );
 
     // Include pending/failed optimistic messages from outbox that haven't landed in dbMessages yet
     const confirmedClientIds = new Set(
-      dbMessages.map((m) => m.clientMessageId).filter(Boolean)
+      scopedDb.map((m) => m.clientMessageId).filter(Boolean)
     );
     const pendingOptimistic = outbox.filter(
       (m: ChatMessage) =>
+        m.projectId === targetProjectId &&
         m.clientMessageId &&
         !confirmedClientIds.has(m.clientMessageId) &&
         (m.status === 'sending' || m.status === 'failed')
@@ -279,8 +295,6 @@ function ChatFloatingWidgetInner() {
     }
   };
 
-  const isAuthRoute = Boolean(pathname?.startsWith('/login') || pathname?.startsWith('/sign-in'));
-  const isManagementRoute = Boolean(pathname?.startsWith('/management'));
   if (!user?.email || isMessagesRoute || isAuthRoute || isManagementRoute) return null;
 
   return (
@@ -298,8 +312,18 @@ function ChatFloatingWidgetInner() {
           ref={launcherRef}
           type="button"
           variant="outline"
-          onPointerEnter={() => setHasOpened(true)}
-          onFocus={() => setHasOpened(true)}
+          onPointerEnter={() => {
+            if (isWizardRoute && !isOpen) {
+              setActiveProjectId(GLOBAL_CHAT_ID);
+            }
+            setHasOpened(true);
+          }}
+          onFocus={() => {
+            if (isWizardRoute && !isOpen) {
+              setActiveProjectId(GLOBAL_CHAT_ID);
+            }
+            setHasOpened(true);
+          }}
           onClick={() => {
             setHasOpened(true);
             setIsOpen(true, isWizardRoute ? GLOBAL_CHAT_ID : undefined);
@@ -391,8 +415,7 @@ function ChatFloatingWidgetInner() {
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate">Humantek Studio</span>
-                    <span className="text-xs text-muted-foreground hidden xs:inline">· Studio Team</span>
+                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate">Studio Team</span>
                   </div>
                   <div className="text-2xs text-muted-foreground truncate">
                     Project Messages &amp; Direct Support
