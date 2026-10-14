@@ -76,6 +76,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Database service unavailable' }, { status: 503 });
+    }
     const p = getProjectById(singleId);
     if (!p) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
@@ -261,7 +264,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // B. Dev Mock Fallback
+  // B. Dev Mock Fallback (strictly disabled in production)
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Database service unavailable' }, { status: 503 });
+  }
   let all = getProjects();
   if (!user.isAdmin) {
     all = all.filter((p) => (p.userId ? p.userId === user.id : false));
@@ -785,7 +791,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2. Dev Mock Fallback
+  // 2. Dev Mock Fallback (strictly disabled in production)
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Database service unavailable' }, { status: 503 });
+  }
   const existingDevProj = getProjectById(parsed.data.projectId);
   if (existingDevProj) {
     if (existingDevProj.userId && existingDevProj.userId !== user.id && !user.isAdmin) {
@@ -1199,7 +1208,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true, project: formatDbProject(updatedProj) });
   }
 
-  // 2. Dev Mock Fallback
+  // 2. Dev Mock Fallback (strictly disabled in production)
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Database service unavailable' }, { status: 503 });
+  }
   if (!user.isAdmin && status !== 'cancelled') {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }

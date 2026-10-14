@@ -1910,49 +1910,49 @@ export default function CreatorStudioPage() {
                   <CardContent className="p-4 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
                     {pkg.id === 'creator-forge' && (
                       <>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>660 Credits · Essential creator starter kit</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{pkgCredits.toLocaleString('en-US')} CR wallet (${effectiveRate} effective USD / CR)</span>
                         </div>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Basic + up to 2 Standard service units</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>Basic services and up to 2 Standard service units (Elite is locked)</span>
                         </div>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Up to 2 concept &amp; 2 final revisions per asset</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>Credits deducted only after team approves service, content &amp; final scope</span>
                         </div>
                       </>
                     )}
                     {pkg.id === 'studio-momentum' && (
                       <>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>1,160 Credits (includes +160 bonus credits)</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{pkgCredits.toLocaleString('en-US')} CR wallet (${effectiveRate} effective USD / CR)</span>
                         </div>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Basic, Standard + up to 2 Elite service units</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>Basic and Standard services, plus up to 2 Elite service units</span>
                         </div>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Up to 2 concept &amp; 2 final revisions per asset</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>Credits deducted only after team approves service, content &amp; final scope</span>
                         </div>
                       </>
                     )}
                     {pkg.id === 'signature-collective' && (
                       <>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>1,920 Credits (maximum +320 bonus credits)</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{pkgCredits.toLocaleString('en-US')} CR wallet (${effectiveRate} effective USD / CR)</span>
                         </div>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Basic, Standard &amp; Elite across all 39 services</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>Basic, Standard and Elite services across all 39 catalog services</span>
                         </div>
-                        <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Up to 2 concept &amp; 2 final revisions per asset</span>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>Credits deducted only after team approves service, content &amp; final scope</span>
                         </div>
                       </>
                     )}

@@ -7,14 +7,17 @@ import type { CreditLedgerEntry } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const user = await getRequestUser();
-    const queryEmail = req.nextUrl.searchParams.get('email')?.toLowerCase().trim();
-    const effectiveEmail = (user?.email || queryEmail || 'kira@example.com').toLowerCase().trim();
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const effectiveEmail = user.email.toLowerCase().trim();
 
     // 1. Production / Real Supabase Path
-    if (isSupabaseConfigured() && user?.id && !user.isDevFallback) {
+    if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
       const adminClient = createAdminClient();
 
       const [walletRes, ledgerRes, projectsRes, ordersRes] = await Promise.all([
@@ -35,7 +38,7 @@ export async function GET(req: NextRequest) {
           .select(
             'id, user_id, project_code, email, package_id, package_name, package_price_usd, package_credits, total_credits, applied_wallet_credits, payment_status, payment_method, funding_source, created_at'
           )
-          .or(`user_id.eq.${user.id},email.ilike.${effectiveEmail}`)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(200),
         adminClient
@@ -223,7 +226,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 2. Development / Offline Fallback Path
+    // 2. Development / Offline Fallback Path (strictly disabled in production)
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Database service unavailable' }, { status: 503 });
+    }
     const walletBalance = getUserBalance(effectiveEmail);
     const localProjects = getProjects().filter(
       (p) => (p.email || '').toLowerCase().trim() === effectiveEmail

@@ -62,7 +62,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // Fallback in-memory store
+  // Fallback in-memory store (strictly disabled in production)
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Database service unavailable' }, { status: 503 });
+  }
   const p = getProjectById(projectId);
   if (!p) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });

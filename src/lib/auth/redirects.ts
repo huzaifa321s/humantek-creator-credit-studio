@@ -10,13 +10,35 @@ const DEV_ALLOWED_REDIRECT_HOSTS = [
   ...PROD_ALLOWED_REDIRECT_HOSTS,
 ];
 
+function extractHostname(urlOrHost?: string): string | null {
+  if (!urlOrHost || typeof urlOrHost !== 'string') return null;
+  const trimmed = urlOrHost.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1') return null;
+    return host;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Returns the host allowlist strictly isolated by environment.
- * Production NEVER permits localhost or 127.0.0.1.
+ * Production NEVER permits localhost or 127.0.0.1, and dynamically trusts
+ * NEXT_PUBLIC_SITE_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL if configured.
  */
 export function getAllowedRedirectHosts(): string[] {
   const isProduction = process.env.NODE_ENV === 'production';
-  return isProduction ? PROD_ALLOWED_REDIRECT_HOSTS : DEV_ALLOWED_REDIRECT_HOSTS;
+  const baseHosts = isProduction ? PROD_ALLOWED_REDIRECT_HOSTS : DEV_ALLOWED_REDIRECT_HOSTS;
+  const dynamicHosts = [
+    extractHostname(process.env.NEXT_PUBLIC_SITE_URL),
+    extractHostname(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+    extractHostname(process.env.VERCEL_URL),
+  ].filter((h): h is string => Boolean(h));
+
+  return Array.from(new Set([...baseHosts, ...dynamicHosts]));
 }
 
 /**

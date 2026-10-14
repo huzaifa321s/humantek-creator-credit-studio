@@ -232,10 +232,11 @@ export const ChatMessageItem = React.memo(
                 <Trash2 className="size-3 text-muted-foreground/60 shrink-0" />
                 <span>This message was deleted</span>
               </BubbleContent>
-            ) : shouldShowBubbleContent ? (
+            ) : (
               <BubbleContent
                 className={cn(
-                  'px-3.5 py-2.5 text-sm leading-relaxed',
+                  'text-sm leading-relaxed flex flex-col',
+                  hasAttachments ? 'p-1.5 gap-1.5' : 'px-3.5 py-2.5',
                   isOutgoing
                     ? message.status === 'failed'
                       ? 'rounded-xl rounded-br-sm bg-rose-500/15 border border-rose-500/30 text-foreground shadow-xs'
@@ -257,57 +258,89 @@ export const ChatMessageItem = React.memo(
                     }}
                     aria-label={`Jump to message from ${message.replyTo.senderName}`}
                     className={cn(
-                      ' p-2 rounded-lg text-left border-l-3 text-2xs cursor-pointer select-none transition-colors group/quote outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60',
-                      hasText && 'mb-2',
+                      'p-2 rounded-lg text-left border-l-3 text-2xs cursor-pointer select-none transition-colors group/quote outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60',
+                      !hasAttachments && hasText && 'mb-2',
                       isOutgoing
-                        ? 'bg-black/15 border-zinc-900/60 text-zinc-900 hover:bg-black/20'
+                        ? 'bg-black/15 border-zinc-950/75 text-zinc-950 hover:bg-black/20'
                         : 'bg-secondary/70 border-amber-400 text-foreground hover:bg-secondary'
                     )}
                   >
-                    <div className="flex items-center gap-1 font-bold text-3xs uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                      <CornerUpLeft className="size-2.5" />
+                    <div
+                      className={cn(
+                        'flex items-center gap-1 font-extrabold text-3xs uppercase tracking-wider',
+                        isOutgoing
+                          ? 'text-zinc-950'
+                          : 'text-brand-text dark:text-amber-400'
+                      )}
+                    >
+                      <CornerUpLeft className="size-2.5 shrink-0" />
                       <span className="truncate">{message.replyTo.senderName}</span>
                     </div>
-                    <p className="truncate mt-0.5 font-medium text-2xs opacity-85 group-hover/quote:opacity-100">
+                    <p
+                      className={cn(
+                        'truncate mt-0.5 font-medium text-2xs',
+                        isOutgoing
+                          ? 'text-zinc-900/90 group-hover/quote:text-zinc-950'
+                          : 'opacity-85 group-hover/quote:opacity-100'
+                      )}
+                    >
                       {message.replyTo.content || '📷 Image attachment'}
                     </p>
                   </div>
                 )}
 
-                {hasText && <p className="whitespace-pre-wrap break-words">{message.content}</p>}
-              </BubbleContent>
-            ) : null}
-
-            {/* Reference images */}
-            {hasAttachments && (
-              <AttachmentGroup className={isOutgoing ? 'justify-end self-end' : 'self-start'}>
-                {message.attachments!.map((att, idx) => (
-                  <Attachment
-                    key={`${message.id}-${att.id || 'att'}-${idx}`}
-                    orientation="vertical"
-                    className="w-48 sm:w-56 p-1! rounded-xl border-border/80 shadow-xs hover:border-amber-400/60 overflow-hidden"
+                {/* Unified Reference Images inside the bubble */}
+                {hasAttachments && (
+                  <div
+                    className={cn(
+                      'grid gap-1.5',
+                      message.attachments!.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
+                    )}
                   >
-                    <AttachmentMedia
-                      variant="image"
-                      className="rounded-lg group/media aspect-video min-h-[104px] w-full bg-secondary/40 relative overflow-hidden"
-                    >
-                      {att.previewUrl ? (
-                        <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={att.previewUrl} alt={att.name || 'Attachment'} className="w-full h-full object-cover" />
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition-opacity group-hover/attachment:opacity-100">
-                            <Eye className="size-4" />
-                          </span>
-                        </>
-                      ) : null}
-                    </AttachmentMedia>
-                    <AttachmentTrigger
-                      aria-label={`Preview image`}
-                      onClick={() => onPreviewAttachment(att)}
-                    />
-                  </Attachment>
-                ))}
-              </AttachmentGroup>
+                    {message.attachments!.map((att, idx) => (
+                      <Attachment
+                        key={`${message.id}-${att.id || 'att'}-${idx}`}
+                        orientation="vertical"
+                        className="w-48 sm:w-56 p-0! rounded-lg border-0 bg-transparent shadow-none overflow-hidden"
+                      >
+                        <AttachmentMedia
+                          variant="image"
+                          className="rounded-lg group/media aspect-video min-h-[112px] w-full bg-secondary/40 relative overflow-hidden p-0!"
+                        >
+                          {att.previewUrl ? (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={att.previewUrl}
+                                alt={att.name || 'Attachment'}
+                                className="w-full h-full object-cover"
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition-opacity group-hover/attachment:opacity-100">
+                                <Eye className="size-4" />
+                              </span>
+                            </>
+                          ) : null}
+                        </AttachmentMedia>
+                        <AttachmentTrigger
+                          aria-label="Preview image"
+                          onClick={() => onPreviewAttachment(att)}
+                        />
+                      </Attachment>
+                    ))}
+                  </div>
+                )}
+
+                {hasText && (
+                  <p
+                    className={cn(
+                      'whitespace-pre-wrap break-words',
+                      hasAttachments && 'px-2 pt-0.5 pb-1'
+                    )}
+                  >
+                    {message.content}
+                  </p>
+                )}
+              </BubbleContent>
             )}
 
             {/* Thumbs-up count — names on hover (desktop) or in the action drawer (touch) */}

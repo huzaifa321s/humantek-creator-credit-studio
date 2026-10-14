@@ -121,8 +121,18 @@ export async function POST(req: NextRequest) {
             ownerName = user.email.split('@')[0];
           }
 
+          const verifiedUploadedFiles = await attachProjectReferences(
+            adminClient,
+            user.id,
+            String(raw.projectId || ''),
+            Array.isArray(raw.uploadedFiles) ? raw.uploadedFiles : []
+          ).catch((refErr) => {
+            console.error('Reference attachment failed after capture:', refErr);
+            return [];
+          });
+
           // Credits were just deposited in the wallet by fulfill_order, so spend strictly from wallet
-          const { data: rpcRes, error: rpcErr } = await adminClient.rpc('create_project_and_spend_credits', {
+          const { error: rpcErr } = await adminClient.rpc('create_project_and_spend_credits', {
             p_project_id: raw.projectId,
             p_project_code: projectCode,
             p_user_id: user.id,
@@ -135,65 +145,90 @@ export async function POST(req: NextRequest) {
             p_style: raw.style || '',
             p_colors: raw.colors || '',
             p_instructions: raw.instructions || '',
-            p_uploaded_files: await attachProjectReferences(
-              adminClient,
-              user.id,
-              String(raw.projectId || ''),
-              Array.isArray(raw.uploadedFiles) ? raw.uploadedFiles : []
-            ).catch((refErr) => {
-              console.error('Reference attachment failed after capture:', refErr);
-              return [];
-            }),
+            p_uploaded_files: verifiedUploadedFiles,
             p_selections: raw.selections || [],
             p_additions: raw.additions || [],
             p_idempotency_key: raw.projectId,
           });
 
           if (rpcErr) {
-            console.error('Project creation error after capture:', rpcErr);
-          } else {
-            const { data: projRow } = await adminClient
+            console.error('Project creation RPC error after capture, attempting direct recovery insert:', rpcErr);
+            // Safety recovery: payment is already captured, ensure project row exists so the customer's brief is never lost
+            const { data: existingCheck } = await adminClient
               .from('projects')
-              .select('*, project_items(*), project_additions(*)')
+              .select('id')
               .eq('id', raw.projectId)
               .maybeSingle();
 
-            if (projRow) {
-              dbProject = {
-                id: projRow.id,
-                projectCode: projRow.project_code,
-                packageId: projRow.package_id || 'studio-wallet',
-                packageName: projRow.package_name || '',
-                packagePrice: Number(projRow.package_price_usd) || 0,
-                packageCredits: projRow.package_credits || 0,
-                usedCredits: projRow.total_credits || 0,
-                remainingCredits: 0,
-                status: projRow.status,
-                paymentStatus: projRow.payment_status,
-                paymentMethod: projRow.payment_method,
-                fundingSource: projRow.funding_source,
-                appliedWalletCredits: projRow.applied_wallet_credits || 0,
-                clientName: projRow.client_name,
-                channelName: projRow.channel_name || '',
-                email: projRow.email,
-                platform: projRow.platform || '',
-                style: projRow.style || '',
-                colors: projRow.colors || '',
-                instructions: projRow.instructions || '',
-                uploadedFiles: Array.isArray(projRow.uploaded_files) ? projRow.uploaded_files : [],
-                lastMessageAt: projRow.last_message_at || null,
-                lastMessagePreview: projRow.last_message_preview || null,
-                additions: (projRow.project_additions || []).map((a: any) => a.name),
-                selections: (projRow.project_items || []).map((i: any) => ({
-                  id: i.service_id,
-                  name: i.service_name,
-                  level: i.tier_level,
-                  quantity: i.quantity,
-                  credits: i.total_credits,
-                })),
-                createdAt: projRow.created_at,
-              };
+            if (!existingCheck && raw.projectId) {
+              await adminClient.from('projects').insert({
+                id: raw.projectId,
+                project_code: projectCode,
+                user_id: user.id,
+                package_id: raw.packageId || order.package_id,
+                package_name: raw.packageName || order.package_id || 'Studio Package',
+                funding_source: 'package',
+                status: 'payment_confirmed',
+                payment_status: 'paid',
+                payment_method: 'paypal',
+                package_price_usd: capturedAmountCents / 100,
+                package_credits: order.credits_to_grant || 0,
+                total_credits: Number(raw.usedCredits) || 0,
+                applied_wallet_credits: 0,
+                client_name: ownerName,
+                channel_name: raw.channelName || '',
+                email: user.email,
+                platform: raw.platform || '',
+                style: raw.style || '',
+                colors: raw.colors || '',
+                instructions: raw.instructions || '',
+                uploaded_files: verifiedUploadedFiles,
+                idempotency_key: raw.projectId,
+              });
             }
+          }
+
+          const { data: projRow } = await adminClient
+            .from('projects')
+            .select('*, project_items(*), project_additions(*)')
+            .eq('id', raw.projectId)
+            .maybeSingle();
+
+          if (projRow) {
+            dbProject = {
+              id: projRow.id,
+              projectCode: projRow.project_code,
+              packageId: projRow.package_id || 'studio-wallet',
+              packageName: projRow.package_name || '',
+              packagePrice: Number(projRow.package_price_usd) || 0,
+              packageCredits: projRow.package_credits || 0,
+              usedCredits: projRow.total_credits || 0,
+              remainingCredits: 0,
+              status: projRow.status,
+              paymentStatus: projRow.payment_status,
+              paymentMethod: projRow.payment_method,
+              fundingSource: projRow.funding_source,
+              appliedWalletCredits: projRow.applied_wallet_credits || 0,
+              clientName: projRow.client_name,
+              channelName: projRow.channel_name || '',
+              email: projRow.email,
+              platform: projRow.platform || '',
+              style: projRow.style || '',
+              colors: projRow.colors || '',
+              instructions: projRow.instructions || '',
+              uploadedFiles: Array.isArray(projRow.uploaded_files) ? projRow.uploaded_files : [],
+              lastMessageAt: projRow.last_message_at || null,
+              lastMessagePreview: projRow.last_message_preview || null,
+              additions: (projRow.project_additions || []).map((a: any) => a.name),
+              selections: (projRow.project_items || []).map((i: any) => ({
+                id: i.service_id,
+                name: i.service_name,
+                level: i.tier_level,
+                quantity: i.quantity,
+                credits: i.total_credits,
+              })),
+              createdAt: projRow.created_at,
+            };
           }
         }
 
@@ -254,7 +289,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2. Dev Mock Fallback
+  // 2. Dev Mock Fallback (strictly disabled in production)
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Payment service unavailable' }, { status: 503 });
+  }
   const userEmail = (user.email || 'kira@example.com').toLowerCase().trim();
   const granted = 660;
   const newBal = adjustUserBalance(userEmail, granted, 'PayPal mock payment captured');

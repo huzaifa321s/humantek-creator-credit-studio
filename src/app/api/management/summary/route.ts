@@ -19,6 +19,12 @@ export interface ManagementSummaryData {
   };
 }
 
+function isAutomatedTestEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase();
+  return lower.endsWith('@humantek.art') || lower.endsWith('.test');
+}
+
 export async function GET(_req: NextRequest) {
   const authRes = await requireAdminAal2();
   if (authRes instanceof NextResponse) {
@@ -31,27 +37,17 @@ export async function GET(_req: NextRequest) {
     // Run parallel count & aggregate queries with zero client RLS restriction
     const [
       allProjectsRes,
-      pendingReviewRes,
-      activeProjectsRes,
       ordersRes,
       pendingWireOrdersRes,
       ledgerRes,
     ] = await Promise.all([
       admin
         .from('projects')
-        .select('id, package_price_usd, payment_status, total_credits, applied_wallet_credits', { count: 'exact' }),
-      admin
-        .from('projects')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending_review'),
-      admin
-        .from('projects')
-        .select('id', { count: 'exact', head: true })
-        .not('status', 'in', '("delivered","declined")'),
+        .select('id, user_id, email, status, package_id, package_price_usd, payment_status, payment_method, funding_source, total_credits, applied_wallet_credits'),
       admin
         .from('orders')
-        .select('id, status, captured_amount_cents, expected_amount_cents', { count: 'exact' })
-        .eq('status', 'completed'),
+        .select('id, user_id, package_id, status, captured_amount_cents, expected_amount_cents')
+        .eq('status', 'fulfilled'),
       admin
         .from('orders')
         .select('id', { count: 'exact', head: true })
@@ -61,31 +57,44 @@ export async function GET(_req: NextRequest) {
         .select('id', { count: 'exact', head: true }),
     ]);
 
-    const projects = allProjectsRes.data || [];
-    const completedOrders = ordersRes.data || [];
+    const rawProjects = allProjectsRes.data || [];
+    const projects = rawProjects.filter((p) => !isAutomatedTestEmail(p.email));
+    const fulfilledOrders = ordersRes.data || [];
+
+    // Identify users who have fulfilled orders so we don't double-count the same package purchase
+    const fulfilledOrderUserIds = new Set(fulfilledOrders.map((o) => o.user_id).filter(Boolean));
 
     // 1. Calculate Total Revenue in USD
-    const projectRevenue = projects
-      .filter((p) => p.payment_status === 'paid')
-      .reduce((sum, p) => sum + (Number(p.package_price_usd) || 0), 0);
-
-    const orderRevenue = completedOrders.reduce((sum, o) => {
+    const orderRevenue = fulfilledOrders.reduce((sum, o) => {
       const cents = o.captured_amount_cents || o.expected_amount_cents || 0;
       return sum + cents / 100;
     }, 0);
 
+    // Include paid projects that are not already represented by a fulfilled order row or wallet credit spend
+    const projectRevenue = projects
+      .filter(
+        (p) =>
+          p.payment_status === 'paid' &&
+          p.funding_source !== 'wallet' &&
+          p.payment_method !== 'credits' &&
+          !(p.user_id && fulfilledOrderUserIds.has(p.user_id) && orderRevenue > 0)
+      )
+      .reduce((sum, p) => sum + (Number(p.package_price_usd) || 0), 0);
+
     const totalRevenue = Math.round((projectRevenue + orderRevenue) * 100) / 100;
 
-    // 2. Active Orders & Pending Review
-    const activeOrdersCount = activeProjectsRes.count ?? projects.filter(
-      (p) => p.payment_status === 'paid'
+    // 2. Active Orders & Pending Review (strictly excluding delivered, declined, and cancelled)
+    const activeOrdersCount = projects.filter(
+      (p) => p.status !== 'delivered' && p.status !== 'declined' && p.status !== 'cancelled'
     ).length;
-    const pendingReviewCount = pendingReviewRes.count ?? 0;
+    const pendingReviewCount = projects.filter((p) => p.status === 'pending_review').length;
 
     // 3. Credits Allocated
-    const totalCreditsAllocated = projects.reduce((sum, p) => {
-      return sum + (Number(p.total_credits) || Number(p.applied_wallet_credits) || 0);
-    }, 0);
+    const totalCreditsAllocated = projects
+      .filter((p) => p.status !== 'cancelled' && p.status !== 'declined')
+      .reduce((sum, p) => {
+        return sum + (Number(p.total_credits) || Number(p.applied_wallet_credits) || 0);
+      }, 0);
 
     // 4. Ledger count (if credit_ledger has records use count, otherwise derived from projects)
     const ledgerCount =
@@ -101,7 +110,7 @@ export async function GET(_req: NextRequest) {
         totalCreditsAllocated,
       },
       counts: {
-        projects: allProjectsRes.count ?? projects.length,
+        projects: projects.length,
         pendingReview: pendingReviewCount,
         wireOrders: pendingWireOrdersRes.count ?? 0,
         ledger: ledgerCount,

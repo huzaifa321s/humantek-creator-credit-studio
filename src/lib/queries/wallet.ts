@@ -9,9 +9,9 @@ import { useUserStore } from '@/lib/userStore';
 export const walletKeys = {
   all: ['wallet'] as const,
   balance: (email?: string | null) =>
-    [...walletKeys.all, 'balance', (email || 'kira@example.com').toLowerCase().trim()] as const,
+    [...walletKeys.all, 'balance', (email || 'anonymous').toLowerCase().trim()] as const,
   ledger: (email?: string | null) =>
-    [...walletKeys.all, 'ledger', (email || 'kira@example.com').toLowerCase().trim()] as const,
+    [...walletKeys.all, 'ledger', (email || 'anonymous').toLowerCase().trim()] as const,
 };
 
 async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
@@ -41,16 +41,18 @@ export interface WalletApiResponse {
  */
 export function useWalletQuery(email?: string | null) {
   const normalizedEmail = (email || '').toLowerCase().trim();
+  const userRole = useUserStore((s) => s.user?.role);
+  const isAdmin = Boolean(userRole && userRole.toLowerCase() === 'admin');
 
   const query = useQuery({
     queryKey: walletKeys.balance(normalizedEmail || 'none'),
     queryFn: async ({ signal }) => {
       return fetchJson<WalletApiResponse>(
-        `/api/wallet?email=${encodeURIComponent(normalizedEmail)}`,
+        `/api/wallet`,
         { signal }
       );
     },
-    enabled: Boolean(normalizedEmail),
+    enabled: Boolean(normalizedEmail) && !isAdmin,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });

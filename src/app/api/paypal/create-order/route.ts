@@ -126,7 +126,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2. Dev Mock Fallback
+  // 2. Dev Mock Fallback (strictly disabled in production)
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Payment service unavailable' }, { status: 503 });
+  }
   const pkg = PACKAGES.find((p) => p.id === packageId);
   if (!pkg || pkg.price <= 0) {
     return NextResponse.json({ error: 'Unknown package' }, { status: 400 });

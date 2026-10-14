@@ -487,11 +487,11 @@ export function StudioCardLayout({
   };
 
   const isBackDisabled = mode === 'wizard' && currentStep === 1 && !onBack;
-  const { user, isHydrated } = useUserStore();
+  const { user, isHydrated, isSessionVerified } = useUserStore();
 
   // Fallback client check for expired sessions and role confinement
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !isSessionVerified) return;
 
     if (!user?.email) {
       if (pathname.startsWith('/management')) {
@@ -510,7 +510,7 @@ export function StudioCardLayout({
     } else if (!isAdminUser && pathname.startsWith('/management')) {
       router.replace('/projects');
     }
-  }, [isHydrated, user?.email, user?.role, pathname, router]);
+  }, [isHydrated, isSessionVerified, user?.email, user?.role, pathname, router]);
 
   const effectiveName = isHydrated ? (user?.name || '') : '';
   const effectiveEmail = isHydrated ? (userEmail || user?.email || '') : (userEmail || '');
