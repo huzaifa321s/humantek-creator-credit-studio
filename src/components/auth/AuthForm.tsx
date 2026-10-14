@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,17 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useUserStore, StudioUser } from '@/lib/userStore';
 import { toast } from 'sonner';
 
 import { createClient } from '@/lib/supabase/client';
 import { bypassUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 
-export type AuthFormMode = 'signin' | 'signup' | 'otp';
+export type AuthFormMode = 'signin' | 'signup' | 'otp' | 'forgot' | 'reset-otp' | 'reset-link';
 
 export interface AuthFormProps {
-  initialMode?: 'signin' | 'signup';
+  initialMode?: AuthFormMode;
   defaultEmail?: string;
   onSuccess?: (user: StudioUser) => void;
   onClose?: () => void;
@@ -52,14 +51,22 @@ export function AuthForm({
   const [signUpPassword, setSignUpPassword] = useState('');
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
-  // OTP fields
+  // OTP & Password Recovery fields
   const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(60);
 
-  // Countdown timer for OTP resend cooldown
+  // Sync mode when initialMode changes externally (e.g. URL query params ?forgot=true or ?reset=true)
   useEffect(() => {
-    if (mode === 'otp' && resendCooldown > 0) {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  // Countdown timer for OTP / recovery resend cooldown
+  useEffect(() => {
+    if ((mode === 'otp' || mode === 'reset-otp') && resendCooldown > 0) {
       const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
       return () => clearTimeout(timer);
     }
@@ -73,6 +80,7 @@ export function AuthForm({
   // Refs for accessible focus management
   const emailInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const newPasswordInputRef = useRef<HTMLInputElement>(null);
 
   // Reset errors when switching modes, but KEEP shared email
   const switchMode = (newMode: AuthFormMode) => {
@@ -87,14 +95,16 @@ export function AuthForm({
     const timer = setTimeout(() => {
       if (mode === 'signup') {
         nameInputRef.current?.focus();
-      } else if (mode === 'signin') {
+      } else if (mode === 'signin' || mode === 'forgot') {
         emailInputRef.current?.focus();
+      } else if (mode === 'reset-link') {
+        newPasswordInputRef.current?.focus();
       }
     }, 100);
     return () => clearTimeout(timer);
   }, [mode]);
 
-  // Check for OAuth cancellation or error message in URL
+  // Check for OAuth cancellation, error message, or ?forgot=true / ?reset=true in URL
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -102,8 +112,14 @@ export function AuthForm({
       if (urlError) {
         setErrorMsg(urlError);
       }
+      if (url.searchParams.get('reset') === 'true') {
+        setMode('reset-link');
+        setInfoMsg('Recovery verified. Enter your new password below.');
+      } else if (url.searchParams.get('forgot') === 'true' && initialMode === 'signin') {
+        setMode('forgot');
+      }
     }
-  }, []);
+  }, [initialMode]);
 
   // Handle Google OAuth Sign In
   const handleGoogleSignIn = async () => {
@@ -242,6 +258,7 @@ export function AuthForm({
       // If Supabase requires email verification, switch to 6-digit OTP view
       if (data.requiresVerification) {
         setMode('otp');
+        setOtpCode('');
         setResendCooldown(60);
         setInfoMsg(data.message || 'Verification code sent! Please check your inbox.');
         return;
@@ -270,7 +287,7 @@ export function AuthForm({
     }
   };
 
-  // 3. Handle OTP Code Verification
+  // 3. Handle OTP Code Verification (Sign Up)
   const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (otpCode.length < 6) {
@@ -319,7 +336,7 @@ export function AuthForm({
     }
   };
 
-  // Resend OTP code
+  // Resend Signup OTP code
   const handleResendOtp = async () => {
     setIsResendingOtp(true);
     setErrorMsg('');
@@ -347,10 +364,208 @@ export function AuthForm({
     }
   };
 
+  // 4. Handle Forgot Password Request (Send Recovery Code / Link)
+  const handleRequestPasswordReset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const cleanEmail = sharedEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMsg('Please enter the email address associated with your account.');
+      return;
+    }
+
+    setErrorMsg('');
+    setInfoMsg('');
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'request',
+          email: cleanEmail,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not send password recovery instructions.');
+      }
+
+      setOtpCode('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setResendCooldown(data.cooldownSeconds || 60);
+      setMode('reset-otp');
+      setInfoMsg(
+        data.message ||
+          'Recovery email sent! Enter the 6-digit code from your email (or click the link in the email) and choose a new password.'
+      );
+      toast.success('Password recovery instructions sent to your email.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to request password reset.';
+      setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Resend Forgot Password Recovery Code
+  const handleResendRecoveryCode = async () => {
+    setIsResendingOtp(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'request',
+          email: sharedEmail.trim().toLowerCase(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResendCooldown(data.cooldownSeconds || 60);
+        toast.success('A fresh recovery code has been sent to your email.');
+        setInfoMsg(data.message || 'Fresh recovery code sent to your email.');
+      } else {
+        setErrorMsg(data.error || 'Could not resend recovery code. Please try again.');
+      }
+    } catch {
+      toast.error('Could not resend recovery code. Please try again shortly.');
+    } finally {
+      setIsResendingOtp(false);
+    }
+  };
+
+  // 5. Handle Verify Recovery OTP + Set New Password
+  const handleVerifyResetOtpAndPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (otpCode.length < 6) {
+      setErrorMsg('Please enter the 6-digit recovery code sent to your email.');
+      return;
+    }
+    if (newPassword.trim().length < 8) {
+      setErrorMsg('New password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMsg('Passwords do not match. Please check and try again.');
+      return;
+    }
+
+    setErrorMsg('');
+    setInfoMsg('');
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify-and-reset',
+          email: sharedEmail.trim().toLowerCase(),
+          token: otpCode,
+          password: newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not reset password. Please check your code.');
+      }
+
+      if (data.user) {
+        signInAsClient(
+          data.user.name,
+          data.user.email,
+          data.user.walletBalance,
+          data.user.id,
+          data.user.role
+        );
+        toast.success('Password updated! You are now signed in.');
+        if (data.user.role === 'admin' || data.user.isAdmin) {
+          onClose?.();
+          window.location.replace('/management');
+          return;
+        }
+        if (isPage) {
+          router.refresh();
+        }
+        onSuccess?.(data.user);
+        onClose?.();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Password reset failed.';
+      setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 6. Handle Set New Password via Email Recovery Link Session (?reset=true)
+  const handleUpdateSessionPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (newPassword.trim().length < 8) {
+      setErrorMsg('New password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMsg('Passwords do not match. Please check and try again.');
+      return;
+    }
+
+    setErrorMsg('');
+    setInfoMsg('');
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update-session-password',
+          password: newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not update password. Your reset link may have expired.');
+      }
+
+      if (data.user) {
+        signInAsClient(
+          data.user.name,
+          data.user.email,
+          data.user.walletBalance,
+          data.user.id,
+          data.user.role
+        );
+        toast.success('Password updated! You are now signed in.');
+        if (data.user.role === 'admin' || data.user.isAdmin) {
+          onClose?.();
+          window.location.replace('/management');
+          return;
+        }
+        if (isPage) {
+          router.refresh();
+        }
+        onSuccess?.(data.user);
+        onClose?.();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Password update failed.';
+      setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-4">
-      {/* Reusable Tab Switcher from @/components/ui/tabs */}
-      {mode !== 'otp' && (
+      {/* Reusable Tab Switcher from @/components/ui/tabs (only shown in Sign In / Sign Up modes) */}
+      {(mode === 'signin' || mode === 'signup') && (
         <Tabs
           value={mode}
           onValueChange={(val) => switchMode(val as AuthFormMode)}
@@ -464,13 +679,14 @@ export function AuthForm({
               <Label htmlFor="auth-signin-password" className="text-xs font-semibold text-foreground">
                 Password
               </Label>
-              <Link
-                href="/login?forgot=true"
-                className="text-xs font-medium text-muted-foreground hover:text-brand-text hover:underline transition-colors"
+              <button
+                type="button"
+                onClick={() => switchMode('forgot')}
+                className="text-xs font-medium text-muted-foreground hover:text-brand-text hover:underline transition-colors cursor-pointer"
                 tabIndex={0}
               >
                 Forgot password?
-              </Link>
+              </button>
             </div>
             <div className="relative">
               <Input
@@ -656,7 +872,7 @@ export function AuthForm({
       )}
 
       {/* ================================================================= */}
-      {/* MODE 3: 6-DIGIT OTP VERIFICATION FORM                             */}
+      {/* MODE 3: 6-DIGIT OTP VERIFICATION FORM (SIGN UP)                   */}
       {/* ================================================================= */}
       {mode === 'otp' && (
         <form onSubmit={handleVerifyOtp} className="space-y-4 pt-1">
@@ -723,6 +939,250 @@ export function AuthForm({
               Already have an account? Sign in &rarr;
             </button>
           </div>
+        </form>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODE 4: FORGOT PASSWORD — REQUEST RECOVERY EMAIL                  */}
+      {/* ================================================================= */}
+      {mode === 'forgot' && (
+        <form onSubmit={handleRequestPasswordReset} className="space-y-4 pt-1">
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-foreground">Reset your password</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Enter your account email and we&apos;ll send a recovery code and password reset link.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="auth-forgot-email" className="text-xs font-semibold text-foreground">
+              Account Email
+            </Label>
+            <Input
+              ref={emailInputRef}
+              id="auth-forgot-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              placeholder="name@example.com"
+              value={sharedEmail}
+              onChange={(e) => setSharedEmail(e.target.value)}
+              className="h-10 text-base md:text-sm bg-background/50 rounded-lg"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            size="lg"
+            loading={isLoading}
+            loadingText="Sending recovery email..."
+            className="w-full font-bold shadow-xs cursor-pointer"
+          >
+            Send Reset Code
+          </Button>
+
+          <div className="text-center pt-2 border-t border-border/50">
+            <button
+              type="button"
+              onClick={() => switchMode('signin')}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold cursor-pointer transition-colors"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back to Sign In
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODE 5: VERIFY 6-DIGIT RECOVERY CODE & SET NEW PASSWORD           */}
+      {/* ================================================================= */}
+      {mode === 'reset-otp' && (
+        <form onSubmit={handleVerifyResetOtpAndPassword} className="space-y-3.5 pt-1">
+          <div className="space-y-1 text-center">
+            <h3 className="text-sm font-bold text-foreground">Enter Recovery Code</h3>
+            <p className="text-xs text-muted-foreground">
+              Enter the 6-digit code sent to{' '}
+              <span className="font-semibold text-foreground">{sharedEmail}</span>
+            </p>
+          </div>
+
+          <div className="flex justify-center py-1">
+            <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="auth-reset-new-password" className="text-xs font-semibold text-foreground">
+              New Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="auth-reset-new-password"
+                name="newPassword"
+                type={showNewPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                placeholder="Min. 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="h-10 text-base md:text-sm bg-background/50 pr-10 rounded-lg"
+              />
+              <button
+                type="button"
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="auth-reset-confirm-password" className="text-xs font-semibold text-foreground">
+              Confirm New Password
+            </Label>
+            <Input
+              id="auth-reset-confirm-password"
+              name="confirmPassword"
+              type={showNewPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              required
+              minLength={8}
+              placeholder="Re-enter new password"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              className="h-10 text-base md:text-sm bg-background/50 rounded-lg"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            size="lg"
+            disabled={otpCode.length < 6 || newPassword.length < 8}
+            loading={isLoading}
+            loadingText="Updating password..."
+            className="w-full font-bold shadow-xs cursor-pointer"
+          >
+            Update Password &amp; Sign In
+          </Button>
+
+          <div className="flex items-center justify-between text-xs pt-1">
+            <button
+              type="button"
+              onClick={handleResendRecoveryCode}
+              disabled={isResendingOtp || resendCooldown > 0}
+              className="text-brand-text hover:underline font-semibold cursor-pointer disabled:opacity-50"
+            >
+              {isResendingOtp
+                ? 'Resending...'
+                : resendCooldown > 0
+                ? `Resend code (${resendCooldown}s)`
+                : 'Resend code'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchMode('forgot')}
+              className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            >
+              Change email
+            </button>
+          </div>
+
+          <div className="text-center pt-2 border-t border-border/50">
+            <button
+              type="button"
+              onClick={() => switchMode('signin')}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold cursor-pointer transition-colors"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back to Sign In
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODE 6: SET NEW PASSWORD VIA EMAIL RECOVERY LINK (?reset=true)    */}
+      {/* ================================================================= */}
+      {mode === 'reset-link' && (
+        <form onSubmit={handleUpdateSessionPassword} className="space-y-3.5 pt-1">
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-foreground">Set a new password</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Choose a strong password (at least 8 characters) for your Studio account.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="auth-link-new-password" className="text-xs font-semibold text-foreground">
+              New Password
+            </Label>
+            <div className="relative">
+              <Input
+                ref={newPasswordInputRef}
+                id="auth-link-new-password"
+                name="newPassword"
+                type={showNewPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                placeholder="Min. 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="h-10 text-base md:text-sm bg-background/50 pr-10 rounded-lg"
+              />
+              <button
+                type="button"
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="auth-link-confirm-password" className="text-xs font-semibold text-foreground">
+              Confirm New Password
+            </Label>
+            <Input
+              id="auth-link-confirm-password"
+              name="confirmPassword"
+              type={showNewPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              required
+              minLength={8}
+              placeholder="Re-enter new password"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              className="h-10 text-base md:text-sm bg-background/50 rounded-lg"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            size="lg"
+            disabled={newPassword.length < 8}
+            loading={isLoading}
+            loadingText="Saving password..."
+            className="w-full font-bold shadow-xs cursor-pointer"
+          >
+            Save New Password
+          </Button>
         </form>
       )}
     </div>

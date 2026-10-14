@@ -109,12 +109,16 @@ export interface CreditLedgerEntry {
   id: string;
   userId?: string;
   userEmail: string;
-  type: 'package_purchase' | 'service_deduction' | 'manual_topup' | 'redeem_code' | 'promo_credit';
+  type: 'package_purchase' | 'service_deduction' | 'manual_topup' | 'redeem_code' | 'promo_credit' | 'refund';
   creditsDelta: number;
   usdAmount: number;
   referenceId: string;
   description: string;
   createdAt: string;
+  status?: 'completed' | 'pending' | 'reversed';
+  bucket?: 'purchased' | 'promo';
+  projectId?: string;
+  projectCode?: string;
 }
 
 export interface ChatAttachment {

@@ -30,6 +30,8 @@ export interface WalletApiResponse {
   success: boolean;
   email: string;
   walletBalance: number;
+  balancePurchased?: number;
+  balancePromo?: number;
   ledger: CreditLedgerEntry[];
 }
 

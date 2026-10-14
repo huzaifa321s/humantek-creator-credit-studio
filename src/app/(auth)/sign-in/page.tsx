@@ -43,21 +43,23 @@ function SignInContent() {
     return '/projects';
   };
 
+  const isResetFlow = searchParams.get('reset') === 'true';
+  const isForgotFlow = searchParams.get('forgot') === 'true';
   const { user, isHydrated } = useUserStore();
 
-  // If user is already authenticated in client store, redirect to target
+  // If user is already authenticated in client store (and not completing a password reset), redirect to target
   useEffect(() => {
-    if (isHydrated && user?.email) {
+    if (isHydrated && user?.email && !isResetFlow) {
       if (user.role === 'admin') {
         router.replace('/management');
       } else {
         router.replace(getSafeRedirectUrl());
       }
     }
-  }, [user, isHydrated, router]);
+  }, [user, isHydrated, isResetFlow, router]);
 
   // Prevent flash of sign-in form for already authenticated users
-  if (!isHydrated || (user && user.email)) {
+  if (!isHydrated || (user && user.email && !isResetFlow)) {
     return (
       <div className="w-full max-w-sm mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[380px] space-y-3">
         <Spinner className="size-6 text-amber-500" />
@@ -73,16 +75,19 @@ function SignInContent() {
       <Card className="rounded-2xl sm:rounded-3xl bg-card border border-border/80 shadow-xl overflow-hidden">
         <CardHeader className="text-center space-y-1.5 pb-4 pt-6 sm:pt-8 px-6 sm:px-8">
           <TypographyH1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Sign In
+            {isResetFlow ? 'Reset Password' : 'Sign In'}
           </TypographyH1>
           <TypographyMuted className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            Access your projects and studio credits
+            {isResetFlow
+              ? 'Choose a new password for your Studio account'
+              : 'Access your projects and studio credits'}
           </TypographyMuted>
         </CardHeader>
 
         <CardContent className="px-6 sm:px-8 pb-6 sm:pb-8 pt-0">
           <AuthForm
             isPage={true}
+            initialMode={isResetFlow ? 'reset-link' : isForgotFlow ? 'forgot' : 'signin'}
             nextUrl={getSafeRedirectUrl()}
             onSuccess={() => {
               window.location.href = getSafeRedirectUrl();

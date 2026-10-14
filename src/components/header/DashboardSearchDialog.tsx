@@ -7,6 +7,7 @@ import {
   Search,
   FolderKanban,
   Ticket,
+  Receipt,
   ShieldCheck,
   Sparkles,
   Plus,
@@ -114,6 +115,15 @@ export function DashboardSearchDialog({
           ]
         : []),
       {
+        id: 'nav-wallet',
+        category: 'Navigation' as const,
+        title: 'Credit History',
+        description: 'View your studio credit balance, package allocations, and usage ledger',
+        icon: Receipt,
+        keywords: ['credit', 'history', 'ledger', 'wallet', 'balance', 'transactions', 'usage'],
+        action: () => navigateTo('/wallet'),
+      },
+      {
         id: 'nav-redeem',
         category: 'Navigation' as const,
         title: 'Promo Code',
@@ -158,8 +168,8 @@ export function DashboardSearchDialog({
         title: `Credit balance (${walletBalance} CR)`,
         description: 'Review credit utilization, top-ups, and balance breakdown',
         icon: Coins,
-        keywords: ['balance', 'credits', 'wallet', 'funds', 'cr', 'coins'],
-        action: () => navigateTo('/redeem-code'),
+        keywords: ['balance', 'credits', 'wallet', 'funds', 'cr', 'coins', 'ledger'],
+        action: () => navigateTo('/wallet'),
       },
     ],
     [navigateTo, isMobile, setOpenMobile, canChat, isStaffOrAdmin, walletBalance]

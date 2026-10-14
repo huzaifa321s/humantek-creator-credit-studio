@@ -147,12 +147,15 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 2. AUTHENTICATED ADMINISTRATORS
+  const isPasswordResetFlow =
+    isClientAuthPage && request.nextUrl.searchParams.get('reset') === 'true';
+
   if (userRole === 'admin') {
     if (isAdminTotpPage) {
       return NextResponse.redirect(new URL('/management', request.url));
     }
 
-    if (isAdminPath) {
+    if (isAdminPath || isPasswordResetFlow) {
       return supabaseResponse;
     }
 
@@ -174,6 +177,10 @@ export async function updateSession(request: NextRequest) {
     // Clients attempting to access administration console or legacy TOTP are redirected to their projects
     if (isAdminPath || isAdminTotpPage) {
       return NextResponse.redirect(new URL('/projects', request.url));
+    }
+    // Allow password reset completion screen (/login?reset=true) even when recovery session is active
+    if (isPasswordResetFlow) {
+      return supabaseResponse;
     }
     // Clients visiting login/sign-in are redirected to their projects or target next
     if (isClientAuthPage) {

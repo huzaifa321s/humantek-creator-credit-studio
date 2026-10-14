@@ -58,15 +58,19 @@ function Button({
   loading = false,
   loadingText,
   disabled,
+  nativeButton,
   children,
   ...props
 }: ButtonProps) {
   const isDisabled = disabled || loading
+  const resolvedNativeButton =
+    nativeButton !== undefined ? nativeButton : props.render ? false : true
 
   return (
     <ButtonPrimitive
       data-slot="button"
       disabled={isDisabled}
+      nativeButton={resolvedNativeButton}
       aria-busy={loading ? "true" : undefined}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}

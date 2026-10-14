@@ -382,7 +382,33 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                 {/* 2. Messages */}
                 <SidebarClientMessagesItem />
 
-                {/* 3. Promo Code */}
+                {/* 3. Credit History */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname.startsWith('/wallet')}
+                    onClick={handleNavClick}
+                    render={<Link href="/wallet" onClick={handleNavClick} />}
+                    tooltip="Credit History"
+                    className={cn(
+                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      pathname.startsWith('/wallet')
+                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
+                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                    )}
+                  >
+                    <Receipt
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/wallet')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Credit History</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* 4. Promo Code */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={pathname === '/redeem-code'}
@@ -408,7 +434,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 4. Notifications */}
+                {/* 5. Notifications */}
                 <SidebarNotificationsItem pathname={pathname} />
               </>
             )}

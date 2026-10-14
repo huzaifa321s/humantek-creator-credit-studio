@@ -144,8 +144,8 @@ function HeaderCreditBalanceBadge({ effectiveBalance }: { effectiveBalance: numb
   return (
     <div className="relative hidden md:inline-flex items-center">
       <Link
-        href="/redeem-code"
-        title="View credit balance and redeem codes"
+        href="/wallet"
+        title="View credit history and balance"
         className={cn(
           badgeVariants({ variant: 'gold', size: 'default' }),
           'inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-400/40 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25 hover:border-amber-400/60 transition-all duration-300 text-xs font-semibold select-none shadow-2xs cursor-pointer',
@@ -267,6 +267,8 @@ export function DashboardHeader({
       ? 'My Projects'
       : pathname === '/messages'
       ? 'Messages'
+      : pathname === '/wallet'
+      ? 'Credit History'
       : pathname === '/management'
       ? 'Studio Overview'
       : pathname === '/management/projects'

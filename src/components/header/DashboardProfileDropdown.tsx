@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes';
 import {
   FolderKanban,
   Coins,
+  Receipt,
   LogOut,
   Sun,
   Moon,
@@ -51,6 +52,7 @@ export function DashboardProfileDropdown({
   const { user, signOut } = useUserStore();
 
   const isProjectsActive = pathname === '/projects';
+  const isWalletActive = pathname === '/wallet';
 
   const [mounted, setMounted] = useState(false);
 
@@ -210,13 +212,40 @@ export function DashboardProfileDropdown({
           }
         />
 
+        {/* 2b. Credit History (Client Role) */}
+        {!isStaff && (
+          <DropdownMenuItem
+            render={
+              <Link
+                href="/wallet"
+                className={cn(
+                  'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
+                  isWalletActive
+                    ? 'bg-amber-400/15 text-amber-300 font-semibold'
+                    : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
+                )}
+              >
+                <Receipt
+                  className={cn(
+                    'size-4 shrink-0 transition-colors',
+                    isWalletActive
+                      ? 'text-amber-400'
+                      : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
+                  )}
+                />
+                <span>Credit History</span>
+              </Link>
+            }
+          />
+        )}
+
         {/* 3. Mobile-Only Credit Balance (Hidden on md+ desktop where header pill is visible) */}
         <div className="md:hidden">
           <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
           <DropdownMenuItem
             render={
               <Link
-                href="/redeem-code"
+                href="/wallet"
                 className="group flex h-9 items-center justify-between rounded-lg px-2.5 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white cursor-pointer transition-colors w-full outline-none select-none"
               >
                 <div className="flex items-center gap-2.5">

@@ -145,7 +145,7 @@ export function getNotificationHref(
     if (isAdmin) {
       return `/management/ledger`;
     }
-    return `/redeem-code`;
+    return `/wallet`;
   }
 
   // 2. Resolve via Raw Link with strict validation and role isolation
@@ -203,7 +203,7 @@ export function getNotificationHref(
       }
 
       if (sanitized.startsWith('/wallet') || sanitized.startsWith('/billing')) {
-        return '/redeem-code';
+        return '/wallet';
       }
 
       // Convert legacy /projects/<id> directly to /messages?project=<id> (if chat) or /projects?project=<id>

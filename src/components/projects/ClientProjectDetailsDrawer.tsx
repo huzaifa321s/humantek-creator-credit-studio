@@ -200,18 +200,18 @@ export function ClientProjectDetailsDrawer({
           </ScrollArea>
 
           {/* Drawer Footer Actions */}
-          <SheetFooter className="p-4 border-t border-border/80 bg-secondary/15 flex-row flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <SheetFooter className="p-3 sm:p-4 border-t border-border/80 bg-secondary/15 flex-row items-center justify-between gap-2 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="text-xs font-semibold h-9 px-3.5 rounded-lg cursor-pointer"
+              className="text-xs font-semibold h-9 px-3 rounded-lg cursor-pointer shrink-0"
             >
               Close
             </Button>
             {project && (
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-1.5 sm:gap-2 ml-auto min-w-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -230,7 +230,7 @@ export function ClientProjectDetailsDrawer({
                       setIsDownloadingInvoice(false);
                     }
                   }}
-                  className="text-xs font-semibold h-9 px-3.5 gap-1.5 rounded-lg cursor-pointer"
+                  className="text-xs font-semibold h-9 px-2.5 sm:px-3.5 gap-1.5 rounded-lg cursor-pointer shrink-0"
                 >
                   <Download className="size-3.5 text-brand-text dark:text-amber-400" />
                   <span>Invoice</span>
@@ -243,10 +243,11 @@ export function ClientProjectDetailsDrawer({
                     onClose();
                     setChatOpen(true, project.id);
                   }}
-                  className="text-xs font-bold h-9 px-4 gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
+                  className="text-xs font-bold h-9 px-3 sm:px-4 gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20 shrink-0"
                 >
                   <MessageSquare className="size-3.5" />
-                  <span>Open Project Chat</span>
+                  <span className="sm:hidden">Project Chat</span>
+                  <span className="hidden sm:inline">Open Project Chat</span>
                 </Button>
               </div>
             )}
