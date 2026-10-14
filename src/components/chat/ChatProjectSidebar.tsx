@@ -463,7 +463,7 @@ export function ChatProjectSidebar({
               </Button>
             </Link>
           ) : (
-            <Link href="/" onClick={handleNewProject}>
+            <Link href="/new-project" onClick={handleNewProject}>
               <Button
                 type="button"
                 variant="ghost"
@@ -561,7 +561,7 @@ export function ChatProjectSidebar({
                   : 'Start a project to open a dedicated workspace.'}
               </EmptyDescription>
               {viewerRole !== 'admin' && (
-                <Link href="/" onClick={handleNewProject} className="mt-1.5">
+                <Link href="/new-project" onClick={handleNewProject} className="mt-1.5">
                   <Button type="button" variant="outline" size="xs" className="h-7 gap-1 text-2xs font-semibold">
                     <Plus className="size-3" />
                     <span>+ New Project</span>

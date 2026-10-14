@@ -318,7 +318,19 @@ export function ChatFullView() {
               projects={projects}
               activeProjectId={projectId}
               unreadCounts={unreadCounts}
-              onSelectProject={setActiveProjectId}
+              onSelectProject={(id) => {
+                setActiveProjectId(id);
+                if (typeof window !== 'undefined' && window.location.pathname === '/messages') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('thread');
+                  if (id === GLOBAL_CHAT_ID) {
+                    url.searchParams.delete('project');
+                  } else {
+                    url.searchParams.set('project', id);
+                  }
+                  window.history.replaceState(null, '', url.pathname + url.search);
+                }
+              }}
               className="h-full border-0 bg-transparent"
             />
           </div>

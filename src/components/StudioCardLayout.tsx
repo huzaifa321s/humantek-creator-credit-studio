@@ -9,7 +9,6 @@ import {
   Ticket,
   MessageSquare,
   LayoutDashboard,
-  Landmark,
   Receipt,
   Bell,
   Plus,
@@ -343,33 +342,7 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 5. Manual Payment Orders */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={pathname.startsWith('/management/orders')}
-                    onClick={handleNavClick}
-                    render={<Link href="/management/orders" onClick={handleNavClick} />}
-                    tooltip="Manual Payments"
-                    className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      pathname.startsWith('/management/orders')
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
-                    )}
-                  >
-                    <Landmark
-                      className={cn(
-                        'size-4 shrink-0 transition-colors',
-                        pathname.startsWith('/management/orders')
-                          ? 'text-brand-text dark:text-amber-400'
-                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                      )}
-                    />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Manual Payments</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                {/* 6. Notifications */}
+                {/* 5. Notifications */}
                 <SidebarNotificationsItem pathname={pathname} />
               </>
             ) : (

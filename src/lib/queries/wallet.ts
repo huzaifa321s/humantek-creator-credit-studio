@@ -56,9 +56,13 @@ export function useWalletQuery(email?: string | null) {
   // Keep local userStore seamlessly synchronized with fresh authoritative server balance
   useEffect(() => {
     if (query.data && typeof query.data.walletBalance === 'number') {
-      const currentUser = useUserStore.getState().user;
+      const store = useUserStore.getState();
+      const currentUser = store.user;
       if (currentUser && currentUser.walletBalance !== query.data.walletBalance) {
-        useUserStore.getState().updateUser({ walletBalance: query.data.walletBalance });
+        store.updateUser({ walletBalance: query.data.walletBalance });
+      }
+      if (!store.hasSyncedInitialBalance) {
+        store.markInitialBalanceSynced();
       }
     }
   }, [query.data]);

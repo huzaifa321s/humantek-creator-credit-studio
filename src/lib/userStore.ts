@@ -18,10 +18,23 @@ export interface StudioUser {
   canChat?: boolean;
 }
 
+export interface CreditDeltaEvent {
+  delta: number;
+  from: number;
+  to: number;
+  timestamp: number;
+}
+
 interface UserStoreState {
   user: StudioUser | null;
   isHydrated: boolean;
+  isSessionVerified: boolean;
+  hasSyncedInitialBalance: boolean;
+  recentCreditDelta: CreditDeltaEvent | null;
   setHydrated: (hydrated: boolean) => void;
+  setSessionVerified: (verified: boolean) => void;
+  markInitialBalanceSynced: () => void;
+  clearRecentCreditDelta: () => void;
   updateUser: (patch: Partial<StudioUser>) => void;
   signOut: () => void;
   signInAsClient: (
@@ -58,7 +71,13 @@ export const useUserStore = create<UserStoreState>()(
     (set, get) => ({
       user: null,
       isHydrated: false,
+      isSessionVerified: false,
+      hasSyncedInitialBalance: false,
+      recentCreditDelta: null,
       setHydrated: (hydrated) => set({ isHydrated: hydrated }),
+      setSessionVerified: (verified) => set({ isSessionVerified: verified }),
+      markInitialBalanceSynced: () => set({ hasSyncedInitialBalance: true }),
+      clearRecentCreditDelta: () => set({ recentCreditDelta: null }),
       updateUser: (patch) =>
         set((state) => {
           const current: StudioUser = state.user || {
@@ -69,11 +88,29 @@ export const useUserStore = create<UserStoreState>()(
             walletBalance: patch.walletBalance ?? 0,
             role: patch.role || 'client',
           };
+          const prevBalance = state.user?.walletBalance;
+          const nextBalance = patch.walletBalance;
+          let nextDelta = state.recentCreditDelta;
+
+          if (
+            state.hasSyncedInitialBalance &&
+            typeof prevBalance === 'number' &&
+            typeof nextBalance === 'number' &&
+            nextBalance !== prevBalance
+          ) {
+            nextDelta = {
+              delta: nextBalance - prevBalance,
+              from: prevBalance,
+              to: nextBalance,
+              timestamp: Date.now(),
+            };
+          }
+
           const updated: StudioUser = { ...current, ...patch };
           if (!updated.avatarInitials || (patch.name && !patch.avatarInitials)) {
             updated.avatarInitials = computeInitials(updated.name, updated.email);
           }
-          return { user: updated };
+          return { user: updated, recentCreditDelta: nextDelta };
         }),
       signOut: () => {
         if (typeof window !== 'undefined') {
@@ -88,6 +125,9 @@ export const useUserStore = create<UserStoreState>()(
         }
         set({
           user: null,
+          isSessionVerified: true,
+          hasSyncedInitialBalance: false,
+          recentCreditDelta: null,
         });
       },
       signInAsClient: (
@@ -109,16 +149,26 @@ export const useUserStore = create<UserStoreState>()(
             role,
           },
           isHydrated: true,
+          isSessionVerified: true,
         }),
       addCredits: (amount: number, _description?: string) => {
         void _description;
         if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) return;
         set((state) => {
           if (!state.user) return state;
+          const from = state.user.walletBalance || 0;
+          const to = from + amount;
           return {
             user: {
               ...state.user,
-              walletBalance: (state.user.walletBalance || 0) + amount,
+              walletBalance: to,
+            },
+            hasSyncedInitialBalance: true,
+            recentCreditDelta: {
+              delta: amount,
+              from,
+              to,
+              timestamp: Date.now(),
             },
           };
         });
@@ -129,14 +179,24 @@ export const useUserStore = create<UserStoreState>()(
         const currentUser = get().user;
         if (!currentUser) return false;
         if ((currentUser.walletBalance || 0) < amount) return false;
-        set((state) => ({
-          user: state.user
-            ? {
-                ...state.user,
-                walletBalance: Math.max(0, (state.user.walletBalance || 0) - amount),
-              }
-            : null,
-        }));
+        set((state) => {
+          if (!state.user) return { user: null };
+          const from = state.user.walletBalance || 0;
+          const to = Math.max(0, from - amount);
+          return {
+            user: {
+              ...state.user,
+              walletBalance: to,
+            },
+            hasSyncedInitialBalance: true,
+            recentCreditDelta: {
+              delta: to - from,
+              from,
+              to,
+              timestamp: Date.now(),
+            },
+          };
+        });
         return true;
       },
       hasSufficientBalance: (amount: number) => {
@@ -159,6 +219,7 @@ export const useUserStore = create<UserStoreState>()(
       storage: createJSONStorage(() => localStorage),
       version: 1,
       skipHydration: true,
+      partialize: (state) => ({ user: state.user }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           // Purge any stale client-guest from previous dev sessions

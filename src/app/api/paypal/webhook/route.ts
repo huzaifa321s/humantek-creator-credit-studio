@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { verifyPayPalWebhookSignature } from '@/lib/paypal';
+import { createNotification } from '@/lib/notifications';
 
 export async function POST(req: NextRequest) {
   let rawBody = '';
@@ -175,6 +176,18 @@ export async function POST(req: NextRequest) {
 
         if (refundErr) {
           throw new Error(`Refund handler error: ${refundErr.message}`);
+        }
+
+        if (order.user_id) {
+          void createNotification({
+            userId: order.user_id,
+            type: 'payment_confirmed',
+            title: 'Payment refunded',
+            message: `Your payment of $${((refundAmountCents || 0) / 100).toFixed(2)} has been refunded and your studio credit balance was updated.`,
+            link: '/projects',
+            actionLabel: 'View Projects',
+            actionId: order.id,
+          });
         }
         break;
       }

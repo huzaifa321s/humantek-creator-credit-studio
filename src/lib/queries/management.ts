@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ApiError } from '@/components/Providers';
+import { useUserStore } from '@/lib/userStore';
 import type { ManagementSummaryData } from '@/app/api/management/summary/route';
 import type { LedgerTransaction, LedgerCustomerSummary } from '@/components/AgencyDataGrid';
 
@@ -19,8 +20,13 @@ interface LedgerResponse {
  * Refetches automatically every 30 seconds to keep badges live.
  */
 export function useManagementSummaryQuery() {
+  const isVerifiedAdmin = useUserStore((s) =>
+    Boolean(s.user?.email && s.user?.role === 'admin' && s.isSessionVerified)
+  );
+
   return useQuery<ManagementSummaryData, ApiError>({
     queryKey: ['management', 'summary'],
+    enabled: isVerifiedAdmin,
     queryFn: async () => {
       const res = await fetch('/api/management/summary');
       if (res.status === 401 || res.status === 403) {
@@ -51,9 +57,13 @@ export function useManagementLedgerQuery(filters?: {
   customer?: string;
 }) {
   const { page = 1, limit = 50, type, status, customer } = filters || {};
+  const isVerifiedAdmin = useUserStore((s) =>
+    Boolean(s.user?.email && s.user?.role === 'admin' && s.isSessionVerified)
+  );
 
   return useQuery<LedgerResponse, ApiError>({
     queryKey: ['management', 'ledger', { page, limit, type, status, customer }],
+    enabled: isVerifiedAdmin,
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', String(page));

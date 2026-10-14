@@ -16,7 +16,7 @@ export const PACKAGES: PackageDefinition[] = [
     id: 'studio-momentum',
     name: 'Studio Momentum',
     price: 2500,
-    credits: 1160,
+    credits: 1200,
     group: 'Most Popular',
     bestFor: 'Basic and Standard services plus up to two Elite service units',
     maxLevel: 2,
@@ -26,7 +26,7 @@ export const PACKAGES: PackageDefinition[] = [
     id: 'signature-collective',
     name: 'Signature Collective',
     price: 4000,
-    credits: 1920,
+    credits: 2000,
     group: 'Full Access',
     bestFor: 'Full tier access controlled by the available credit balance',
     maxLevel: 2,
@@ -683,17 +683,6 @@ export const CATEGORY_DEFAULT_METADATA: Record<
   },
 };
 
-const CATEGORY_TURNAROUND: Record<string, string> = {
-  Branding: '3–5 days',
-  Stream: '2–4 days',
-  Animation: '4–7 days',
-  VTuber: '7–14 days',
-  Artwork: '5–7 days',
-  Content: '2–3 days',
-  '3D': '7–10 days',
-  Custom: 'Custom schedule',
-};
-
 export function getServiceMetadata(svc: ServiceDefinition) {
   const custom = SERVICE_METADATA_EXTRAS[svc.id];
   const catDefault = CATEGORY_DEFAULT_METADATA[svc.category] || CATEGORY_DEFAULT_METADATA.Custom;
@@ -702,7 +691,6 @@ export function getServiceMetadata(svc: ServiceDefinition) {
     bestFor: svc.bestFor || custom?.bestFor || catDefault.bestFor,
     deliverables: svc.deliverables || custom?.deliverables || catDefault.deliverables,
     previewImage: svc.exampleImage || custom?.previewImage,
-    turnaround: CATEGORY_TURNAROUND[svc.category] || '3–5 days',
     revisions: '2 rounds included',
   };
 }

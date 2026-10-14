@@ -188,7 +188,7 @@ export function AuthForm({
         if (data.user.role === 'admin' || data.user.isAdmin) {
           toast.success('Welcome back, Administrator. Redirecting to management console...');
           onClose?.();
-          router.replace('/management');
+          window.location.replace('/management');
           return;
         }
 

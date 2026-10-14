@@ -114,14 +114,13 @@ export function ReferenceImageGrid({
   return (
     <div className={cn('space-y-2 min-w-0', className)}>
       <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="text-xs font-bold text-foreground flex items-center gap-1.5 min-w-0 truncate">
-          <ImageIcon className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-          <span className="truncate">Reference Images ({files.length})</span>
+        <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground truncate">
+          Reference Images ({files.length})
         </span>
         <span className="text-2xs text-muted-foreground shrink-0">Click to enlarge</span>
       </div>
 
-      <div className="grid grid-cols-2 xs:grid-cols-3 gap-2 sm:gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
         {files.map((file, i) => {
           const showSkeletonOnly = isLoading && !file.url;
 

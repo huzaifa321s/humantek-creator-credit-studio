@@ -10,8 +10,7 @@ interface ProjectDetailRedirectPageProps {
  *
  * Permanent, stable canonical public URL for project details.
  * Currently performs a clean HTTP 307 temporary redirect to the interactive
- * URL-addressable drawer (?project=<id>), while preserving any additional
- * query parameters (e.g. section=files, tab, etc.).
+ * URL-addressable drawer (?project=<id>).
  *
  * In the future, if project details are promoted to a standalone multi-tab page,
  * this URL remains 100% stable without breaking any notifications, emails, or bookmarks.
@@ -27,7 +26,7 @@ export default async function ProjectDetailRedirectPage({
   query.set('project', id);
 
   for (const [key, value] of Object.entries(sParams)) {
-    if (key !== 'project' && typeof value === 'string' && value.trim()) {
+    if (key !== 'project' && key !== 'section' && typeof value === 'string' && value.trim()) {
       query.set(key, value.trim());
     }
   }

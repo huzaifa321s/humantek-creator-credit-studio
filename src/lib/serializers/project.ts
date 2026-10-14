@@ -14,6 +14,9 @@ export interface ClientProjectView {
   projectCode: string;
   packageName: string;
   packageId: string;
+  packageCredits?: number;
+  clientName?: string;
+  email?: string;
   channelName: string;
   platform: string;
   style: string;
@@ -80,6 +83,9 @@ export function serializeClientProject(p: any): ClientProjectView {
     projectCode: String(p.project_code || p.projectCode || ''),
     packageName: String(p.package_name || p.packageName || ''),
     packageId: String(p.package_id || p.packageId || ''),
+    packageCredits: Number(p.package_credits ?? p.packageCredits) || 0,
+    clientName: String(p.client_name || p.clientName || ''),
+    email: String(p.email || ''),
     channelName: String(p.channel_name || p.channelName || ''),
     platform: String(p.platform || ''),
     style: String(p.style || ''),

@@ -15,9 +15,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { MessageSquare, Zap } from 'lucide-react';
+import { MessageSquare, Zap, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatStudioDate, getProjectStatusLabel } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
+import { downloadProjectInvoice } from '@/lib/invoice';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { ReferenceImageGrid } from '@/components/ui/reference-image-grid';
 import {
@@ -45,6 +47,7 @@ export function ClientProjectDetailsDrawer({
   const { setIsOpen: setChatOpen } = useStudioChat();
 
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
 
   // On-demand project details fetch (signed URLs generated only when drawer opens)
   const {
@@ -101,7 +104,7 @@ export function ClientProjectDetailsDrawer({
                   <Badge
                     variant="outline"
                     size="sm"
-                    className="font-mono tabular-nums text-brand-text dark:text-amber-300 bg-amber-400/10 border-amber-400/30 font-bold shrink-0"
+                    className="font-mono tabular-nums text-muted-foreground bg-secondary/40 border-border/80 font-semibold shrink-0"
                   >
                     {project.projectCode}
                   </Badge>
@@ -168,8 +171,7 @@ export function ClientProjectDetailsDrawer({
                   {/* 2. Creative Brief Instructions */}
                   <ProjectDrawerBriefSection
                     instructions={project.instructions}
-                    title="Submitted Creative Brief"
-                    showSnapshotBadge
+                    title="Project Brief"
                   />
 
                   {/* 3. Reference Links */}
@@ -198,30 +200,55 @@ export function ClientProjectDetailsDrawer({
           </ScrollArea>
 
           {/* Drawer Footer Actions */}
-          <SheetFooter className="p-4 border-t border-border/80 bg-secondary/15 flex-row items-center justify-between gap-3 shrink-0">
+          <SheetFooter className="p-4 border-t border-border/80 bg-secondary/15 flex-row flex-wrap items-center justify-between gap-2.5 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="text-xs font-semibold h-9 px-4 rounded-lg cursor-pointer"
+              className="text-xs font-semibold h-9 px-3.5 rounded-lg cursor-pointer"
             >
               Close
             </Button>
             {project && (
-              <Button
-                type="button"
-                variant="gold"
-                size="sm"
-                onClick={() => {
-                  onClose();
-                  setChatOpen(true, project.id);
-                }}
-                className="text-xs font-bold h-9 px-4 gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
-              >
-                <MessageSquare className="size-3.5" />
-                <span>Open Project Chat</span>
-              </Button>
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  loading={isDownloadingInvoice}
+                  loadingText="Invoice..."
+                  onClick={async () => {
+                    if (isDownloadingInvoice) return;
+                    setIsDownloadingInvoice(true);
+                    try {
+                      await downloadProjectInvoice(project);
+                      toast.success(`Invoice INV-${project.projectCode} downloaded`);
+                    } catch {
+                      toast.error('Could not generate invoice PDF');
+                    } finally {
+                      setIsDownloadingInvoice(false);
+                    }
+                  }}
+                  className="text-xs font-semibold h-9 px-3.5 gap-1.5 rounded-lg cursor-pointer"
+                >
+                  <Download className="size-3.5 text-brand-text dark:text-amber-400" />
+                  <span>Invoice</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="gold"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    setChatOpen(true, project.id);
+                  }}
+                  className="text-xs font-bold h-9 px-4 gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
+                >
+                  <MessageSquare className="size-3.5" />
+                  <span>Open Project Chat</span>
+                </Button>
+              </div>
             )}
           </SheetFooter>
         </SheetContent>

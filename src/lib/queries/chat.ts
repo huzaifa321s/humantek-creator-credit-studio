@@ -15,7 +15,7 @@ const EMPTY_UNREAD: ChatUnreadResponse = { counts: {}, total: 0 };
 
 /** Real unread chat counts per project, refreshed every 30s and on window focus. */
 export function useChatUnreadQuery() {
-  const isSignedIn = useUserStore((s) => Boolean(s.user?.email));
+  const isSignedIn = useUserStore((s) => Boolean(s.user?.email && s.isSessionVerified));
 
   const query = useQuery({
     queryKey: chatUnreadKey,

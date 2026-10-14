@@ -92,12 +92,18 @@ export async function updateSession(request: NextRequest) {
     user = authedUser;
 
     if (user && user.email) {
-      // Query authoritative role strictly from profiles table (no email allowlist)
-      const { data: profile } = await supabase
+      // Query authoritative role strictly from profiles table (using service role key if available so RLS never blocks role check)
+      const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+      const roleClient = serviceKey
+        ? createServerClient(url, serviceKey, {
+            cookies: { getAll: () => [], setAll: () => {} },
+          })
+        : supabase;
+      const { data: profile } = await roleClient
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       userRole = profile?.role === 'admin' ? 'admin' : 'client';
     }
   } catch {

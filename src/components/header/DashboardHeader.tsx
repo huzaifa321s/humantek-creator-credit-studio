@@ -84,6 +84,116 @@ function HeaderChatButton({ mode }: { mode: 'standalone' | 'wizard' | 'auth' }) 
   );
 }
 
+function HeaderCreditBalanceBadge({ effectiveBalance }: { effectiveBalance: number }) {
+  const recentCreditDelta = useUserStore((s) => s.recentCreditDelta);
+  const clearRecentCreditDelta = useUserStore((s) => s.clearRecentCreditDelta);
+  const [displayBalance, setDisplayBalance] = useState<number>(effectiveBalance);
+  const [isHighlighting, setIsHighlighting] = useState(false);
+
+  const activeDelta =
+    recentCreditDelta &&
+    recentCreditDelta.delta !== 0 &&
+    Date.now() - recentCreditDelta.timestamp < 4200
+      ? recentCreditDelta
+      : null;
+
+  useEffect(() => {
+    if (!activeDelta) {
+      setDisplayBalance(effectiveBalance);
+      setIsHighlighting(false);
+      return;
+    }
+
+    setIsHighlighting(true);
+    const startVal = activeDelta.from;
+    const endVal = effectiveBalance;
+    const duration = 680;
+    const startTime = performance.now();
+    let rafId = 0;
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayBalance(Math.round(startVal + (endVal - startVal) * eased));
+      if (progress < 1) {
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    const glowTimer = setTimeout(() => {
+      setIsHighlighting(false);
+    }, 1600);
+
+    const remainingMs = Math.max(400, 3600 - (Date.now() - activeDelta.timestamp));
+    const clearTimer = setTimeout(() => {
+      clearRecentCreditDelta();
+    }, remainingMs);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(glowTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [activeDelta?.timestamp, activeDelta?.from, effectiveBalance, clearRecentCreditDelta]);
+
+  const isPositive = (activeDelta?.delta ?? 0) > 0;
+
+  return (
+    <div className="relative hidden md:inline-flex items-center">
+      <Link
+        href="/redeem-code"
+        title="View credit balance and redeem codes"
+        className={cn(
+          badgeVariants({ variant: 'gold', size: 'default' }),
+          'inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-400/40 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25 hover:border-amber-400/60 transition-all duration-300 text-xs font-semibold select-none shadow-2xs cursor-pointer',
+          isHighlighting &&
+            (isPositive
+              ? 'ring-2 ring-emerald-400/70 bg-amber-400/30 border-amber-300 shadow-md shadow-amber-400/25 scale-[1.03]'
+              : 'ring-2 ring-amber-400/60 bg-amber-400/25 border-amber-300 scale-[1.02]')
+        )}
+      >
+        <Coins
+          className={cn(
+            'size-3.5 text-amber-400 shrink-0 transition-transform duration-300',
+            isHighlighting && 'scale-125 text-amber-300'
+          )}
+        />
+        <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
+        <span
+          className={cn(
+            'font-mono tabular-nums font-bold tracking-tight transition-colors duration-300',
+            isHighlighting && isPositive ? 'text-emerald-300' : 'text-amber-300'
+          )}
+        >
+          {displayBalance} CR
+        </span>
+      </Link>
+
+      {activeDelta && (
+        <div
+          key={activeDelta.timestamp}
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'pointer-events-none absolute -bottom-6 right-1 z-50 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-mono font-bold tabular-nums shadow-lg backdrop-blur-md animate-in fade-in slide-in-from-top-1 zoom-in-95 duration-200',
+            isPositive
+              ? 'bg-zinc-950/95 border border-emerald-400/60 text-emerald-300 shadow-emerald-500/20'
+              : 'bg-zinc-950/95 border border-amber-400/50 text-amber-300 shadow-amber-500/15'
+          )}
+        >
+          {isPositive && <Sparkles className="size-2.5 text-amber-400 shrink-0" />}
+          <span>
+            {isPositive ? `+${activeDelta.delta}` : activeDelta.delta} CR
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface DashboardHeaderProps {
   mode?: 'standalone' | 'wizard' | 'auth';
   showBack?: boolean;
@@ -163,8 +273,6 @@ export function DashboardHeader({
       ? 'Client Projects'
       : pathname === '/management/inbox'
       ? 'Client Messages'
-      : pathname === '/management/orders'
-      ? 'Manual Payments'
       : pathname === '/management/ledger'
       ? 'Credit History'
       : pathname?.startsWith('/management')
@@ -395,20 +503,7 @@ export function DashboardHeader({
                   <div className="skeleton h-3.5 w-11 rounded-xs bg-amber-400/25" />
                 </div>
               ) : (
-                <Link
-                  href="/redeem-code"
-                  title="View credit balance and redeem codes"
-                  className={cn(
-                    badgeVariants({ variant: 'gold', size: 'default' }),
-                    'hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-400/40 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25 hover:border-amber-400/60 transition-all text-xs font-semibold select-none shadow-2xs cursor-pointer'
-                  )}
-                >
-                  <Coins className="size-3.5 text-amber-400 shrink-0" />
-                  <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
-                  <span className="text-amber-300 font-mono tabular-nums font-bold tracking-tight">
-                    {effectiveBalance} CR
-                  </span>
-                </Link>
+                <HeaderCreditBalanceBadge effectiveBalance={effectiveBalance} />
               )}
 
               {/* Optional Top-Right Action Badge (hidden on management console) */}

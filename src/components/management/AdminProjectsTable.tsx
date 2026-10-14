@@ -65,7 +65,9 @@ import {
   Check,
   Loader2,
   Zap,
+  Download,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   cn,
   formatStudioDate,
@@ -73,6 +75,7 @@ import {
   getProjectStatusLabel,
   getPaymentStatusLabel,
 } from '@/lib/utils';
+import { downloadProjectInvoice } from '@/lib/invoice';
 import { useAdminProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
 import { useManagementSummaryQuery } from '@/lib/queries/management';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
@@ -843,32 +846,54 @@ export function AdminProjectsTable({
           </ScrollArea>
 
           {/* Drawer Footer Actions */}
-          <SheetFooter className="p-3.5 sm:p-4 border-t border-border/80 bg-secondary/15 flex-row items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+          <SheetFooter className="p-3.5 sm:p-4 border-t border-border/80 bg-secondary/15 flex-row flex-wrap items-center justify-between gap-2.5 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => handleSelectProject(null)}
-              className="h-9 px-3.5 sm:px-4 text-xs font-semibold rounded-lg cursor-pointer shrink-0"
+              className="h-9 px-3.5 text-xs font-semibold rounded-lg cursor-pointer shrink-0"
             >
               Close Drawer
             </Button>
 
-            {selectedProject && onOpenChat && (
-              <Button
-                type="button"
-                variant="gold"
-                size="sm"
-                onClick={() => {
-                  const id = selectedProject.id;
-                  handleSelectProject(null);
-                  onOpenChat(id);
-                }}
-                className="h-9 px-3.5 sm:px-4 text-xs font-bold gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20 flex-1 xs:flex-initial justify-center"
-              >
-                <MessageSquare className="size-3.5 shrink-0" />
-                <span className="truncate">Open Client Messages</span>
-              </Button>
+            {selectedProject && (
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await downloadProjectInvoice(selectedProject);
+                      toast.success(`Invoice INV-${selectedProject.projectCode} downloaded`);
+                    } catch {
+                      toast.error('Could not generate invoice PDF');
+                    }
+                  }}
+                  className="h-9 px-3.5 text-xs font-semibold gap-1.5 rounded-lg cursor-pointer shrink-0"
+                >
+                  <Download className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                  <span>Invoice</span>
+                </Button>
+
+                {onOpenChat && (
+                  <Button
+                    type="button"
+                    variant="gold"
+                    size="sm"
+                    onClick={() => {
+                      const id = selectedProject.id;
+                      handleSelectProject(null);
+                      onOpenChat(id);
+                    }}
+                    className="h-9 px-3.5 sm:px-4 text-xs font-bold gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20 flex-1 xs:flex-initial justify-center"
+                  >
+                    <MessageSquare className="size-3.5 shrink-0" />
+                    <span className="truncate">Open Client Messages</span>
+                  </Button>
+                )}
+              </div>
             )}
           </SheetFooter>
         </SheetContent>

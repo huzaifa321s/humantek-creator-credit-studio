@@ -633,20 +633,24 @@ export async function POST(req: NextRequest) {
         void createNotification({
           userId: user.id,
           type: 'project_status',
-          title: 'Project submitted',
-          message: 'We received your brief and will review it shortly.',
+          title: `Project submitted · ${projectCode}`,
+          message: `We received your ${pkg.name} brief (${totalCreditsRequired} CR scope) and will review it shortly.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
+          entityType: 'project',
+          entityId: parsed.data.projectId,
         });
 
         void notifyAdmins({
           type: 'project_status',
-          title: 'New project request',
-          message: `${ownerName} submitted a new brief for review.`,
+          title: `New project request · ${projectCode}`,
+          message: `${ownerName} submitted a ${pkg.name} brief (${totalCreditsRequired} CR) for review.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
           actionLabel: 'Review Brief',
           actionId: parsed.data.projectId,
+          entityType: 'project',
+          entityId: parsed.data.projectId,
         });
 
         return NextResponse.json({
@@ -741,23 +745,28 @@ export async function POST(req: NextRequest) {
 
       // Major action notification: Project started with credits (only on initial creation, not replay)
       if (!rpcRes?.replayed) {
+        const spentCredits = project?.usedCredits || Number(projRow?.total_credits) || 0;
         void createNotification({
           userId: user.id,
           type: 'project_status',
-          title: 'Project started',
-          message: 'Your project was funded with credits and is now queued.',
+          title: `Project started · ${projectCode}`,
+          message: `Your project (${spentCredits} CR) was funded with Studio Wallet credits and is now queued.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
+          entityType: 'project',
+          entityId: parsed.data.projectId,
         });
 
         void notifyAdmins({
           type: 'project_status',
-          title: 'New credit project',
-          message: `${ownerName} started a new project with wallet credits.`,
+          title: `New credit project · ${projectCode}`,
+          message: `${ownerName} started a new project (${spentCredits} CR) with wallet credits.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
+          entityType: 'project',
+          entityId: parsed.data.projectId,
         });
       }
 
@@ -911,24 +920,33 @@ export async function PATCH(req: NextRequest) {
         .single();
 
       if (updatedProj) {
+        const pCode = updatedProj.project_code || id;
+        const refundedCr = Number(updatedProj.total_credits) || 0;
         if (user.isAdmin && updatedProj.user_id !== user.id) {
           void createNotification({
             userId: updatedProj.user_id,
             type: 'project_status',
-            title: 'Project cancelled',
-            message: 'Your project was cancelled and any credits were refunded.',
+            title: `Project cancelled · ${pCode}`,
+            message:
+              updatedProj.payment_status === 'paid' && refundedCr > 0
+                ? `Your project (${pCode}) was cancelled and +${refundedCr} CR were refunded to your Studio Wallet.`
+                : `Your project (${pCode}) was cancelled.`,
             link: `/projects/${id}`,
             actionLabel: 'View Details',
             actionId: id,
+            entityType: 'project',
+            entityId: id,
           });
         } else if (!user.isAdmin) {
           void notifyAdmins({
             type: 'project_status',
-            title: 'Project cancelled',
-            message: `${user.email} cancelled project ${updatedProj.project_code || id}.`,
+            title: `Project cancelled · ${pCode}`,
+            message: `${user.email} cancelled project ${pCode}.`,
             link: `/management?tab=projects&id=${id}`,
             actionLabel: 'View Project',
             actionId: id,
+            entityType: 'project',
+            entityId: id,
           });
         }
       }
@@ -945,13 +963,15 @@ export async function PATCH(req: NextRequest) {
     // (allowing an admin to confirm payment and transition to in_production in a single save)
     const { data: currentProj } = await adminClient
       .from('projects')
-      .select('id, user_id, project_code, package_id, package_name, package_credits, total_credits, payment_status, funding_source')
+      .select('id, user_id, project_code, package_id, package_name, package_credits, total_credits, status, payment_status, funding_source')
       .eq('id', id)
       .maybeSingle();
 
     if (!currentProj) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
+
+    let notifiedPaymentConfirmed = false;
 
     if (paymentStatus && paymentStatus !== currentProj.payment_status) {
       const catalogPkg = PACKAGES.find((p) => p.id === currentProj.package_id);
@@ -1002,6 +1022,30 @@ export async function PATCH(req: NextRequest) {
               console.warn('Ledger spend warning on payment confirmation:', spendErr.message);
             }
           }
+
+          // 3. Notify client of payment confirmation and any surplus package credits added to wallet
+          const isPackageFunding = currentProj.package_id !== 'studio-wallet' && effectivePkgCredits > 0;
+          const surplusCredits = isPackageFunding ? Math.max(0, effectivePkgCredits - totalUsed) : 0;
+          const pkgLabel = currentProj.package_name || catalogPkg?.name || 'Studio Package';
+
+          notifiedPaymentConfirmed = true;
+          void createNotification({
+            userId: currentProj.user_id,
+            type: 'payment_confirmed',
+            title:
+              surplusCredits > 0
+                ? `Payment confirmed · +${surplusCredits} CR added`
+                : `Payment confirmed · ${currentProj.project_code}`,
+            message:
+              surplusCredits > 0
+                ? `Payment confirmed for ${currentProj.project_code} (${pkgLabel}). ${totalUsed} CR allocated to your project and +${surplusCredits} CR added to your Studio Wallet.`
+                : `Payment confirmed for ${currentProj.project_code} (${pkgLabel} · ${totalUsed} CR). Your project is funded and ready for production.`,
+            link: `/projects/${id}`,
+            actionLabel: 'View Project',
+            actionId: id,
+            entityType: 'project',
+            entityId: id,
+          });
         } else if (paymentStatus === 'refunded') {
           // Reverse any un-reversed service_deduction or package_purchase entries for this project
           const { data: ledgerRows } = await adminClient
@@ -1046,6 +1090,19 @@ export async function PATCH(req: NextRequest) {
               });
             }
           }
+
+          // Notify client that payment was refunded and credit balance updated
+          void createNotification({
+            userId: currentProj.user_id,
+            type: 'payment_confirmed',
+            title: `Payment refunded · ${currentProj.project_code}`,
+            message: `Your payment for project ${currentProj.project_code} has been refunded and your studio credit balance was updated.`,
+            link: `/projects/${id}`,
+            actionLabel: 'View Project',
+            actionId: id,
+            entityType: 'project',
+            entityId: id,
+          });
         }
       }
     }
@@ -1073,47 +1130,68 @@ export async function PATCH(req: NextRequest) {
       .eq('id', id)
       .single();
 
-    // Major action notifications on status transitions
-    if (updatedProj && updatedProj.user_id) {
-      if (status === 'in_production') {
+    // Major action notifications on status transitions (only when status actually changed)
+    if (updatedProj && updatedProj.user_id && status !== currentProj.status) {
+      const pCode = updatedProj.project_code || id;
+      if (status === 'payment_confirmed' && !notifiedPaymentConfirmed) {
         void createNotification({
           userId: updatedProj.user_id,
-          type: 'project_status',
-          title: 'Production started',
-          message: 'We started working on your project.',
+          type: 'payment_confirmed',
+          title: `Payment confirmed · ${pCode}`,
+          message: `Your payment for ${pCode} has been confirmed and your project is ready for production.`,
           link: `/projects/${id}`,
           actionLabel: 'View Project',
           actionId: id,
+          entityType: 'project',
+          entityId: id,
+        });
+      } else if (status === 'in_production') {
+        void createNotification({
+          userId: updatedProj.user_id,
+          type: 'project_status',
+          title: `Production started · ${pCode}`,
+          message: `We started working on your ${updatedProj.package_name || 'Studio'} project (${pCode}).`,
+          link: `/projects/${id}`,
+          actionLabel: 'View Project',
+          actionId: id,
+          entityType: 'project',
+          entityId: id,
         });
       } else if (status === 'review_round') {
         void createNotification({
           userId: updatedProj.user_id,
           type: 'project_status',
-          title: 'Preview ready',
-          message: 'Your design preview is ready to review.',
+          title: `Preview ready · ${pCode}`,
+          message: `Your design preview for ${pCode} is ready to review.`,
           link: `/projects/${id}`,
           actionLabel: 'Review Now',
           actionId: id,
+          entityType: 'project',
+          entityId: id,
         });
       } else if (status === 'delivered') {
         void createNotification({
           userId: updatedProj.user_id,
           type: 'project_status',
-          title: 'Project completed! 🎉',
-          message: 'Your final files are ready to download.',
+          title: `Project completed! 🎉 · ${pCode}`,
+          message: `Your project (${pCode}) has been marked as completed.`,
           link: `/projects/${id}`,
-          actionLabel: 'Download Files',
+          actionLabel: 'View Project',
           actionId: id,
+          entityType: 'project',
+          entityId: id,
         });
       } else if (status === 'declined') {
         void createNotification({
           userId: updatedProj.user_id,
           type: 'project_status',
-          title: 'Brief declined',
-          message: 'Your project brief could not be accepted. Check project details.',
+          title: `Brief declined · ${pCode}`,
+          message: `Your project brief (${pCode}) could not be accepted. Check project details.`,
           link: `/projects/${id}`,
           actionLabel: 'View Details',
           actionId: id,
+          entityType: 'project',
+          entityId: id,
         });
       }
     }

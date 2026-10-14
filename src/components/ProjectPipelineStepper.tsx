@@ -65,7 +65,7 @@ export const PIPELINE_STAGES: PipelineStageInfo[] = [
     id: 'delivered',
     name: 'Delivered',
     shortName: 'Delivered',
-    description: 'Final files delivered with commercial rights.',
+    description: 'Project completed with full commercial rights.',
     signoff: 'Humantek Studio',
   },
 ];

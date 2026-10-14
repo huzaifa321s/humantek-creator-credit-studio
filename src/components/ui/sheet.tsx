@@ -122,10 +122,12 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
 
 function SheetDescription({
   className,
+  render = <div />,
   ...props
 }: SheetPrimitive.Description.Props) {
   return (
     <SheetPrimitive.Description
+      render={render}
       data-slot="sheet-description"
       className={cn("text-sm text-muted-foreground", className)}
       {...props}

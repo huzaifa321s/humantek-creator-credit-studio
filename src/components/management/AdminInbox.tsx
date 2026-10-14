@@ -99,12 +99,12 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
     }
   }
 
-  // Set initial project if provided and different
+  // Set initial project when deep-linked URL param changes
   useEffect(() => {
-    if (initialProjectId && initialProjectId !== projectId) {
+    if (initialProjectId) {
       setActiveProjectId(initialProjectId);
     }
-  }, [initialProjectId, projectId, setActiveProjectId]);
+  }, [initialProjectId, setActiveProjectId]);
 
   // Projects cache for fast initial sidebar display & fallback lookup
   const projectsQuery = useProjectsQuery();
@@ -272,6 +272,15 @@ export function AdminInbox({ initialProjectId }: AdminInboxProps) {
             onSelectProject={(id) => {
               setActiveProjectId(id);
               setShowMobileThread(true);
+              if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                if (id === GLOBAL_CHAT_ID) {
+                  url.searchParams.delete('thread');
+                } else {
+                  url.searchParams.set('thread', id);
+                }
+                window.history.replaceState(null, '', url.pathname + url.search);
+              }
             }}
             viewerRole="admin"
             className="h-full border-0"

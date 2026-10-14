@@ -103,16 +103,16 @@ export function DashboardProfileDropdown({
   const queryClient = useQueryClient();
 
   const handleSignOut = async () => {
+    const targetLogin = isStaff ? '/admin-login' : '/login';
     topLoader.start();
+    signOut();
+    queryClient.clear();
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch {
       // Ignore network errors on logout
     }
-    signOut();
-    queryClient.clear();
-    router.push('/login');
-    router.refresh();
+    window.location.replace(targetLogin);
   };
 
   return (

@@ -7,8 +7,10 @@ import {
   PACKAGES,
   SERVICES,
   TIER_NAMES,
+  DEFAULT_SCOPE_DETAILS,
   ADDITIONS_PRICING,
   RESTRICTED_GUIDELINES,
+  REVISION_RULES,
   PROHIBITED_REGEX,
   HOW_CREDITS_WORK,
   TERMS_AND_CONDITIONS,
@@ -87,6 +89,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { IconTile } from '@/components/reui/icon-tile';
+import { ColorPaletteInput, extractHexColors } from '@/components/reui/color-picker';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -307,13 +310,7 @@ const PRICE_FILTER_OPTIONS = [
   { id: '200-plus', label: '200+ CR' },
 ] as const;
 
-const CORE_RESTRICTED_ITEMS = [
-  'NSFW, sexually explicit, or adult content',
-  'Nudity or overly revealing designs',
-  'Occult, satanic, horns, 666, or Halloween themes',
-  'Drugs, alcohol, wine, or pork/bacon imagery',
-  'Religious crosses, political, or pride symbolism',
-];
+const CORE_RESTRICTED_ITEMS = RESTRICTED_GUIDELINES.slice(0, 6);
 
 type PriceFilterType = (typeof PRICE_FILTER_OPTIONS)[number]['id'];
 
@@ -1622,17 +1619,17 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
               <div className="text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5 sm:mb-1">
-                1 OF 5 · FUNDING SOURCE &amp; PACKAGE SELECTION
+                STEP 1 OF 5 · CHOOSE A PACKAGE
               </div>
               <h1
                 ref={headingRef}
                 tabIndex={-1}
                 className="scroll-mt-[140px] text-xl sm:text-3xl font-extrabold tracking-tight text-foreground outline-none"
               >
-                Choose how to fund your creative project.
+                Start with the right credit wallet.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed">
-                Pick a package to get credits, or deploy instantly with your available wallet balance.
+                Choose a package, then build a multi-service project and see your remaining credits in real time.
               </p>
             </div>
           </div>
@@ -1778,9 +1775,9 @@ export default function CreatorStudioPage() {
                   <Coins className="size-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-foreground">Global Studio Credit System</h4>
+                  <h4 className="text-xs font-bold text-foreground">Available Account Balance</h4>
                   <p className="text-2xs text-muted-foreground mt-0.5">
-                    All packages include permanent studio credits with 12-month rollover. Select a tier below to fund your project.
+                    Base service value: $2.50 per CR before package bonuses. Select a package tier below to fund your project.
                   </p>
                 </div>
               </div>
@@ -1879,7 +1876,7 @@ export default function CreatorStudioPage() {
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground font-medium font-mono tabular-nums">
-                          ${effectiveRate}/CR
+                          ${effectiveRate} effective USD / CR
                         </span>
                       )}
                     </div>
@@ -1897,11 +1894,11 @@ export default function CreatorStudioPage() {
                         </div>
                         <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Basic + up to 2 Standard units</span>
+                          <span>Basic + up to 2 Standard service units</span>
                         </div>
                         <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Standard studio turnaround & 2 review rounds</span>
+                          <span>Up to 2 concept &amp; 2 final revisions per asset</span>
                         </div>
                       </>
                     )}
@@ -1913,11 +1910,11 @@ export default function CreatorStudioPage() {
                         </div>
                         <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Basic, Standard + up to 2 Elite units</span>
+                          <span>Basic, Standard + up to 2 Elite service units</span>
                         </div>
                         <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Priority production queue & accelerated review</span>
+                          <span>Up to 2 concept &amp; 2 final revisions per asset</span>
                         </div>
                       </>
                     )}
@@ -1929,11 +1926,11 @@ export default function CreatorStudioPage() {
                         </div>
                         <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Full access across all 39 service tiers</span>
+                          <span>Basic, Standard &amp; Elite across all 39 services</span>
                         </div>
                         <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>VIP turnaround & dedicated Lead Producer</span>
+                          <span>Up to 2 concept &amp; 2 final revisions per asset</span>
                         </div>
                       </>
                     )}
@@ -1969,14 +1966,10 @@ export default function CreatorStudioPage() {
             })}
           </div>
 
-          {/* Centered Bottom Tip & Newcomer Guide */}
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-muted-foreground pt-1 pb-2">
-            <span className="font-semibold text-foreground/90">💡 1 CR ≈ one basic asset task</span>
-            <span className="hidden sm:inline text-muted-foreground/40">•</span>
-            <span>Higher packages include volume bonus credit multipliers</span>
-            <span className="hidden sm:inline text-muted-foreground/40">•</span>
-            <span>Unused credits roll over for 12 months</span>
-          </div>
+          {/* Centered Bottom Fine Print from Reference Site */}
+          <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
+            Base service value: <span className="font-semibold text-foreground/90">$2.50 per CR</span> before package bonuses. Higher packages receive a stronger effective rate.
+          </p>
         </div>
       )}
 
@@ -1990,7 +1983,7 @@ export default function CreatorStudioPage() {
             <div>
               <div className="flex items-center justify-between gap-2 mb-0.5 sm:mb-1">
                 <div className="text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  2 OF 5 · PICK YOUR SERVICES
+                  STEP 2 OF 5 · ASSET BOX
                 </div>
                 {/* Mobile Available Budget Badge (visible in header before and during service selection) */}
                 <div className="sm:hidden inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-400/10 dark:bg-amber-400/15 border border-amber-400/30 text-2xs font-semibold text-brand-text dark:text-amber-300">
@@ -2005,8 +1998,8 @@ export default function CreatorStudioPage() {
                   tabIndex={-1}
                   className="scroll-mt-[140px] text-xl sm:text-3xl font-extrabold tracking-tight text-foreground outline-none"
                 >
-                  <span className="hidden sm:inline">Choose your project deliverables.</span>
-                  <span className="sm:hidden">Choose deliverables</span>
+                  <span className="hidden sm:inline">Choose multiple services at once.</span>
+                  <span className="sm:hidden">Choose multiple services</span>
                 </h1>
                 <button
                   type="button"
@@ -2017,7 +2010,7 @@ export default function CreatorStudioPage() {
                 </button>
               </div>
               <p className="hidden sm:block text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Select the creative services you need. Your credit budget updates in real time.
+                Pick every asset you need, set its scope and quantity, and watch your credit balance update instantly.
               </p>
             </div>
 
@@ -2344,93 +2337,104 @@ export default function CreatorStudioPage() {
                         )}
                       </div>
 
-                      {/* Card Bottom Drawer (Ultra-Compact Responsive Action Bar) */}
+                      {/* Card Bottom Drawer (Ultra-Compact Responsive Action Bar + Real Scope Details) */}
                       {isSelected && choice && (
-                        <div className="bg-secondary/40 border-t border-border/80 px-3 sm:px-3.5 py-2 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-2.5">
-                          {/* Tier Selector */}
-                          <div className="flex-1 min-w-[125px] sm:max-w-[200px]">
-                            <Select
-                              value={choice.level === 2 ? 'elite' : choice.level === 1 ? 'standard' : 'basic'}
-                              onValueChange={(val) => {
-                                if (val !== null && val !== undefined) {
-                                  const level: 0 | 1 | 2 = val === 'elite' ? 2 : val === 'standard' ? 1 : 0;
-                                  updateServiceTier(svc.id, level);
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-full h-8 text-xs font-semibold bg-card rounded-lg border-border py-0 px-2 sm:px-2.5 shadow-2xs">
-                                <SelectValue placeholder="Tier">
-                                  {TIER_NAMES[choice.level]} ({svc.prices[choice.level]} CR)
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent className="text-xs">
-                                <SelectItem value="basic" className="text-xs">
-                                  Basic — {svc.prices[0]} CR
-                                </SelectItem>
-                                <SelectItem value="standard" disabled={isStandardDisabled} className="text-xs">
-                                  Standard — {svc.prices[1]} CR {isStandardDisabled ? '(Plan limit)' : ''}
-                                </SelectItem>
-                                <SelectItem value="elite" disabled={isEliteDisabled} className="text-xs">
-                                  Elite — {svc.prices[2]} CR {isEliteDisabled ? '(Plan limit)' : ''}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                        <div className="bg-secondary/40 border-t border-border/80 px-3 sm:px-3.5 py-2 sm:py-2.5 space-y-2">
+                          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-2.5">
+                            {/* Tier Selector */}
+                            <div className="flex-1 min-w-[125px] sm:max-w-[200px]">
+                              <Select
+                                value={choice.level === 2 ? 'elite' : choice.level === 1 ? 'standard' : 'basic'}
+                                onValueChange={(val) => {
+                                  if (val !== null && val !== undefined) {
+                                    const level: 0 | 1 | 2 = val === 'elite' ? 2 : val === 'standard' ? 1 : 0;
+                                    updateServiceTier(svc.id, level);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-full h-8 text-xs font-semibold bg-card rounded-lg border-border py-0 px-2 sm:px-2.5 shadow-2xs">
+                                  <SelectValue placeholder="Tier">
+                                    {TIER_NAMES[choice.level]} ({svc.prices[choice.level]} CR)
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent className="text-xs">
+                                  <SelectItem value="basic" className="text-xs">
+                                    Basic — {svc.prices[0]} CR
+                                  </SelectItem>
+                                  <SelectItem value="standard" disabled={isStandardDisabled} className="text-xs">
+                                    Standard — {svc.prices[1]} CR {isStandardDisabled ? '(Plan limit)' : ''}
+                                  </SelectItem>
+                                  <SelectItem value="elite" disabled={isEliteDisabled} className="text-xs">
+                                    Elite — {svc.prices[2]} CR {isEliteDisabled ? '(Plan limit)' : ''}
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
+                              {/* Quantity — ReUI Number Field with Clamped 1-20 range */}
+                              <NumberField
+                                size="sm"
+                                min={1}
+                                max={20}
+                                value={currentQty}
+                                onValueChange={(val) => updateServiceQuantity(svc.id, Math.max(1, Math.min(20, val ?? 1)))}
+                                className="w-auto shrink-0 gap-0"
+                                aria-label={`${svc.name} quantity`}
+                              >
+                                <NumberFieldGroup className="w-[78px] sm:w-[84px] rounded-lg border-border/80 bg-card shadow-2xs">
+                                  <NumberFieldDecrement className="text-muted-foreground hover:text-foreground disabled:opacity-30" />
+                                  <NumberFieldInput className="px-0 text-xs font-bold" />
+                                  <NumberFieldIncrement className="text-muted-foreground hover:text-foreground" />
+                                </NumberFieldGroup>
+                              </NumberField>
+
+                              {/* Quick Remove Action Button */}
+                              <AlertDialog>
+                                <AlertDialogTrigger
+                                  render={
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2 shrink-0 rounded-lg transition-colors gap-1 cursor-pointer"
+                                      aria-label="Remove from cart"
+                                    />
+                                  }
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span className="text-xs font-semibold hidden md:inline">Remove</span>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent size="sm">
+                                  <AlertDialogHeader>
+                                    <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                                      <Trash2 />
+                                    </AlertDialogMedia>
+                                    <AlertDialogTitle>Remove {svc.name}?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This frees up <b className="text-foreground">{currentCost} CR</b> from your package. You can add it back anytime.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Keep it</AlertDialogCancel>
+                                    <AlertDialogAction variant="destructive" onClick={() => toggleService(svc.id)}>
+                                      Remove
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
-                            {/* Quantity — ReUI Number Field with Clamped 1-20 range */}
-                            <NumberField
-                              size="sm"
-                              min={1}
-                              max={20}
-                              value={currentQty}
-                              onValueChange={(val) => updateServiceQuantity(svc.id, Math.max(1, Math.min(20, val ?? 1)))}
-                              className="w-auto shrink-0 gap-0"
-                              aria-label={`${svc.name} quantity`}
-                            >
-                              <NumberFieldGroup className="w-[78px] sm:w-[84px] rounded-lg border-border/80 bg-card shadow-2xs">
-                                <NumberFieldDecrement className="text-muted-foreground hover:text-foreground disabled:opacity-30" />
-                                <NumberFieldInput className="px-0 text-xs font-bold" />
-                                <NumberFieldIncrement className="text-muted-foreground hover:text-foreground" />
-                              </NumberFieldGroup>
-                            </NumberField>
-
-                            {/* Quick Remove Action Button */}
-                            <AlertDialog>
-                              <AlertDialogTrigger
-                                render={
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 px-2 shrink-0 rounded-lg transition-colors gap-1 cursor-pointer"
-                                    aria-label="Remove from cart"
-                                  />
-                                }
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span className="text-xs font-semibold hidden md:inline">Remove</span>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent size="sm">
-                              <AlertDialogHeader>
-                                <AlertDialogMedia className="bg-destructive/10 text-destructive">
-                                  <Trash2 />
-                                </AlertDialogMedia>
-                                <AlertDialogTitle>Remove {svc.name}?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This frees up <b className="text-foreground">{currentCost} CR</b> from your package. You can add it back anytime.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Keep it</AlertDialogCancel>
-                                <AlertDialogAction variant="destructive" onClick={() => toggleService(svc.id)}>
-                                  Remove
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {!svc.quoteOnly && (
+                            <p className="text-2xs text-muted-foreground leading-snug pt-1.5 border-t border-border/60">
+                              <strong className="font-semibold text-foreground/90">
+                                {TIER_NAMES[choice.level]} includes:
+                              </strong>{' '}
+                              {svc.scopeDetails?.[choice.level] ?? DEFAULT_SCOPE_DETAILS[choice.level]}
+                            </p>
+                          )}
                         </div>
-                      </div>
                       )}
                     </Card>
                   );
@@ -2594,31 +2598,31 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                3 OF 5 · WHAT CREDITS COVER
+                STEP 3 OF 5 · CREDIT ELIGIBILITY
               </div>
               <h1
                 ref={headingRef}
                 tabIndex={-1}
                 className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
               >
-                What your credits cover.
+                Confirm what credits can cover.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Review covered deliverables and studio standards before continuing.
+                Creator Credits are a controlled wallet for approved Humantek Art services—not a blank cheque for any content.
               </p>
             </div>
 
             <Badge variant="secondary" className="w-fit text-xs font-semibold px-3 py-1 rounded-xl">
-              Studio Policy Compliance
+              Credit Eligibility
             </Badge>
           </div>
 
           {/* ReUI Standardized Announcement & Status Banner */}
           <StudioNoticeBanner type="step3-coverage" />
 
-          {/* Two Equal Neutral Cards: Supported Deliverables | Restricted Guidelines (5-to-5 Symmetry) */}
+          {/* Two Equal Neutral Cards: Included | Not supported */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
-            {/* Supported Deliverables Card */}
+            {/* Included Card */}
             <Card className="rounded-xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
               <CardHeader className="p-4 sm:p-5 pb-3 border-b border-border/60">
                 <div className="flex items-center justify-between gap-2">
@@ -2628,10 +2632,10 @@ export default function CreatorStudioPage() {
                     </div>
                     <div>
                       <CardTitle className="font-bold text-base text-foreground">
-                        Supported Deliverables
+                        &#10003; Included
                       </CardTitle>
                       <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-                        Assets fully covered by your studio credit balance
+                        Approved Humantek Art services covered by Creator Credits
                       </CardDescription>
                     </div>
                   </div>
@@ -2644,37 +2648,33 @@ export default function CreatorStudioPage() {
                 <ul className="text-sm text-foreground/90 space-y-3">
                   <li className="flex items-start gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="leading-normal">Stream graphics, overlays, alerts & static scenes</span>
+                    <span className="leading-normal">Stream graphics, overlays and alerts</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="leading-normal">Custom emotes, sub badges, channel avatars & panels</span>
+                    <span className="leading-normal">Emotes, badges, avatars and channel assets</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="leading-normal">Approved character art, VTuber model designs & rigging</span>
+                    <span className="leading-normal">Character or furry artwork within our guidelines</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="leading-normal">2D/3D motion animations, stream stingers & video reels</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="leading-normal">Logo marks, typography & master source files (PSD/AI/AE)</span>
+                    <span className="leading-normal">Animations, branding, VTuber work and approved edits</span>
                   </li>
                 </ul>
 
                 <div className="pt-3 mt-3 border-t border-border/50 flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400">
                     <CheckCircle className="size-4" />
-                    Full commercial rights included
+                    Approved Humantek Art services
                   </span>
                   <span className="font-semibold text-foreground/80">39 catalog services</span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Restricted Content Card (Symmetrical 5-Item Rhythm & Collapsible) */}
+            {/* Not supported Card */}
             <Card className="rounded-xl border border-border/80 bg-card shadow-2xs flex flex-col overflow-hidden">
               <CardHeader className="p-4 sm:p-5 pb-3 border-b border-border/60">
                 <div className="flex items-center justify-between gap-2">
@@ -2684,10 +2684,10 @@ export default function CreatorStudioPage() {
                     </div>
                     <div>
                       <CardTitle className="font-bold text-base text-foreground">
-                        Restricted Guidelines
+                        &times; Not supported
                       </CardTitle>
                       <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-                        Strictly prohibited across all studio orders and briefs
+                        Strictly prohibited across all Humantek Art orders and briefs
                       </CardDescription>
                     </div>
                   </div>
@@ -2707,7 +2707,7 @@ export default function CreatorStudioPage() {
                     ))}
                   </div>
                 ) : (
-                  <ul className="text-sm text-foreground/90 space-y-3">
+                  <ul className="text-sm text-foreground/90 space-y-2.5">
                     {CORE_RESTRICTED_ITEMS.map((item) => (
                       <li key={item} className="flex items-start gap-2.5">
                         <X className="w-4 h-4 text-rose-500/90 dark:text-rose-400 font-bold shrink-0 mt-0.5" />
@@ -2729,8 +2729,8 @@ export default function CreatorStudioPage() {
                   >
                     <span>
                       {showAllRestricted
-                        ? 'Show core 5 restrictions'
-                        : `View all ${RESTRICTED_GUIDELINES.length} detailed guidelines`}
+                        ? 'Show fewer restrictions'
+                        : `Show all ${RESTRICTED_GUIDELINES.length} restrictions`}
                     </span>
                     <ChevronDown
                       className={cn(
@@ -2753,14 +2753,14 @@ export default function CreatorStudioPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-sm sm:text-base font-bold text-foreground">
-                    Studio Policies & Service Framework
+                    Studio Policies &amp; Service Framework
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                    Inspect exact revision schedules, credit deduction rules, turnaround times, and commercial rights.
+                    Inspect exact revision &amp; change rules and how Creator Credits work.
                   </CardDescription>
                 </div>
                 <Badge variant="secondary" className="w-fit text-xs font-semibold px-2.5 py-0.5">
-                  Official Terms
+                  Official Rules
                 </Badge>
               </div>
             </CardHeader>
@@ -2771,7 +2771,7 @@ export default function CreatorStudioPage() {
                 onValueChange={(val) => setOpenPolicyAccordion(val)}
                 className="divide-y divide-border/60"
               >
-                {/* Accordion Item 1: Revision & Change Rules */}
+                {/* Accordion Item 1: Revision & change rules */}
                 <AccordionItem
                   value="revisions"
                   className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
@@ -2783,93 +2783,30 @@ export default function CreatorStudioPage() {
                       </div>
                       <div>
                         <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
-                          Revision & Change Rules
+                          Revision &amp; change rules
                         </span>
                         <span className="text-xs text-muted-foreground font-normal">
-                          Standard 2–3 rounds included · Scope changes from 5% to 60%
+                          Included rounds by tier &amp; post-approval change rates
                         </span>
                       </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-5 sm:px-6 pb-6 pt-1">
-                    <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Every creative service includes 2–3 structured revision rounds within the approved direction. Modifications after approvals or outside scope adhere to the following rates:
-                      </p>
-                      <div className="rounded-xl border border-border/70 overflow-hidden bg-background">
-                        <Table className="w-full text-xs">
-                          <TableHeader className="bg-muted/40">
-                            <TableRow className="border-b border-border/70 hover:bg-transparent">
-                              <TableHead wrap className="font-semibold text-foreground py-2.5 px-3 sm:px-3.5">Modification Scope</TableHead>
-                              <TableHead className="font-semibold text-foreground py-2.5 px-3 sm:px-3.5 text-right">Fee Rate</TableHead>
-                              <TableHead className="font-semibold text-foreground py-2.5 px-3.5 hidden sm:table-cell">Policy Guideline</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            <TableRow className="border-b border-border/50">
-                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
-                                <div>Humantek Art error correction</div>
-                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Corrections required to meet approved brief</div>
-                              </TableCell>
-                              <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">0 CR (Free)</TableCell>
-                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Corrections required to meet approved brief</TableCell>
-                            </TableRow>
-                            <TableRow className="border-b border-border/50">
-                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
-                                <div>Minor text or color change</div>
-                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Applies to finalized typography or palette tweaks</div>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">5% (min 4 CR)</TableCell>
-                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Applies to finalized typography or palette tweaks</TableCell>
-                            </TableRow>
-                            <TableRow className="border-b border-border/50">
-                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
-                                <div>Extra revision round</div>
-                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">One consolidated feedback list after included rounds</div>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">10% (min 4 CR)</TableCell>
-                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">One consolidated feedback list after included rounds</TableCell>
-                            </TableRow>
-                            <TableRow className="border-b border-border/50">
-                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
-                                <div>Additional size or platform</div>
-                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Formatting approved design for an extra platform</div>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">15% (min 4 CR)</TableCell>
-                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Formatting approved design for an extra platform</TableCell>
-                            </TableRow>
-                            <TableRow className="border-b border-border/50">
-                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
-                                <div>Direction change after approval</div>
-                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Requires a new brief and revised timeline</div>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">35% (min 12 CR)</TableCell>
-                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Requires a new brief and revised timeline</TableCell>
-                            </TableRow>
-                            <TableRow className="border-b border-border/50">
-                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
-                                <div>New concept using same brief</div>
-                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Replaces standard revision fee for that unit</div>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">60% (min 12 CR)</TableCell>
-                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Replaces standard revision fee for that unit</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell wrap className="font-medium text-foreground py-2.5 px-3 sm:px-3.5">
-                                <div>Rush delivery request</div>
-                                <div className="text-[11px] font-normal text-muted-foreground sm:hidden mt-0.5">Subject to studio production availability</div>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold text-foreground py-2.5 px-3 sm:px-3.5 align-top sm:align-middle">35% (min 12 CR)</TableCell>
-                              <TableCell wrap className="text-muted-foreground py-2.5 px-3.5 hidden sm:table-cell">Subject to studio production availability</TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
+                    <ul className="space-y-2.5 text-xs sm:text-sm text-foreground/90 pt-1">
+                      {REVISION_RULES.map((rule) => (
+                        <li
+                          key={rule}
+                          className="flex items-start gap-2.5 p-2.5 rounded-lg bg-secondary/25 border border-border/50"
+                        >
+                          <Check className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0 mt-0.5" />
+                          <span className="leading-relaxed">{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* Accordion Item 2: How Credits & Scopes Operate (Structured Micro-Cards) */}
+                {/* Accordion Item 2: How credits work */}
                 <AccordionItem
                   value="credits"
                   className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
@@ -2881,144 +2818,28 @@ export default function CreatorStudioPage() {
                       </div>
                       <div>
                         <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
-                          How Credits & Scopes Operate
+                          How credits work
                         </span>
                         <span className="text-xs text-muted-foreground font-normal">
-                          Credit valuation, deduction timing, and brief approvals
+                          Credit valuation, deduction timing, scope tiers, and approval rules
                         </span>
                       </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-5 sm:px-6 pb-6 pt-1">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-                      <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
-                        <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <Coins className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                          <span>Credit Valuation</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed text-xs">
-                          1 CR = $2.50 listed service value. Credits are deducted only after the studio confirms and approves the final brief.
-                        </p>
-                      </div>
-
-                      <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
-                        <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                          <span>Scope Tiers</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed text-xs">
-                          Basic, Standard, and Elite are distinct alternative scopes. Select one tier per service item.
-                        </p>
-                      </div>
-
-                      <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
-                        <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <RefreshCw className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                          <span>Included Revisions</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed text-xs">
-                          Multi-round revisions apply within the approved direction. Major concept changes adhere to scope rates.
-                        </p>
-                      </div>
-
-                      <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1.5">
-                        <div className="font-bold text-foreground flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                          <span>12-Month Rollover</span>
-                        </div>
-                        <p className="text-muted-foreground leading-relaxed text-xs">
-                          Credits remain active for 12 months. Package bonuses offer lower effective USD rates per credit.
-                        </p>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* Accordion Item 3: Turnaround Timelines & Delivery Formats */}
-                <AccordionItem
-                  value="turnaround"
-                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
-                >
-                  <AccordionTrigger className="px-5 sm:px-6 py-4 hover:bg-secondary/40 transition-colors text-left group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors flex items-center justify-center shrink-0">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
-                          Turnaround Timelines & Delivery Formats
-                        </span>
-                        <span className="text-xs text-muted-foreground font-normal">
-                          3–5 days standard · 5–7 days video · 10–14 days VTuber
-                        </span>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-5 sm:px-6 pb-6 pt-1">
-                    <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                        <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
-                          <b className="text-foreground text-xs block mb-1">Standard Assets</b>
-                          <span className="text-brand-text dark:text-amber-400 font-bold block mb-1">3–5 Business Days</span>
-                          <span className="text-xs leading-snug">Logos, emotes, badges, banners, and static screens.</span>
-                        </div>
-                        <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
-                          <b className="text-foreground text-xs block mb-1">Motion & Video</b>
-                          <span className="text-brand-text dark:text-amber-400 font-bold block mb-1">5–7 Business Days</span>
-                          <span className="text-xs leading-snug">Animated screens, alerts, video reels, and stingers.</span>
-                        </div>
-                        <div className="p-3.5 sm:p-4 rounded-xl bg-secondary/30 border border-border/60">
-                          <b className="text-foreground text-xs block mb-1">VTuber & 3D Work</b>
-                          <span className="text-brand-text dark:text-amber-400 font-bold block mb-1">10–14 Business Days</span>
-                          <span className="text-xs leading-snug">Full Live2D model art & rigging with milestone reviews.</span>
-                        </div>
-                      </div>
-                      <p className="pt-1 text-xs">
-                        • <b>Deliverable Formats:</b> Stream-ready transparent PNGs, 60fps WebM with alpha channels, and full HD/4K MP4s. Standard and Elite scopes include layered master files (PSD, AI, or After Effects project packages).
-                      </p>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* Accordion Item 4: Commercial Rights & Terms of Service */}
-                <AccordionItem
-                  value="terms"
-                  className="border-l-4 border-l-transparent transition-colors data-open:border-l-amber-400 data-[open]:border-l-amber-400"
-                >
-                  <AccordionTrigger className="px-5 sm:px-6 py-4 hover:bg-secondary/40 transition-colors text-left group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/80 text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors flex items-center justify-center shrink-0">
-                        <FileCheck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-foreground block group-hover:text-brand-text dark:group-hover:text-amber-400 transition-colors">
-                          Commercial Rights & Terms of Service
-                        </span>
-                        <span className="text-xs text-muted-foreground font-normal">
-                          Full commercial license, delivery protocols & client rights
-                        </span>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-5 sm:px-6 pb-6 pt-1">
-                    <ul className="space-y-2.5 text-xs text-foreground/90 leading-relaxed">
-                      <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                        <span>Full commercial streaming & broadcasting license across all monetized creator channels.</span>
-                      </li>
-                      <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                        <span>100% intellectual property ownership of delivered master art, 3D, and video assets upon delivery.</span>
-                      </li>
-                      <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                        <span>Strict human-crafted production guarantee with zero unauthorized generative AI replication.</span>
-                      </li>
-                      <li className="flex items-start gap-2.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                        <span>Encrypted agency cloud project vaults with lifetime asset backup and re-download capability.</span>
-                      </li>
-                    </ul>
+                    <ol className="space-y-2.5 text-xs sm:text-sm text-foreground/90 pt-1">
+                      {HOW_CREDITS_WORK.map((rule, idx) => (
+                        <li
+                          key={rule}
+                          className="flex items-start gap-2.5 p-2.5 rounded-lg bg-secondary/25 border border-border/50"
+                        >
+                          <span className="inline-flex items-center justify-center size-5 rounded-md bg-amber-400/20 text-brand-text dark:text-amber-400 font-mono text-xs font-bold shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <span className="leading-relaxed">{rule}</span>
+                        </li>
+                      ))}
+                    </ol>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -3057,7 +2878,7 @@ export default function CreatorStudioPage() {
                   policyError && !policyAccepted && 'border-rose-500 data-[state=unchecked]:border-rose-500 ring-2 ring-rose-500/30'
                 )}
               />
-              <div className="space-y-0.5 w-full">
+              <div className="space-y-1 w-full">
                 <Label
                   htmlFor="policy-ack"
                   className={cn(
@@ -3065,10 +2886,18 @@ export default function CreatorStudioPage() {
                     policyError && !policyAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'
                   )}
                 >
-                  Required Acknowledgement <span className={policyError && !policyAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
+                  Required acknowledgement <span className={policyError && !policyAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
                 </Label>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  I confirm my brief follows studio standards and does not contain prohibited content.
+                  I understand that credits can only be used for services and content supported by Humantek Art, and that certain requests may be declined even if I have sufficient credits.
+                </p>
+                <p className={cn(
+                  'text-2xs font-medium pt-0.5',
+                  policyAccepted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                )}>
+                  {policyAccepted
+                    ? 'Acknowledgement complete. Final eligibility remains subject to team approval.'
+                    : 'Confirm the acknowledgement to continue.'}
                 </p>
                 {policyError && !policyAccepted && (
                   <div
@@ -3094,17 +2923,17 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                4 OF 5 · PROJECT BRIEF
+                STEP 4 OF 5 · PROJECT DETAILS
               </div>
               <h1
                 ref={headingRef}
                 tabIndex={-1}
                 className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
               >
-                Project details &amp; creative brief.
+                Tell us what every asset should include.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Tell our team about your channel, preferred style, and requirements.
+                Add your brief, reference images, optional wallet tools, and confirm the project terms.
               </p>
             </div>
 
@@ -3185,12 +3014,12 @@ export default function CreatorStudioPage() {
                 <Label htmlFor={briefFieldId('colors')} className="text-xs font-semibold text-foreground">
                   Color Palette / Themes <span className="text-destructive font-semibold">*</span>
                 </Label>
-                <Input
+                <ColorPaletteInput
                   {...brief.fieldProps('colors')}
                   maxLength={BRIEF_LIMITS.colors.max}
                   placeholder="e.g. #FF007F Neon Pink, Cyan, Deep Slate"
                   value={colors}
-                  onChange={(e) => setColors(e.target.value)}
+                  onChange={setColors}
                   className="rounded-lg h-9 text-xs sm:text-sm bg-background/50 scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('colors')} message={brief.getError('colors')} />
@@ -3439,14 +3268,13 @@ export default function CreatorStudioPage() {
                 <ShieldAlert className="w-4 h-4" />
                 <AlertTitle className="text-xs sm:text-sm font-bold">Policy Restriction Detected</AlertTitle>
                 <AlertDescription className="text-xs leading-relaxed mt-0.5">
-                  Your brief contains terms prohibited by studio standards (NSFW, occult, unlicensed trademarks).
-                  Please adjust your description to proceed.
+                  This request isn’t eligible for credits. Please choose an approved service or contact the team for clarification.
                 </AlertDescription>
               </Alert>
             ) : (
               <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium py-2 px-3 rounded-lg bg-secondary/20 border border-border/50">
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>No policy conflicts detected. Studio team will review upon submission.</span>
+                <span>No obvious policy conflict detected. The team still completes final scope review.</span>
               </div>
             )}
 
@@ -3516,10 +3344,10 @@ export default function CreatorStudioPage() {
                       termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'
                     )}
                   >
-                    Terms &amp; Conditions <span className={termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
+                    Required confirmation <span className={termsError && !termsAccepted ? 'text-rose-600 dark:text-rose-400' : 'text-destructive font-semibold'}>*</span>
                   </Label>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    I agree to the Humantek Studio Terms &amp; Conditions and understand production starts upon order confirmation.
+                    I have read and agree to the Terms &amp; Conditions, revision limits, and credit eligibility rules.
                   </p>
                   {termsError && !termsAccepted && (
                     <div
@@ -3555,17 +3383,17 @@ export default function CreatorStudioPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                    5 OF 5 · REVIEW &amp; LAUNCH
+                    STEP 5 OF 5 · REVIEW
                   </div>
                   <h1
                     ref={headingRef}
                     tabIndex={-1}
                     className="scroll-mt-[140px] text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground lg:text-3xl outline-none"
                   >
-                    Review &amp; Launch.
+                    Ready to submit?
                   </h1>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                    Review your project scope and launch with your wallet balance or PayPal.
+                    Check the package, assets, brief, balance, and policy status before sending your request.
                   </p>
                 </div>
 
@@ -3609,6 +3437,22 @@ export default function CreatorStudioPage() {
                           <CreditValue value={totalPackageCredits} size="sm" />
                         </div>
                       </div>
+                    </div>
+
+                    {/* 4-Stage Flow Pill from Reference Site */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-center text-2xs font-medium text-muted-foreground">
+                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
+                        1 · Package preview
+                      </span>
+                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
+                        2 · Payment confirmed
+                      </span>
+                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
+                        3 · Credits added
+                      </span>
+                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
+                        4 · Approved credits deducted
+                      </span>
                     </div>
                   </Card>
 
@@ -3696,7 +3540,7 @@ export default function CreatorStudioPage() {
                             No specific services pre-allocated
                           </b>
                           <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                            Your full balance of <b className="font-mono tabular-nums">{totalPackageCredits} Credits</b> will remain active in your studio wallet for 12 months, ready to deploy on any creative request on-demand.
+                            Your full balance of <b className="font-mono tabular-nums">{totalPackageCredits} Credits</b> will remain active in your studio wallet, ready to deploy on any approved creative request.
                           </p>
                           <div className="pt-1">
                             <Button
@@ -3836,9 +3680,23 @@ export default function CreatorStudioPage() {
                         </div>
                         <div className="p-2.5 rounded-xl bg-secondary/25 border border-border/50 sm:col-span-2">
                           <span className="text-xs font-medium text-muted-foreground block">Art Style &amp; Palette</span>
-                          <p className="text-xs font-semibold text-foreground mt-0.5 break-words">
-                            {style || 'Studio Selected'}{colors ? ` · ${colors}` : ''}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <p className="text-xs font-semibold text-foreground break-words">
+                              {style || 'Studio Selected'}{colors ? ` · ${colors}` : ''}
+                            </p>
+                            {extractHexColors(colors).length > 0 && (
+                              <span className="inline-flex items-center gap-1 shrink-0">
+                                {extractHexColors(colors).map((hex) => (
+                                  <span
+                                    key={hex}
+                                    title={hex}
+                                    className="size-3 rounded-full ring-1 ring-black/15 dark:ring-white/20 shadow-2xs"
+                                    style={{ backgroundColor: hex }}
+                                  />
+                                ))}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -4223,15 +4081,12 @@ export default function CreatorStudioPage() {
                       </div>
                     </ChatGate>
 
-                    {/* Security & SLA Badges */}
-                    <div className="pt-2 border-t border-border/50 flex items-center justify-center gap-2 text-2xs text-muted-foreground/70">
-                      <span className="flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-emerald-600/80" /> 256-Bit SSL
+                    {/* Initial Scope Check Status from Reference Site */}
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-center gap-2 text-2xs text-muted-foreground text-center">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>
+                        <strong className="font-semibold text-foreground/90">Initial scope check passed</strong> — Credits are deducted only after the team approves the service and scope.
                       </span>
-                      <span>·</span>
-                      <span>PayPal Protection</span>
-                      <span>·</span>
-                      <span>Studio SLA</span>
                     </div>
                   </Card>
                 </div>

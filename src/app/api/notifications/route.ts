@@ -61,10 +61,22 @@ export async function GET(req: NextRequest) {
       .eq('user_id', user.id)
       .eq('is_read', false);
 
+    const sanitizedNotifications = (notifications || []).map((n) => ({
+      ...n,
+      message:
+        n.message && /final files.*ready to download/i.test(n.message)
+          ? 'Your project has been marked as completed.'
+          : n.message,
+      action_label:
+        n.action_label && /download\s*files/i.test(n.action_label)
+          ? 'View Project'
+          : n.action_label,
+    }));
+
     return NextResponse.json(
       {
         ok: true,
-        notifications: notifications || [],
+        notifications: sanitizedNotifications,
         unreadCount: unreadCount || 0,
       },
       { headers: NO_CACHE_HEADERS }

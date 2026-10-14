@@ -58,10 +58,13 @@ function SessionSync() {
               canChat: Boolean(data.user.canChat),
             });
           }
+          useUserStore.getState().setSessionVerified(true);
         } else if (!data.authenticated) {
           // If server session is unauthenticated, clear stale user state
           if (currentUser?.email) {
             useUserStore.getState().signOut();
+          } else {
+            useUserStore.getState().setSessionVerified(true);
           }
         }
       })
@@ -119,6 +122,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
             canChat: initialUser.canChat,
           },
           isHydrated: true,
+          isSessionVerified: true,
         });
       }
     }

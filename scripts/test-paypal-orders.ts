@@ -133,8 +133,8 @@ async function runPayPalOrdersAudit() {
       .from('orders')
       .insert({
         user_id: userAId,
-        package_id: 'studio-momentum', // $2500, 1160 CR
-        credits_to_grant: 1160,
+        package_id: 'studio-momentum', // $2500, 1200 CR
+        credits_to_grant: 1200,
         expected_amount_cents: 250000,
         currency: 'USD',
         status: 'created',
@@ -164,12 +164,12 @@ async function runPayPalOrdersAudit() {
     }
 
     const { data: walletA2 } = await admin.from('wallets').select('*').eq('user_id', userAId).single();
-    // Previous 660 + 1160 = 1820
-    if (walletA2.balance_purchased !== 1820) {
-      throw new Error(`Expected balance_purchased = 1820, got ${walletA2.balance_purchased}`);
+    // Previous 660 + 1200 = 1860
+    if (walletA2.balance_purchased !== 1860) {
+      throw new Error(`Expected balance_purchased = 1860, got ${walletA2.balance_purchased}`);
     }
     console.log(`  -> 10 simultaneous calls resolved cleanly: exactly 1 granted credits, 9 safely replayed.`);
-    console.log(`  -> Wallet balance is exactly 1820 CR (660 + 1160).\n`);
+    console.log(`  -> Wallet balance is exactly 1860 CR (660 + 1200).\n`);
 
     // -------------------------------------------------------------------------
     // TEST 4: A DENIED CAPTURE
@@ -197,7 +197,7 @@ async function runPayPalOrdersAudit() {
     if (order3Check.status !== 'denied') throw new Error('Order status update failed');
 
     const { data: walletA3 } = await admin.from('wallets').select('*').eq('user_id', userAId).single();
-    if (walletA3.balance_purchased !== 1820) {
+    if (walletA3.balance_purchased !== 1860) {
       throw new Error(`Balance was altered on denied capture: ${walletA3.balance_purchased}`);
     }
     console.log('  -> Order marked denied. 0 credits granted. Wallet balance unchanged.\n');
@@ -212,7 +212,7 @@ async function runPayPalOrdersAudit() {
       .insert({
         user_id: userAId,
         package_id: 'signature-collective', // $4000 = 400000 cents
-        credits_to_grant: 1920,
+        credits_to_grant: 2000,
         expected_amount_cents: 400000,
         currency: 'USD',
         status: 'created',
@@ -244,7 +244,7 @@ async function runPayPalOrdersAudit() {
     }
 
     const { data: walletA4 } = await admin.from('wallets').select('*').eq('user_id', userAId).single();
-    if (walletA4.balance_purchased !== 1820) {
+    if (walletA4.balance_purchased !== 1860) {
       throw new Error(`Balance altered on mismatched amount! ${walletA4.balance_purchased}`);
     }
     console.log('  -> Underpayment blocked: fulfill_order returned error: amount_mismatch.');
@@ -292,7 +292,7 @@ async function runPayPalOrdersAudit() {
     console.log('[Test 8] Refunds: Unspent Credits Clawback vs Spent Credits Shortfall Defense:');
 
     // Part A: Unspent credits clawback
-    // Alice has 1820 purchased credits. We refund order 1 (660 credits).
+    // Alice has 1860 purchased credits. We refund order 1 (660 credits).
     const { data: refundRes1, error: refErr1 } = await admin.rpc('handle_refund', {
       p_order_id: order1.id,
       p_refund_id: `REFUND-1-${timestamp}`,
@@ -302,11 +302,11 @@ async function runPayPalOrdersAudit() {
     if (refErr1 || !refundRes1?.clawback_success) throw new Error(`Refund 1 failed: ${refErr1?.message}`);
 
     const { data: walletA5 } = await admin.from('wallets').select('*').eq('user_id', userAId).single();
-    // 1820 - 660 = 1160
-    if (walletA5.balance_purchased !== 1160) {
-      throw new Error(`Expected balance 1160 after clawback, got ${walletA5.balance_purchased}`);
+    // 1860 - 660 = 1200
+    if (walletA5.balance_purchased !== 1200) {
+      throw new Error(`Expected balance 1200 after clawback, got ${walletA5.balance_purchased}`);
     }
-    console.log(`  -> Part A (Unspent): 660 credits successfully clawed back. Balance: 1160 CR.`);
+    console.log(`  -> Part A (Unspent): 660 credits successfully clawed back. Balance: 1200 CR.`);
 
     // Part B: Spent credits shortfall & wallet freeze
     // Bob gets an order of 660 credits, spends all of them on a project, and then a chargeback/refund hits!

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUserStore } from '@/lib/userStore';
 import { Button } from '@/components/ui/button';
@@ -28,14 +27,12 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default function AdminLoginPage() {
-  const router = useRouter();
-  const { user, isHydrated, isAdmin, signInAsClient } = useUserStore();
+  const { signInAsClient, signOut, updateUser, setSessionVerified } = useUserStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,12 +40,39 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // If already logged in as admin, redirect to management immediately
+  // Authoritative server check on mount: only redirect if server session cookie is actually valid admin.
+  // If unauthenticated on the server, immediately clear any stale localStorage user to prevent 401/403 background calls.
   useEffect(() => {
-    if (isHydrated && user?.email && isAdmin()) {
-      router.replace('/management');
-    }
-  }, [user, isHydrated, isAdmin, router]);
+    let active = true;
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        if (data.authenticated && data.user) {
+          updateUser({
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name || undefined,
+            avatarUrl: data.user.avatarUrl || null,
+            role: data.user.role || 'client',
+            emailVerified: Boolean(data.user.emailConfirmed),
+            hasProjects: Boolean(data.user.hasProjects),
+            canChat: Boolean(data.user.canChat),
+          });
+          setSessionVerified(true);
+          if ((data.user.role || '').toLowerCase() === 'admin') {
+            window.location.replace('/management');
+          }
+        } else {
+          signOut();
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [signOut, updateUser, setSessionVerified]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,10 +120,11 @@ export default function AdminLoginPage() {
         description: 'Welcome back. Opening Studio Operations Console...',
       });
 
-      router.replace(data.redirect || '/management');
+      // Perform clean document navigation so newly set auth cookies are sent fresh
+      // and any cached unauthenticated RSC redirects are bypassed.
+      window.location.replace(data.redirect || '/management');
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred during admin authentication.');
-    } finally {
       setIsLoading(false);
     }
   };

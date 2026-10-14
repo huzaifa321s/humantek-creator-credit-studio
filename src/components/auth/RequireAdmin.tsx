@@ -13,22 +13,22 @@ interface RequireAdminProps {
 
 export function RequireAdmin({ children }: RequireAdminProps) {
   const router = useRouter();
-  const { user, isHydrated, isAdmin, updateUser } = useUserStore();
-  const [isVerifying, setIsVerifying] = React.useState(true);
+  const { user, isHydrated, isSessionVerified, isAdmin, updateUser, setSessionVerified, signOut } = useUserStore();
+  const [isVerifying, React_useState] = React.useState(true);
 
   React.useEffect(() => {
     let active = true;
 
     async function verify() {
-      // 1. If user store is already hydrated and user is verified admin, permit immediately
-      if (isHydrated && user?.email && isAdmin()) {
-        setIsVerifying(false);
+      // 1. Only permit immediately if session has already been verified against the server
+      if (isHydrated && isSessionVerified && user?.email && isAdmin()) {
+        React_useState(false);
         return;
       }
 
-      // 2. Fetch server session to synchronize cookie auth into client store
+      // 2. Fetch authoritative server session to synchronize cookie auth into client store
       try {
-        const res = await fetch('/api/auth/session');
+        const res = await fetch('/api/auth/session', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (active && data.authenticated && data.user) {
@@ -41,12 +41,13 @@ export function RequireAdmin({ children }: RequireAdminProps) {
               hasProjects: Boolean(data.user.hasProjects),
               canChat: Boolean(data.user.canChat),
             });
+            setSessionVerified(true);
 
             const role = (data.user.role || '').toLowerCase();
             const isAdminUser = role === 'admin';
 
             if (isAdminUser) {
-              setIsVerifying(false);
+              React_useState(false);
               return;
             } else {
               router.replace('/projects');
@@ -59,12 +60,9 @@ export function RequireAdmin({ children }: RequireAdminProps) {
       }
 
       if (active) {
-        setIsVerifying(false);
-        if (!user?.email) {
-          router.replace('/admin-login');
-        } else if (!isAdmin()) {
-          router.replace('/projects');
-        }
+        signOut();
+        React_useState(false);
+        window.location.replace('/admin-login');
       }
     }
 
@@ -73,9 +71,9 @@ export function RequireAdmin({ children }: RequireAdminProps) {
     return () => {
       active = false;
     };
-  }, [user, isHydrated, isAdmin, updateUser, router]);
+  }, [user, isHydrated, isSessionVerified, isAdmin, updateUser, setSessionVerified, signOut, router]);
 
-  if (isVerifying || !user?.email || !isAdmin()) {
+  if (isVerifying || !isSessionVerified || !user?.email || !isAdmin()) {
     return (
       <div className="relative flex h-screen items-center justify-center bg-background text-foreground overflow-hidden">
         <StudioBackground variant="subtle" showDots={false} />

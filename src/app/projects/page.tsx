@@ -284,7 +284,7 @@ function CompactProjectRow({
               </div>
             ) : (
               <p className="text-2xs text-muted-foreground">
-                All completed package assets delivered directly to studio inbox.
+                Project scope completed.
               </p>
             )}
           </div>
@@ -602,7 +602,7 @@ function ProjectsPageContent() {
                               : proj.status === 'review_round'
                               ? ' · Draft ready for your review'
                               : proj.status === 'delivered'
-                              ? ' · Files delivered'
+                              ? ' · Project completed'
                               : ''}
                           </span>
                           {proj.platform && proj.platform.toLowerCase() !== 'general' && (
@@ -678,7 +678,7 @@ function ProjectsPageContent() {
                           {proj.status === 'payment_confirmed' && 'Queued for artist assignment'}
                           {proj.status === 'in_production' && 'Draft concepts in illustration and rendering'}
                           {proj.status === 'review_round' && 'Review your draft assets and share feedback'}
-                          {proj.status === 'delivered' && 'All final project files completed and delivered'}
+                          {proj.status === 'delivered' && 'Project completed and delivered'}
                           {!['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(proj.status) && 'Project update will appear here'}
                         </p>
                       </div>
@@ -690,7 +690,7 @@ function ProjectsPageContent() {
                           </span>
                         )}
                         {proj.additions && proj.additions.some((a: string) => /rush|express|24h/i.test(a)) && (
-                          <span className="flex items-center gap-1 text-2xs text-amber-500 font-semibold" title="Express turnaround">
+                          <span className="flex items-center gap-1 text-2xs text-amber-500 font-semibold" title="Express priority">
                             <Sparkles className="size-3" />
                             <span>Express</span>
                           </span>

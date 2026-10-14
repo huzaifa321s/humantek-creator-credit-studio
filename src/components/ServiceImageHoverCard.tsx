@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { ServiceDefinition } from '@/types';
-import { getServiceMetadata } from '@/lib/catalog';
+import { getServiceMetadata, DEFAULT_SCOPE_DETAILS, TIER_NAMES } from '@/lib/catalog';
 import {
   HoverCard,
   HoverCardContent,
@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { CreditValue } from '@/components/ui/credit-value';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Check, Clock, Sparkles } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ServiceImageHoverCardProps {
@@ -30,6 +30,7 @@ export function ServiceImageHoverCard({
 }: ServiceImageHoverCardProps) {
   const meta = getServiceMetadata(service);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const scopeList = service.scopeDetails ?? DEFAULT_SCOPE_DETAILS;
 
   // Guarantee a beautiful, full-bleed artwork preview for all categories
   const fallbackImage =
@@ -49,7 +50,7 @@ export function ServiceImageHoverCard({
         side={side}
         align={align}
         sideOffset={6}
-        className="w-[230px] overflow-hidden p-0 ring-0 border-x border-b border-t-0 border-border/80 bg-card/95 backdrop-blur-md shadow-md rounded-xl select-none z-50 animate-in fade-in-0 zoom-in-95 duration-150"
+        className="w-[245px] overflow-hidden p-0 ring-0 border-x border-b border-t-0 border-border/80 bg-card/95 backdrop-blur-md shadow-md rounded-xl select-none z-50 animate-in fade-in-0 zoom-in-95 duration-150"
       >
         {/* Full-bleed, edge-to-edge deliverable image with Skeleton shimmer */}
         <div className="relative aspect-[16/7] w-full overflow-hidden bg-muted">
@@ -65,7 +66,7 @@ export function ServiceImageHoverCard({
               "object-cover object-center transition-all duration-300",
               imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-98"
             )}
-            sizes="230px"
+            sizes="245px"
           />
         </div>
 
@@ -87,28 +88,27 @@ export function ServiceImageHoverCard({
             </div>
           </div>
 
-          {/* High-Value Deliverables Checklist (2-3 concise bullets) */}
+          {/* Authentic Scope Tiers Checklist */}
           <div className="space-y-1">
-            {meta.deliverables.slice(0, 3).map((item, idx) => (
+            {TIER_NAMES.map((tierName, idx) => (
               <div
-                key={idx}
+                key={tierName}
                 className="flex items-start gap-1.5 text-2xs text-muted-foreground leading-normal"
               >
                 <Check className="size-3 text-emerald-500 shrink-0 stroke-[2.5] mt-0.5" />
-                <span className="line-clamp-1">{item}</span>
+                <span className="line-clamp-1">
+                  <strong className="font-semibold text-foreground/90">{tierName}:</strong> {scopeList[idx]}
+                </span>
               </div>
             ))}
           </div>
 
-          {/* Turnaround & Revisions Info Bar */}
+          {/* Category Info Bar */}
           <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-2xs text-muted-foreground font-medium">
-            <span className="inline-flex items-center gap-1">
-              <Clock className="size-3 text-brand-text dark:text-amber-400 shrink-0" />
-              <span>{meta.turnaround}</span>
-            </span>
+            <span>{service.category}</span>
             <span className="inline-flex items-center gap-1 text-foreground/85">
               <Sparkles className="size-3 text-brand-text dark:text-amber-400 shrink-0" />
-              <span>{meta.revisions}</span>
+              <span>{service.quoteOnly ? 'Custom quote' : `${service.prices[0]}–${service.prices[2]} CR`}</span>
             </span>
           </div>
         </div>

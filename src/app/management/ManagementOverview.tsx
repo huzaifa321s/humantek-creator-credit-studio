@@ -48,9 +48,7 @@ export function ManagementOverview() {
       router.replace(idParam ? `/management/inbox?thread=${encodeURIComponent(idParam)}` : '/management/inbox');
     } else if (tabParam === 'projects') {
       router.replace(idParam ? `/management/projects?project=${encodeURIComponent(idParam)}` : '/management/projects');
-    } else if (tabParam === 'orders' || tabParam === 'wire-orders') {
-      router.replace(idParam ? `/management/orders?id=${encodeURIComponent(idParam)}` : '/management/orders');
-    } else if (tabParam === 'ledger' || tabParam === 'credits') {
+    } else if (tabParam === 'orders' || tabParam === 'wire-orders' || tabParam === 'ledger' || tabParam === 'credits') {
       router.replace('/management/ledger');
     }
   }, [tabParam, searchParams, router]);
@@ -205,30 +203,24 @@ export function ManagementOverview() {
               </CardFooter>
             </Card>
 
-            {/* Card 3: Manual Payments */}
+            {/* Card 3: Studio Revenue */}
             <Card className="rounded-xl border border-border/80 bg-card shadow-xs hover:border-amber-400/50 transition-all flex flex-col justify-between group">
               <CardHeader className="p-4 sm:p-5 pb-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="size-8 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shadow-2xs">
                     <Landmark className="size-4" />
                   </span>
-                  {counts.wireOrders > 0 ? (
-                    <Badge variant="gold" size="sm" className="font-bold">
-                      {counts.wireOrders} pending
-                    </Badge>
-                  ) : (
-                    <Badge variant="success" size="sm">
-                      all clear
-                    </Badge>
-                  )}
+                  <Badge variant="success" size="sm">
+                    verified
+                  </Badge>
                 </div>
 
                 <div>
                   <CardTitle className="text-base font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-300 transition-colors">
-                    Manual Payments
+                    Studio Revenue
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-1">
-                    Review and confirm wire transfers, Payoneer receipts, and invoices.
+                    Total verified revenue across paid projects and credit packages.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -243,14 +235,14 @@ export function ManagementOverview() {
               </CardContent>
 
               <CardFooter className="p-4 sm:p-5 pt-0 border-0">
-                <Link href="/management/orders" className="w-full">
+                <Link href="/management/projects" className="w-full">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="w-full justify-between group-hover:border-amber-400/50 group-hover:bg-amber-400/10 transition-colors cursor-pointer"
                   >
-                    <span>Review Orders</span>
+                    <span>Review Revenue</span>
                     <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                   </Button>
                 </Link>

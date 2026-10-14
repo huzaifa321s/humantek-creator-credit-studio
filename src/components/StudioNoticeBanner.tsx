@@ -4,10 +4,8 @@ import React from 'react';
 import {
   Sparkles,
   ShieldCheck,
-  Check,
 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { ScopeGuideModal } from '@/components/ScopeGuideModal';
 import { cn } from '@/lib/utils';
 
@@ -42,10 +40,10 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
             </span>
             <p className="text-xs text-foreground/90 font-medium leading-tight sm:leading-normal">
               <span className="hidden sm:inline">
-                <strong className="font-semibold text-foreground">Prepaid Studio Credits:</strong> Choose a package to fund your project · Commercial streaming rights &amp; revisions included.
+                <strong className="font-semibold text-foreground">Creator Credits:</strong> Plan approved Humantek Art creative services with scope-based credits, package balances, revisions, and project tracking.
               </span>
               <span className="sm:hidden text-2xs">
-                <strong className="font-semibold text-foreground">Prepaid Credits:</strong> Commercial rights &amp; revisions included.
+                <strong className="font-semibold text-foreground">Creator Credits:</strong> Scope-based credits, package balances, revisions &amp; tracking.
               </span>
             </p>
           </div>
@@ -75,14 +73,11 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
               <AlertTitle className="text-xs sm:text-sm font-bold text-foreground">
-                Clear Scopes &amp; Fast Delivery
+                Controlled Credit Wallet
               </AlertTitle>
-              <Badge variant="gold" className="text-2xs py-0 px-2 font-bold uppercase tracking-wider">
-                3–7 Day Turnaround
-              </Badge>
             </div>
             <AlertDescription className="text-xs text-muted-foreground leading-normal">
-              Transparent scopes guarantee fast delivery. Commercial streaming rights and 2–3 revision rounds are included with every project.
+              Credits are deducted only after the team approves the service, content, and final scope.
             </AlertDescription>
           </div>
         </div>

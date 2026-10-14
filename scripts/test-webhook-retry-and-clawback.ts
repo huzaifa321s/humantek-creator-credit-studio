@@ -227,7 +227,7 @@ async function runWebhookRetryAndClawbackAudit() {
       .insert({
         user_id: userId,
         package_id: 'studio-momentum',
-        credits_to_grant: 1160,
+        credits_to_grant: 1200,
         expected_amount_cents: 250000,
         currency: 'USD',
         status: 'fulfilled',

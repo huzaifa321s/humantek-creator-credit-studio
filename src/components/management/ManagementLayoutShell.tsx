@@ -18,10 +18,6 @@ const ROUTE_HEADERS: Record<string, { title: string; description: string }> = {
     title: 'Client Messages',
     description: 'Chat with clients and review project discussions in real time.',
   },
-  '/management/orders': {
-    title: 'Manual Payment Orders',
-    description: 'Review and verify offline payments, wire transfers, and receipts.',
-  },
   '/management/ledger': {
     title: 'Credit History',
     description: 'Review all client credit purchases, deductions, and balance changes.',

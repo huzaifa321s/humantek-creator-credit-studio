@@ -92,7 +92,7 @@ export function sanitizeInternalHref(rawHref: string | null | undefined): string
 /**
  * Shared role-aware notification link resolver.
  * Enforces role isolation (admins to /management, clients to /projects or /wallet),
- * deep links directly to projects/drawers, and supports section deep links (&section=files).
+ * and deep links directly to projects/drawers.
  */
 export function getNotificationHref(
   item: Partial<StudioNotification> | null | undefined,
@@ -131,21 +131,12 @@ export function getNotificationHref(
     if (isAdmin) {
       return `/management/projects?project=${encodeURIComponent(entityId)}`;
     }
-    // Check if original link had specific sub-parameters (like section=files)
-    let sectionParam = '';
-    if (item.link && item.link.includes('section=')) {
-      try {
-        const dummyUrl = new URL(item.link, 'http://localhost');
-        const sec = dummyUrl.searchParams.get('section');
-        if (sec) sectionParam = `&section=${encodeURIComponent(sec)}`;
-      } catch {}
-    }
-    return `/projects?project=${encodeURIComponent(entityId)}${sectionParam}`;
+    return `/projects?project=${encodeURIComponent(entityId)}`;
   }
 
   if (entityType === 'order' && entityId) {
     if (isAdmin) {
-      return `/management/orders?id=${encodeURIComponent(entityId)}`;
+      return `/management/ledger`;
     }
     return `/projects`;
   }
@@ -183,7 +174,7 @@ export function getNotificationHref(
         } catch {}
         return isChatLink ? '/management/inbox' : '/management/projects';
       }
-      if (sanitized.startsWith('/wallet') || sanitized.startsWith('/billing') || sanitized.includes('tab=credits')) {
+      if (sanitized.startsWith('/wallet') || sanitized.startsWith('/billing') || sanitized.includes('tab=credits') || sanitized.startsWith('/management/orders')) {
         return '/management/ledger';
       }
       if (sanitized.startsWith('/management')) {
@@ -198,10 +189,7 @@ export function getNotificationHref(
           if (tab === 'projects') {
             return id ? `/management/projects?project=${encodeURIComponent(id)}` : '/management/projects';
           }
-          if (tab === 'orders' || tab === 'wire-orders') {
-            return id ? `/management/orders?id=${encodeURIComponent(id)}` : '/management/orders';
-          }
-          if (tab === 'ledger' || tab === 'credits') {
+          if (tab === 'orders' || tab === 'wire-orders' || tab === 'ledger' || tab === 'credits') {
             return '/management/ledger';
           }
         } catch {}
@@ -226,8 +214,7 @@ export function getNotificationHref(
         if (rest.includes('tab=chat')) {
           return `/messages?project=${encodeURIComponent(id)}`;
         }
-        const search = rest.startsWith('?') ? `&${rest.slice(1)}` : '';
-        return `/projects?project=${encodeURIComponent(id)}${search}`;
+        return `/projects?project=${encodeURIComponent(id)}`;
       }
 
       return sanitized;
@@ -241,7 +228,16 @@ export function transformApiNotification(raw: any): StudioNotification {
   const isRead = Boolean(raw.is_read ?? raw.isRead);
   const type: NotificationType = raw.type || 'system_alert';
   const createdAt = raw.created_at || raw.createdAt || new Date().toISOString();
-  const message = raw.message || raw.description || '';
+  const rawMessage = raw.message || raw.description || '';
+  const message =
+    rawMessage && /final files.*ready to download/i.test(rawMessage)
+      ? 'Your project has been marked as completed.'
+      : rawMessage;
+  const rawActionLabel = raw.action_label || raw.actionLabel || null;
+  const actionLabel =
+    rawActionLabel && /download\s*files/i.test(rawActionLabel)
+      ? 'View Project'
+      : rawActionLabel;
 
   return {
     id: String(raw.id),
@@ -249,7 +245,7 @@ export function transformApiNotification(raw: any): StudioNotification {
     title: raw.title || '',
     message,
     link: raw.link || null,
-    actionLabel: raw.action_label || raw.actionLabel || null,
+    actionLabel,
     actionId: raw.action_id || raw.actionId || null,
     entityType: raw.entity_type || raw.entityType || null,
     entityId: raw.entity_id || raw.entityId || null,

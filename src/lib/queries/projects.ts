@@ -39,9 +39,11 @@ export interface ProjectsResponse {
 
 /** Projects visible to the current user (admins see all). Returns plain array for standard views. */
 export function useProjectsQuery(options?: { enabled?: boolean; status?: string; search?: string }) {
+  const isSignedIn = useUserStore((s) => Boolean(s.user?.email && s.isSessionVerified));
+
   return useQuery({
     queryKey: ['projects', options?.status, options?.search],
-    enabled: options?.enabled,
+    enabled: isSignedIn && (options?.enabled ?? true),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (options?.status && options.status !== 'all') params.set('status', options.status);
@@ -72,9 +74,11 @@ export function useProjectsQuery(options?: { enabled?: boolean; status?: string;
 
 /** Single project query for on-demand details (including selections & additions) */
 export function useProjectDetailQuery(projectId: string | null, options?: { enabled?: boolean }) {
+  const isSignedIn = useUserStore((s) => Boolean(s.user?.email && s.isSessionVerified));
+
   return useQuery({
     queryKey: ['projects', 'detail', projectId],
-    enabled: Boolean(projectId) && (options?.enabled ?? true),
+    enabled: isSignedIn && Boolean(projectId) && (options?.enabled ?? true),
     queryFn: async () => {
       if (!projectId) return null;
       const res = await fetch(`/api/projects?id=${encodeURIComponent(projectId)}`);
@@ -100,9 +104,11 @@ export function useInfiniteProjectsQuery(filters?: {
   const search = filters?.search;
   const limit = filters?.limit ?? 20;
   const summary = filters?.summary ?? true;
+  const isSignedIn = useUserStore((s) => Boolean(s.user?.email && s.isSessionVerified));
 
   return useInfiniteQuery<ProjectsResponse, ApiError>({
     queryKey: ['projects', 'infinite', { status, search, limit, summary }],
+    enabled: isSignedIn,
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
@@ -143,9 +149,13 @@ export function useAdminProjectsQuery(filters: {
   search?: string;
 }) {
   const { page, limit = 25, status, paymentStatus, search } = filters;
+  const isVerifiedAdmin = useUserStore((s) =>
+    Boolean(s.user?.email && s.user?.role === 'admin' && s.isSessionVerified)
+  );
 
   return useQuery<ProjectsResponse, ApiError>({
     queryKey: ['projects', 'admin', { page, limit, status, paymentStatus, search }],
+    enabled: isVerifiedAdmin,
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', String(page));

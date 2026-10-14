@@ -56,8 +56,8 @@ create table if not exists public.additions (
 insert into public.packages (id, name, price_usd, credits, group_name, best_for, max_level, standard_limit, elite_limit)
 values
   ('creator-forge', 'Creator Forge', 1500, 660, 'Foundation', 'Basic services plus up to two Standard service units', 1, 2, 0),
-  ('studio-momentum', 'Studio Momentum', 2500, 1160, 'Most Popular', 'Basic and Standard services plus up to two Elite service units', 2, null, 2),
-  ('signature-collective', 'Signature Collective', 4000, 1920, 'Full Access', 'Full tier access controlled by the available credit balance', 2, null, null),
+  ('studio-momentum', 'Studio Momentum', 2500, 1200, 'Most Popular', 'Basic and Standard services plus up to two Elite service units', 2, null, 2),
+  ('signature-collective', 'Signature Collective', 4000, 2000, 'Full Access', 'Full tier access controlled by the available credit balance', 2, null, null),
   ('studio-wallet', 'Studio Wallet Balance', 0, 0, 'Studio Wallet', 'Funded directly from your available global studio credit balance with $0 USD checkout.', 2, null, null)
 on conflict (id) do update set
   name = excluded.name,

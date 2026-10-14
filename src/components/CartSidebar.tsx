@@ -347,7 +347,7 @@ export function CartSidebar({
           )}
         </div>
 
-        {/* Project Additions & Delivery Enhancements */}
+        {/* Revisions & additions */}
         {onToggleAddition && (
           <div className="space-y-2.5 pt-3 border-t border-border/80">
             <div className="flex items-center justify-between pb-0.5">
@@ -355,9 +355,14 @@ export function CartSidebar({
                 <div className="w-5 h-5 rounded-md bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-foreground">
-                  Project Additions & Extras
-                </h4>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-foreground">
+                    Revisions &amp; additions
+                  </h4>
+                  <p className="text-2xs text-muted-foreground">
+                    Mark extras for separate team confirmation.
+                  </p>
+                </div>
               </div>
               {additions && additions.length > 0 ? (
                 <span className="text-xs px-2 py-0.5 rounded-full font-bold tabular-nums bg-amber-400 text-zinc-950 shadow-xs border border-amber-400">

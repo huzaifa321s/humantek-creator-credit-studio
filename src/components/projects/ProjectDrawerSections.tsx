@@ -24,6 +24,7 @@ import {
   ItemActions,
 } from '@/components/ui/item';
 import { FileText, ExternalLink, Sparkles, AlertCircle, RotateCcw } from 'lucide-react';
+import { extractHexColors } from '@/components/reui/color-picker';
 
 export interface ProjectDrawerSpecsCardProps {
   style?: string;
@@ -33,31 +34,46 @@ export interface ProjectDrawerSpecsCardProps {
 export function ProjectDrawerSpecsCard({ style, colors }: ProjectDrawerSpecsCardProps) {
   const displayStyle = style || 'Custom Art';
   const displayColors = colors || 'Brand Colors';
+  const hexColors = extractHexColors(colors);
 
   return (
     <Card className="bg-secondary/10 border-border/70 shadow-none min-w-0">
-      <CardContent className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 sm:gap-3 p-3 sm:p-3.5 min-w-0">
+      <CardContent className="grid grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 min-w-0">
         <div className="min-w-0">
-          <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-0.5 truncate">
+          <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-1 truncate">
             Aesthetic Style
           </span>
           <b
-            className="text-foreground font-semibold truncate block text-xs"
+            className="text-foreground font-semibold truncate block text-xs sm:text-sm"
             title={displayStyle}
           >
             {displayStyle}
           </b>
         </div>
-        <div className="min-w-0">
-          <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-0.5 truncate">
+        <div className="min-w-0 border-l border-border/60 pl-3 sm:pl-4">
+          <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-1 truncate">
             Color Palette
           </span>
-          <b
-            className="text-foreground font-semibold truncate block text-xs"
-            title={displayColors}
-          >
-            {displayColors}
-          </b>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {hexColors.length > 0 && (
+              <span className="inline-flex items-center -space-x-1 shrink-0">
+                {hexColors.slice(0, 4).map((hex) => (
+                  <span
+                    key={hex}
+                    title={hex}
+                    className="size-3 rounded-full ring-1 ring-background shadow-2xs"
+                    style={{ backgroundColor: hex }}
+                  />
+                ))}
+              </span>
+            )}
+            <b
+              className="text-foreground font-semibold truncate block text-xs sm:text-sm min-w-0"
+              title={displayColors}
+            >
+              {displayColors}
+            </b>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -73,31 +89,20 @@ export interface ProjectDrawerBriefSectionProps {
 
 export function ProjectDrawerBriefSection({
   instructions,
-  title = 'Submitted Creative Brief',
-  showSnapshotBadge = true,
+  title = 'Project Brief',
   redeemCode,
 }: ProjectDrawerBriefSectionProps) {
   return (
     <div className="space-y-2 min-w-0">
       <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="text-xs font-bold text-foreground flex items-center gap-1.5 min-w-0 truncate">
-          <FileText className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-          <span className="truncate">{title}</span>
+        <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground truncate">
+          {title}
         </span>
-        {showSnapshotBadge && (
-          <Badge
-            variant="outline"
-            size="xs"
-            className="font-mono text-2xs text-muted-foreground shrink-0"
-          >
-            Snapshot
-          </Badge>
-        )}
       </div>
       {/* Strict plain text rendering with preserved line breaks (immune to HTML/XSS injection) */}
       <div
         data-testid="brief-instructions"
-        className="p-3 sm:p-3.5 rounded-xl bg-secondary/20 border border-border/80 text-foreground/90 leading-relaxed whitespace-pre-wrap font-sans text-xs break-words overflow-hidden"
+        className="p-3.5 rounded-xl bg-secondary/20 border border-border/80 text-foreground/90 leading-relaxed whitespace-pre-wrap font-sans text-xs break-words overflow-hidden"
       >
         {instructions || 'No specific creative notes submitted.'}
       </div>
@@ -119,9 +124,8 @@ export function ProjectDrawerLinksSection({ links }: ProjectDrawerLinksSectionPr
 
   return (
     <div className="space-y-2 min-w-0">
-      <span className="text-xs font-bold text-foreground flex items-center gap-1.5 min-w-0 truncate">
-        <ExternalLink className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-        <span className="truncate">Reference Links ({links.length})</span>
+      <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block truncate">
+        Reference Links ({links.length})
       </span>
       <ItemGroup className="gap-1.5 min-w-0">
         {links.map((link, idx) => {
@@ -145,7 +149,7 @@ export function ProjectDrawerLinksSection({ links }: ProjectDrawerLinksSectionPr
             >
               <ItemMedia
                 variant="icon"
-                className="size-7 rounded-md bg-amber-400/10 border-amber-400/20 text-brand-text dark:text-amber-400 shrink-0"
+                className="size-7 rounded-md bg-secondary/60 border-border/70 text-muted-foreground group-hover:text-foreground shrink-0"
               >
                 <ExternalLink className="size-3.5" />
               </ItemMedia>
@@ -188,12 +192,14 @@ export function ProjectDrawerServicesSection({
   return (
     <div className="space-y-2 min-w-0">
       <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="text-xs font-bold text-foreground flex items-center gap-1.5 min-w-0 truncate">
-          <Sparkles className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-          <span className="truncate">Selected Services ({selections.length})</span>
+        <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground truncate">
+          Selected Services ({selections.length})
         </span>
         {usedCredits > 0 && (
-          <CreditValue value={usedCredits} size="xs" variant="pill" className="shrink-0" />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-2xs text-muted-foreground font-medium">Total:</span>
+            <CreditValue value={usedCredits} size="xs" variant="pill" className="shrink-0" />
+          </div>
         )}
       </div>
       {selections.length > 0 ? (
@@ -202,18 +208,20 @@ export function ProjectDrawerServicesSection({
             <Item
               key={idx}
               size="xs"
-              className="rounded-none border-0 px-3 sm:px-3.5 py-2.5 min-w-0"
+              className="rounded-none border-0 px-3.5 py-2.5 min-w-0"
             >
               <ItemContent className="min-w-0 flex-1">
-                <ItemTitle className="font-semibold text-foreground text-xs truncate block w-full">
+                <ItemTitle className="font-medium text-foreground text-xs truncate block w-full">
                   {sel.name}
-                  <span className="text-muted-foreground font-mono text-2xs font-normal ml-1">
-                    ({sel.quantity}x)
+                  <span className="text-muted-foreground font-mono text-2xs font-normal ml-1.5">
+                    × {sel.quantity}
                   </span>
                 </ItemTitle>
               </ItemContent>
               <ItemActions className="shrink-0">
-                <CreditValue value={sel.credits} size="xs" variant="pill" />
+                <span className="font-mono tabular-nums text-xs font-semibold text-foreground/90">
+                  {sel.credits} CR
+                </span>
               </ItemActions>
             </Item>
           ))}
@@ -231,14 +239,14 @@ export function ProjectDrawerSkeleton({ showStatusCard = false }: { showStatusCa
       {showStatusCard && (
         <div className="rounded-xl border border-border/80 p-4 space-y-3">
           <Skeleton className="h-4 w-40" />
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Skeleton className="h-8 w-full rounded-lg" />
             <Skeleton className="h-8 w-full rounded-lg" />
           </div>
           <Skeleton className="h-8 w-full rounded-lg" />
         </div>
       )}
-      <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 p-3.5 rounded-xl bg-secondary/10 border border-border/70">
+      <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-secondary/10 border border-border/70">
         <div className="space-y-1.5">
           <Skeleton className="h-3 w-20" />
           <Skeleton className="h-4 w-28" />

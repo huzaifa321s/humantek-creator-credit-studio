@@ -11,8 +11,8 @@ The primary studio workflow guides creators through an intuitive structured pipe
 
 1. **Step 1: Choose a Package**
    - **Creator Forge** ($1,500 · 660 CR): Essential creator kit for single-channel launch.
-   - **Studio Momentum** ($2,500 · 1,160 CR · Most Popular): Scaled package with +160 bonus credits, priority queue, and multi-tier access.
-   - **Signature Collective** ($4,000 · 1,920 CR): Comprehensive studio rollout with +320 volume bonus credits, VIP turnaround, and dedicated Lead Producer.
+   - **Studio Momentum** ($2,500 · 1,200 CR · Most Popular): Scaled package with +200 bonus credits, priority queue, and multi-tier access.
+   - **Signature Collective** ($4,000 · 2,000 CR): Comprehensive studio rollout with +400 volume bonus credits, VIP turnaround, and dedicated Lead Producer.
    - *Unit rule*: 1 CR ≈ 1 basic creative asset task.
 
 2. **Step 2: Service Selection & Scope Allocation**

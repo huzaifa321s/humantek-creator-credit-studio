@@ -212,8 +212,8 @@ export async function POST(req: NextRequest) {
           type: 'order_status',
           title: 'New paid order',
           message: `${user.email} paid $${(capturedAmountCents / 100).toFixed(2)}.`,
-          link: `/management/orders?id=${order.id}`,
-          actionLabel: 'View Order',
+          link: `/management/ledger`,
+          actionLabel: 'View Ledger',
           actionId: order.id,
         });
 

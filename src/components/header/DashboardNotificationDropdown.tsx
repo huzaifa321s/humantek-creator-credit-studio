@@ -31,6 +31,8 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useNotificationStore,
   getNotificationHref,
@@ -38,6 +40,7 @@ import {
   type NotificationType,
 } from '@/lib/notificationStore';
 import { useUserStore } from '@/lib/userStore';
+import { walletKeys } from '@/lib/queries/wallet';
 import { createClient } from '@/lib/supabase/client';
 import { useChatStore } from '@/lib/chatStore';
 import { useSidebar } from '@/components/ui/sidebar';
@@ -56,6 +59,7 @@ export function DashboardNotificationDropdown() {
   const router = useRouter();
   const pathname = usePathname();
   const topLoader = useTopLoader();
+  const queryClient = useQueryClient();
   const { isMobile, setOpenMobile } = useSidebar();
   const user = useUserStore((s) => s.user);
   const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } =
@@ -67,7 +71,7 @@ export function DashboardNotificationDropdown() {
     void fetchNotifications();
   }, [fetchNotifications]);
 
-  // Realtime subscription to new notifications
+  // Realtime subscription to new notifications and wallet balance changes
   useEffect(() => {
     if (!user?.id) return;
 
@@ -83,8 +87,48 @@ export function DashboardNotificationDropdown() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          () => {
+          (payload) => {
             void fetchNotifications();
+            const newRow = payload.new as {
+              type?: string;
+              title?: string;
+              message?: string;
+            } | undefined;
+            if (
+              !newRow?.type ||
+              newRow.type === 'payment_confirmed' ||
+              newRow.type === 'wallet_credit' ||
+              newRow.type === 'project_status'
+            ) {
+              void queryClient.invalidateQueries({ queryKey: walletKeys.all });
+              void queryClient.invalidateQueries({ queryKey: ['projects'] });
+            }
+
+            // Show live toast for incoming studio/payment updates (skip self-triggered wizard/redeem toasts)
+            if (
+              payload.eventType === 'INSERT' &&
+              newRow?.title &&
+              (newRow.type === 'payment_confirmed' ||
+                (newRow.type === 'project_status' &&
+                  !newRow.title.startsWith('Project submitted') &&
+                  !newRow.title.startsWith('Project started')))
+            ) {
+              toast.success(newRow.title, {
+                description: newRow.message,
+              });
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'wallets',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            void queryClient.invalidateQueries({ queryKey: walletKeys.all });
           }
         )
         .subscribe();
@@ -95,7 +139,7 @@ export function DashboardNotificationDropdown() {
     } catch (err) {
       console.warn('[RealtimeNotifications] Failed to connect:', err);
     }
-  }, [user?.id, fetchNotifications]);
+  }, [user?.id, fetchNotifications, queryClient]);
 
   const handleMarkAll = (e: React.MouseEvent) => {
     e.stopPropagation();

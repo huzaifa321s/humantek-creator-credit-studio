@@ -10,6 +10,7 @@ import {
   ArrowRight,
   MessageSquare,
   Plus,
+  Download,
 } from 'lucide-react';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Card } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import { ChatGate } from '@/components/chat/ChatGate';
 import { useUserStore, refreshUserSession } from '@/lib/userStore';
 import { useChatStore } from '@/lib/chatStore';
 import { useWizardStore } from '@/lib/wizardStore';
+import { downloadProjectInvoice } from '@/lib/invoice';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PACKAGES } from '@/lib/catalog';
@@ -63,6 +65,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
   const headingRef = useRef<HTMLHeadingElement>(null);
   const confettiFired = useRef(false);
   const [, setCopied] = useState(false);
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
   const resetWizard = useWizardStore((state) => state.resetWizard);
 
   const confirmationState = getConfirmationState(project);
@@ -162,7 +165,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
     isPendingOrManual = true;
   } else if (confirmationState === 'manual_order') {
     heading = 'Order received';
-    description = 'We’ll send your invoice and payment details via email and studio chat.';
+    description = 'Your project brief is in our review queue. You can download your invoice below or message our team anytime.';
     statusBadgeText = 'Awaiting payment';
     isPendingOrManual = true;
   }
@@ -179,6 +182,20 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
     setCopied(true);
     toast.success('Project code copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (isDownloadingInvoice) return;
+    setIsDownloadingInvoice(true);
+    try {
+      await downloadProjectInvoice(project);
+      toast.success(`Invoice INV-${project.projectCode} downloaded`);
+    } catch (err) {
+      console.error('Failed to generate invoice:', err);
+      toast.error('Could not generate invoice PDF. Please try again.');
+    } finally {
+      setIsDownloadingInvoice(false);
+    }
   };
 
   const handleStartAnother = () => {
@@ -325,7 +342,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
             )}
           </div>
 
-          {/* Actions: Primary View Button & Responsive Secondary Actions */}
+          {/* Actions: Primary View Button, Download Invoice & Responsive Secondary Actions */}
           <div className="space-y-2.5 pt-0.5 w-full">
             <Link href="/projects" className="block w-full">
               <Button
@@ -338,6 +355,19 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                 <ArrowRight className="size-4 ml-1" />
               </Button>
             </Link>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              loading={isDownloadingInvoice}
+              loadingText="Generating invoice..."
+              onClick={handleDownloadInvoice}
+              className="w-full h-9 sm:h-10 text-xs font-bold text-foreground gap-1.5 rounded-xl cursor-pointer border-border/80 hover:bg-secondary/60"
+            >
+              <Download className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+              <span>Download Invoice (PDF)</span>
+            </Button>
 
             <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:items-center sm:justify-center gap-2 w-full">
               <ChatGate>
