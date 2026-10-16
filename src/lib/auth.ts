@@ -48,8 +48,7 @@ export function isPrimaryOwnerEmail(email: string): boolean {
   const primaryOwnerEmail = (process.env.STUDIO_OWNER_EMAIL || '').trim().toLowerCase();
   return (
     Boolean(primaryOwnerEmail && clean === primaryOwnerEmail) ||
-    clean === 'admin@humantek.art' ||
-    clean === 'saadahmed7066@gmail.com'
+    clean === 'admin@humantek.art'
   );
 }
 

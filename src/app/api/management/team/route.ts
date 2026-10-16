@@ -178,7 +178,7 @@ export async function GET() {
 
     const response: TeamAccessResponse = {
       members: mapped,
-      ownerEmail: ownerMember?.email || primaryOwnerEnv || 'saadahmed7066@gmail.com',
+      ownerEmail: ownerMember?.email || primaryOwnerEnv || 'admin@humantek.art',
       ownerName: ownerMember?.name || 'Studio Owner',
       currentUserRole: effectiveCurrentRole,
       canManageTeam: effectiveCurrentRole === 'owner',

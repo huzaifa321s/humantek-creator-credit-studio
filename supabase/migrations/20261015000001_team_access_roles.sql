@@ -16,7 +16,7 @@ with ordered_admins as (
     row_number() over (
       order by
         case
-          when lower(email) in ('saadahmed7066@gmail.com', 'admin@humantek.art') then 0
+          when lower(email) = 'admin@humantek.art' then 0
           else 1
         end,
         created_at asc

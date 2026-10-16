@@ -30,8 +30,7 @@ function getRoleMeta(role?: string | null, teamRole?: string | null, email?: str
     };
   }
   const cleanEmail = (email || '').trim().toLowerCase();
-  const isOwnerEmail =
-    cleanEmail === 'admin@humantek.art' || cleanEmail === 'saadahmed7066@gmail.com';
+  const isOwnerEmail = cleanEmail === 'admin@humantek.art';
   const normalizedTeamRole = isOwnerEmail ? 'owner' : (teamRole || '').toLowerCase();
 
   switch (normalizedTeamRole) {
