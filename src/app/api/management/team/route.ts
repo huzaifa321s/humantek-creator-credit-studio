@@ -127,7 +127,9 @@ export async function GET() {
         (email.includes('@') ? email.split('@')[0] : 'Team Member');
 
       const fromCol = normalizeTeamRole(p.team_role);
-      const fromMeta = normalizeTeamRole(authUser?.app_metadata?.team_role);
+      const fromMeta =
+        normalizeTeamRole(authUser?.app_metadata?.team_role) ||
+        normalizeTeamRole(authUser?.user_metadata?.team_role);
       let resolvedRole: TeamRole;
 
       if (isPrimaryOwnerEmail(email)) {
@@ -252,14 +254,14 @@ export async function POST(req: NextRequest) {
     // 1. Check if a profile or auth user already exists for this email
     const { data: existingProfile } = await admin
       .from('profiles')
-      .select('id, email, full_name, role, team_role, avatar_url, created_at')
+      .select('*')
       .ilike('email', email)
       .maybeSingle();
 
     if (
       existingProfile &&
       existingProfile.role === 'admin' &&
-      normalizeTeamRole(existingProfile.team_role) === 'owner'
+      normalizeTeamRole((existingProfile as Record<string, unknown>).team_role) === 'owner'
     ) {
       return NextResponse.json(
         { error: 'Protected Studio Owner accounts cannot be modified or overwritten.' },
@@ -443,7 +445,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data: targetProfile } = await admin
       .from('profiles')
-      .select('id, email, role, team_role')
+      .select('*')
       .eq('id', userId)
       .maybeSingle();
 
@@ -451,18 +453,19 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Team member not found.' }, { status: 404 });
     }
 
+    const { data: existingAuth } = await admin.auth.admin.getUserById(userId);
+    const currentAppMeta = existingAuth?.user?.app_metadata || {};
+
     if (
       isPrimaryOwnerEmail(targetProfile.email || '') ||
-      normalizeTeamRole(targetProfile.team_role) === 'owner'
+      normalizeTeamRole((targetProfile as Record<string, unknown>).team_role) === 'owner' ||
+      normalizeTeamRole(currentAppMeta.team_role) === 'owner'
     ) {
       return NextResponse.json(
         { error: 'Protected Studio Owner accounts cannot be demoted or removed.' },
         { status: 403 }
       );
     }
-
-    const { data: existingAuth } = await admin.auth.admin.getUserById(userId);
-    const currentAppMeta = existingAuth?.user?.app_metadata || {};
 
     const { error: authErr } = await admin.auth.admin.updateUserById(userId, {
       app_metadata: {
@@ -517,7 +520,7 @@ export async function DELETE(req: NextRequest) {
 
     const { data: targetProfile } = await admin
       .from('profiles')
-      .select('id, email, role, team_role')
+      .select('*')
       .eq('id', userId)
       .maybeSingle();
 
@@ -525,9 +528,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Team member not found.' }, { status: 404 });
     }
 
+    const { data: existingAuth } = await admin.auth.admin.getUserById(userId);
+    const currentAppMeta = existingAuth?.user?.app_metadata || {};
+
     if (
       isPrimaryOwnerEmail(targetProfile.email || '') ||
-      normalizeTeamRole(targetProfile.team_role) === 'owner'
+      normalizeTeamRole((targetProfile as Record<string, unknown>).team_role) === 'owner' ||
+      normalizeTeamRole(currentAppMeta.team_role) === 'owner'
     ) {
       return NextResponse.json(
         { error: 'Protected Studio Owner accounts cannot be demoted or removed.' },
@@ -547,9 +554,8 @@ export async function DELETE(req: NextRequest) {
 
     await tryUpdateProfileTeamRole(admin, userId, null);
 
-    const { data: existingAuth } = await admin.auth.admin.getUserById(userId);
     if (existingAuth?.user) {
-      const nextAppMeta = { ...(existingAuth.user.app_metadata || {}) };
+      const nextAppMeta = { ...currentAppMeta };
       delete nextAppMeta.team_role;
       await admin.auth.admin.updateUserById(userId, {
         app_metadata: nextAppMeta,

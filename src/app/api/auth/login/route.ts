@@ -164,12 +164,15 @@ export async function POST(req: NextRequest) {
     if (isAdmin) {
       const fromProfile = normalizeTeamRole((profile as Record<string, unknown> | null)?.team_role);
       const fromAppMeta = normalizeTeamRole(data.user.app_metadata?.team_role);
+      const fromUserMeta = normalizeTeamRole(data.user.user_metadata?.team_role);
       if (isPrimaryOwnerEmail(userEmail)) {
         teamRole = 'owner';
       } else if (fromProfile) {
         teamRole = fromProfile;
       } else if (fromAppMeta) {
         teamRole = fromAppMeta;
+      } else if (fromUserMeta) {
+        teamRole = fromUserMeta;
       } else {
         teamRole = 'manager';
       }

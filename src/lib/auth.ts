@@ -154,12 +154,15 @@ export async function getRequestUser(): Promise<RequestUser | null> {
     if (isAdmin) {
       const fromProfile = normalizeTeamRole(profile?.team_role);
       const fromAppMeta = normalizeTeamRole(user.app_metadata?.team_role);
+      const fromUserMeta = normalizeTeamRole(user.user_metadata?.team_role);
       if (isPrimaryOwnerEmail(email)) {
         teamRole = 'owner';
       } else if (fromProfile) {
         teamRole = fromProfile;
       } else if (fromAppMeta) {
         teamRole = fromAppMeta;
+      } else if (fromUserMeta) {
+        teamRole = fromUserMeta;
       } else {
         // Determine if this admin is the earliest admin or an unset manager
         const { data: allAdmins } = await admin

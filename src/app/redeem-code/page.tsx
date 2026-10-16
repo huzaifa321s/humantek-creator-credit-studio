@@ -14,7 +14,6 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
-import { TypographyH1 } from '@/components/ui/typography';
 import { Separator } from '@/components/ui/separator';
 import { CreditValue } from '@/components/ui/credit-value';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -217,16 +216,16 @@ function RedeemCodeContent() {
       backLabel="Back to Studio"
       topRightBadge={<StudioNewProjectButton />}
     >
-      <div className="space-y-6 animate-in fade-in duration-200 pb-24 sm:pb-12">
-        {/* Step Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/60 pb-5">
+      <div className="space-y-6 animate-step-enter pb-24 sm:pb-12">
+        {/* Page Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+            <div className="text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               CREATOR WALLET &amp; CREDIT SHARING
             </div>
-            <TypographyH1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
+            <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
               {activeTab === 'share' ? 'Share & Gift Studio Credits' : 'Redeem Promo Code'}
-            </TypographyH1>
+            </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
               {activeTab === 'share'
                 ? 'Generate a personal promo voucher from your wallet balance to share credits with a friend, family member, or collaborator.'
@@ -772,12 +771,12 @@ function RedeemCodeContent() {
                     </p>
                     <Button
                       type="button"
-                      variant="gold"
+                      variant="secondary"
                       size="sm"
                       onClick={() => setActiveTab('share')}
-                      className="w-full text-xs font-bold h-9 rounded-xl gap-1.5 cursor-pointer"
+                      className="w-full text-xs font-semibold h-9 rounded-xl gap-1.5 cursor-pointer hover:bg-secondary/80"
                     >
-                      <Send className="size-3.5" />
+                      <Send className="size-3.5 text-brand-text dark:text-amber-400" />
                       <span>Share / Gift Credits to a Friend</span>
                     </Button>
                     <Link href="/new-project?step=1" className="block">
