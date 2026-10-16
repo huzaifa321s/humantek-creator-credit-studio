@@ -1706,7 +1706,7 @@ export default function CreatorStudioPage() {
       {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}
       {/* ============================================================ */}
       {currentStep === 1 && (
-        <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200" data-hydrated={mounted ? "true" : undefined}>
+        <div key="wizard-step-1" className="space-y-4 sm:space-y-5 animate-step-enter" data-hydrated={mounted ? "true" : undefined}>
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
@@ -1762,10 +1762,10 @@ export default function CreatorStudioPage() {
                 <Card
                   onClick={() => handleSwitchStep1Tab('wallet')}
                   className={cn(
-                    'p-5 rounded-2xl transition-all duration-200 cursor-pointer select-none flex flex-col justify-between gap-3 shadow-2xs',
+                    'p-5 rounded-2xl transition-colors transition-shadow duration-150 ease-out cursor-pointer select-none flex flex-col justify-between gap-3 shadow-2xs motion-reduce:transition-none',
                     isWalletFunding
                       ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/25 shadow-md ring-2 ring-amber-400/20'
-                      : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
+                      : 'border border-border/80 bg-card [@media(hover:hover)]:hover:border-border [@media(hover:hover)]:hover:shadow-xs'
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -1806,10 +1806,10 @@ export default function CreatorStudioPage() {
                 <Card
                   onClick={() => handleSwitchStep1Tab('packages')}
                   className={cn(
-                    'p-5 rounded-2xl transition-all duration-200 cursor-pointer select-none flex flex-col justify-between gap-3 shadow-2xs',
+                    'p-5 rounded-2xl transition-colors transition-shadow duration-150 ease-out cursor-pointer select-none flex flex-col justify-between gap-3 shadow-2xs motion-reduce:transition-none',
                     !isWalletFunding
                       ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/25 shadow-md ring-2 ring-amber-400/20'
-                      : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
+                      : 'border border-border/80 bg-card [@media(hover:hover)]:hover:border-border [@media(hover:hover)]:hover:shadow-xs'
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -1848,7 +1848,7 @@ export default function CreatorStudioPage() {
 
               {/* State 1: "Use My Wallet" selected -> Clean Ready Card (Packages completely hidden) */}
               {isWalletFunding && (
-                <div className="p-5 sm:p-6 rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-400/[0.08] via-background to-secondary/30 shadow-2xs space-y-3">
+                <div key="wallet-ready" className="animate-step-enter p-5 sm:p-6 rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-400/[0.08] via-background to-secondary/30 shadow-2xs space-y-3">
                   <div className="flex items-center gap-2.5">
                     <div className="size-7 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                       <Check className="size-4 stroke-[3]" />
@@ -1885,7 +1885,7 @@ export default function CreatorStudioPage() {
 
           {/* State 2: Packages Selection (Shown when userBalance === 0 OR when "Buy more credits" is chosen) */}
           {(userBalance <= 0 || !isWalletFunding) && (
-            <div className="space-y-4 pt-1">
+            <div key="packages-selection" className="animate-step-enter space-y-4 pt-1">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Choose a package:
@@ -1919,10 +1919,10 @@ export default function CreatorStudioPage() {
                       key={pkg.id}
                       onClick={() => handleSelectPackage(pkg.id)}
                       className={cn(
-                        'relative flex flex-col justify-between rounded-2xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0',
+                        'relative flex flex-col justify-between rounded-2xl transition-colors transition-shadow duration-150 ease-out cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0 motion-reduce:transition-none',
                         isSelected
                           ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400/25'
-                          : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
+                          : 'border border-border/80 bg-card [@media(hover:hover)]:hover:border-border [@media(hover:hover)]:hover:shadow-xs'
                       )}
                     >
                       {isPopular && (
@@ -2043,7 +2043,7 @@ export default function CreatorStudioPage() {
       {/* STEP 2: MULTI-ASSET CONFIGURATOR                             */}
       {/* ============================================================ */}
       {currentStep === 2 && currentPackage && (
-        <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200">
+        <div key="wizard-step-2" className="space-y-4 sm:space-y-6 animate-step-enter">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
@@ -2324,10 +2324,10 @@ export default function CreatorStudioPage() {
                     <Card
                       key={svc.id}
                       className={cn(
-                        'group rounded-xl transition-all duration-200 overflow-hidden flex flex-col justify-between py-0 gap-0 shadow-2xs',
+                        'group rounded-xl transition-colors transition-shadow duration-150 ease-out overflow-hidden flex flex-col justify-between py-0 gap-0 shadow-2xs motion-reduce:transition-none',
                         isSelected
                           ? 'border-amber-400/80 bg-amber-400/[0.04] ring-1 ring-amber-400/25 shadow-xs'
-                          : 'border-border/80 bg-card hover:border-amber-400/40 hover:shadow-xs'
+                          : 'border-border/80 bg-card [@media(hover:hover)]:hover:border-amber-400/40 [@media(hover:hover)]:hover:shadow-xs'
                       )}
                     >
                       {/* Card Top / Header Area */}
@@ -2660,7 +2660,7 @@ export default function CreatorStudioPage() {
       {/* STEP 3: CREDIT SCOPE & ELIGIBILITY                           */}
       {/* ============================================================ */}
       {currentStep === 3 && currentPackage && (
-        <div className="w-full space-y-4 sm:space-y-5 animate-in fade-in duration-200">
+        <div key="wizard-step-3" className="w-full space-y-4 sm:space-y-5 animate-step-enter">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
@@ -2985,7 +2985,7 @@ export default function CreatorStudioPage() {
       {/* STEP 4: PROJECT DETAILS & CREATIVE BRIEF                     */}
       {/* ============================================================ */}
       {currentStep === 4 && currentPackage && (
-        <div className="w-full space-y-4 md:space-y-6 pb-28 md:pb-10 animate-in fade-in duration-200">
+        <div key="wizard-step-4" className="w-full space-y-4 md:space-y-6 pb-28 md:pb-10 animate-step-enter">
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">
             <div>
@@ -3371,7 +3371,7 @@ export default function CreatorStudioPage() {
       {/* STEP 5: REVIEW & CHECKOUT                                    */}
       {/* ============================================================ */}
       {currentStep === 5 && currentPackage && (
-        <div className="space-y-6 animate-in fade-in duration-200 pb-36 sm:pb-16">
+        <div key="wizard-step-5" className="space-y-6 animate-step-enter pb-36 sm:pb-16">
             <>
               {/* Step Top Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5 sm:pb-4">

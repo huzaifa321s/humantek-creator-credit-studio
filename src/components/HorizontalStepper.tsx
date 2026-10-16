@@ -237,7 +237,7 @@ export function HorizontalStepper({
 
                 {/* Substantial, high-contrast connecting line (3px height with rounded caps) */}
                 {stepNum < STUDIO_STEPS.length && (
-                  <StepperSeparator className="mx-1 sm:mx-1.5 md:mx-2 min-w-3 sm:min-w-4 md:min-w-6 lg:min-w-10 h-[3px] rounded-full bg-border transition-colors duration-300 group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-emerald-500/20" />
+                  <StepperSeparator className="mx-1 sm:mx-1.5 md:mx-2 min-w-3 sm:min-w-4 md:min-w-6 lg:min-w-10 h-[3px] rounded-full bg-border transition-colors duration-250 ease-out motion-reduce:transition-none group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-emerald-500/20" />
                 )}
               </StepperItem>
             );

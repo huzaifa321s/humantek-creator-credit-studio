@@ -161,8 +161,9 @@ export function CartSidebar({
 
           <div className="text-right shrink-0 flex flex-col items-end justify-start pt-0.5">
             <span
+              key={remainingCredits}
               className={cn(
-                'text-xs sm:text-sm font-bold font-mono tabular-nums whitespace-nowrap block',
+                'text-xs sm:text-sm font-bold font-mono tabular-nums whitespace-nowrap block animate-badge-bump',
                 isOverBudget
                   ? 'text-rose-600 dark:text-rose-400 font-extrabold'
                   : 'text-foreground'
