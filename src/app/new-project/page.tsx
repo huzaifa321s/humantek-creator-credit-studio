@@ -3104,11 +3104,11 @@ export default function CreatorStudioPage() {
                 <Textarea
                   {...brief.fieldProps('instructions')}
                   maxLength={BRIEF_LIMITS.instructions.max}
-                  placeholder="Share any key text, expressions, poses, or instructions. You can also refine further with our team in project messages..."
+                  placeholder={`What you need: e.g. 1 animated emote, 2 static emotes, 1 Twitch offline banner&#10;Character: describe your character or mascot, plus outfit, colors and must-match details (e.g. "black shoes, same mustache as ref")&#10;Expression & pose: e.g. "smug side-eye with a soft blush, one-hand shrug" or "exact same pose as my reference"&#10;Animation (if animated): e.g. "starts calm, ears drop, fur puffs up with flames behind, then an angry shake"&#10;Text on the art: e.g. "BONK", "LOL", "OFFLINE – Resting After Training"&#10;Scene & mood (banners): e.g. "gym background with dumbbells and a punching bag, soft moody lighting"&#10;Style notes: e.g. "cute chibi, not too angry", "match colors from my ref"`}
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
-                  rows={4}
-                  className="rounded-lg text-xs sm:text-sm leading-relaxed bg-background/50 py-2.5 min-h-[120px] md:min-h-[160px] resize-y scroll-mt-[140px]"
+                  rows={8}
+                  className="rounded-lg text-xs sm:text-sm leading-relaxed bg-background/50 py-2.5 min-h-[160px] md:min-h-[200px] resize-y scroll-mt-[140px]"
                 />
                 <FieldError id={briefFieldId('instructions')} message={brief.getError('instructions')} />
               </div>
