@@ -167,10 +167,10 @@ import {
   FileCheck,
   Plus,
   Info,
+  Sparkles,
   Layers,
   PenTool,
   Image,
-  Smile,
   BellRing,
   Monitor,
   Clapperboard,
@@ -182,7 +182,6 @@ import {
   Bot,
   ToggleRight,
   Paintbrush,
-  UserCircle,
   Palette,
   FileText,
   ImagePlus,
@@ -222,7 +221,7 @@ function getServiceIcon(serviceId: string, category: string) {
       return Image;
     case 'emote':
     case 'animated-emote':
-      return Smile;
+      return Sparkles;
     case 'alert':
     case 'animated-alert':
       return BellRing;
@@ -246,7 +245,7 @@ function getServiceIcon(serviceId: string, category: string) {
     case 'lower-third':
       return Presentation;
     case 'pngtuber':
-      return UserCheck;
+      return Layers;
     case 'vtuber-2d':
     case 'vtuber-3d':
       return Bot;
@@ -255,7 +254,7 @@ function getServiceIcon(serviceId: string, category: string) {
     case 'illustration':
       return Paintbrush;
     case 'stream-avatar':
-      return UserCircle;
+      return Palette;
     case 'character-art':
       return Palette;
     case 'oc-sheet':
