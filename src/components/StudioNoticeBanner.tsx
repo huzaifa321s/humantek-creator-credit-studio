@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  Sparkles,
+  Coins,
   ShieldCheck,
 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -36,7 +36,7 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 w-full">
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <span className="flex size-5 sm:size-6 items-center justify-center rounded-md bg-amber-400/15 text-brand-text dark:text-amber-400 shrink-0">
-              <Sparkles className="size-3 sm:size-3.5" />
+              <Coins className="size-3 sm:size-3.5" />
             </span>
             <p className="text-xs text-foreground/90 font-medium leading-tight sm:leading-normal">
               <span className="hidden sm:inline">
@@ -77,7 +77,7 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
               </AlertTitle>
             </div>
             <AlertDescription className="text-xs text-muted-foreground leading-normal">
-              Credits are deducted only after the team approves the service, content, and final scope.
+              Unused credits stay in your Studio Wallet, and credits are refunded if any request cannot be fulfilled.
             </AlertDescription>
           </div>
         </div>
@@ -89,3 +89,4 @@ export function StudioNoticeBanner(props: StudioNoticeBannerProps) {
     </Alert>
   );
 }
+

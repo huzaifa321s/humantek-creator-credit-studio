@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
+import { isPrimaryOwnerEmail, normalizeTeamRole, type TeamRole } from '@/lib/auth';
 
 interface RateLimitRecord {
   attempts: number;
@@ -151,12 +152,29 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Fetch authoritative profile (role, full_name)
+    // Fetch authoritative profile (role, full_name, team_role)
     const { data: profile } = await admin
       .from('profiles')
-      .select('role, full_name')
+      .select('*')
       .eq('id', user.id)
       .maybeSingle();
+
+    const isAdmin = profile?.role === 'admin';
+    const userRole = isAdmin ? 'admin' : 'client';
+    let teamRole: TeamRole | null = null;
+    if (isAdmin) {
+      const fromProfile = normalizeTeamRole((profile as Record<string, unknown> | null)?.team_role);
+      const fromAppMeta = normalizeTeamRole(user.app_metadata?.team_role);
+      if (isPrimaryOwnerEmail(userEmail)) {
+        teamRole = 'owner';
+      } else if (fromProfile) {
+        teamRole = fromProfile;
+      } else if (fromAppMeta) {
+        teamRole = fromAppMeta;
+      } else {
+        teamRole = 'manager';
+      }
+    }
 
     const userName =
       profile?.full_name ||
@@ -178,7 +196,9 @@ export async function POST(req: NextRequest) {
         id: user.id,
         email: userEmail,
         name: userName,
-        role: profile?.role || 'client',
+        role: userRole,
+        teamRole,
+        isAdmin,
         walletBalance: wallet?.balance_credits ?? 0,
       },
     });

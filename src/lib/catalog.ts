@@ -448,11 +448,10 @@ export const TERMS_AND_CONDITIONS = [
 
 export const SERVICE_METADATA_EXTRAS: Record<
   string,
-  { bestFor: string; deliverables: string[]; previewImage?: string }
+  { bestFor: string; deliverables: string[] }
 > = {
   'oc-sheet': {
     bestFor: 'VTubers & original character creators',
-    previewImage: '/previews/oc-sheet.jpg',
     deliverables: [
       'Front + side + back views',
       'Color palette & callouts',
@@ -462,7 +461,6 @@ export const SERVICE_METADATA_EXTRAS: Record<
   },
   'character-art': {
     bestFor: 'VTubers & digital creators needing character designs',
-    previewImage: '/previews/oc-sheet.jpg',
     deliverables: [
       'Custom character concept sketch & refinement',
       'Full color render & shading',
@@ -472,7 +470,6 @@ export const SERVICE_METADATA_EXTRAS: Record<
   },
   'logo': {
     bestFor: 'Channel identity & brand revamp',
-    previewImage: '/previews/animated-logo.jpg',
     deliverables: [
       'Custom typography / mascot design',
       'Transparent PNG (dark & light variants)',
@@ -482,7 +479,6 @@ export const SERVICE_METADATA_EXTRAS: Record<
   },
   'animated-logo': {
     bestFor: 'Stream intros & YouTube openers',
-    previewImage: '/previews/animated-logo.jpg',
     deliverables: [
       'Transparent WebM / MOV animation',
       'Smooth 60 FPS motion graphics',
@@ -491,7 +487,6 @@ export const SERVICE_METADATA_EXTRAS: Record<
   },
   'banner': {
     bestFor: 'Twitch, YouTube & Twitter profile headers',
-    previewImage: '/previews/animated-logo.jpg',
     deliverables: [
       'Responsive multi-platform crops',
       'Custom illustrated / graphic theme',
@@ -500,7 +495,6 @@ export const SERVICE_METADATA_EXTRAS: Record<
   },
   'animated-banner': {
     bestFor: 'Dynamic header displays & Twitch banner loops',
-    previewImage: '/previews/animated-logo.jpg',
     deliverables: [
       'Smooth animated WebM / MP4 loop',
       'Subtle lighting & particle effects',
@@ -690,8 +684,8 @@ export function getServiceMetadata(svc: ServiceDefinition) {
   return {
     bestFor: svc.bestFor || custom?.bestFor || catDefault.bestFor,
     deliverables: svc.deliverables || custom?.deliverables || catDefault.deliverables,
-    previewImage: svc.exampleImage || custom?.previewImage,
     revisions: '2 rounds included',
   };
 }
+
 

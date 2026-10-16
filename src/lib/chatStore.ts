@@ -4,15 +4,30 @@ import { useEffect, useCallback } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
-import type { ChatMessage, ChatAttachment, ChatOrderCard, ChatReaction, ChatAudioNote, ChatLike, ChatReplyTo } from '@/types';
+import type {
+  ChatMessage as BaseChatMessage,
+  ChatAttachment,
+  ChatOrderCard,
+  ChatReaction,
+  ChatAudioNote,
+  ChatLike,
+  ChatReplyTo,
+} from '@/types';
 import { useChatUnreadQuery } from '@/lib/queries/chat';
 
-export type { ChatMessage, ChatAttachment, ChatOrderCard, ChatReaction, ChatAudioNote, ChatLike, ChatReplyTo };
+export interface ChatMessage extends BaseChatMessage {
+  senderId?: string;
+  staffName?: string | null;
+  clientUserId?: string | null;
+}
+
+export type { ChatAttachment, ChatOrderCard, ChatReaction, ChatAudioNote, ChatLike, ChatReplyTo };
 
 export interface ProjectMeta {
   id: string;
   projectCode: string;
   packageName: string;
+  channelName?: string;
   clientName: string;
   status: string;
   price?: number;
@@ -24,8 +39,8 @@ export const GLOBAL_CHAT_ID = 'global';
 
 export const GLOBAL_META: ProjectMeta = {
   id: GLOBAL_CHAT_ID,
-  projectCode: 'HELP',
-  packageName: 'Studio Help',
+  projectCode: 'INQUIRY',
+  packageName: 'Ask the Studio Team',
   clientName: 'Studio Team',
   status: 'active',
 };
@@ -62,7 +77,13 @@ interface ChatState {
   queueMessage: (
     projectId: string,
     text: string,
-    options?: { attachments?: ChatAttachment[]; clientMsgId?: string; replyTo?: ChatReplyTo; senderName?: string }
+    options?: {
+      attachments?: ChatAttachment[];
+      clientMsgId?: string;
+      replyTo?: ChatReplyTo;
+      senderName?: string;
+      clientUserId?: string | null;
+    }
   ) => string | undefined;
   removeMessage: (projectId: string, clientMessageId: string) => void;
   markMessageFailed: (projectId: string, clientMessageId: string, errorReason?: string) => void;
@@ -123,7 +144,7 @@ export const useChatStore = create<ChatState>()(
       },
 
       queueMessage: (projectId, text, options = {}) => {
-        const { attachments, replyTo, senderName } = options;
+        const { attachments, replyTo, senderName, clientUserId } = options;
         if (!text.trim() && (!attachments || attachments.length === 0)) return undefined;
 
         const clientMessageId = options.clientMsgId || newId();
@@ -135,6 +156,7 @@ export const useChatStore = create<ChatState>()(
           id: clientMessageId,
           clientMessageId,
           projectId,
+          clientUserId: clientUserId ?? null,
           sender: 'client',
           senderName: senderName || 'You',
           content: text.trim(),
@@ -303,7 +325,13 @@ export function useStudioChat(scopedProjectId?: string) {
   const handleQueueMessage = useCallback(
     (
       text: string,
-      options?: { attachments?: ChatAttachment[]; clientMsgId?: string; replyTo?: ChatReplyTo; senderName?: string }
+      options?: {
+        attachments?: ChatAttachment[];
+        clientMsgId?: string;
+        replyTo?: ChatReplyTo;
+        senderName?: string;
+        clientUserId?: string | null;
+      }
     ) => queueMessage(effectiveProjectId, text, options),
     [queueMessage, effectiveProjectId]
   );

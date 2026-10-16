@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
-import { useUserStore } from '@/lib/userStore';
+import { useUserStore, computeInitials } from '@/lib/userStore';
 import { useWizardStore } from '@/lib/wizardStore';
 import { useNotificationStore } from '@/lib/notificationStore';
 import { ChatGateProvider } from '@/components/chat/ChatGate';
@@ -42,6 +42,7 @@ function SessionSync() {
             currentUser.name !== data.user.name ||
             currentUser.avatarUrl !== data.user.avatarUrl ||
             currentUser.role !== (data.user.role || 'client') ||
+            currentUser.teamRole !== (data.user.teamRole || null) ||
             currentUser.emailVerified !== Boolean(data.user.emailConfirmed) ||
             currentUser.hasProjects !== Boolean(data.user.hasProjects) ||
             currentUser.canChat !== Boolean(data.user.canChat);
@@ -53,6 +54,7 @@ function SessionSync() {
               name: data.user.name || undefined,
               avatarUrl: data.user.avatarUrl || null,
               role: data.user.role || 'client',
+              teamRole: data.user.teamRole || null,
               emailVerified: Boolean(data.user.emailConfirmed),
               hasProjects: Boolean(data.user.hasProjects),
               canChat: Boolean(data.user.canChat),
@@ -86,6 +88,7 @@ export interface AuthProviderProps {
     name?: string;
     avatarUrl?: string | null;
     role: string;
+    teamRole?: 'owner' | 'manager' | 'viewer' | null;
     isAdmin: boolean;
     emailConfirmed: boolean;
     hasProjects: boolean;
@@ -100,13 +103,19 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       const current = useUserStore.getState().user;
       const userName = initialUser.name || current?.name || initialUser.email.split('@')[0];
       const avatarUrl = initialUser.avatarUrl !== undefined ? initialUser.avatarUrl : (current?.avatarUrl ?? null);
+      const teamRole = initialUser.teamRole !== undefined ? initialUser.teamRole : (current?.teamRole ?? null);
 
       if (
         !current ||
         current.id !== initialUser.id ||
         current.email !== initialUser.email ||
         current.name !== userName ||
-        current.avatarUrl !== avatarUrl
+        current.avatarUrl !== avatarUrl ||
+        current.role !== (initialUser.role || 'client') ||
+        current.teamRole !== teamRole ||
+        current.emailVerified !== initialUser.emailConfirmed ||
+        current.hasProjects !== initialUser.hasProjects ||
+        current.canChat !== initialUser.canChat
       ) {
         useUserStore.setState({
           user: {
@@ -114,9 +123,10 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
             name: userName,
             email: initialUser.email,
             avatarUrl,
-            avatarInitials: (userName ? userName.slice(0, 2) : initialUser.email.slice(0, 2)).toUpperCase(),
+            avatarInitials: computeInitials(userName, initialUser.email),
             walletBalance: current?.walletBalance ?? 0,
             role: initialUser.role || 'client',
+            teamRole,
             emailVerified: initialUser.emailConfirmed,
             hasProjects: initialUser.hasProjects,
             canChat: initialUser.canChat,

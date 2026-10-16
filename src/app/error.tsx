@@ -11,7 +11,7 @@ import {
   TypographyMuted,
 } from '@/components/ui/typography';
 import { cn } from '@/lib/utils';
-import { AlertCircle, RotateCcw, ArrowLeft, Home, Sparkles } from 'lucide-react';
+import { AlertCircle, RotateCcw, ArrowLeft, Home } from 'lucide-react';
 
 export default function ErrorPage({
   error,
@@ -46,7 +46,6 @@ export default function ErrorPage({
               <span className="font-bold text-foreground tracking-tight text-sm">
                 Humantek Art
               </span>
-              <Sparkles className="size-3 text-amber-500 shrink-0" />
             </div>
             <span className="block text-3xs tracking-wider uppercase font-bold text-brand-text dark:text-amber-400 leading-tight">
               Creator Credits Studio

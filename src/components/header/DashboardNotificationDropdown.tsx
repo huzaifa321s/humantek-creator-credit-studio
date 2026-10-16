@@ -7,7 +7,7 @@ import { useTopLoader } from 'nextjs-toploader';
 import {
   Bell,
   CheckCircle2,
-  Sparkles,
+  FolderKanban,
   MessageSquare,
   Coins,
   ChevronRight,
@@ -47,7 +47,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
 const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
-  project_status: Sparkles,
+  project_status: FolderKanban,
   order_status: Layers,
   payment_confirmed: Coins,
   wallet_credit: Coins,

@@ -9,11 +9,11 @@ const alertVariants = cva(
       variant: {
         default: "bg-card text-card-foreground border-border",
         destructive:
-          "bg-red-50/80 border-red-200 text-red-900 *:data-[slot=alert-description]:text-red-800 *:[svg]:text-red-600 dark:bg-red-950/20 dark:border-red-850/50 dark:text-red-200 dark:*:data-[slot=alert-description]:text-red-300 dark:*:[svg]:text-red-400",
+          "bg-rose-50/80 border-rose-200 text-rose-900 *:data-[slot=alert-description]:text-rose-800 *:[svg]:text-rose-600 dark:bg-rose-950/25 dark:border-rose-800/50 dark:text-rose-200 dark:*:data-[slot=alert-description]:text-rose-300 dark:*:[svg]:text-rose-400",
         warning:
           "bg-amber-50/90 border-amber-200/90 text-amber-950 *:data-[slot=alert-description]:text-amber-900 *:[svg]:text-amber-700 dark:bg-amber-950/20 dark:border-amber-800/40 dark:text-amber-200 dark:*:data-[slot=alert-description]:text-amber-300 dark:*:[svg]:text-amber-400",
         info:
-          "bg-blue-50/80 border-blue-200 text-blue-950 *:data-[slot=alert-description]:text-blue-900 *:[svg]:text-blue-600 dark:bg-blue-950/20 dark:border-blue-800/40 dark:text-blue-200 dark:*:data-[slot=alert-description]:text-blue-300 dark:*:[svg]:text-blue-400",
+          "bg-secondary/70 border-border/90 text-foreground *:data-[slot=alert-description]:text-muted-foreground *:[svg]:text-brand-text dark:bg-secondary/50 dark:border-border dark:text-foreground dark:*:data-[slot=alert-description]:text-muted-foreground dark:*:[svg]:text-amber-400",
         success:
           "bg-emerald-50/80 border-emerald-200 text-emerald-950 *:data-[slot=alert-description]:text-emerald-900 *:[svg]:text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-800/40 dark:text-emerald-200 dark:*:data-[slot=alert-description]:text-emerald-300 dark:*:[svg]:text-emerald-400",
       },

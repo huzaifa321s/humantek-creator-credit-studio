@@ -13,6 +13,8 @@ import {
   Sun,
   Moon,
   Laptop,
+  Users,
+  User,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -29,7 +31,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUserStore } from '@/lib/userStore';
+import { useUserStore, computeInitials } from '@/lib/userStore';
 import { cn } from '@/lib/utils';
 
 interface DashboardProfileDropdownProps {
@@ -82,17 +84,10 @@ export function DashboardProfileDropdown({
   // Compute initials for clean fallback (2 capital letters)
   const effectiveInitials = useMemo(() => {
     if (user?.avatarInitials) return user.avatarInitials;
-    if (displayName && displayName !== 'Welcome') {
-      const parts = displayName.trim().split(/\s+/);
-      if (parts.length > 1) {
-        return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-      }
-      return displayName.slice(0, 2).toUpperCase();
-    }
-    if (effectiveEmail && effectiveEmail.includes('@')) {
-      return effectiveEmail.slice(0, 2).toUpperCase();
-    }
-    return 'CR';
+    return computeInitials(
+      displayName && displayName !== 'Welcome' ? displayName : undefined,
+      effectiveEmail || undefined
+    );
   }, [user?.avatarInitials, displayName, effectiveEmail]);
 
   // Only show role badge for staff/admin roles; clients don't need a role badge
@@ -175,8 +170,21 @@ export function DashboardProfileDropdown({
             <div className="flex items-center justify-between gap-1.5">
               <p className="text-sm font-semibold text-zinc-100 truncate leading-none">{displayName}</p>
               {isStaff && (
-                <Badge variant="outline" size="xs" className="font-bold text-2xs uppercase tracking-wider px-1.5 py-0 border-zinc-700 text-zinc-300">
-                  {user?.role}
+                <Badge
+                  variant="outline"
+                  size="xs"
+                  className={cn(
+                    'font-bold text-2xs uppercase tracking-wider px-1.5 py-0',
+                    user?.teamRole === 'owner'
+                      ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
+                      : user?.teamRole === 'manager'
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                        : user?.teamRole === 'viewer'
+                          ? 'border-sky-400/40 bg-sky-400/10 text-sky-300'
+                          : 'border-zinc-700 text-zinc-300'
+                  )}
+                >
+                  {user?.teamRole || user?.role}
                 </Badge>
               )}
             </div>
@@ -187,14 +195,14 @@ export function DashboardProfileDropdown({
         {/* Separator 1 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
 
-        {/* 2. My Projects (Primary Navigation Home) */}
+        {/* 1. Primary Navigation Home (Studio Overview for Staff, My Projects for Clients) */}
         <DropdownMenuItem
           render={
             <Link
-              href="/projects"
+              href={isStaff ? '/management' : '/projects'}
               className={cn(
                 'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
-                isProjectsActive
+                (isStaff ? pathname === '/management' : isProjectsActive)
                   ? 'bg-amber-400/15 text-amber-300 font-semibold'
                   : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
               )}
@@ -202,15 +210,42 @@ export function DashboardProfileDropdown({
               <FolderKanban
                 className={cn(
                   'size-4 shrink-0 transition-colors',
-                  isProjectsActive
+                  (isStaff ? pathname === '/management' : isProjectsActive)
                     ? 'text-amber-400'
                     : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
                 )}
               />
-              <span>My Projects</span>
+              <span>{isStaff ? 'Studio Overview' : 'My Projects'}</span>
             </Link>
           }
         />
+
+        {/* 2a. Team Access (Strictly Owner Only) */}
+        {isStaff && user?.teamRole === 'owner' && (
+          <DropdownMenuItem
+            render={
+              <Link
+                href="/management/team"
+                className={cn(
+                  'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
+                  pathname.startsWith('/management/team')
+                    ? 'bg-amber-400/15 text-amber-300 font-semibold'
+                    : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
+                )}
+              >
+                <Users
+                  className={cn(
+                    'size-4 shrink-0 transition-colors',
+                    pathname.startsWith('/management/team')
+                      ? 'text-amber-400'
+                      : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
+                  )}
+                />
+                <span>Team Access</span>
+              </Link>
+            }
+          />
+        )}
 
         {/* 2b. Credit History (Client Role) */}
         {!isStaff && (
@@ -239,34 +274,61 @@ export function DashboardProfileDropdown({
           />
         )}
 
-        {/* 3. Mobile-Only Credit Balance (Hidden on md+ desktop where header pill is visible) */}
-        <div className="md:hidden">
-          <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
-          <DropdownMenuItem
-            render={
-              <Link
-                href="/wallet"
-                className="group flex h-9 items-center justify-between rounded-lg px-2.5 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white cursor-pointer transition-colors w-full outline-none select-none"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Coins className="size-4 shrink-0 text-amber-400" />
-                  <span>Credit balance</span>
-                </div>
-                {!mounted || effectiveBalance === undefined ? (
-                  <div className="skeleton h-5 w-16 rounded-full bg-amber-400/20" />
-                ) : (
-                  <Badge
-                    variant="gold"
-                    size="xs"
-                    className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-xs border-amber-400/30 bg-amber-400/15 text-amber-300 group-hover:bg-amber-400/25 transition-colors"
-                  >
-                    {effectiveBalance} {effectiveBalance === 1 ? 'credit' : 'credits'}
-                  </Badge>
+        {/* 3. Account Profile (All Roles) */}
+        <DropdownMenuItem
+          render={
+            <Link
+              href="/profile"
+              className={cn(
+                'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
+                pathname.startsWith('/profile')
+                  ? 'bg-amber-400/15 text-amber-300 font-semibold'
+                  : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
+              )}
+            >
+              <User
+                className={cn(
+                  'size-4 shrink-0 transition-colors',
+                  pathname.startsWith('/profile')
+                    ? 'text-amber-400'
+                    : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
                 )}
-              </Link>
-            }
-          />
-        </div>
+              />
+              <span>My Profile</span>
+            </Link>
+          }
+        />
+
+        {/* 3. Mobile-Only Credit Balance (Hidden on md+ desktop where header pill is visible, client only) */}
+        {!isStaff && (
+          <div className="md:hidden">
+            <DropdownMenuSeparator className="my-1 h-px bg-white/10" />
+            <DropdownMenuItem
+              render={
+                <Link
+                  href="/wallet"
+                  className="group flex h-9 items-center justify-between rounded-lg px-2.5 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white cursor-pointer transition-colors w-full outline-none select-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Coins className="size-4 shrink-0 text-amber-400" />
+                    <span>Credit balance</span>
+                  </div>
+                  {!mounted || effectiveBalance === undefined ? (
+                    <div className="skeleton h-5 w-16 rounded-full bg-amber-400/20" />
+                  ) : (
+                    <Badge
+                      variant="gold"
+                      size="xs"
+                      className="px-2 py-0.5 rounded-full font-semibold tabular-nums text-xs border-amber-400/30 bg-amber-400/15 text-amber-300 group-hover:bg-amber-400/25 transition-colors"
+                    >
+                      {effectiveBalance} {effectiveBalance === 1 ? 'credit' : 'credits'}
+                    </Badge>
+                  )}
+                </Link>
+              }
+            />
+          </div>
+        )}
 
         {/* Separator 2 */}
         <DropdownMenuSeparator className="my-1 h-px bg-white/10" />

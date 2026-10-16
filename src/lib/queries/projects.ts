@@ -20,6 +20,11 @@ async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
 
 export interface ProjectsResponse {
   projects: ProjectRecord[];
+  customers?: Array<{
+    clientEmail: string;
+    clientName: string;
+    count: number;
+  }>;
   totalCount: number;
   counts: {
     all: number;
@@ -146,16 +151,18 @@ export function useAdminProjectsQuery(filters: {
   limit?: number;
   status?: string;
   paymentStatus?: string;
+  customer?: string;
   search?: string;
 }) {
-  const { page, limit = 25, status, paymentStatus, search } = filters;
+  const { page, limit = 25, status, paymentStatus, customer, search } = filters;
   const isVerifiedAdmin = useUserStore((s) =>
     Boolean(s.user?.email && s.user?.role === 'admin' && s.isSessionVerified)
   );
 
   return useQuery<ProjectsResponse, ApiError>({
-    queryKey: ['projects', 'admin', { page, limit, status, paymentStatus, search }],
+    queryKey: ['projects', 'admin', { page, limit, status, paymentStatus, customer, search }],
     enabled: isVerifiedAdmin,
+    placeholderData: (prev) => prev,
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', String(page));
@@ -163,6 +170,7 @@ export function useAdminProjectsQuery(filters: {
       params.set('summary', 'true');
       if (status && status !== 'all') params.set('status', status);
       if (paymentStatus && paymentStatus !== 'all') params.set('paymentStatus', paymentStatus);
+      if (customer && customer !== 'all') params.set('customer', customer);
       if (search && search.trim()) params.set('search', search.trim());
 
       const res = await fetch(`/api/projects?${params.toString()}`);

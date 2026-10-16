@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, X } from 'lucide-react';
 import { cn, formatStudioDate } from '@/lib/utils';
 import {
   Tooltip,
@@ -83,6 +83,7 @@ export function getPipelineStageIndex(status: ProjectRecord['status']): number {
     case 'delivered':
       return 5; // Stage 6 active (Delivered)
     case 'declined':
+    case 'cancelled':
       return 0;
     default:
       return 0;
@@ -91,33 +92,42 @@ export function getPipelineStageIndex(status: ProjectRecord['status']): number {
 
 interface ProjectPipelineStepperProps {
   status: ProjectRecord['status'];
+  paymentStatus?: ProjectRecord['paymentStatus'];
   createdAt: string;
+  updatedAt?: string;
   projectCode?: string;
   className?: string;
 }
 
 export function ProjectPipelineStepper({
   status,
+  paymentStatus,
   createdAt,
+  updatedAt,
   className,
 }: ProjectPipelineStepperProps) {
-  const activeIndex = getPipelineStageIndex(status);
+  const isTerminated = status === 'declined' || status === 'cancelled';
+  const terminatedLabel = status === 'cancelled' ? 'Cancelled' : 'Declined';
+  const effectiveStatus: ProjectRecord['status'] =
+    !isTerminated && status === 'pending_review' && paymentStatus === 'paid'
+      ? 'payment_confirmed'
+      : status;
+  const activeIndex = getPipelineStageIndex(effectiveStatus);
+  const isCurrentStageCompleted =
+    !isTerminated && (effectiveStatus === 'payment_confirmed' || effectiveStatus === 'delivered');
   const [mountedNow] = React.useState(() => Date.now());
   const baseDate = createdAt ? new Date(createdAt).getTime() : mountedNow;
-  const now = mountedNow;
+  const endDate = updatedAt ? Math.max(baseDate, new Date(updatedAt).getTime()) : baseDate;
 
-  // Consistent date calculator:
-  // - Completed stages: realistic historical timeline from createdAt up to today
-  // - Current stage: capped at today (never into the future)
-  // - Future stages: null (drop 'Upcoming / In Queue' text per design requirements)
+  // Consistent date calculator anchored to actual project timestamps (createdAt .. updatedAt)
   const getStageDate = (idx: number): string | null => {
     if (idx < activeIndex) {
-      const daysAgo = (activeIndex - idx) * 86400000;
-      const stageTime = new Date(Math.max(baseDate, now - daysAgo));
+      const ratio = activeIndex > 0 ? idx / activeIndex : 0;
+      const stageTime = new Date(baseDate + Math.round((endDate - baseDate) * ratio));
       return formatStudioDate(stageTime);
     }
     if (idx === activeIndex) {
-      return formatStudioDate(new Date(Math.max(baseDate, now)));
+      return formatStudioDate(new Date(endDate));
     }
     return null;
   };
@@ -151,10 +161,11 @@ export function ProjectPipelineStepper({
         <ol className="grid grid-cols-6 gap-2 w-full relative z-10">
           {PIPELINE_STAGES.map((stage, idx) => {
             const stepNum = stage.number;
-            const isCompleted = idx < activeIndex;
-            const isCurrent = idx === activeIndex;
+            const isCompleted = isCurrentStageCompleted ? idx <= activeIndex : idx < activeIndex;
+            const isCurrent = !isCurrentStageCompleted && idx === activeIndex;
             const isUpcoming = idx > activeIndex;
             const stageDate = getStageDate(idx);
+            const currentStageBadgeLabel = isTerminated ? terminatedLabel : 'In Progress';
 
             return (
               <li
@@ -167,14 +178,19 @@ export function ProjectPipelineStepper({
                     render={
                       <button
                         type="button"
-                        aria-label={`${stage.name}: ${isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Upcoming'}`}
+                        aria-label={`${stage.name}: ${isCompleted ? 'Completed' : isCurrent ? currentStageBadgeLabel : 'Upcoming'}`}
                         className={cn(
                           'size-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400',
                           // Completed: Emerald green with white checkmark
                           isCompleted &&
                             'border-2 border-emerald-500 bg-emerald-500 text-white shadow-emerald-500/20 hover:bg-emerald-600',
-                          // Current: Amber-400 with dark high-contrast animated mark
+                          // Current & Terminated: Rose circle with X
                           isCurrent &&
+                            isTerminated &&
+                            'border-2 border-rose-500 bg-rose-500 text-white ring-4 ring-rose-500/20 shadow-rose-500/25',
+                          // Current & Active: Amber-400 with dark high-contrast animated mark
+                          isCurrent &&
+                            !isTerminated &&
                             'border-2 border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 ring-4 ring-amber-400/30 shadow-amber-400/30 scale-105',
                           // Upcoming: Neutral clean circle with step number
                           isUpcoming &&
@@ -183,6 +199,8 @@ export function ProjectPipelineStepper({
                       >
                         {isCompleted ? (
                           <Check className="size-4 stroke-[3] text-white" />
+                        ) : isCurrent && isTerminated ? (
+                          <X className="size-4 stroke-[3] text-white" />
                         ) : isCurrent ? (
                           <Loader2 className="size-4 animate-spin text-zinc-950 stroke-[3]" />
                         ) : (
@@ -208,11 +226,12 @@ export function ProjectPipelineStepper({
                         className={cn(
                           'text-3xs font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider',
                           isCompleted && 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-                          isCurrent && 'bg-amber-400/15 text-amber-400 border border-amber-400/30',
+                          isCurrent && isTerminated && 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
+                          isCurrent && !isTerminated && 'bg-amber-400/15 text-amber-400 border border-amber-400/30',
                           isUpcoming && 'bg-zinc-800 text-zinc-400 border border-zinc-700'
                         )}
                       >
-                        {isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Upcoming'}
+                        {isCompleted ? 'Completed' : isCurrent ? currentStageBadgeLabel : 'Upcoming'}
                       </span>
                     </div>
 
@@ -249,13 +268,20 @@ export function ProjectPipelineStepper({
 
                 {/* Status indicator / Date (only shown for completed or active) */}
                 {isCurrent ? (
-                  <span className="inline-flex items-center gap-1 mt-1 text-2xs font-semibold text-brand-text dark:text-amber-400 whitespace-nowrap">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
+                  isTerminated ? (
+                    <span className="inline-flex items-center gap-1 mt-1 text-2xs font-semibold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                      <span className="inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
+                      {terminatedLabel}
                     </span>
-                    In Progress
-                  </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 mt-1 text-2xs font-semibold text-brand-text dark:text-amber-400 whitespace-nowrap">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
+                      </span>
+                      In Progress
+                    </span>
+                  )
                 ) : null}
 
                 {stageDate ? (
@@ -277,13 +303,18 @@ export function ProjectPipelineStepper({
         <ol className="relative space-y-4 pl-1">
           {/* Vertical connector line */}
           <div
-            className="absolute left-[19px] top-4 bottom-4 w-[2px] bg-border/70 -translate-x-1/2 z-0"
-          />
+            className="absolute left-[19px] top-4 bottom-4 w-[2px] bg-border/70 -translate-x-1/2 z-0 overflow-hidden"
+          >
+            <div
+              className="w-full bg-emerald-500 rounded-full transition-all duration-500"
+              style={{ height: `${progressPercent}%` }}
+            />
+          </div>
 
           {PIPELINE_STAGES.map((stage, idx) => {
             const stepNum = stage.number;
-            const isCompleted = idx < activeIndex;
-            const isCurrent = idx === activeIndex;
+            const isCompleted = isCurrentStageCompleted ? idx <= activeIndex : idx < activeIndex;
+            const isCurrent = !isCurrentStageCompleted && idx === activeIndex;
             const isUpcoming = idx > activeIndex;
             const stageDate = getStageDate(idx);
 
@@ -297,12 +328,15 @@ export function ProjectPipelineStepper({
                   className={cn(
                     'size-8 rounded-full flex items-center justify-center shrink-0 border-2 font-bold text-xs transition-colors shadow-2xs',
                     isCompleted && 'border-emerald-500 bg-emerald-500 text-white',
-                    isCurrent && 'border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-black ring-4 ring-amber-400/30 shadow-amber-400/25',
+                    isCurrent && isTerminated && 'border-rose-500 bg-rose-500 text-white ring-4 ring-rose-500/20 shadow-rose-500/25',
+                    isCurrent && !isTerminated && 'border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-zinc-950 font-black ring-4 ring-amber-400/30 shadow-amber-400/25',
                     isUpcoming && 'border-border bg-card text-muted-foreground'
                   )}
                 >
                   {isCompleted ? (
                     <Check className="size-3.5 stroke-[3] text-white" />
+                  ) : isCurrent && isTerminated ? (
+                    <X className="size-3.5 stroke-[3] text-white" />
                   ) : isCurrent ? (
                     <Loader2 className="size-3.5 animate-spin text-zinc-950 stroke-[3]" />
                   ) : (
@@ -335,13 +369,20 @@ export function ProjectPipelineStepper({
                   </div>
 
                   {isCurrent && (
-                    <div className="inline-flex items-center gap-1.5 mt-1 text-2xs font-semibold text-brand-text dark:text-amber-400">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
-                      </span>
-                      In Progress
-                    </div>
+                    isTerminated ? (
+                      <div className="inline-flex items-center gap-1.5 mt-1 text-2xs font-semibold text-rose-600 dark:text-rose-400">
+                        <span className="inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
+                        {terminatedLabel}
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 mt-1 text-2xs font-semibold text-brand-text dark:text-amber-400">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
+                        </span>
+                        In Progress
+                      </div>
+                    )
                   )}
                 </div>
               </li>

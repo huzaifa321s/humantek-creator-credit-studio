@@ -3,6 +3,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+export type StudioTeamRole = 'owner' | 'manager' | 'viewer';
+
 export interface StudioUser {
   id: string;
   name: string;
@@ -13,6 +15,7 @@ export interface StudioUser {
   channelName?: string;
   platform?: string;
   role?: string;
+  teamRole?: StudioTeamRole | null;
   emailVerified?: boolean;
   hasProjects?: boolean;
   canChat?: boolean;
@@ -43,16 +46,20 @@ interface UserStoreState {
     walletBalance?: number,
     id?: string,
     role?: string,
-    avatarUrl?: string | null
+    avatarUrl?: string | null,
+    teamRole?: StudioTeamRole | null
   ) => void;
   addCredits: (amount: number, description?: string) => void;
   deductCredits: (amount: number, description?: string) => boolean;
   hasSufficientBalance: (amount: number) => boolean;
   isAdmin: () => boolean;
   isClient: () => boolean;
+  canManageProjects: () => boolean;
+  canIssueCredits: () => boolean;
+  canManageTeam: () => boolean;
 }
 
-function computeInitials(name?: string, email?: string): string {
+export function computeInitials(name?: string, email?: string): string {
   if (name && name.trim()) {
     const parts = name.trim().split(/\s+/);
     if (parts.length > 1) {
@@ -117,9 +124,12 @@ export const useUserStore = create<UserStoreState>()(
           try {
             localStorage.removeItem('humantek_wizard_cart');
             localStorage.removeItem('humantek_project_chat_v6');
+            localStorage.removeItem('humantek_project_chat_v7');
+            localStorage.removeItem('humantek_admin_inquiry_read_v1');
             localStorage.removeItem('humantek_client_chat_v2');
             localStorage.removeItem('humantek_client_chat_messages_v1');
             sessionStorage.removeItem('humantek_project_chat_v6');
+            sessionStorage.removeItem('humantek_project_chat_v7');
             sessionStorage.removeItem('humantek_client_chat_v2');
           } catch {}
         }
@@ -136,7 +146,8 @@ export const useUserStore = create<UserStoreState>()(
         walletBalance = 0,
         id = `user-${Date.now()}`,
         role = 'client',
-        avatarUrl = null
+        avatarUrl = null,
+        teamRole = null
       ) =>
         set({
           user: {
@@ -147,6 +158,7 @@ export const useUserStore = create<UserStoreState>()(
             avatarInitials: computeInitials(name, email),
             walletBalance: typeof walletBalance === 'number' ? walletBalance : 0,
             role,
+            teamRole,
           },
           isHydrated: true,
           isSessionVerified: true,
@@ -213,6 +225,21 @@ export const useUserStore = create<UserStoreState>()(
         if (!u) return false;
         return u.role === 'client' || (!u.role && !!u.email);
       },
+      canManageProjects: () => {
+        const u = get().user;
+        if (!u || u.role !== 'admin') return false;
+        return u.teamRole === 'owner' || u.teamRole === 'manager';
+      },
+      canIssueCredits: () => {
+        const u = get().user;
+        if (!u || u.role !== 'admin') return false;
+        return u.teamRole === 'owner' || u.teamRole === 'manager';
+      },
+      canManageTeam: () => {
+        const u = get().user;
+        if (!u || u.role !== 'admin') return false;
+        return u.teamRole === 'owner';
+      },
     }),
     {
       name: 'humantek_studio_user',
@@ -258,7 +285,7 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Authoritative session refresh: sets canChat, hasProjects, and role strictly
+ * Authoritative session refresh: sets canChat, hasProjects, role, and teamRole strictly
  * from the server session (/api/auth/session). Never hardcodes or fakes permissions client-side.
  */
 export async function refreshUserSession(): Promise<boolean> {
@@ -274,6 +301,7 @@ export async function refreshUserSession(): Promise<boolean> {
         name: data.user.name || undefined,
         avatarUrl: data.user.avatarUrl || null,
         role: data.user.role || 'client',
+        teamRole: data.user.teamRole || null,
         emailVerified: Boolean(data.user.emailConfirmed),
         hasProjects: Boolean(data.user.hasProjects),
         canChat: Boolean(data.user.canChat),

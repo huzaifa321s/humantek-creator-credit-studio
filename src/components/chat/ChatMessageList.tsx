@@ -128,20 +128,35 @@ export function ChatMessageList({
   if (messages.length === 0) {
     if (isLoading) {
       return (
-        <div className="h-full flex items-center justify-center gap-2 text-xs text-muted-foreground" role="status">
-          <Spinner className="size-4 text-brand-text dark:text-amber-400" />
-          <span>Loading messages...</span>
-        </div>
+        <Empty className="h-full border-0" role="status" aria-busy="true">
+          <EmptyHeader>
+            <EmptyMedia
+              variant="icon"
+              className="size-10 rounded-xl bg-amber-400/15 border border-amber-400/25 text-brand-text dark:text-amber-400 shadow-2xs"
+            >
+              <Spinner className="size-5 text-brand-text dark:text-amber-400" />
+            </EmptyMedia>
+            <EmptyTitle className="text-sm font-semibold">Loading conversation...</EmptyTitle>
+            <EmptyDescription className="text-xs max-w-xs">
+              {projectId === 'global'
+                ? 'Syncing your studio support thread...'
+                : 'Fetching your project messages and references...'}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       );
     }
 
     return (
       <Empty className="h-full border-0">
         <EmptyHeader>
-          <EmptyMedia variant="icon" className="bg-amber-400/15 text-brand-text dark:text-amber-400">
-            <MessageSquareDashed />
+          <EmptyMedia
+            variant="icon"
+            className="size-10 rounded-xl bg-amber-400/15 border border-amber-400/25 text-brand-text dark:text-amber-400 shadow-2xs"
+          >
+            <MessageSquareDashed className="size-5" />
           </EmptyMedia>
-          <EmptyTitle className="text-sm">{emptyTitle || 'No messages yet'}</EmptyTitle>
+          <EmptyTitle className="text-sm font-semibold">{emptyTitle || 'No messages yet'}</EmptyTitle>
           <EmptyDescription className="text-xs max-w-sm">
             {emptyDescription ||
               (projectId === 'global'

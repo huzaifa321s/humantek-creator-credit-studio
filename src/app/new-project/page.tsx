@@ -36,7 +36,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { ClientOnly } from '@/components/ClientOnly';
 import { FieldError } from '@/components/ui/field-error';
 import { useBriefValidation, briefFieldId } from '@/lib/hooks/useBriefValidation';
-import { BRIEF_LIMITS, PLATFORM_OPTIONS, REFERENCE_LIMITS, redeemCodeSchema } from '@/lib/validation';
+import { BRIEF_LIMITS, PLATFORM_OPTIONS, REFERENCE_LIMITS } from '@/lib/validation';
 import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import {
@@ -89,6 +89,7 @@ import {
 } from '@/components/reui/number-field';
 import { Spinner } from '@/components/ui/spinner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tabs, TabsList, TabsTrigger, TabsBadge } from '@/components/ui/tabs';
 import { IconTile } from '@/components/reui/icon-tile';
 import { ColorPaletteInput, extractHexColors } from '@/components/reui/color-picker';
 import {
@@ -165,9 +166,8 @@ import {
   Coins,
   FileCheck,
   Plus,
-  Eye,
+  Info,
   Layers,
-  Sparkles,
   PenTool,
   Image,
   Smile,
@@ -191,7 +191,6 @@ import {
   Video,
   ShoppingBag,
   Smartphone,
-  Wand2,
   Tv,
   MessageSquare,
   Wallet,
@@ -199,7 +198,7 @@ import {
 import { useChatStore, GLOBAL_CHAT_ID } from '@/lib/chatStore';
 import { ChatGate } from '@/components/chat/ChatGate';
 import { useUserStore, refreshUserSession } from '@/lib/userStore';
-import { useWalletQuery, useRedeemPromoCode } from '@/lib/queries/wallet';
+import { useWalletQuery } from '@/lib/queries/wallet';
 import { useCreateProject } from '@/lib/queries/projects';
 import { STUDIO_WALLET_PACKAGE } from '@/lib/pricing';
 import { useWizardStore } from '@/lib/wizardStore';
@@ -280,11 +279,11 @@ function getServiceIcon(serviceId: string, category: string) {
     case 'reels-16':
       return Smartphone;
     case 'custom':
-      return Wand2;
+      return Layers;
     default:
       switch (category) {
         case 'Branding':
-          return Sparkles;
+          return PenTool;
         case 'Stream':
           return Tv;
         case 'Animation':
@@ -298,7 +297,7 @@ function getServiceIcon(serviceId: string, category: string) {
         case '3D':
           return Box;
         default:
-          return Wand2;
+          return Layers;
       }
   }
 }
@@ -389,7 +388,6 @@ export default function CreatorStudioPage() {
   const walletQuery = useWalletQuery(userEmail);
   const isWalletLoading = !isHydrated || walletQuery.isPending;
   const createProjectMutation = useCreateProject();
-  const redeemPromoMutation = useRedeemPromoCode();
 
   // Place 4: Wizard Zustand Store (Global Wizard & Cart State)
   const wizard = useWizardStore();
@@ -410,8 +408,6 @@ export default function CreatorStudioPage() {
     isTermsExpanded,
     brief: wizardBrief,
     uploadedFiles,
-    redeemCodeInput,
-    redeemCodeAttached,
     isSubmitting,
     errorMessage,
     submittedProject,
@@ -429,8 +425,6 @@ export default function CreatorStudioPage() {
     setTermsAccepted,
     setIsTermsExpanded,
     setUploadedFiles,
-    setRedeemCodeInput,
-    setRedeemCodeAttached,
     setIsSubmitting,
     setErrorMessage,
     setSubmittedProject,
@@ -682,6 +676,37 @@ export default function CreatorStudioPage() {
   const effectiveApplyWallet = applyWalletCredits && userBalance > 0 && isPackageSelected;
   const appliedWalletCredits = isWalletFunding ? userBalance : (effectiveApplyWallet ? userBalance : 0);
 
+  // Step 1 2-Tab Mode Switcher state ('wallet' | 'packages')
+  const [step1TabMode, setStep1TabMode] = useState<'wallet' | 'packages'>(() =>
+    selectedPackageId && selectedPackageId !== 'studio-wallet' ? 'packages' : 'wallet'
+  );
+  const hasAutoSelectedWalletRef = useRef(false);
+
+  // Default to Tab 1 ("Use My Existing Credits") when returning client has userBalance > 0 and hasn't explicitly picked a paid package
+  useEffect(() => {
+    if (!mounted || isWalletLoading || userBalance <= 0) return;
+    if (hasAutoSelectedWalletRef.current) return;
+    hasAutoSelectedWalletRef.current = true;
+
+    const currentPkgId = useWizardStore.getState().selectedPackageId;
+    if (!currentPkgId || currentPkgId === 'studio-wallet') {
+      setStep1TabMode('wallet');
+      setFundingSource('wallet');
+      setSelectedPackageId('studio-wallet');
+    } else {
+      setStep1TabMode('packages');
+    }
+  }, [mounted, isWalletLoading, userBalance, setFundingSource, setSelectedPackageId]);
+
+  // Keep step1TabMode synced if user switches funding mode from Step 2 ("Switch Funding Mode")
+  useEffect(() => {
+    if (selectedPackageId === 'studio-wallet' || fundingSource === 'wallet') {
+      setStep1TabMode('wallet');
+    } else if (selectedPackageId) {
+      setStep1TabMode('packages');
+    }
+  }, [selectedPackageId, fundingSource]);
+
   const currentPackage = useMemo(() => {
     if (isWalletFunding) {
       return {
@@ -876,6 +901,7 @@ export default function CreatorStudioPage() {
 
     const activeAuthEmail = user?.email || useUserStore.getState().user?.email;
     if (target === 5 && !activeAuthEmail) {
+      authModalIntentRef.current = 'checkout';
       setShowAuthModal(true);
       return;
     }
@@ -883,16 +909,41 @@ export default function CreatorStudioPage() {
     setCurrentStep(target);
   };
 
+  const authModalIntentRef = useRef<'checkout' | 'upload'>('checkout');
+
   const handleSelectWallet = () => {
+    setStep1TabMode('wallet');
     setFundingSource('wallet');
     setSelectedPackageId('studio-wallet');
     setPriceFilter('all');
   };
 
   const handleSelectPackage = (packageId: string) => {
+    setStep1TabMode('packages');
     setSelectedPackageId(packageId);
     setFundingSource(userBalance > 0 && applyWalletCredits ? 'hybrid' : 'package');
     setPriceFilter('all');
+  };
+
+  const handleSwitchStep1Tab = (mode: 'wallet' | 'packages') => {
+    setStep1TabMode(mode);
+    if (mode === 'wallet') {
+      setFundingSource('wallet');
+      setSelectedPackageId('studio-wallet');
+      setPriceFilter('all');
+    } else {
+      // Switching to Buy a Package tab: ensure applyWalletCredits is enabled by default if balance > 0, and pre-select Studio Momentum if none chosen yet
+      if (userBalance > 0) {
+        setApplyWalletCredits(true);
+      }
+      const nextPkgId =
+        selectedPackageId && selectedPackageId !== 'studio-wallet'
+          ? selectedPackageId
+          : 'studio-momentum';
+      setSelectedPackageId(nextPkgId);
+      setFundingSource(userBalance > 0 ? 'hybrid' : 'package');
+      setPriceFilter('all');
+    }
   };
 
   const toggleService = (serviceId: string) => {
@@ -948,6 +999,7 @@ export default function CreatorStudioPage() {
     const currentUser = useUserStore.getState().user;
     if (!currentUser) {
       toast.error('Please sign in to upload reference images, or paste reference links in your brief instructions.');
+      authModalIntentRef.current = 'upload';
       setShowAuthModal(true);
       return;
     }
@@ -1143,10 +1195,13 @@ export default function CreatorStudioPage() {
     const formattedCode = project.projectCode?.startsWith('HT-')
       ? project.projectCode
       : `HT-${project.projectCode}`;
+    const isPaidCheckout =
+      project.paymentStatus === 'paid' ||
+      Boolean(project.instructions?.includes('[PAYMENT RECEIVED via PayPal]'));
     useNotificationStore.getState().addNotification({
-      title: project.paymentStatus === 'paid' ? 'Project Launched' : 'Project Submitted for Review',
+      title: isPaidCheckout ? 'Project Launched' : 'Project Submitted for Review',
       description: `Project ${formattedCode} (${project.packageName}) is now in our studio system.`,
-      iconType: project.paymentStatus === 'paid' ? 'check' : 'sparkles',
+      iconType: isPaidCheckout ? 'check' : 'sparkles',
       link: `/new-project/confirmation/${project.id}`,
     });
 
@@ -1221,7 +1276,6 @@ export default function CreatorStudioPage() {
         instructions: paymentNote
           ? `${paymentNote}\n\n${instructions}`.slice(0, BRIEF_LIMITS.instructions.max)
           : instructions,
-        redeemCode: redeemCodeAttached ? redeemCodeInput : '',
         uploadedFiles,
         paymentStatus: 'unpaid',
         status: 'pending_review',
@@ -1272,7 +1326,6 @@ export default function CreatorStudioPage() {
         style,
         colors,
         instructions,
-        redeemCode: redeemCodeAttached ? redeemCodeInput : '',
         uploadedFiles,
       });
 
@@ -1294,17 +1347,17 @@ export default function CreatorStudioPage() {
     }
   };
 
-  // Global action to reset draft and start fresh from Step 1
+  // Global action to reset selections and start fresh from Step 1
   const handleResetDraft = () => {
     resetWizard();
     setCurrentStep(1);
     const url = new URL(window.location.href);
     url.searchParams.set('step', '1');
     window.history.replaceState({}, '', url.pathname + url.search);
-    toast.success('Draft reset. Starting fresh from Step 1.', { duration: 2500 });
+    toast.success('Selections cleared. Starting from Step 1.', { duration: 2500 });
   };
 
-  // Determine top right actions on header while in wizard: "Reset draft" + "Scope: 608 / 660 CR"
+  // Determine top right actions on header while in wizard
   const headerActions = (
     <div className="flex items-center gap-1.5 sm:gap-2">
       {hasUnsavedProgress && !submittedProject && (
@@ -1316,10 +1369,10 @@ export default function CreatorStudioPage() {
                 variant="ghost"
                 size="sm"
                 className="h-7 sm:h-7.5 px-2 sm:px-2.5 rounded-full text-2xs sm:text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/80 hover:border-destructive/30 transition-all cursor-pointer select-none gap-1 shrink-0"
-                title="Discard draft and start fresh"
+                title="Reset selections and return to Step 1"
               >
                 <RotateCcw className="size-3" />
-                <span className="hidden sm:inline">Reset draft</span>
+                <span className="hidden sm:inline">Reset</span>
               </Button>
             }
           />
@@ -1328,33 +1381,22 @@ export default function CreatorStudioPage() {
               <AlertDialogMedia className="bg-destructive/10 text-destructive">
                 <RotateCcw className="size-5" />
               </AlertDialogMedia>
-              <AlertDialogTitle>Reset your draft?</AlertDialogTitle>
+              <AlertDialogTitle>Reset your project setup?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will clear your selected package, chosen services, and creative brief, returning you to Step 1. This action cannot be undone.
+                This will clear your selected package, services, and project details, returning you to Step 1.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Keep draft</AlertDialogCancel>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
                 onClick={handleResetDraft}
               >
-                Reset draft
+                Reset
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      )}
-
-      {currentPackage && (
-        <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 h-7 sm:h-7.5 rounded-full bg-amber-400/15 border border-amber-400/35 text-2xs sm:text-xs font-medium shadow-2xs select-none shrink-0">
-          <Coins className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-          <span className="text-muted-foreground font-medium hidden md:inline">Scope:</span>
-          <span className="font-bold text-brand-text dark:text-amber-300 tabular-nums font-mono">
-            <span className="hidden sm:inline">{remainingCredits} / {totalPackageCredits} CR</span>
-            <span className="sm:hidden">{remainingCredits} CR</span>
-          </span>
-        </div>
       )}
     </div>
   );
@@ -1408,11 +1450,37 @@ export default function CreatorStudioPage() {
               {renderMobileChat('Chat with Team')}
               <span className="text-xs text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
                 {currentPackage && isStep1Valid ? (
-                  <>
-                    <Check className="size-3.5 text-emerald-600 inline shrink-0" />
-                    <span className="text-foreground font-semibold">{currentPackage.name}</span>
-                    <span>({currentPackage.credits} CR) selected · Click Next to pick services</span>
-                  </>
+                  isWalletFunding ? (
+                    <>
+                      <Check className="size-3.5 text-emerald-600 inline shrink-0" />
+                      <span className="text-foreground font-semibold">Using Wallet only</span>
+                      <span>·</span>
+                      <span className="font-mono font-bold text-foreground">{userBalance.toLocaleString('en-US')} CR</span>
+                      <span>·</span>
+                      <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">$0</span>
+                      <span className="hidden md:inline">· Click Next to pick services</span>
+                    </>
+                  ) : effectiveApplyWallet ? (
+                    <>
+                      <Check className="size-3.5 text-emerald-600 inline shrink-0" />
+                      <span className="text-foreground font-semibold">{currentPackage.name} + Wallet</span>
+                      <span>·</span>
+                      <span className="font-mono font-bold text-foreground">{totalUsableCredits.toLocaleString('en-US')} CR</span>
+                      <span>·</span>
+                      <span className="font-mono font-semibold text-foreground">${currentPackage.price.toLocaleString('en-US')}</span>
+                      <span className="hidden md:inline">· Click Next to pick services</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="size-3.5 text-emerald-600 inline shrink-0" />
+                      <span className="text-foreground font-semibold">{currentPackage.name}</span>
+                      <span>·</span>
+                      <span className="font-mono font-bold text-foreground">{currentPackage.credits.toLocaleString('en-US')} CR</span>
+                      <span>·</span>
+                      <span className="font-mono font-semibold text-foreground">${currentPackage.price.toLocaleString('en-US')}</span>
+                      <span className="hidden md:inline">· Click Next to pick services</span>
+                    </>
+                  )
                 ) : (
                   <>
                     <Coins className="size-3.5 text-brand-text dark:text-amber-400 inline shrink-0" />
@@ -1537,7 +1605,7 @@ export default function CreatorStudioPage() {
                   className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
                 >
                   <span>Confirm &amp; Launch</span>
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               ) : (
                 <Button
@@ -1574,9 +1642,15 @@ export default function CreatorStudioPage() {
       onSelectStep={goToStep}
       onSignInClick={() => setShowAuthModal(true)}
       isPackageSelected={isStep1Valid}
-      selectedPackageName={currentPackage?.name}
+      selectedPackageName={
+        isWalletFunding
+          ? 'Studio Wallet'
+          : effectiveApplyWallet && currentPackage
+            ? `${currentPackage.name} + Wallet`
+            : currentPackage?.name
+      }
       selectedPackagePrice={currentPackage?.price}
-      selectedPackageCredits={currentPackage?.credits}
+      selectedPackageCredits={totalUsableCredits}
       selectedServicesCount={selectedEntries.length}
       usedCredits={usedCredits}
       remainingCredits={remainingCredits}
@@ -1636,12 +1710,12 @@ export default function CreatorStudioPage() {
       {/* STEP 1: CHOOSE A PACKAGE OR USE WALLET                       */}
       {/* ============================================================ */}
       {currentStep === 1 && (
-        <div className="space-y-3 sm:space-y-5 animate-in fade-in duration-200" data-hydrated={mounted ? "true" : undefined}>
+        <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200" data-hydrated={mounted ? "true" : undefined}>
           {/* Step Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
               <div className="text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5 sm:mb-1">
-                STEP 1 OF 5 · CHOOSE A PACKAGE
+                STEP 1 OF 5 · {userBalance > 0 ? 'CHOOSE PROJECT FUNDING' : 'CHOOSE A PACKAGE'}
               </div>
               <h1
                 ref={headingRef}
@@ -1651,7 +1725,9 @@ export default function CreatorStudioPage() {
                 Start with the right credit wallet.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed">
-                Choose a package, then build a multi-service project and see your remaining credits in real time.
+                {userBalance > 0
+                  ? 'Use your existing Studio Wallet balance with $0 checkout, or purchase a new package and combine credits.'
+                  : 'Choose a package, then build a multi-service project and see your remaining credits in real time.'}
               </p>
             </div>
           </div>
@@ -1659,339 +1735,275 @@ export default function CreatorStudioPage() {
           {/* ReUI Standardized Announcement & Status Banner */}
           <StudioNoticeBanner type="step1-scope" />
 
-          {/* Dedicated Studio Wallet Balance Status & Hybrid Management Card */}
+          {/* Returning Client 2-Tab Mode Switcher (Clean, Design-System Tabs) */}
           {userBalance > 0 ? (
-            <Card
-              className={cn(
-                'relative flex flex-col p-3 sm:p-5 rounded-xl transition-all duration-200 select-none overflow-hidden shadow-2xs gap-2.5 sm:gap-3',
-                isWalletFunding
-                  ? 'border-2 border-emerald-500 bg-emerald-500/[0.06] dark:bg-emerald-950/20 shadow-md ring-2 ring-emerald-500/20'
-                  : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
-              )}
-            >
-              <div className="flex items-center justify-between gap-2.5 sm:gap-4">
-                <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-                  <div
-                    className={cn(
-                      'size-9 sm:size-12 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors',
-                      isWalletFunding
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-400/15 text-brand-text dark:text-amber-400'
-                    )}
-                  >
-                    <Wallet className="size-4.5 sm:size-6" />
-                  </div>
-                  <div className="space-y-0.5 sm:space-y-1 min-w-0">
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                      <Badge
-                        variant={isWalletFunding ? 'default' : 'secondary'}
-                        className={cn(
-                          'text-[10px] sm:text-2xs font-bold uppercase tracking-wider py-0 px-1.5 sm:px-2',
-                          isWalletFunding && 'bg-emerald-600 hover:bg-emerald-600 text-white'
-                        )}
-                      >
-                        Global Studio Wallet
-                      </Badge>
-                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-mono">
-                        <span className="size-1.5 sm:size-2 rounded-full bg-emerald-500 animate-pulse" />
-                        {isWalletLoading ? (
-                          <Skeleton className="h-4 w-12 rounded-xs" />
-                        ) : (
-                          `${userBalance} CR Available`
-                        )}
-                      </span>
-                    </div>
-                    {/* Desktop detailed copy */}
-                    <h3 className="hidden sm:block text-base sm:text-lg font-bold text-foreground leading-tight">
-                      {isWalletFunding
-                        ? 'Funding with Studio Wallet Balance'
-                        : 'Active Studio Credits Available'}
-                    </h3>
-                    <p className="hidden sm:block text-xs text-muted-foreground leading-relaxed">
-                      {isWalletFunding
-                        ? `Deploy with $0.00 checkout using your current ${userBalance} CR. Unused credits remain in your wallet.`
-                        : `Apply your ${userBalance} CR alongside any package below to expand your total project budget.`}
-                    </p>
-                  </div>
-                </div>
+            <div className="space-y-3.5">
+              {/* Top Toolbar: Design-System Tabs + Contextual Chat Link */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <Tabs
+                  value={step1TabMode}
+                  onValueChange={(val) => handleSwitchStep1Tab(val as 'wallet' | 'packages')}
+                  className="w-full sm:w-auto"
+                >
+                  <TabsList size="default" className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+                    <TabsTrigger value="wallet" size="default" className="px-3 sm:px-4">
+                      <Wallet className="size-3.5 text-brand-text dark:text-amber-400" />
+                      <span>Use Existing Credits</span>
+                      <TabsBadge count={`${userBalance.toLocaleString('en-US')} CR`} />
+                    </TabsTrigger>
+                    <TabsTrigger value="packages" size="default" className="px-3 sm:px-4">
+                      <Box className="size-3.5 text-brand-text dark:text-amber-400" />
+                      <span>Buy a Credit Package</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
-                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                  <div className="hidden sm:block text-right">
-                    <div className="flex items-baseline justify-end gap-1">
-                      {isWalletLoading ? (
-                        <Skeleton className="h-7 sm:h-8 w-14 rounded-xs inline-block" />
-                      ) : (
-                        <span className="text-xl sm:text-2xl font-black text-foreground font-mono tabular-nums">
-                          {userBalance}
-                        </span>
-                      )}
-                      <span className="text-xs font-bold text-muted-foreground">CR Available</span>
-                    </div>
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block font-mono">
-                      {isWalletFunding ? '$0.00 USD Checkout' : 'Prepaid & Ready'}
-                    </span>
-                  </div>
-
-                  <Button
+                <ChatGate>
+                  <button
                     type="button"
-                    variant={isWalletFunding ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={handleSelectWallet}
-                    className={cn(
-                      'text-xs font-semibold gap-1 sm:gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-lg cursor-pointer transition-colors shrink-0',
-                      isWalletFunding
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                        : 'border-border hover:bg-secondary text-foreground'
-                    )}
+                    onClick={() => useChatStore.getState().setIsOpen(true, GLOBAL_CHAT_ID)}
+                    data-chat-entry="package-questions-chat"
+                    className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-brand-text dark:hover:text-amber-400 transition-colors cursor-pointer shrink-0"
                   >
-                    {isWalletFunding ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                        <span className="hidden min-[400px]:inline">Wallet Only ($0)</span>
-                        <span className="min-[400px]:hidden">Wallet ($0)</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="hidden min-[400px]:inline">Use Wallet Only ($0)</span>
-                        <span className="min-[400px]:hidden">Use Wallet ($0)</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
+                    <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
+                    <span>
+                      Have questions?{' '}
+                      <span className="font-semibold underline decoration-amber-400/40 underline-offset-2">
+                        Chat with our team
+                      </span>
+                    </span>
+                  </button>
+                </ChatGate>
               </div>
 
-              {/* Hybrid Wallet Integration Toggle when a Package is selected */}
-              {isPackageSelected && (
-                <div className="pt-2 sm:pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 bg-amber-400/5 dark:bg-amber-950/20 -mx-3 sm:-mx-5 -mb-3 sm:-mb-5 p-2 sm:p-3 sm:px-5 rounded-b-xl">
+              {/* TAB 1: Clean, Single-Row Studio Wallet Summary Card */}
+              {step1TabMode === 'wallet' && (
+                <Card className="rounded-xl border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 shadow-xs ring-2 ring-amber-400/20 p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="size-9 rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <Wallet className="size-4" />
+                      </div>
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-sm sm:text-base font-bold text-foreground">
+                            Studio Wallet Balance:{' '}
+                            <span className="text-brand-text dark:text-amber-300 font-mono tabular-nums font-extrabold">
+                              {isWalletLoading ? '...' : `${userBalance.toLocaleString('en-US')} CR`}
+                            </span>
+                          </h2>
+                          <Badge variant="success" size="sm">
+                            $0 Checkout
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Select any combination of Basic, Standard, or Elite services up to{' '}
+                          <strong className="font-mono font-semibold text-foreground">
+                            {userBalance.toLocaleString('en-US')} CR
+                          </strong>{' '}
+                          in Step 2. Any unused credits remain in your wallet.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Badge variant="gold" size="sm" className="self-start sm:self-center shrink-0 font-bold">
+                      <Check className="size-3 mr-1 stroke-[2.5]" />
+                      Selected
+                    </Badge>
+                  </div>
+                </Card>
+              )}
+
+              {/* TAB 2: Hybrid Combine Toggle Bar above the 3 Package Cards */}
+              {step1TabMode === 'packages' && (
+                <div className="p-3 sm:px-4 rounded-xl border border-border/80 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="apply-wallet-toggle"
                       checked={applyWalletCredits}
-                      onCheckedChange={(checked) => setApplyWalletCredits(Boolean(checked))}
+                      onCheckedChange={(checked) => {
+                        const next = Boolean(checked);
+                        setApplyWalletCredits(next);
+                        setFundingSource(next && userBalance > 0 ? 'hybrid' : 'package');
+                      }}
                       className="cursor-pointer"
                     />
                     <label
                       htmlFor="apply-wallet-toggle"
                       className="text-xs font-medium text-foreground cursor-pointer select-none"
                     >
-                      <span className="hidden sm:inline">
-                        Apply my <strong className="font-mono">{userBalance} CR</strong> wallet balance to this project ({currentPackage?.name} + Wallet)
-                      </span>
-                      <span className="sm:hidden">
-                        Apply <strong className="font-mono">{userBalance} CR</strong> wallet balance to package
-                      </span>
+                      Combine my existing{' '}
+                      <strong className="font-mono font-bold text-brand-text dark:text-amber-300">
+                        {userBalance.toLocaleString('en-US')} CR
+                      </strong>{' '}
+                      wallet balance with the package I choose below
                     </label>
                   </div>
-                  <Badge variant="gold" className="text-2xs font-mono font-bold self-start sm:self-auto py-0 px-2 shrink-0">
-                    {applyWalletCredits
-                      ? `Total Budget: ${(currentPackage?.credits ?? 0) + userBalance} CR`
-                      : `Package Only: ${currentPackage?.credits ?? 0} CR`}
+
+                  <Badge variant="gold" size="sm" className="font-mono tabular-nums font-bold self-start sm:self-auto shrink-0">
+                    {applyWalletCredits && currentPackage && !isWalletFunding
+                      ? `Total Budget: ${(currentPackage.credits + userBalance).toLocaleString('en-US')} CR`
+                      : currentPackage && !isWalletFunding
+                        ? `Package Only: ${currentPackage.credits.toLocaleString('en-US')} CR`
+                        : `+${userBalance.toLocaleString('en-US')} CR Wallet`}
                   </Badge>
                 </div>
               )}
-            </Card>
+            </div>
           ) : (
-            <Card className="p-3 sm:p-4 rounded-xl border border-border/70 bg-secondary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Coins className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">Available Account Balance</h4>
-                  <p className="text-2xs text-muted-foreground mt-0.5">
-                    Base service value: $2.50 per CR before package bonuses. Select a package tier below to fund your project.
-                  </p>
-                </div>
-              </div>
-              <div className="text-left sm:text-right shrink-0">
-                <span className="text-xs font-mono font-bold text-muted-foreground">0 CR Balance</span>
-              </div>
-            </Card>
-          )}
-
-          {/* Contextual chat link (desktop only, mobile has sticky bottom button) */}
-          <ChatGate>
-            <div className="hidden sm:flex items-center justify-end px-1 -mt-1 sm:-mt-2" data-chat-entry="package-questions-chat">
-              <button
-                type="button"
-                onClick={() => useChatStore.getState().setIsOpen(true, GLOBAL_CHAT_ID)}
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-brand-text dark:hover:text-amber-400 transition-colors cursor-pointer"
-              >
-                <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
-                <span>Have questions about packages or credits? <span className="font-semibold underline decoration-amber-400/40 underline-offset-2">Chat with our team</span></span>
-              </button>
-            </div>
-          </ChatGate>
-
-          {userBalance > 0 && (
-            <div className="relative py-0.5 sm:py-1">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/80" />
-              </div>
-              <div className="relative flex justify-center text-2xs sm:text-xs uppercase">
-                <span className="bg-background px-3 font-bold tracking-wider text-muted-foreground">
-                  {isWalletFunding
-                    ? 'Or select a package to expand your credit budget'
-                    : 'Choose your package tier below'}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Centered 3 Compact Package Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 items-stretch">
-            {PACKAGES.map((pkg) => {
-              const pkgCredits = pkg.credits;
-              const effectiveRate = (pkg.price / pkgCredits).toFixed(2);
-              const isSelected = selectedPackageId === pkg.id;
-              const isPopular = pkg.id === 'studio-momentum';
-              const combinedBudget = effectiveApplyWallet && isSelected ? pkgCredits + userBalance : pkgCredits;
-
-              return (
-                <Card
-                  key={pkg.id}
-                  onClick={() => handleSelectPackage(pkg.id)}
-                  className={cn(
-                    'relative flex flex-col justify-between rounded-xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0',
-                    isSelected
-                      ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400/25'
-                      : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
-                  )}
+            /* Contextual chat link when userBalance === 0 (desktop only, mobile has sticky bottom button) */
+            <ChatGate>
+              <div className="hidden sm:flex items-center justify-end px-1 -mt-1 sm:-mt-2" data-chat-entry="package-questions-chat">
+                <button
+                  type="button"
+                  onClick={() => useChatStore.getState().setIsOpen(true, GLOBAL_CHAT_ID)}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-brand-text dark:hover:text-amber-400 transition-colors cursor-pointer"
                 >
-                  {isPopular && (
-                    <div className="absolute top-0 right-0">
-                      <div
-                        className={cn(
-                          'font-bold text-2xs uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg transition-colors',
-                          isSelected
-                            ? 'bg-amber-400 text-zinc-950 font-black'
-                            : 'bg-secondary text-muted-foreground border-b border-l border-border/70'
-                        )}
-                      >
-                        Most Popular
-                      </div>
-                    </div>
-                  )}
+                  <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
+                  <span>Have questions about packages or credits? <span className="font-semibold underline decoration-amber-400/40 underline-offset-2">Chat with our team</span></span>
+                </button>
+              </div>
+            </ChatGate>
+          )}
 
-                  <CardHeader className="p-4 pb-2">
-                    {!isPopular ? (
-                      <Badge variant="secondary" className="w-fit text-xs font-semibold uppercase tracking-wider mb-1 px-2.5 py-0.5">
-                        {pkg.group}
-                      </Badge>
-                    ) : (
-                      <div className="h-5 mb-1" />
-                    )}
-                    <CardTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-tight">
-                      {pkg.name}
-                    </CardTitle>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
-                        ${pkg.price.toLocaleString('en-US')}
-                      </span>
-                      <span className="text-xs text-muted-foreground font-semibold">USD</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <CreditValue value={combinedBudget} size="sm" variant="pill" />
-                      {effectiveApplyWallet && isSelected ? (
-                        <span className="text-2xs text-emerald-600 dark:text-emerald-400 font-bold font-mono">
-                          +{userBalance} CR Wallet
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground font-medium font-mono tabular-nums">
-                          ${effectiveRate} effective USD / CR
-                        </span>
-                      )}
-                    </div>
-                    <CardDescription className="text-xs leading-relaxed text-muted-foreground line-clamp-2 min-h-[2.5rem] mt-1">
-                      {pkg.bestFor}
-                    </CardDescription>
-                  </CardHeader>
+          {/* Centered 3 Compact Package Cards Grid (Shown when userBalance === 0 OR when Tab 2 'packages' is active) */}
+          {(userBalance <= 0 || step1TabMode === 'packages') && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 items-stretch">
+                {PACKAGES.map((pkg) => {
+                  const pkgCredits = pkg.credits;
+                  const isSelected = selectedPackageId === pkg.id;
+                  const isPopular = pkg.id === 'studio-momentum';
+                  const showHybridAddition = userBalance > 0 && applyWalletCredits;
+                  const combinedBudget = showHybridAddition ? pkgCredits + userBalance : pkgCredits;
+                  const tierRuleLabel =
+                    pkg.id === 'creator-forge'
+                      ? 'Basic services + up to 2 Standard units (Elite locked)'
+                      : pkg.id === 'studio-momentum'
+                        ? 'Basic & Standard services + up to 2 Elite units'
+                        : 'All Basic, Standard & Elite tiers across 39 services';
+                  const bestForSummary =
+                    pkg.id === 'creator-forge'
+                      ? 'Ideal for essential channel branding, emotes, and stream graphics.'
+                      : pkg.id === 'studio-momentum'
+                        ? 'Balanced credit budget for multi-asset rebrands and animated packages.'
+                        : 'Full-scale production access for VTuber models, 3D work, and complete overhauls.';
 
-                  <CardContent className="p-4 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
-                    {pkg.id === 'creator-forge' && (
-                      <>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{pkgCredits.toLocaleString('en-US')} CR wallet (${effectiveRate} effective USD / CR)</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>Basic services and up to 2 Standard service units (Elite is locked)</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>Credits deducted only after team approves service, content &amp; final scope</span>
-                        </div>
-                      </>
-                    )}
-                    {pkg.id === 'studio-momentum' && (
-                      <>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{pkgCredits.toLocaleString('en-US')} CR wallet (${effectiveRate} effective USD / CR)</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>Basic and Standard services, plus up to 2 Elite service units</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>Credits deducted only after team approves service, content &amp; final scope</span>
-                        </div>
-                      </>
-                    )}
-                    {pkg.id === 'signature-collective' && (
-                      <>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{pkgCredits.toLocaleString('en-US')} CR wallet (${effectiveRate} effective USD / CR)</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>Basic, Standard and Elite services across all 39 catalog services</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>Credits deducted only after team approves service, content &amp; final scope</span>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-
-                  <div className="p-4 pt-0">
-                    <Button
-                      type="button"
-                      variant={isSelected ? 'default' : 'secondary'}
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectPackage(pkg.id);
-                      }}
+                  return (
+                    <Card
+                      key={pkg.id}
+                      onClick={() => handleSelectPackage(pkg.id)}
                       className={cn(
-                        'w-full text-xs font-bold gap-1.5 h-9 rounded-lg cursor-pointer transition-colors',
+                        'relative flex flex-col justify-between rounded-xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0',
                         isSelected
-                          ? 'bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground shadow-xs'
-                          : 'hover:bg-secondary/80 text-foreground'
+                          ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400/25'
+                          : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
                       )}
                     >
-                      {isSelected ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Selected
-                        </>
-                      ) : (
-                        'Select Package'
+                      {isPopular && (
+                        <div className="absolute top-0 right-0">
+                          <div
+                            className={cn(
+                              'font-bold text-2xs uppercase tracking-wider py-0.5 px-2.5 rounded-bl-lg transition-colors',
+                              isSelected
+                                ? 'bg-amber-400 text-zinc-950 font-black'
+                                : 'bg-secondary text-muted-foreground border-b border-l border-border/70'
+                            )}
+                          >
+                            Most Popular
+                          </div>
+                        </div>
                       )}
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
 
-          {/* Centered Bottom Fine Print from Reference Site */}
-          <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
-            Base service value: <span className="font-semibold text-foreground/90">$2.50 per CR</span> before package bonuses. Higher packages receive a stronger effective rate.
-          </p>
+                      <CardHeader className="p-4 pb-2">
+                        {!isPopular ? (
+                          <Badge variant="secondary" className="w-fit text-xs font-semibold uppercase tracking-wider mb-1 px-2.5 py-0.5">
+                            {pkg.group}
+                          </Badge>
+                        ) : (
+                          <div className="h-5 mb-1" />
+                        )}
+                        <CardTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-tight">
+                          {pkg.name}
+                        </CardTitle>
+                        <div className="flex items-baseline gap-1 mt-1">
+                          <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
+                            ${pkg.price.toLocaleString('en-US')}
+                          </span>
+                          <span className="text-xs text-muted-foreground font-semibold">USD</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <CreditValue value={combinedBudget} size="sm" variant="pill" />
+                          {showHybridAddition ? (
+                            <span className="text-2xs text-emerald-600 dark:text-emerald-400 font-bold font-mono">
+                              ({pkgCredits.toLocaleString('en-US')} + {userBalance.toLocaleString('en-US')} Wallet)
+                            </span>
+                          ) : (
+                            <span className="text-2xs text-muted-foreground font-mono">
+                              ${(pkg.price / pkgCredits).toFixed(2)} effective USD / CR
+                            </span>
+                          )}
+                        </div>
+                        <CardDescription className="text-xs leading-relaxed text-muted-foreground line-clamp-2 min-h-[2.5rem] mt-1">
+                          {bestForSummary}
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="p-4 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>
+                            {showHybridAddition
+                              ? `${combinedBudget.toLocaleString('en-US')} CR combined budget (${pkgCredits.toLocaleString('en-US')} CR + ${userBalance.toLocaleString('en-US')} CR wallet)`
+                              : `${pkgCredits.toLocaleString('en-US')} CR package allocation`}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{tierRuleLabel}</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-foreground font-medium text-xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                          <span>Unused package credits roll over into your Studio Wallet</span>
+                        </div>
+                      </CardContent>
+
+                      <div className="p-4 pt-0">
+                        <Button
+                          type="button"
+                          variant={isSelected ? 'default' : 'secondary'}
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectPackage(pkg.id);
+                          }}
+                          className={cn(
+                            'w-full text-xs font-bold gap-1.5 h-9 rounded-lg cursor-pointer transition-colors',
+                            isSelected
+                              ? 'bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground shadow-xs'
+                              : 'hover:bg-secondary/80 text-foreground'
+                          )}
+                        >
+                          {isSelected ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Selected
+                            </>
+                          ) : (
+                            'Select Package'
+                          )}
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Centered Bottom Fine Print */}
+              <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
+                Base service value: <span className="font-semibold text-foreground/90">$2.50 per CR</span> before package bonuses. Higher packages receive a stronger effective rate.
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -2106,7 +2118,7 @@ export default function CreatorStudioPage() {
 
           {isWalletFunding && remainingCredits < 0 && (
             <Alert variant="warning" className="rounded-xl border-amber-400/35 bg-amber-400/[0.08]">
-              <Sparkles className="w-4 h-4 text-brand-text dark:text-amber-400" />
+              <AlertTriangle className="w-4 h-4 text-brand-text dark:text-amber-400" />
               <AlertTitle className="text-xs sm:text-sm font-bold text-foreground">
                 Wallet Budget Exceeded by {Math.abs(remainingCredits)} CR
               </AlertTitle>
@@ -2312,13 +2324,14 @@ export default function CreatorStudioPage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <ServiceImageHoverCard service={svc}>
-                                <span className="inline-flex items-center gap-1.5 cursor-pointer group/title">
+                                <span
+                                  className="inline-flex items-center gap-1.5 cursor-pointer group/title"
+                                  title="Hover for service scope &amp; tier details"
+                                >
                                   <h3 className="text-sm font-bold text-foreground leading-snug truncate group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors">
                                     {svc.name}
                                   </h3>
-                                  <span className="size-4 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground group-hover/title:bg-amber-400/20 group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors" title="Hover for deliverable preview">
-                                    <Eye className="size-2.5" />
-                                  </span>
+                                  <Info className="size-3.5 text-muted-foreground/75 group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors shrink-0" />
                                 </span>
                               </ServiceImageHoverCard>
                               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 leading-relaxed">
@@ -3077,211 +3090,138 @@ export default function CreatorStudioPage() {
               </div>
             </div>
 
-            {/* Side-by-Side: Reference Art & Promo Voucher (Significant Vertical Space Savings) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
-              {/* Reference Art & Files Panel */}
-              <div className="p-3 sm:p-3.5 rounded-xl bg-secondary/30 border border-border/70 flex flex-col justify-between gap-2">
-                <div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                      <b className="text-xs font-bold text-foreground">
-                        Reference Art &amp; Files
-                      </b>
-                      <Badge variant="outline" className="text-3xs font-medium py-0 px-1.5 text-muted-foreground border-border/60">
-                        Optional
-                      </Badge>
-                      <span
-                        className={cn(
-                          'text-3xs font-mono tabular-nums',
-                          uploadedFiles.length >= REFERENCE_LIMITS.maxFiles ? 'text-brand-text dark:text-amber-400 font-semibold' : 'text-muted-foreground'
-                        )}
-                        aria-label={`${uploadedFiles.length} of ${REFERENCE_LIMITS.maxFiles} images attached`}
-                      >
-                        {uploadedFiles.length}/{REFERENCE_LIMITS.maxFiles}
-                      </span>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      id="reference-file-input"
-                      type="file"
-                      multiple
-                      accept={REFERENCE_LIMITS.allowedTypes.join(',')}
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <Button
-                      id="reference-upload-button"
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      disabled={isUploading || uploadedFiles.length >= REFERENCE_LIMITS.maxFiles}
-                      onClick={() => {
-                        if (!user) {
-                          setShowAuthModal(true);
-                        } else if (!user.emailVerified) {
-                          toast.error('Please verify your email address to upload reference images.');
-                        } else {
-                          fileInputRef.current?.click();
-                        }
-                      }}
-                      className="w-full sm:w-auto mt-1 sm:mt-0 shrink-0 rounded-lg font-semibold shadow-2xs h-8 sm:h-7"
-                    >
-                      {isUploading ? (
-                        <Spinner className="size-3" />
-                      ) : !user ? (
-                        <Lock className="size-3 text-muted-foreground" />
-                      ) : (
-                        <Upload className="size-3 text-brand-text dark:text-amber-400" />
-                      )}
-                      {!user ? 'Sign in to Upload' : 'Upload Images'}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
-                    Up to {REFERENCE_LIMITS.maxFiles} images · {REFERENCE_LIMITS.maxFileBytes / (1024 * 1024)} MB each · PNG, JPG or WebP.
-                  </p>
-                </div>
-
-                {/* Guest / Unverified Notice OR Active Dropzone */}
-                {!user ? (
-                  <div className="rounded-lg border border-dashed border-border bg-background/50 p-3 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2">
-                      <Lock className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
-                      <span className="leading-snug">
-                        Sign in with a verified account to upload files, or paste links (Google Drive, Pinterest, Figma) in your instructions.
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="ghost"
-                      onClick={() => setShowAuthModal(true)}
-                      className="shrink-0 font-semibold h-7 text-3xs text-brand-text dark:text-amber-400 hover:bg-amber-400/10"
-                    >
-                      Sign In
-                    </Button>
-                  </div>
-                ) : !user.emailVerified ? (
-                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
-                    <Lock className="size-3.5 shrink-0" />
-                    <span className="leading-snug">
-                      Please verify your email address to unlock file uploads, or paste reference links directly in the brief.
-                    </span>
-                  </div>
-                ) : uploadedFiles.length < REFERENCE_LIMITS.maxFiles ? (
-                  <div
-                    id="reference-dropzone"
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Drop reference images here or click to browse"
-                    onClick={() => !isUploading && fileInputRef.current?.click()}
-                    onKeyDown={(e) => {
-                      if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
-                        e.preventDefault();
-                        fileInputRef.current?.click();
-                      }
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      if (!isDragOver) setIsDragOver(true);
-                    }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={handleFileDrop}
-                    data-dragging={isDragOver || undefined}
-                    className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground text-center sm:text-left cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-400/[0.04] focus-visible:ring-2 focus-visible:ring-amber-400/40 data-[dragging]:border-amber-400 data-[dragging]:bg-amber-400/15 data-[dragging]:text-brand-text dark:hover:bg-amber-400/5 dark:data-[dragging]:bg-amber-400/15"
-                  >
-                    <ImageIcon className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
-                    <span className="leading-snug">
-                      <span className="font-semibold text-foreground">Drag &amp; drop</span>{' '}
-                      images here, or click to browse
-                    </span>
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-dashed border-border/70 bg-background/40 px-3 py-2.5 text-xs text-muted-foreground text-center">
-                    Limit reached. Remove an image to add another, or share more in project chat after submitting.
-                  </p>
-                )}
-
-                <UploadedAttachmentList
-                  files={uploadedFiles}
-                  uploadingNames={uploadingNames}
-                  onRemove={removeUploadedFile}
-                />
-              </div>
-
-              {/* Promo Code Panel */}
-              <div className="p-3 sm:p-3.5 rounded-xl bg-secondary/30 border border-border/70 flex flex-col justify-between gap-2">
-                <div>
+            {/* Reference Art & Files Panel */}
+            <div className="p-3 sm:p-3.5 rounded-xl bg-secondary/30 border border-border/70 flex flex-col justify-between gap-2">
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <Coins className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                    <Upload className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
                     <b className="text-xs font-bold text-foreground">
-                      Promo Code
+                      Reference Art &amp; Files
                     </b>
                     <Badge variant="outline" className="text-3xs font-medium py-0 px-1.5 text-muted-foreground border-border/60">
                       Optional
                     </Badge>
+                    <span
+                      className={cn(
+                        'text-3xs font-mono tabular-nums',
+                        uploadedFiles.length >= REFERENCE_LIMITS.maxFiles ? 'text-brand-text dark:text-amber-400 font-semibold' : 'text-muted-foreground'
+                      )}
+                      aria-label={`${uploadedFiles.length} of ${REFERENCE_LIMITS.maxFiles} images attached`}
+                    >
+                      {uploadedFiles.length}/{REFERENCE_LIMITS.maxFiles}
+                    </span>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
-                    Have a sponsor or promo code? Apply it to your project.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 pt-0.5">
-                  <Input
-                    id="brief-redeemCode"
-                    aria-label="Promo code"
-                    autoComplete="off"
-                    spellCheck={false}
-                    maxLength={BRIEF_LIMITS.redeemCode.max}
-                    placeholder="e.g. HT-VIP-2026"
-                    value={redeemCodeInput}
-                    onChange={(e) => {
-                      setRedeemCodeInput(e.target.value.toUpperCase());
-                      setRedeemCodeAttached(false);
-                    }}
-                    className="h-9 text-xs font-mono rounded-lg bg-card flex-1 min-w-0"
+                  <input
+                    ref={fileInputRef}
+                    id="reference-file-input"
+                    type="file"
+                    multiple
+                    accept={REFERENCE_LIMITS.allowedTypes.join(',')}
+                    onChange={handleFileUpload}
+                    className="hidden"
                   />
                   <Button
+                    id="reference-upload-button"
                     type="button"
-                    variant={redeemCodeAttached ? 'secondary' : 'default'}
-                    size="sm"
-                    onClick={async () => {
-                      const parsed = redeemCodeSchema.safeParse(redeemCodeInput);
-                      if (!parsed.success || !parsed.data) {
-                        toast.error(parsed.success ? 'Please enter a promo code' : parsed.error.issues[0]?.message);
-                        return;
-                      }
-                      const clean = parsed.data;
-                      setRedeemCodeInput(clean);
-                      try {
-                        const data = await redeemPromoMutation.mutateAsync({
-                          code: clean,
-                          email: user?.email || userEmail,
-                        });
-                        setRedeemCodeAttached(true);
-                        useNotificationStore.getState().addNotification({
-                          title: 'Promo Code Applied',
-                          description: `Code ${clean} redeemed: +${data.creditsAdded} CR added to your wallet.`,
-                          iconType: 'credits',
-                          link: '/redeem-code',
-                        });
-                        toast.success(`Promo code redeemed! +${data.creditsAdded} CR added to your balance.`);
-                      } catch (err: unknown) {
-                        const apiErr = err as { status?: number; message?: string };
-                        if (apiErr.status === 409) {
-                          setRedeemCodeAttached(true);
-                          toast.info(`Promo code attached: ${clean}`);
-                        } else {
-                          toast.error(apiErr.message || 'Failed to redeem promo code');
-                        }
+                    variant="outline"
+                    size="xs"
+                    disabled={isUploading || uploadedFiles.length >= REFERENCE_LIMITS.maxFiles}
+                    onClick={() => {
+                      if (!user) {
+                        authModalIntentRef.current = 'upload';
+                        setShowAuthModal(true);
+                      } else if (!user.emailVerified) {
+                        toast.error('Please verify your email address to upload reference images.');
+                      } else {
+                        fileInputRef.current?.click();
                       }
                     }}
-                    className="text-xs shrink-0 font-semibold h-9 px-3.5 rounded-lg cursor-pointer"
+                    className="w-full sm:w-auto mt-1 sm:mt-0 shrink-0 rounded-lg font-semibold shadow-2xs h-8 sm:h-7"
                   >
-                    {redeemCodeAttached ? 'Applied ✓' : 'Apply & Redeem'}
+                    {isUploading ? (
+                      <Spinner className="size-3" />
+                    ) : !user ? (
+                      <Lock className="size-3 text-muted-foreground" />
+                    ) : (
+                      <Upload className="size-3 text-brand-text dark:text-amber-400" />
+                    )}
+                    {!user ? 'Sign in to Upload' : 'Upload Images'}
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+                  Up to {REFERENCE_LIMITS.maxFiles} images · {REFERENCE_LIMITS.maxFileBytes / (1024 * 1024)} MB each · PNG, JPG or WebP.
+                </p>
               </div>
+
+              {/* Guest / Unverified Notice OR Active Dropzone */}
+              {!user ? (
+                <div className="rounded-lg border border-dashed border-border bg-background/50 p-3 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <Lock className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
+                    <span className="leading-snug">
+                      Sign in with a verified account to upload files, or paste links (Google Drive, Pinterest, Figma) in your instructions.
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => {
+                      authModalIntentRef.current = 'upload';
+                      setShowAuthModal(true);
+                    }}
+                    className="shrink-0 font-semibold h-7 text-3xs text-brand-text dark:text-amber-400 hover:bg-amber-400/10"
+                  >
+                    Sign In
+                  </Button>
+                </div>
+              ) : !user.emailVerified ? (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                  <Lock className="size-3.5 shrink-0" />
+                  <span className="leading-snug">
+                    Please verify your email address to unlock file uploads, or paste reference links directly in the brief.
+                  </span>
+                </div>
+              ) : uploadedFiles.length < REFERENCE_LIMITS.maxFiles ? (
+                <div
+                  id="reference-dropzone"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Drop reference images here or click to browse"
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (!isDragOver) setIsDragOver(true);
+                  }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={handleFileDrop}
+                  data-dragging={isDragOver || undefined}
+                  className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground text-center sm:text-left cursor-pointer outline-none transition-colors hover:border-amber-400/70 hover:bg-amber-400/[0.04] focus-visible:ring-2 focus-visible:ring-amber-400/40 data-[dragging]:border-amber-400 data-[dragging]:bg-amber-400/15 data-[dragging]:text-brand-text dark:hover:bg-amber-400/5 dark:data-[dragging]:bg-amber-400/15"
+                >
+                  <ImageIcon className="size-3.5 shrink-0 text-brand-text dark:text-amber-400" />
+                  <span className="leading-snug">
+                    <span className="font-semibold text-foreground">Drag &amp; drop</span>{' '}
+                    images here, or click to browse
+                  </span>
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed border-border/70 bg-background/40 px-3 py-2.5 text-xs text-muted-foreground text-center">
+                  Limit reached. Remove an image to add another, or share more in project chat after submitting.
+                </p>
+              )}
+
+              <UploadedAttachmentList
+                files={uploadedFiles}
+                uploadingNames={uploadingNames}
+                onRemove={removeUploadedFile}
+              />
             </div>
 
             {/* Policy Conflict Alert */}
@@ -3420,7 +3360,9 @@ export default function CreatorStudioPage() {
                 </div>
 
                 <Badge variant="gold" className="text-sm font-mono font-bold px-3.5 py-1.5">
-                  TOTAL: ${currentPackage.price.toLocaleString('en-US')} USD
+                  {isWalletFunding
+                    ? `${usedCredits.toLocaleString('en-US')} CR FROM WALLET · $0 USD`
+                    : `TOTAL: $${currentPackage.price.toLocaleString('en-US')} USD`}
                 </Badge>
               </div>
 
@@ -3434,7 +3376,7 @@ export default function CreatorStudioPage() {
                       <div className="flex items-center gap-2">
                         <Box className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                         <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                          Package Summary
+                          {isWalletFunding ? 'Funding Summary' : 'Package Summary'}
                         </span>
                       </div>
                       <Badge variant="secondary" className="text-xs font-bold px-2.5 py-0.5">
@@ -3448,7 +3390,9 @@ export default function CreatorStudioPage() {
                         <b className="text-2xs sm:text-sm text-foreground mt-0.5 block truncate">{currentPackage.name}</b>
                       </div>
                       <div className="min-w-0">
-                        <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">Package Value</span>
+                        <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">
+                          {isWalletFunding ? 'Due Today' : 'Package Value'}
+                        </span>
                         <b className="text-2xs sm:text-sm text-brand-text dark:text-amber-400 font-black mt-0.5 block font-mono tabular-nums truncate">
                           ${currentPackage.price.toLocaleString('en-US')} USD
                         </b>
@@ -3459,22 +3403,6 @@ export default function CreatorStudioPage() {
                           <CreditValue value={totalPackageCredits} size="sm" />
                         </div>
                       </div>
-                    </div>
-
-                    {/* 4-Stage Flow Pill from Reference Site */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-center text-2xs font-medium text-muted-foreground">
-                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
-                        1 · Package preview
-                      </span>
-                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
-                        2 · Payment confirmed
-                      </span>
-                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
-                        3 · Credits added
-                      </span>
-                      <span className="px-2 py-1 rounded-md bg-secondary/50 border border-border/50 truncate">
-                        4 · Approved credits deducted
-                      </span>
                     </div>
                   </Card>
 
@@ -3557,7 +3485,7 @@ export default function CreatorStudioPage() {
                     <CardContent className="hidden md:block p-4 sm:p-5 pt-3">
                       {selectedEntries.length === 0 ? (
                         <div className="py-6 px-4 text-center rounded-xl bg-secondary/20 border border-dashed border-border/80 space-y-2">
-                          <Sparkles className="w-5 h-5 text-brand-text/80 dark:text-amber-400/80 mx-auto" />
+                          <Layers className="w-5 h-5 text-brand-text/80 dark:text-amber-400/80 mx-auto" />
                           <b className="text-xs sm:text-sm font-semibold text-foreground block">
                             No specific services pre-allocated
                           </b>
@@ -3846,12 +3774,6 @@ export default function CreatorStudioPage() {
                                 <span className="font-semibold font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
                               </div>
                             )}
-                            {redeemCodeAttached && (
-                              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                                <span>Promo: {redeemCodeInput}</span>
-                                <span>Applied</span>
-                              </div>
-                            )}
                             {costBreakdownExpandedMobile && (
                               <div className="pt-1.5 border-t border-border/40 space-y-1 text-2xs text-muted-foreground animate-in fade-in duration-150">
                                 <div className="flex items-center justify-between">
@@ -3909,12 +3831,6 @@ export default function CreatorStudioPage() {
                                 <span className="font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
                               </div>
                             )}
-                            {redeemCodeAttached && (
-                              <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                                <span>Promo Code: {redeemCodeInput}</span>
-                                <span>Applied</span>
-                              </div>
-                            )}
                             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                               <span>Total Due</span>
                               <span className="text-base sm:text-lg font-black text-brand-text dark:text-amber-400 font-mono tabular-nums">
@@ -3927,7 +3843,7 @@ export default function CreatorStudioPage() {
                     </div>
 
                     {/* Payment / Wallet Settlement Action */}
-                    <div className="space-y-3" id="studio-checkout-section">
+                    <div className="space-y-3">
                       {submissionError && (
                         <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
                           <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -3945,7 +3861,7 @@ export default function CreatorStudioPage() {
                         <div className="p-4 sm:p-5 rounded-xl border border-amber-400/40 bg-amber-400/10 space-y-3 text-center sm:text-left">
                           <div className="flex flex-col sm:flex-row items-center gap-3">
                             <div className="size-9 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-brand-text dark:text-amber-400 shrink-0">
-                              <Sparkles className="size-4" />
+                              <UserCheck className="size-4" />
                             </div>
                             <div className="space-y-0.5 min-w-0">
                               <h3 className="text-sm font-bold text-foreground">Sign in to complete your order</h3>
@@ -3957,7 +3873,10 @@ export default function CreatorStudioPage() {
                           <Button
                             type="button"
                             size="lg"
-                            onClick={() => setShowAuthModal(true)}
+                            onClick={() => {
+                              authModalIntentRef.current = 'checkout';
+                              setShowAuthModal(true);
+                            }}
                             className="w-full h-11 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-bold rounded-xl shadow-md shadow-amber-400/25 cursor-pointer flex items-center justify-center gap-2"
                           >
                             <span>Sign In or Create Account</span>
@@ -3996,7 +3915,8 @@ export default function CreatorStudioPage() {
                                 onClick={handleLaunchWithWallet}
                                 className="w-full h-11 bg-primary hover:bg-[oklch(0.769_0.188_70.08)] text-primary-foreground font-black rounded-xl shadow-md shadow-amber-400/25 cursor-pointer flex items-center justify-center gap-2"
                               >
-                                <Sparkles className="w-4 h-4" /> Confirm & Launch with {usedCredits} Credits ($0.00 USD)
+                                <span>Confirm &amp; Launch with {usedCredits} Credits ($0.00 USD)</span>
+                                <ArrowRight className="w-4 h-4" />
                               </Button>
                               <p className="text-2xs text-center text-muted-foreground leading-normal">
                                 Instantly debits {usedCredits} CR from your Studio Wallet. Project moves directly to active production.
@@ -4047,7 +3967,6 @@ export default function CreatorStudioPage() {
                               style,
                               colors,
                               instructions,
-                              redeemCode: redeemCodeAttached ? redeemCodeInput : '',
                               uploadedFiles,
                             }}
                             onSuccess={(proj) => {
@@ -4113,11 +4032,11 @@ export default function CreatorStudioPage() {
                       </div>
                     </ChatGate>
 
-                    {/* Initial Scope Check Status from Reference Site */}
+                    {/* Scope Protection Note */}
                     <div className="pt-2 border-t border-border/50 flex items-center justify-center gap-2 text-2xs text-muted-foreground text-center">
                       <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <span>
-                        <strong className="font-semibold text-foreground/90">Initial scope check passed</strong> — Credits are deducted only after the team approves the service and scope.
+                        <strong className="font-semibold text-foreground/90">Full scope protection</strong> — Unused credits stay in your Studio Wallet, and credits are refunded if any request cannot be fulfilled.
                       </span>
                     </div>
                   </Card>
@@ -4132,7 +4051,9 @@ export default function CreatorStudioPage() {
         open={showAuthModal}
         onOpenChange={setShowAuthModal}
         onSuccess={() => {
-          setCurrentStep(5);
+          if (authModalIntentRef.current === 'checkout' && isStep4Valid) {
+            setCurrentStep(5);
+          }
         }}
       />
     </StudioCardLayout>

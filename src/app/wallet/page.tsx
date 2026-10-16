@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   Clock,
   RotateCcw,
-  Sparkles,
+  Plus,
 } from 'lucide-react';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
@@ -41,6 +41,7 @@ import {
   MobileDataCardHeader,
   MobileDataCardBody,
   MobileDataCardFooter,
+  TablePaginationBar,
 } from '@/components/ui/table';
 import {
   Empty,
@@ -112,6 +113,8 @@ export default function ClientWalletLedgerPage() {
   const { user, isHydrated } = useUserStore();
   const [activeTab, setActiveTab] = useState<LedgerFilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const { data: walletData, isLoading } = useWalletQuery(user?.email);
 
@@ -175,6 +178,19 @@ export default function ClientWalletLedgerPage() {
       return true;
     });
   }, [ledgerEntries, activeTab, searchQuery]);
+
+  // Smart dynamic page-size tiers matching Admin Credit History (AgencyDataGrid)
+  const PAGE_SIZE_TIERS = [5, 10, 25, 50] as const;
+  const maxNeededTier =
+    PAGE_SIZE_TIERS.find((t) => t >= Math.max(filteredEntries.length, 5)) ??
+    PAGE_SIZE_TIERS[PAGE_SIZE_TIERS.length - 1];
+  const availablePageSizes = PAGE_SIZE_TIERS.filter((t) => t <= maxNeededTier);
+  const effectivePageSize = Math.min(pageSize, maxNeededTier);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / effectivePageSize));
+  const activePage = Math.min(currentPage, totalPages);
+  const startIndex = (activePage - 1) * effectivePageSize;
+  const pageEntries = filteredEntries.slice(startIndex, startIndex + effectivePageSize);
 
   const showSkeleton = !isHydrated || (isLoading && !walletData);
 
@@ -281,7 +297,10 @@ export default function ClientWalletLedgerPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <FilterTabs
               value={activeTab}
-              onValueChange={(val) => setActiveTab(val as LedgerFilterTab)}
+              onValueChange={(val) => {
+                setActiveTab(val as LedgerFilterTab);
+                setCurrentPage(1);
+              }}
               size="sm"
               tabs={[
                 { value: 'all', label: 'All', count: ledgerEntries.length },
@@ -295,7 +314,10 @@ export default function ClientWalletLedgerPage() {
               <Input
                 placeholder="Search by code or activity..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="pl-8 h-8 text-xs bg-card border-border/80 rounded-lg focus-visible:border-amber-400"
               />
             </div>
@@ -326,7 +348,7 @@ export default function ClientWalletLedgerPage() {
                   render={<Link href="/new-project" />}
                   nativeButton={false}
                 >
-                  <Sparkles className="size-4" />
+                  <Plus className="size-4" />
                   Start a project
                 </Button>
                 <Button
@@ -359,6 +381,7 @@ export default function ClientWalletLedgerPage() {
                 onClick={() => {
                   setActiveTab('all');
                   setSearchQuery('');
+                  setCurrentPage(1);
                 }}
                 className="text-xs font-semibold rounded-lg cursor-pointer"
               >
@@ -370,7 +393,7 @@ export default function ClientWalletLedgerPage() {
           <ResponsiveTableShell>
             {/* MOBILE VIEW (< md): Scannable Transaction Cards */}
             <MobileCardList>
-              {filteredEntries.map((entry) => {
+              {pageEntries.map((entry) => {
                 const projectHref = entry.projectId
                   ? `/projects?project=${encodeURIComponent(entry.projectId)}`
                   : undefined;
@@ -454,7 +477,7 @@ export default function ClientWalletLedgerPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEntries.map((entry) => {
+                  {pageEntries.map((entry) => {
                     const projectHref = entry.projectId
                       ? `/projects?project=${encodeURIComponent(entry.projectId)}`
                       : undefined;
@@ -525,6 +548,21 @@ export default function ClientWalletLedgerPage() {
                 </TableBody>
               </Table>
             </ResponsiveDesktopView>
+
+            {/* Clean Pagination Bar matching Admin Credit History & Client Projects */}
+            <TablePaginationBar
+              page={activePage}
+              totalPages={totalPages}
+              pageSize={effectivePageSize}
+              totalCount={filteredEntries.length}
+              fromIndex={filteredEntries.length === 0 ? 0 : startIndex + 1}
+              toIndex={Math.min(startIndex + effectivePageSize, filteredEntries.length)}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+            />
           </ResponsiveTableShell>
         )}
       </div>

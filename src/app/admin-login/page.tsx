@@ -55,6 +55,7 @@ export default function AdminLoginPage() {
             name: data.user.name || undefined,
             avatarUrl: data.user.avatarUrl || null,
             role: data.user.role || 'client',
+            teamRole: data.user.teamRole || null,
             emailVerified: Boolean(data.user.emailConfirmed),
             hasProjects: Boolean(data.user.hasProjects),
             canChat: Boolean(data.user.canChat),
@@ -113,7 +114,9 @@ export default function AdminLoginPage() {
         data.user?.email || cleanEmail,
         data.user?.walletBalance || 0,
         data.user?.id || '',
-        'admin'
+        'admin',
+        data.user?.avatarUrl || null,
+        data.user?.teamRole || null
       );
 
       toast.success('Administrator authenticated', {

@@ -1,7 +1,117 @@
-import { PACKAGES, TIER_NAMES } from '@/lib/catalog';
+import { PACKAGES, TIER_NAMES, TOP_UP_OPTIONS } from '@/lib/catalog';
 import { getProjectStatusLabel } from '@/lib/utils';
+import { resolvePaletteSwatches, hexToRgb } from '@/components/reui/color-picker';
 import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import type { ClientProjectView } from '@/lib/serializers/project';
+
+interface StudioFontSpec {
+  fileName: string;
+  url: string;
+  family: 'Outfit' | 'GeistMono';
+  style: 'normal' | 'bold';
+}
+
+const STUDIO_PDF_FONTS: StudioFontSpec[] = [
+  { fileName: 'Outfit-Regular.ttf', url: '/fonts/Outfit-Regular.ttf', family: 'Outfit', style: 'normal' },
+  { fileName: 'Outfit-Bold.ttf', url: '/fonts/Outfit-Bold.ttf', family: 'Outfit', style: 'bold' },
+  { fileName: 'GeistMono-Regular.ttf', url: '/fonts/GeistMono-Regular.ttf', family: 'GeistMono', style: 'normal' },
+  { fileName: 'GeistMono-Bold.ttf', url: '/fonts/GeistMono-Bold.ttf', family: 'GeistMono', style: 'bold' },
+];
+
+const fontBase64Cache = new Map<string, string>();
+let jsPdfModulePromise: Promise<typeof import('jspdf')> | null = null;
+let fontPayloadsPromise: Promise<boolean> | null = null;
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function loadJsPdfModule(): Promise<typeof import('jspdf')> {
+  if (!jsPdfModulePromise) {
+    jsPdfModulePromise = import('jspdf');
+  }
+  return jsPdfModulePromise;
+}
+
+function loadStudioFontPayloads(): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof fetch === 'undefined') {
+    return Promise.resolve(false);
+  }
+  if (!fontPayloadsPromise) {
+    fontPayloadsPromise = Promise.all(
+      STUDIO_PDF_FONTS.map(async (spec) => {
+        if (!fontBase64Cache.has(spec.fileName)) {
+          const res = await fetch(spec.url, { cache: 'force-cache' });
+          if (!res.ok) throw new Error(`Failed to load font ${spec.fileName}`);
+          const buf = await res.arrayBuffer();
+          fontBase64Cache.set(spec.fileName, arrayBufferToBase64(buf));
+        }
+      })
+    )
+      .then(() => true)
+      .catch((err) => {
+        console.warn('[Invoice] Falling back to standard PDF fonts:', err);
+        fontPayloadsPromise = null;
+        return false;
+      });
+  }
+  return fontPayloadsPromise;
+}
+
+/**
+ * Preloads the jsPDF bundle and subsetted Studio TTF fonts in the background
+ * so clicking "Download Invoice" executes instantaneously (<50ms).
+ */
+export function preloadProjectInvoice(): void {
+  if (typeof window === 'undefined') return;
+  void loadJsPdfModule();
+  void loadStudioFontPayloads();
+}
+
+/**
+ * Registers the preloaded Studio web fonts (`Outfit` + `GeistMono`) into a jsPDF instance.
+ */
+async function registerStudioPdfFonts(
+  doc: import('jspdf').jsPDF
+): Promise<{ fontSans: string; fontMono: string }> {
+  const ready = await loadStudioFontPayloads();
+  if (!ready) {
+    return { fontSans: 'helvetica', fontMono: 'helvetica' };
+  }
+
+  try {
+    for (const spec of STUDIO_PDF_FONTS) {
+      const b64 = fontBase64Cache.get(spec.fileName);
+      if (!b64) throw new Error(`Missing cached font ${spec.fileName}`);
+      doc.addFileToVFS(spec.fileName, b64);
+      doc.addFont(spec.fileName, spec.family, spec.style);
+    }
+    return { fontSans: 'Outfit', fontMono: 'GeistMono' };
+  } catch (err) {
+    console.warn('[Invoice] Falling back to standard PDF fonts:', err);
+    return { fontSans: 'helvetica', fontMono: 'helvetica' };
+  }
+}
+
+function formatAdditionLabel(slug: string): string {
+  const normalized = slug.trim().toLowerCase();
+  if (normalized === 'rush') {
+    return 'Rush Priority Delivery (Express Production Queue)';
+  }
+  if (normalized in TOP_UP_OPTIONS) {
+    const topup = TOP_UP_OPTIONS[normalized as keyof typeof TOP_UP_OPTIONS];
+    return `${topup.label} (+${topup.credits} CR)`;
+  }
+  return slug
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export type InvoiceProjectInput =
   | ProjectRecord
@@ -24,6 +134,7 @@ export type InvoiceProjectInput =
       platform?: string;
       style?: string;
       colors?: string;
+      instructions?: string;
       selections?: {
         id: string;
         name: string;
@@ -37,16 +148,21 @@ export type InvoiceProjectInput =
 
 /**
  * Generates and downloads a branded PDF Invoice / Receipt for any Studio Project.
- * Dynamically imports jsPDF on demand so page initial bundles stay lightweight.
+ * Dynamically imports jsPDF and embeds Outfit + GeistMono fonts in parallel.
  */
 export async function downloadProjectInvoice(project: InvoiceProjectInput): Promise<void> {
-  const { jsPDF } = await import('jspdf');
+  const [{ jsPDF }] = await Promise.all([
+    loadJsPdfModule(),
+    loadStudioFontPayloads(),
+  ]);
 
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
     format: 'a4',
   });
+
+  const { fontSans, fontMono } = await registerStudioPdfFonts(doc);
 
   const pageWidth = doc.internal.pageSize.getWidth(); // 595.28 pt
   const pageHeight = doc.internal.pageSize.getHeight(); // 841.89 pt
@@ -64,7 +180,11 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     project.paymentMethod === 'credits' ||
     project.packageId === 'studio-wallet';
 
-  const isPaid = project.paymentStatus === 'paid' || isWalletFunded;
+  const hasPayPalReceipt = Boolean(
+    project.instructions?.includes('[PAYMENT RECEIVED via PayPal]')
+  );
+
+  const isPaid = project.paymentStatus === 'paid' || isWalletFunded || hasPayPalReceipt;
   const isRefunded = project.paymentStatus === 'refunded';
 
   const packageName =
@@ -101,43 +221,57 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
       });
 
   // ---------------------------------------------------------------------------
-  // 1. Top Brand Header Banner
+  // 1. Top Brand Header Banner (with signature Studio Gold ART Emblem)
   // ---------------------------------------------------------------------------
   doc.setFillColor(24, 24, 27); // Zinc-900 dark header
-  doc.rect(0, 0, pageWidth, 108, 'F');
+  doc.rect(0, 0, pageWidth, 112, 'F');
 
   // Gold accent bar
   doc.setFillColor(245, 158, 11); // Amber-500
-  doc.rect(0, 105, pageWidth, 3, 'F');
+  doc.rect(0, 109, pageWidth, 3, 'F');
 
-  // Brand Title
-  doc.setTextColor(245, 158, 11);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('HUMANTEK CREATOR CREDIT STUDIO', margin, 40);
+  // Signature Studio Gold "ART" Emblem Box (matches StudioCardLayout & loading.tsx)
+  doc.setFillColor(251, 191, 36); // Amber-400
+  doc.roundedRect(margin, 24, 26, 26, 5, 5, 'F');
+  doc.setTextColor(9, 9, 11); // Zinc-950
+  doc.setFont(fontSans, 'bold');
+  doc.setFontSize(8.5);
+  doc.text('ART', margin + 13, 40, { align: 'center' });
 
+  // Brand Title & Subtitle next to Emblem
   doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text(isPaid ? 'OFFICIAL RECEIPT & INVOICE' : 'PROJECT ORDER INVOICE', margin, 66);
+  doc.setFont(fontSans, 'bold');
+  doc.setFontSize(10.5);
+  doc.text('Humantek Art', margin + 34, 35);
+
+  doc.setTextColor(251, 191, 36); // Amber-400
+  doc.setFont(fontSans, 'bold');
+  doc.setFontSize(7.5);
+  doc.text('CREATOR CREDITS STUDIO', margin + 34, 46);
+
+  // Main Invoice Document Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFont(fontSans, 'bold');
+  doc.setFontSize(20);
+  doc.text(isPaid ? 'OFFICIAL RECEIPT & INVOICE' : 'PROJECT ORDER INVOICE', margin, 74);
 
   doc.setTextColor(161, 161, 170);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontSans, 'normal');
   doc.setFontSize(9.5);
-  doc.text('Creative Production Scope & Studio Credit Statement', margin, 84);
+  doc.text('Creative Production Scope & Studio Credit Statement', margin, 91);
 
-  // Right-aligned Invoice Meta in Header
+  // Right-aligned Invoice Meta in Header (GeistMono for Invoice ID)
   doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text(invoiceNumber, pageWidth - margin, 42, { align: 'right' });
+  doc.setFont(fontMono, 'bold');
+  doc.setFontSize(10.5);
+  doc.text(invoiceNumber, pageWidth - margin, 40, { align: 'right' });
 
   doc.setTextColor(212, 212, 216);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontSans, 'normal');
   doc.setFontSize(9.5);
-  doc.text(`Issued: ${createdDate}`, pageWidth - margin, 58, { align: 'right' });
+  doc.text(`Issued: ${createdDate}`, pageWidth - margin, 56, { align: 'right' });
 
-  // Payment Status Pill inside Header
+  // Payment Status Pill inside Header (matches Badge design system tokens)
   const statusBadgeLabel = isRefunded
     ? 'REFUNDED'
     : isWalletFunded
@@ -146,63 +280,97 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
         ? 'PAID IN FULL'
         : 'PAYMENT PENDING';
 
+  doc.setFont(fontSans, 'bold');
+  doc.setFontSize(8.5);
   const badgeWidth = doc.getTextWidth(statusBadgeLabel) + 18;
   const badgeX = pageWidth - margin - badgeWidth;
   const badgeY = 68;
 
+  const isGoldPill = !isRefunded && (isWalletFunded || !isPaid);
+
   if (isRefunded) {
     doc.setFillColor(225, 29, 72); // Rose-600
+  } else if (isWalletFunded) {
+    doc.setFillColor(251, 191, 36); // Studio Gold (Amber-400) for Wallet Credits
   } else if (isPaid) {
     doc.setFillColor(16, 185, 129); // Emerald-500
   } else {
-    doc.setFillColor(245, 158, 11); // Amber-500
+    doc.setFillColor(251, 191, 36); // Studio Gold (Amber-400) for Pending
   }
   doc.roundedRect(badgeX, badgeY, badgeWidth, 18, 4, 4, 'F');
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  // High-contrast text: Zinc-950 on Gold/Amber pills, White on Emerald/Rose pills
+  if (isGoldPill) {
+    doc.setTextColor(9, 9, 11); // Zinc-950 (--primary-foreground)
+  } else {
+    doc.setTextColor(255, 255, 255);
+  }
   doc.text(statusBadgeLabel, badgeX + badgeWidth / 2, badgeY + 12, { align: 'center' });
 
   // ---------------------------------------------------------------------------
   // 2. Client & Order Details Two-Column Cards
   // ---------------------------------------------------------------------------
-  let y = 132;
-  const cardHeight = 96;
+  let y = 134;
+  const cardHeight = 110;
   const colWidth = (contentWidth - 16) / 2;
 
-  // Left Card: Client Details
+  // Left Card: Client & Aesthetic Profile (including Color Palette Swatches)
   doc.setFillColor(250, 250, 250);
   doc.setDrawColor(228, 228, 231);
   doc.roundedRect(margin, y, colWidth, cardHeight, 6, 6, 'FD');
 
   doc.setTextColor(113, 113, 122);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(fontSans, 'bold');
   doc.setFontSize(8);
   doc.text('CLIENT & CREATOR PROFILE', margin + 14, y + 18);
 
   doc.setTextColor(24, 24, 27);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(fontSans, 'bold');
   doc.setFontSize(11);
   const clientDisplay = project.clientName || project.channelName || 'Creator Client';
-  doc.text(clientDisplay.slice(0, 36), margin + 14, y + 36);
+  doc.text(clientDisplay.slice(0, 36), margin + 14, y + 35);
 
   doc.setTextColor(82, 82, 91);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFont(fontSans, 'normal');
+  doc.setFontSize(8.8);
   if (project.email) {
-    doc.text(`Email: ${project.email}`, margin + 14, y + 52);
+    doc.text(`Email: ${project.email.slice(0, 36)}`, margin + 14, y + 50);
+  } else {
+    doc.text(
+      `Channel: ${(project.channelName || 'Not specified').slice(0, 34)}`,
+      margin + 14,
+      y + 50
+    );
   }
   doc.text(
-    `Channel: ${(project.channelName || 'Not specified').slice(0, 34)}`,
+    `Channel: ${(project.channelName || 'Not specified').slice(0, 22)}  ·  Platform: ${project.platform || 'General'}`,
     margin + 14,
-    y + 67
+    y + 65
   );
   doc.text(
-    `Platform: ${project.platform || 'General'}  ·  Style: ${(project.style || 'Custom').slice(0, 18)}`,
+    `Aesthetic Style: ${(project.style || 'Custom Art').slice(0, 30)}`,
     margin + 14,
-    y + 82
+    y + 80
   );
+
+  // Color Palette Row with rendered Swatch Circles
+  const colorLabel = (project.colors || 'Brand Colors').slice(0, 24);
+  const swatches = resolvePaletteSwatches(project.colors).slice(0, 4);
+  doc.text('Color Palette:', margin + 14, y + 95);
+
+  let colorCursorX = margin + 14 + doc.getTextWidth('Color Palette:') + 6;
+  for (const hex of swatches) {
+    const rgb = hexToRgb(hex);
+    if (rgb) {
+      doc.setFillColor(rgb.r, rgb.g, rgb.b);
+      doc.setDrawColor(212, 212, 216);
+      doc.circle(colorCursorX + 3.5, y + 92, 3.5, 'FD');
+      colorCursorX += 9;
+    }
+  }
+  doc.setTextColor(24, 24, 27);
+  doc.setFont(fontSans, 'bold');
+  doc.text(colorLabel, colorCursorX + (swatches.length > 0 ? 2 : 0), y + 95);
 
   // Right Card: Project & Package Summary
   const rightCardX = margin + colWidth + 16;
@@ -211,18 +379,23 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.roundedRect(rightCardX, y, colWidth, cardHeight, 6, 6, 'FD');
 
   doc.setTextColor(113, 113, 122);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(fontSans, 'bold');
   doc.setFontSize(8);
   doc.text('ORDER & PACKAGE SPECIFICATION', rightCardX + 14, y + 18);
 
+  doc.setTextColor(82, 82, 91);
+  doc.setFont(fontSans, 'bold');
+  doc.setFontSize(10);
+  doc.text('Project Code:', rightCardX + 14, y + 35);
+  const codeLabelWidth = doc.getTextWidth('Project Code:') + 5;
   doc.setTextColor(24, 24, 27);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text(`Project Code: ${project.projectCode}`, rightCardX + 14, y + 36);
+  doc.setFont(fontMono, 'bold');
+  doc.setFontSize(10);
+  doc.text(project.projectCode, rightCardX + 14 + codeLabelWidth, y + 35);
 
   doc.setTextColor(82, 82, 91);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFont(fontSans, 'normal');
+  doc.setFontSize(8.8);
   doc.text(`Package: ${packageName}`, rightCardX + 14, y + 52);
   doc.text(
     `Funding: ${
@@ -233,12 +406,12 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
           : 'Manual Order Review'
     }`,
     rightCardX + 14,
-    y + 67
+    y + 69
   );
   doc.text(
     `Project Status: ${getProjectStatusLabel(project.status)}`,
     rightCardX + 14,
-    y + 82
+    y + 86
   );
 
   y += cardHeight + 24;
@@ -247,49 +420,51 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   // 3. Itemized Service Scope Table
   // ---------------------------------------------------------------------------
   doc.setTextColor(24, 24, 27);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(fontSans, 'bold');
   doc.setFontSize(11);
   doc.text('Itemized Creative Scope', margin, y);
   y += 10;
 
-  // Table Header
-  doc.setFillColor(244, 244, 245);
-  doc.setDrawColor(228, 228, 231);
-  doc.rect(margin, y, contentWidth, 24, 'FD');
+  const drawTableHeader = (topY: number): number => {
+    doc.setFillColor(244, 244, 245);
+    doc.setDrawColor(228, 228, 231);
+    doc.rect(margin, topY, contentWidth, 24, 'FD');
 
-  doc.setTextColor(82, 82, 91);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.text('#', margin + 10, y + 15);
-  doc.text('CREATIVE SERVICE', margin + 32, y + 15);
-  doc.text('SCOPE TIER', margin + 270, y + 15);
-  doc.text('QTY', margin + 365, y + 15, { align: 'right' });
-  doc.text('UNIT CR', margin + 430, y + 15, { align: 'right' });
-  doc.text('TOTAL CR', margin + contentWidth - 10, y + 15, { align: 'right' });
+    doc.setTextColor(82, 82, 91);
+    doc.setFont(fontSans, 'bold');
+    doc.setFontSize(8.5);
+    doc.text('#', margin + 10, topY + 15);
+    doc.text('CREATIVE SERVICE', margin + 32, topY + 15);
+    doc.text('SCOPE TIER', margin + 270, topY + 15);
+    doc.text('QTY', margin + 365, topY + 15, { align: 'right' });
+    doc.text('UNIT CR', margin + 430, topY + 15, { align: 'right' });
+    doc.text('TOTAL CR', margin + contentWidth - 10, topY + 15, { align: 'right' });
+    return topY + 24;
+  };
 
-  y += 24;
+  y = drawTableHeader(y);
 
   const selections = project.selections || [];
   if (selections.length === 0) {
     doc.setDrawColor(228, 228, 231);
     doc.rect(margin, y, contentWidth, 28, 'S');
     doc.setTextColor(113, 113, 122);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(fontSans, 'normal');
     doc.setFontSize(9.5);
     doc.text(
       `${packageName} — Custom Studio Production Scope`,
       margin + 32,
       y + 18
     );
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(fontMono, 'bold');
     doc.text(`${usedCredits} CR`, margin + contentWidth - 10, y + 18, { align: 'right' });
     y += 28;
   } else {
     selections.forEach((item, idx) => {
-      // Page break guard if many items
+      // Page break guard if many items — repeats table header on new page
       if (y > pageHeight - 210) {
         doc.addPage();
-        y = 50;
+        y = drawTableHeader(48);
       }
 
       const rowHeight = 24;
@@ -309,40 +484,44 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
           : 'Standard';
 
       doc.setTextColor(113, 113, 122);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
+      doc.setFont(fontMono, 'normal');
+      doc.setFontSize(8.5);
       doc.text(String(idx + 1), margin + 10, y + 15);
 
       doc.setTextColor(24, 24, 27);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont(fontSans, 'bold');
+      doc.setFontSize(9);
       doc.text(String(item.name || 'Studio Service').slice(0, 42), margin + 32, y + 15);
 
       doc.setTextColor(82, 82, 91);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(fontSans, 'normal');
       doc.text(tierLabel, margin + 270, y + 15);
 
+      doc.setFont(fontMono, 'normal');
+      doc.setFontSize(8.5);
       doc.text(`${qty}x`, margin + 365, y + 15, { align: 'right' });
       doc.text(`${unitCr} CR`, margin + 430, y + 15, { align: 'right' });
 
       doc.setTextColor(24, 24, 27);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont(fontMono, 'bold');
       doc.text(`${totalCr} CR`, margin + contentWidth - 10, y + 15, { align: 'right' });
 
       y += rowHeight;
     });
   }
 
-  // Optional Additions Row
+  // Optional Additions Row (formatted into human-readable Studio labels)
   if (project.additions && project.additions.length > 0) {
+    const formattedAdditions = project.additions.map(formatAdditionLabel).join(' · ');
     doc.setFillColor(254, 252, 232);
     doc.setDrawColor(253, 230, 138);
     doc.rect(margin, y, contentWidth, 24, 'FD');
 
     doc.setTextColor(146, 64, 14);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(fontSans, 'bold');
     doc.setFontSize(8.5);
     doc.text(
-      `Included Additions: ${project.additions.join(', ')}`,
+      `Included Additions: ${formattedAdditions}`,
       margin + 12,
       y + 15
     );
@@ -371,31 +550,34 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
 
   if (!isWalletFunded) {
     doc.setTextColor(82, 82, 91);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(fontSans, 'normal');
     doc.setFontSize(9.5);
     doc.text('Package Credits Included:', summaryBoxX + 14, sy);
     doc.setTextColor(24, 24, 27);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(fontMono, 'bold');
+    doc.setFontSize(9);
     doc.text(`+${packageCredits} CR`, summaryBoxX + summaryBoxWidth - 14, sy, { align: 'right' });
     sy += 18;
   }
 
   doc.setTextColor(82, 82, 91);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontSans, 'normal');
   doc.setFontSize(9.5);
   doc.text('Project Scope Deduction:', summaryBoxX + 14, sy);
   doc.setTextColor(24, 24, 27);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(fontMono, 'bold');
+  doc.setFontSize(9);
   doc.text(`-${usedCredits} CR`, summaryBoxX + summaryBoxWidth - 14, sy, { align: 'right' });
   sy += 18;
 
   if (!isWalletFunded) {
     doc.setTextColor(82, 82, 91);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(fontSans, 'normal');
     doc.setFontSize(9.5);
     doc.text('Remaining Wallet Rollover:', summaryBoxX + 14, sy);
     doc.setTextColor(16, 185, 129);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(fontMono, 'bold');
+    doc.setFontSize(9);
     doc.text(`${remainingCredits} CR`, summaryBoxX + summaryBoxWidth - 14, sy, { align: 'right' });
     sy += 16;
   }
@@ -407,8 +589,8 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
 
   // Total USD Line
   doc.setTextColor(24, 24, 27);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFont(fontSans, 'bold');
+  doc.setFontSize(10.5);
   doc.text(
     isWalletFunded
       ? 'Checkout Total:'
@@ -419,7 +601,8 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     sy
   );
 
-  doc.setFontSize(12);
+  doc.setFont(fontMono, 'bold');
+  doc.setFontSize(11);
   doc.text(
     isWalletFunded
       ? '$0.00 USD (Credits)'
@@ -432,43 +615,91 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     { align: 'right' }
   );
 
-  // Left-side Notes / License Box next to Summary
+  // Left-side Notes / License Box next to Summary (100% real data-driven from project & catalog)
   const notesWidth = contentWidth - summaryBoxWidth - 20;
   doc.setTextColor(24, 24, 27);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(fontSans, 'bold');
   doc.setFontSize(9.5);
-  doc.text('Included Studio Rights & Terms', margin, y + 16);
+  doc.text('Included Studio Scope & Wallet Terms', margin, y + 16);
+
+  const platformLabel = project.platform || 'General';
+  const hasElite = selections.some((s) => s.level === 2);
+  const hasStandard = selections.some((s) => s.level === 1 || (s.level === undefined && selections.length > 0));
+  const hasBasic = selections.some((s) => s.level === 0);
+  const hasRush = Boolean(project.additions?.some((a) => a.trim().toLowerCase() === 'rush'));
+
+  let scopeRightsBullet: string;
+  if (hasElite && (hasStandard || hasBasic)) {
+    scopeRightsBullet = `• Deliverables: Elite source files + commercial use & ${hasStandard ? 'Standard/Basic ' : ''}platform-ready exports for ${platformLabel}.`;
+  } else if (hasElite) {
+    scopeRightsBullet = `• Elite scope: 3 concepts, layered source files, commercial use & priority review for ${platformLabel}.`;
+  } else if (hasStandard && hasBasic) {
+    scopeRightsBullet = `• Standard & Basic scopes: 2 concepts, source files + platform sizes & web-ready exports for ${platformLabel}.`;
+  } else if (hasStandard || selections.length === 0) {
+    scopeRightsBullet = `• Standard scope: 2 concepts, layered source files & platform-ready exports for ${platformLabel}.`;
+  } else {
+    scopeRightsBullet = `• Basic scope: Focused deliverables & final web-ready broadcast exports for ${platformLabel}.`;
+  }
+
+  let revisionsBullet: string;
+  if (hasElite && (hasStandard || hasBasic)) {
+    revisionsBullet = `• Revisions: 3 rounds for Elite items & 2 rounds for Standard/Basic items${hasRush ? ' · Rush Priority Queue active.' : ' via the Review Round milestone.'}`;
+  } else if (hasElite) {
+    revisionsBullet = `• Revisions: 3 structured revision rounds with priority review${hasRush ? ' · Rush Priority Queue active.' : ' via the Review Round milestone.'}`;
+  } else {
+    revisionsBullet = `• Revisions: 2 structured revision rounds included per service item${hasRush ? ' · Rush Priority Queue active.' : ' via the Review Round milestone.'}`;
+  }
+
+  let walletBullet: string;
+  if (isRefunded) {
+    walletBullet = `• Credit ledger: Order refunded (${usedCredits} CR reversed in your Studio Credit History).`;
+  } else if (isWalletFunded) {
+    walletBullet = `• Credit ledger: Deducted ${usedCredits} CR directly from your available Studio Wallet balance.`;
+  } else if (!isPaid) {
+    walletBullet = `• Credit ledger: ${packageCredits} CR package allocation activates in your Studio Wallet once payment is confirmed.`;
+  } else if (remainingCredits > 0) {
+    walletBullet = `• Wallet rollover: ${remainingCredits} unused CR from this package remain in your Studio Wallet for future projects.`;
+  } else {
+    walletBullet = `• Credit ledger: All ${packageCredits} CR from this package are allocated to this project's production scope.`;
+  }
 
   doc.setTextColor(113, 113, 122);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontSans, 'normal');
   doc.setFontSize(8.5);
   const termsLines = doc.splitTextToSize(
-    '• Commercial streaming & content monetization rights included.\n• 2–3 structured revision rounds included per service scope.\n• Unused package credits remain active in your Studio Wallet for 12 months.',
+    `${scopeRightsBullet}\n${revisionsBullet}\n${walletBullet}`,
     notesWidth
   );
-  doc.text(termsLines, margin, y + 32);
+  doc.text(termsLines, margin, y + 31);
 
   // ---------------------------------------------------------------------------
-  // 5. Bottom Page Footer
+  // 5. Bottom Page Footer (rendered across all pages with Page X of Y)
   // ---------------------------------------------------------------------------
+  const totalPages = doc.getNumberOfPages();
   const footerY = pageHeight - 36;
-  doc.setDrawColor(228, 228, 231);
-  doc.line(margin, footerY - 14, pageWidth - margin, footerY - 14);
 
-  doc.setTextColor(161, 161, 170);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(
-    'Humantek Creator Credit Studio · Official Project & Credit Invoice',
-    margin,
-    footerY
-  );
-  doc.text(
-    `Reference: ${project.projectCode} · ${invoiceNumber}`,
-    pageWidth - margin,
-    footerY,
-    { align: 'right' }
-  );
+  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+    doc.setPage(pageNum);
+    doc.setDrawColor(228, 228, 231);
+    doc.line(margin, footerY - 14, pageWidth - margin, footerY - 14);
+
+    doc.setTextColor(161, 161, 170);
+    doc.setFont(fontSans, 'normal');
+    doc.setFontSize(8);
+    doc.text(
+      'Humantek Art · Creator Credits Studio · Official Project & Credit Invoice',
+      margin,
+      footerY
+    );
+    doc.setFont(fontMono, 'normal');
+    doc.setFontSize(7.5);
+    doc.text(
+      `Reference: ${project.projectCode} · ${invoiceNumber}${totalPages > 1 ? ` · Page ${pageNum} of ${totalPages}` : ''}`,
+      pageWidth - margin,
+      footerY,
+      { align: 'right' }
+    );
+  }
 
   const safeCode = (project.projectCode || project.id || 'PROJECT').replace(/[^a-zA-Z0-9_-]/g, '');
   doc.save(`Humantek-Invoice-${safeCode}.pdf`);

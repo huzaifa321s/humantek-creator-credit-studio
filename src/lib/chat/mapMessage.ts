@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@/types';
+import type { ChatMessage } from '@/lib/chatStore';
 import { formatChatTimestamp } from '@/lib/utils';
 import type { ProjectChatMessage } from './useProjectChat';
 
@@ -67,11 +67,15 @@ export function mapProjectChatMessage(
     id: String(m.id),
     clientMessageId: m.clientMessageId || undefined,
     projectId: m.projectId,
+    senderId: m.senderId || (isStaff ? 'admin-1' : 'client-1'),
+    staffName: isStaff ? m.sender?.staffName || null : null,
+    clientUserId: m.clientUserId ?? null,
     sender: m.kind === 'system' ? 'system' : isStaff ? 'agent' : 'client',
     senderName: isStaff
       ? STUDIO_TEAM_NAME
       : clientDisplayName(m.sender?.name, options.clientName),
     senderRole: isStaff ? STUDIO_TEAM_NAME : 'Creator',
+    senderAvatarUrl: isStaff ? null : m.sender?.avatarUrl || null,
     content: m.body,
     replyTo: normalizeReplyTo(m.replyTo),
     likes: m.likes || [],

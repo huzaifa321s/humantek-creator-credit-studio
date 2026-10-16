@@ -21,13 +21,27 @@ function InnerProjectsQueue() {
   const handleUpdateStatus = (
     id: string,
     newStatus: ProjectRecord['status'],
-    newPayment?: ProjectRecord['paymentStatus']
+    newPayment?: ProjectRecord['paymentStatus'],
+    prev?: { status: ProjectRecord['status']; paymentStatus?: ProjectRecord['paymentStatus'] }
   ) => {
     updateStatus.mutate(
       { id, status: newStatus, paymentStatus: newPayment },
       {
-        onSuccess: () =>
-          toast.success(`Updated status to ${newStatus.replace(/_/g, ' ')}`),
+        onSuccess: () => {
+          const statusChanged = !prev || prev.status !== newStatus;
+          const paymentChanged = Boolean(
+            prev && newPayment && (prev.paymentStatus || 'unpaid') !== newPayment
+          );
+          if (statusChanged && paymentChanged) {
+            toast.success(
+              `Updated status to ${newStatus.replace(/_/g, ' ')} and payment to ${newPayment}`
+            );
+          } else if (paymentChanged && newPayment) {
+            toast.success(`Updated payment status to ${newPayment}`);
+          } else {
+            toast.success(`Updated status to ${newStatus.replace(/_/g, ' ')}`);
+          }
+        },
         onError: (err) => toast.error(err.message || 'Failed to update status'),
       }
     );

@@ -52,8 +52,131 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You are not authorized to capture this order' }, { status: 403 });
     }
 
-    // Idempotency: if already fulfilled, return success immediately
+    const createOrFetchProjectForOrder = async (rawPayload: Record<string, any>) => {
+      const pkgCodeMap: Record<string, string> = {
+        'creator-forge': 'FORGE',
+        'studio-momentum': 'MOMENTUM',
+        'signature-collective': 'SIGNATURE',
+        'studio-wallet': 'WALLET',
+      };
+      const pkgCode = pkgCodeMap[rawPayload.packageId] || 'STUDIO';
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      const projectCode = `HT-${randomDigits}-${pkgCode}`;
+
+      let ownerName = 'Creator';
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile?.full_name?.trim()) {
+        ownerName = profile.full_name.trim();
+      } else if (user.email) {
+        ownerName = user.email.split('@')[0];
+      }
+
+      const verifiedUploadedFiles = await attachProjectReferences(
+        adminClient,
+        user.id,
+        String(rawPayload.projectId || ''),
+        Array.isArray(rawPayload.uploadedFiles) ? rawPayload.uploadedFiles : []
+      ).catch((refErr) => {
+        console.error('Reference attachment failed after capture:', refErr);
+        return [];
+      });
+
+      const { data: projRpcRes, error: rpcErr } = await adminClient.rpc(
+        'create_project_and_spend_credits',
+        {
+          p_project_id: rawPayload.projectId,
+          p_project_code: projectCode,
+          p_user_id: user.id,
+          p_package_id: rawPayload.packageId || order.package_id,
+          p_funding_source: 'wallet',
+          p_client_name: ownerName,
+          p_channel_name: rawPayload.channelName || '',
+          p_email: user.email,
+          p_platform: rawPayload.platform || '',
+          p_style: rawPayload.style || '',
+          p_colors: rawPayload.colors || '',
+          p_instructions: rawPayload.instructions || '',
+          p_uploaded_files: verifiedUploadedFiles,
+          p_selections: rawPayload.selections || [],
+          p_additions: rawPayload.additions || [],
+          p_idempotency_key: rawPayload.projectId,
+        }
+      );
+
+      if (rpcErr) {
+        console.error(
+          'Project creation RPC error after capture (credits remain safely in wallet):',
+          rpcErr
+        );
+      }
+
+      const { data: projRow } = await adminClient
+        .from('projects')
+        .select('*, project_items(*), project_additions(*)')
+        .eq('id', rawPayload.projectId)
+        .maybeSingle();
+
+      const formattedProject = projRow
+        ? {
+            id: projRow.id,
+            projectCode: projRow.project_code,
+            packageId: projRow.package_id || 'studio-wallet',
+            packageName: projRow.package_name || '',
+            packagePrice: Number(projRow.package_price_usd) || 0,
+            packageCredits: projRow.package_credits || 0,
+            usedCredits: projRow.total_credits || 0,
+            remainingCredits: 0,
+            status: projRow.status,
+            paymentStatus: projRow.payment_status,
+            paymentMethod: projRow.payment_method,
+            fundingSource: projRow.funding_source,
+            appliedWalletCredits: projRow.applied_wallet_credits || 0,
+            clientName: projRow.client_name,
+            channelName: projRow.channel_name || '',
+            email: projRow.email,
+            platform: projRow.platform || '',
+            style: projRow.style || '',
+            colors: projRow.colors || '',
+            instructions: projRow.instructions || '',
+            uploadedFiles: Array.isArray(projRow.uploaded_files) ? projRow.uploaded_files : [],
+            lastMessageAt: projRow.last_message_at || null,
+            lastMessagePreview: projRow.last_message_preview || null,
+            additions: (projRow.project_additions || []).map((a: any) => a.name),
+            selections: (projRow.project_items || []).map((i: any) => ({
+              id: i.service_id,
+              name: i.service_name,
+              level: i.tier_level,
+              quantity: i.quantity,
+              credits: i.total_credits,
+            })),
+            createdAt: projRow.created_at,
+          }
+        : null;
+
+      return {
+        project: formattedProject,
+        rpcBalance: (projRpcRes as any)?.new_balance ?? (projRpcRes as any)?.new_wallet_balance,
+      };
+    };
+
+    // Idempotency: if already fulfilled (e.g. via webhook), ensure project is created if projectPayload was supplied
     if (order.status === 'fulfilled') {
+      let dbProject = null;
+      let rpcBalance: number | undefined;
+      if (projectPayload && typeof projectPayload === 'object') {
+        const raw = projectPayload as Record<string, any>;
+        if (raw.projectId) {
+          const res = await createOrFetchProjectForOrder(raw);
+          dbProject = res.project;
+          rpcBalance = res.rpcBalance;
+        }
+      }
+
       const { data: wallet } = await adminClient
         .from('wallets')
         .select('balance_credits')
@@ -64,7 +187,8 @@ export async function POST(req: NextRequest) {
         success: true,
         status: 'fulfilled',
         creditsGranted: order.credits_to_grant,
-        newWalletBalance: wallet?.balance_credits,
+        newWalletBalance: wallet?.balance_credits ?? rpcBalance,
+        project: dbProject,
         message: 'Order was already fulfilled.',
       });
     }
@@ -96,141 +220,24 @@ export async function POST(req: NextRequest) {
         }
 
         let dbProject = null;
+        let rpcBalance: number | undefined;
         if (projectPayload && typeof projectPayload === 'object') {
           const raw = projectPayload as Record<string, any>;
-          const pkgCodeMap: Record<string, string> = {
-            'creator-forge': 'FORGE',
-            'studio-momentum': 'MOMENTUM',
-            'signature-collective': 'SIGNATURE',
-            'studio-wallet': 'WALLET',
-          };
-          const pkgCode = pkgCodeMap[raw.packageId] || 'STUDIO';
-          const randomDigits = Math.floor(1000 + Math.random() * 9000);
-          const projectCode = `HT-${randomDigits}-${pkgCode}`;
-
-          let ownerName = 'Creator';
-          const { data: profile } = await adminClient
-            .from('profiles')
-            .select('full_name, email')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (profile?.full_name?.trim()) {
-            ownerName = profile.full_name.trim();
-          } else if (user.email) {
-            ownerName = user.email.split('@')[0];
-          }
-
-          const verifiedUploadedFiles = await attachProjectReferences(
-            adminClient,
-            user.id,
-            String(raw.projectId || ''),
-            Array.isArray(raw.uploadedFiles) ? raw.uploadedFiles : []
-          ).catch((refErr) => {
-            console.error('Reference attachment failed after capture:', refErr);
-            return [];
-          });
-
-          // Credits were just deposited in the wallet by fulfill_order, so spend strictly from wallet
-          const { error: rpcErr } = await adminClient.rpc('create_project_and_spend_credits', {
-            p_project_id: raw.projectId,
-            p_project_code: projectCode,
-            p_user_id: user.id,
-            p_package_id: raw.packageId || order.package_id,
-            p_funding_source: 'wallet',
-            p_client_name: ownerName,
-            p_channel_name: raw.channelName || '',
-            p_email: user.email,
-            p_platform: raw.platform || '',
-            p_style: raw.style || '',
-            p_colors: raw.colors || '',
-            p_instructions: raw.instructions || '',
-            p_uploaded_files: verifiedUploadedFiles,
-            p_selections: raw.selections || [],
-            p_additions: raw.additions || [],
-            p_idempotency_key: raw.projectId,
-          });
-
-          if (rpcErr) {
-            console.error('Project creation RPC error after capture, attempting direct recovery insert:', rpcErr);
-            // Safety recovery: payment is already captured, ensure project row exists so the customer's brief is never lost
-            const { data: existingCheck } = await adminClient
-              .from('projects')
-              .select('id')
-              .eq('id', raw.projectId)
-              .maybeSingle();
-
-            if (!existingCheck && raw.projectId) {
-              await adminClient.from('projects').insert({
-                id: raw.projectId,
-                project_code: projectCode,
-                user_id: user.id,
-                package_id: raw.packageId || order.package_id,
-                package_name: raw.packageName || order.package_id || 'Studio Package',
-                funding_source: 'package',
-                status: 'payment_confirmed',
-                payment_status: 'paid',
-                payment_method: 'paypal',
-                package_price_usd: capturedAmountCents / 100,
-                package_credits: order.credits_to_grant || 0,
-                total_credits: Number(raw.usedCredits) || 0,
-                applied_wallet_credits: 0,
-                client_name: ownerName,
-                channel_name: raw.channelName || '',
-                email: user.email,
-                platform: raw.platform || '',
-                style: raw.style || '',
-                colors: raw.colors || '',
-                instructions: raw.instructions || '',
-                uploaded_files: verifiedUploadedFiles,
-                idempotency_key: raw.projectId,
-              });
-            }
-          }
-
-          const { data: projRow } = await adminClient
-            .from('projects')
-            .select('*, project_items(*), project_additions(*)')
-            .eq('id', raw.projectId)
-            .maybeSingle();
-
-          if (projRow) {
-            dbProject = {
-              id: projRow.id,
-              projectCode: projRow.project_code,
-              packageId: projRow.package_id || 'studio-wallet',
-              packageName: projRow.package_name || '',
-              packagePrice: Number(projRow.package_price_usd) || 0,
-              packageCredits: projRow.package_credits || 0,
-              usedCredits: projRow.total_credits || 0,
-              remainingCredits: 0,
-              status: projRow.status,
-              paymentStatus: projRow.payment_status,
-              paymentMethod: projRow.payment_method,
-              fundingSource: projRow.funding_source,
-              appliedWalletCredits: projRow.applied_wallet_credits || 0,
-              clientName: projRow.client_name,
-              channelName: projRow.channel_name || '',
-              email: projRow.email,
-              platform: projRow.platform || '',
-              style: projRow.style || '',
-              colors: projRow.colors || '',
-              instructions: projRow.instructions || '',
-              uploadedFiles: Array.isArray(projRow.uploaded_files) ? projRow.uploaded_files : [],
-              lastMessageAt: projRow.last_message_at || null,
-              lastMessagePreview: projRow.last_message_preview || null,
-              additions: (projRow.project_additions || []).map((a: any) => a.name),
-              selections: (projRow.project_items || []).map((i: any) => ({
-                id: i.service_id,
-                name: i.service_name,
-                level: i.tier_level,
-                quantity: i.quantity,
-                credits: i.total_credits,
-              })),
-              createdAt: projRow.created_at,
-            };
+          if (raw.projectId) {
+            const res = await createOrFetchProjectForOrder(raw);
+            dbProject = res.project;
+            rpcBalance = res.rpcBalance;
           }
         }
+
+        const { data: latestWallet } = await adminClient
+          .from('wallets')
+          .select('balance_credits')
+          .eq('user_id', order.user_id)
+          .maybeSingle();
+
+        const finalWalletBalance =
+          rpcBalance ?? latestWallet?.balance_credits ?? fulfillRes.new_balance;
 
         // Major action notification: Payment received
         void createNotification({
@@ -256,9 +263,11 @@ export async function POST(req: NextRequest) {
           success: true,
           status: 'fulfilled',
           creditsGranted: fulfillRes.credits_granted,
-          newWalletBalance: fulfillRes.new_balance,
+          newWalletBalance: finalWalletBalance,
           project: dbProject,
-          message: 'Payment completed! Credits successfully added to your Studio Wallet.',
+          message: dbProject
+            ? 'Payment completed and project launched!'
+            : 'Payment completed! Credits were deposited to your Studio Wallet — click Confirm to launch your project.',
         });
       } else if (capture.status === 'PENDING') {
         await adminClient

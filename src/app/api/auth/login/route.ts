@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { isPrimaryOwnerEmail, normalizeTeamRole, type TeamRole } from '@/lib/auth';
 
 // Sliding-window rate limiting map: IP -> attempts & reset time
 const loginRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -119,10 +120,10 @@ export async function POST(req: NextRequest) {
     const userId = data.user.id;
     const admin = createAdminClient();
 
-    // 2. Fetch authoritative profile (role, full name) strictly from Postgres (no email allowlist)
+    // 2. Fetch authoritative profile (role, full name, team_role) strictly from Postgres (no email allowlist)
     let { data: profile } = await admin
       .from('profiles')
-      .select('role, full_name')
+      .select('*')
       .eq('id', userId)
       .maybeSingle();
 
@@ -159,6 +160,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let teamRole: TeamRole | null = null;
+    if (isAdmin) {
+      const fromProfile = normalizeTeamRole((profile as Record<string, unknown> | null)?.team_role);
+      const fromAppMeta = normalizeTeamRole(data.user.app_metadata?.team_role);
+      if (isPrimaryOwnerEmail(userEmail)) {
+        teamRole = 'owner';
+      } else if (fromProfile) {
+        teamRole = fromProfile;
+      } else if (fromAppMeta) {
+        teamRole = fromAppMeta;
+      } else {
+        teamRole = 'manager';
+      }
+    }
+
     const userName =
       profile?.full_name ||
       data.user.user_metadata?.name ||
@@ -182,6 +198,7 @@ export async function POST(req: NextRequest) {
         email: userEmail,
         name: userName,
         role: userRole,
+        teamRole,
         isAdmin,
         walletBalance,
       },

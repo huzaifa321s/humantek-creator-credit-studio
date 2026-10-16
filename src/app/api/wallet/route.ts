@@ -43,7 +43,9 @@ export async function GET(_req: NextRequest) {
           .limit(200),
         adminClient
           .from('orders')
-          .select('id, order_code, package_id, credits_granted, amount_cents, status, created_at')
+          .select(
+            'id, user_id, provider, package_id, credits_to_grant, expected_amount_cents, captured_amount_cents, status, created_at, metadata'
+          )
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -70,8 +72,11 @@ export async function GET(_req: NextRequest) {
 
       const orderByRef = new Map<string, (typeof dbOrders)[number]>();
       for (const o of dbOrders) {
-        if (o.order_code) orderByRef.set(o.order_code, o);
         if (o.id) orderByRef.set(o.id, o);
+        const metaProjId = (o.metadata as Record<string, unknown> | null)?.project_id;
+        if (typeof metaProjId === 'string' && metaProjId) {
+          orderByRef.set(metaProjId, o);
+        }
       }
 
       const reversedLedgerIds = new Set<number>();
@@ -86,18 +91,28 @@ export async function GET(_req: NextRequest) {
       const ledger: CreditLedgerEntry[] = [];
 
       for (const row of rawLedger) {
-        const matchedProject = row.reference_id ? projectByRef.get(row.reference_id) : undefined;
         const matchedOrder = row.reference_id ? orderByRef.get(row.reference_id) : undefined;
+        const linkedProjId = (matchedOrder?.metadata as Record<string, unknown> | null)?.project_id;
+        const matchedProject =
+          (row.reference_id ? projectByRef.get(row.reference_id) : undefined) ||
+          (typeof linkedProjId === 'string' ? projectByRef.get(linkedProjId) : undefined);
 
         let txType: CreditLedgerEntry['type'] = 'service_deduction';
         if (row.type === 'package_purchase') {
           txType = 'package_purchase';
           if (row.reference_id) ledgerPurchaseRefs.add(row.reference_id);
+          if (matchedOrder?.id) ledgerPurchaseRefs.add(matchedOrder.id);
+          if (typeof linkedProjId === 'string' && linkedProjId) ledgerPurchaseRefs.add(linkedProjId);
           if (matchedProject?.project_code) ledgerPurchaseRefs.add(matchedProject.project_code);
           if (matchedProject?.id) ledgerPurchaseRefs.add(matchedProject.id);
         } else if (row.type === 'promo_redeem' || row.type === 'redeem_code') {
           txType = 'redeem_code';
-        } else if (row.type === 'manual_Adjustment' || row.type === 'manual_topup' || row.type === 'promo_credit') {
+        } else if (
+          row.type === 'admin_adjustment' ||
+          row.type === 'manual_Adjustment' ||
+          row.type === 'manual_topup' ||
+          row.type === 'promo_credit'
+        ) {
           txType = 'promo_credit';
         } else if (row.type?.includes('refund') || row.type === 'chargeback') {
           txType = 'refund';
@@ -108,14 +123,19 @@ export async function GET(_req: NextRequest) {
           if (matchedProject?.id) ledgerSpendRefs.add(matchedProject.id);
         }
 
+        const orderAmountCents =
+          matchedOrder?.captured_amount_cents ?? matchedOrder?.expected_amount_cents;
         let usdAmount = 0;
         if (txType === 'package_purchase' || row.type === 'refund_cash' || row.type === 'chargeback') {
-          if (matchedOrder?.amount_cents) {
-            usdAmount = Number(matchedOrder.amount_cents) / 100;
+          if (orderAmountCents != null && Number(orderAmountCents) > 0) {
+            usdAmount = Number(orderAmountCents) / 100;
           } else if (matchedProject?.package_price_usd) {
             usdAmount = Number(matchedProject.package_price_usd);
           } else if (matchedProject?.package_id) {
             const pkg = PACKAGES.find((k) => k.id === matchedProject.package_id);
+            if (pkg) usdAmount = pkg.price;
+          } else if (matchedOrder?.package_id) {
+            const pkg = PACKAGES.find((k) => k.id === matchedOrder.package_id);
             if (pkg) usdAmount = pkg.price;
           } else {
             const pkgByCredits = PACKAGES.find((k) => k.credits === Math.abs(Number(row.delta)));
@@ -126,7 +146,7 @@ export async function GET(_req: NextRequest) {
         const isReversed = reversedLedgerIds.has(Number(row.id));
         const resolvedRef =
           matchedProject?.project_code ||
-          matchedOrder?.order_code ||
+          matchedOrder?.id ||
           row.reference_id ||
           `HT-CR-${String(row.id).padStart(5, '0')}`;
 
@@ -153,6 +173,17 @@ export async function GET(_req: NextRequest) {
           projectId: matchedProject?.id,
           projectCode: matchedProject?.project_code || undefined,
         });
+      }
+
+      for (const o of dbOrders) {
+        if (o.status === 'fulfilled' && ledgerPurchaseRefs.has(o.id)) {
+          const metaProjId = (o.metadata as Record<string, unknown> | null)?.project_id;
+          if (typeof metaProjId === 'string' && metaProjId) {
+            ledgerPurchaseRefs.add(metaProjId);
+            const linkedProj = projectByRef.get(metaProjId);
+            if (linkedProj?.project_code) ledgerPurchaseRefs.add(linkedProj.project_code);
+          }
+        }
       }
 
       // Include pending/unpaid or pre-ledger project transactions not yet in credit_ledger

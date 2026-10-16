@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   const statusParam = searchParams.get('status');
   const customerParam = searchParams.get('customer')?.toLowerCase().trim();
 
-  const limit = clampLimit(limitParam, PAGINATION_LIMITS.ADMIN_DEFAULT, PAGINATION_LIMITS.ADMIN_MAX);
+  const limit = clampLimit(limitParam, 500, 1000);
 
   try {
     const admin = createAdminClient();
@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
         .limit(500),
       admin
         .from('orders')
-        .select('id, order_code, package_id, credits_granted, amount_cents, status, payment_provider, created_at')
+        .select(
+          'id, user_id, provider, package_id, credits_to_grant, expected_amount_cents, captured_amount_cents, status, created_at, metadata'
+        )
         .order('created_at', { ascending: false })
         .limit(500),
       admin
@@ -94,8 +96,11 @@ export async function GET(req: NextRequest) {
 
     const orderByRef = new Map<string, (typeof dbOrders)[number]>();
     for (const o of dbOrders) {
-      if (o.order_code) orderByRef.set(o.order_code, o);
       if (o.id) orderByRef.set(o.id, o);
+      const metaProjId = (o.metadata as Record<string, unknown> | null)?.project_id;
+      if (typeof metaProjId === 'string' && metaProjId) {
+        orderByRef.set(metaProjId, o);
+      }
     }
 
     // Track which ledger row IDs have been reversed by a subsequent row
@@ -115,8 +120,11 @@ export async function GET(req: NextRequest) {
     // 1. Map settled/reversed rows from credit_ledger
     for (const r of ledgerRows as any[]) {
       const prof = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
-      const matchedProject = r.reference_id ? projectByRef.get(r.reference_id) : undefined;
       const matchedOrder = r.reference_id ? orderByRef.get(r.reference_id) : undefined;
+      const linkedProjId = (matchedOrder?.metadata as Record<string, unknown> | null)?.project_id;
+      const matchedProject =
+        (r.reference_id ? projectByRef.get(r.reference_id) : undefined) ||
+        (typeof linkedProjId === 'string' ? projectByRef.get(linkedProjId) : undefined);
 
       const clientEmail =
         prof?.email || matchedProject?.email || 'client@humantek.com';
@@ -134,9 +142,15 @@ export async function GET(req: NextRequest) {
       if (r.type === 'package_purchase') {
         txType = 'package_purchase';
         if (r.reference_id) ledgerPurchaseRefs.add(r.reference_id);
+        if (matchedOrder?.id) ledgerPurchaseRefs.add(matchedOrder.id);
+        if (typeof linkedProjId === 'string' && linkedProjId) ledgerPurchaseRefs.add(linkedProjId);
         if (matchedProject?.project_code) ledgerPurchaseRefs.add(matchedProject.project_code);
         if (matchedProject?.id) ledgerPurchaseRefs.add(matchedProject.id);
-      } else if (r.type === 'promo_redeem' || r.type === 'manual_Adjustment') {
+      } else if (
+        r.type === 'promo_redeem' ||
+        r.type === 'admin_adjustment' ||
+        r.type === 'manual_Adjustment'
+      ) {
         txType = 'promo_credit';
       } else if (r.type?.includes('refund') || r.type === 'chargeback') {
         txType = 'refund';
@@ -148,14 +162,19 @@ export async function GET(req: NextRequest) {
       }
 
       // Resolve real USD amount for package purchases and cash refunds
+      const orderAmountCents =
+        matchedOrder?.captured_amount_cents ?? matchedOrder?.expected_amount_cents;
       let usdAmount = 0;
       if (txType === 'package_purchase' || r.type === 'refund_cash' || r.type === 'chargeback') {
-        if (matchedOrder?.amount_cents) {
-          usdAmount = Number(matchedOrder.amount_cents) / 100;
+        if (orderAmountCents != null && Number(orderAmountCents) > 0) {
+          usdAmount = Number(orderAmountCents) / 100;
         } else if (matchedProject?.package_price_usd) {
           usdAmount = Number(matchedProject.package_price_usd);
         } else if (matchedProject?.package_id) {
           const pkg = PACKAGES.find((k) => k.id === matchedProject.package_id);
+          if (pkg) usdAmount = pkg.price;
+        } else if (matchedOrder?.package_id) {
+          const pkg = PACKAGES.find((k) => k.id === matchedOrder.package_id);
           if (pkg) usdAmount = pkg.price;
         } else {
           const pkgByCredits = PACKAGES.find((k) => k.credits === Math.abs(Number(r.delta)));
@@ -169,7 +188,7 @@ export async function GET(req: NextRequest) {
         id: `tx-${r.id}`,
         reference:
           matchedProject?.project_code ||
-          matchedOrder?.order_code ||
+          matchedOrder?.id ||
           r.reference_id ||
           `HT-CR-${String(r.id).padStart(5, '0')}`,
         clientEmail,
@@ -193,6 +212,17 @@ export async function GET(req: NextRequest) {
         description: r.description || undefined,
         bucket: r.bucket || 'purchased',
       });
+    }
+
+    for (const o of dbOrders) {
+      if (o.status === 'fulfilled' && ledgerPurchaseRefs.has(o.id)) {
+        const metaProjId = (o.metadata as Record<string, unknown> | null)?.project_id;
+        if (typeof metaProjId === 'string' && metaProjId) {
+          ledgerPurchaseRefs.add(metaProjId);
+          const linkedProj = projectByRef.get(metaProjId);
+          if (linkedProj?.project_code) ledgerPurchaseRefs.add(linkedProj.project_code);
+        }
+      }
     }
 
     // 2. Include pending/unpaid or pre-ledger project transactions not yet in credit_ledger
@@ -392,3 +422,117 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+/**
+ * POST /api/management/ledger
+ * Allows Owner and Manager to issue or adjust credits for a client wallet.
+ * Rejects Viewer accounts with 403 Forbidden.
+ */
+export async function POST(req: NextRequest) {
+  const { requireAdminWrite } = await import('@/lib/auth');
+  const { createNotification } = await import('@/lib/notifications');
+
+  const authRes = await requireAdminWrite();
+  if (authRes instanceof NextResponse) {
+    return authRes;
+  }
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const email = String(body.email || '')
+      .trim()
+      .toLowerCase();
+    const rawDelta = Number(body.delta);
+    const bucket = body.bucket === 'purchased' ? 'purchased' : 'promo';
+    const description = String(body.description || '').trim();
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: 'Please select or enter a valid client email address.' },
+        { status: 400 }
+      );
+    }
+
+    if (!Number.isInteger(rawDelta) || rawDelta === 0 || Math.abs(rawDelta) > 10000) {
+      return NextResponse.json(
+        { error: 'Credit amount must be a non-zero integer between -10,000 and +10,000 CR.' },
+        { status: 400 }
+      );
+    }
+
+    const admin = createAdminClient();
+
+    // Find client profile by email
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('id, email, full_name')
+      .ilike('email', email)
+      .maybeSingle();
+
+    if (!profile?.id) {
+      return NextResponse.json(
+        { error: `No registered client account found for ${email}. The client must sign up first.` },
+        { status: 404 }
+      );
+    }
+
+    // Ensure client wallet row exists before posting ledger adjustment
+    await admin
+      .from('wallets')
+      .upsert({ user_id: profile.id }, { onConflict: 'user_id', ignoreDuplicates: true });
+
+    const refId = `HT-ADJ-${Date.now().toString(36).toUpperCase()}`;
+    const idempotencyKey = `manual:${profile.id}:${Date.now()}`;
+    const effectiveDesc =
+      description ||
+      (rawDelta > 0
+        ? `Issued +${rawDelta} CR (${bucket}) by ${authRes.user.name}`
+        : `Adjusted ${rawDelta} CR (${bucket}) by ${authRes.user.name}`);
+
+    const { error: rpcErr } = await admin.rpc('ledger_post', {
+      p_user: profile.id,
+      p_bucket: bucket,
+      p_delta: rawDelta,
+      p_type: 'admin_adjustment',
+      p_ref: refId,
+      p_key: idempotencyKey,
+      p_desc: effectiveDesc,
+      p_reverses_id: null,
+    });
+
+    if (rpcErr) {
+      if (rpcErr.message.includes('negative_wallet_balance_prohibited')) {
+        return NextResponse.json(
+          { error: 'Deduction exceeds the client’s available balance in this bucket.' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+    }
+
+    if (rawDelta > 0) {
+      void createNotification({
+        userId: profile.id,
+        type: 'wallet_credit',
+        title: `Credits added · +${rawDelta} CR`,
+        message: `${effectiveDesc}. +${rawDelta} CR have been added to your Studio Wallet.`,
+        link: '/wallet',
+        actionLabel: 'View Wallet',
+        actionId: refId,
+        entityType: 'wallet',
+        entityId: refId,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      reference: refId,
+      delta: rawDelta,
+      clientEmail: profile.email,
+    });
+  } catch (err) {
+    console.error('Exception in POST /api/management/ledger:', err);
+    return NextResponse.json({ error: 'Failed to issue credits' }, { status: 500 });
+  }
+}
+

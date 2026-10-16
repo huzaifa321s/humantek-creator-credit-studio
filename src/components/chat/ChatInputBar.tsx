@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, Paperclip, Image as ImageIcon, X, Sparkles, CornerUpLeft, Pencil, Check } from 'lucide-react';
+import { ArrowUp, Paperclip, Image as ImageIcon, X, CornerUpLeft, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -228,13 +228,14 @@ export function ChatInputBar({
     }
 
     const uploadTargetId = projectId;
+    const apiProjectId = isGlobal || projectId.startsWith('global:') ? 'global' : projectId;
     setIsUploadingAttachment(true);
     const toastId = toast.loading(`Uploading ${file.name}...`);
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch(`/api/projects/${uploadTargetId}/attachments`, {
+      const res = await fetch(`/api/projects/${apiProjectId}/attachments`, {
         method: 'POST',
         body: formData,
       });
@@ -282,7 +283,7 @@ export function ChatInputBar({
       {!compact && !editingMessage && !replyingTo && viewerRole !== 'admin' && (
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
           <span className="flex shrink-0 items-center gap-1 text-2xs font-semibold text-muted-foreground">
-            <Sparkles className="size-3 text-brand-text dark:text-amber-400" /> Quick ask:
+            Quick ask:
           </span>
           {QUICK_PROMPTS.map((prompt) => (
             <Button

@@ -1,7 +1,16 @@
 "use client"
 
 import * as React from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"
 
 function Table({
   className,
@@ -282,6 +291,107 @@ function MobileDataCardActions({
   )
 }
 
+interface TablePaginationBarProps {
+  page: number
+  totalPages: number
+  pageSize: number
+  pageSizeOptions?: number[]
+  totalCount: number
+  fromIndex: number
+  toIndex: number
+  isLoading?: boolean
+  onPageChange: (page: number) => void
+  onPageSizeChange: (size: number) => void
+  className?: string
+}
+
+function TablePaginationBar({
+  page,
+  totalPages,
+  pageSize,
+  pageSizeOptions = [5, 10, 25, 50],
+  totalCount,
+  fromIndex,
+  toIndex,
+  isLoading = false,
+  onPageChange,
+  onPageSizeChange,
+  className,
+}: TablePaginationBarProps) {
+  const minTier = pageSizeOptions[0] ?? 5
+  const maxNeededTier =
+    pageSizeOptions.find((t) => t >= Math.max(totalCount, minTier)) ??
+    pageSizeOptions[pageSizeOptions.length - 1] ??
+    minTier
+  const availablePageSizes = pageSizeOptions.filter((t) => t <= maxNeededTier)
+  const effectivePageSize = Math.min(pageSize, maxNeededTier)
+
+  return (
+    <div
+      data-slot="table-pagination-bar"
+      className={cn(
+        "flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 border-t border-border/70 bg-card text-xs",
+        className
+      )}
+    >
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <span>Rows per page:</span>
+        <Select
+          value={String(effectivePageSize)}
+          onValueChange={(val) => {
+            onPageSizeChange(Number(val))
+          }}
+        >
+          <SelectTrigger className="h-7 w-16 text-xs bg-card rounded-lg">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availablePageSizes.map((size) => (
+              <SelectItem key={size} value={String(size)} className="text-xs">
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span>
+          Page <b className="text-foreground font-mono tabular-nums">{page}</b> of{" "}
+          <b className="text-foreground font-mono tabular-nums">{totalPages}</b>
+        </span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-xs"
+          disabled={page <= 1 || isLoading}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          className="size-7 rounded-lg cursor-pointer"
+          aria-label="Previous Page"
+        >
+          <ChevronLeft className="size-3.5" />
+        </Button>
+
+        <span className="text-2xs px-2 font-mono font-semibold tabular-nums text-muted-foreground">
+          {fromIndex}–{toIndex} of {totalCount}
+        </span>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-xs"
+          disabled={page >= totalPages || isLoading}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          className="size-7 rounded-lg cursor-pointer"
+          aria-label="Next Page"
+        >
+          <ChevronRight className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export {
   Table,
   TableHeader,
@@ -299,5 +409,6 @@ export {
   MobileDataCardBody,
   MobileDataCardFooter,
   MobileDataCardActions,
+  TablePaginationBar,
 }
 

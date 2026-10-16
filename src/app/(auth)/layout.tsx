@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { StudioBackground } from '@/components/StudioBackground';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export const metadata = {
   title: 'Sign in – Humantek Art',
@@ -34,7 +34,6 @@ export default function AuthLayout({
               <span className="font-bold text-foreground tracking-tight text-xs">
                 Humantek Art
               </span>
-              <Sparkles className="size-2.5 text-brand-text dark:text-amber-400 shrink-0" />
             </div>
             <span className="text-3xs uppercase tracking-wider font-semibold text-muted-foreground leading-none">
               Creator Credits Studio

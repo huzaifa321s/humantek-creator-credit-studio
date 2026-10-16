@@ -18,6 +18,7 @@ import {
   MobileDataCardBody,
   MobileDataCardFooter,
   MobileDataCardActions,
+  TablePaginationBar,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { CreditValue } from '@/components/ui/credit-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FilterTabs } from '@/components/ui/filter-tabs';
+import { CustomerFilterCombobox } from './CustomerFilterCombobox';
 import {
   Select,
   SelectTrigger,
@@ -75,9 +77,10 @@ import {
   getProjectStatusLabel,
   getPaymentStatusLabel,
 } from '@/lib/utils';
-import { downloadProjectInvoice } from '@/lib/invoice';
+import { downloadProjectInvoice, preloadProjectInvoice } from '@/lib/invoice';
 import { useAdminProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
 import { useManagementSummaryQuery } from '@/lib/queries/management';
+import { useUserStore } from '@/lib/userStore';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { ReferenceImageGrid } from '@/components/ui/reference-image-grid';
 import {
@@ -96,7 +99,8 @@ interface AdminProjectsTableProps {
   onUpdateStatus: (
     id: string,
     newStatus: ProjectRecord['status'],
-    newPayment?: ProjectRecord['paymentStatus']
+    newPayment?: ProjectRecord['paymentStatus'],
+    prev?: { status: ProjectRecord['status']; paymentStatus?: ProjectRecord['paymentStatus'] }
   ) => void;
   isUpdatingId?: string | null;
 }
@@ -110,18 +114,24 @@ export function AdminProjectsTable({
 }: AdminProjectsTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const canManageProjects = useUserStore((s) => s.canManageProjects());
   const urlProjectId = searchParams.get('project');
   const urlStatus = searchParams.get('status');
+  const urlSearch = searchParams.get('search');
+  const urlCustomer = searchParams.get('customer');
 
   const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [searchQuery, setSearchQuery] = useState(urlSearch || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(urlSearch || '');
   const [statusFilter, setStatusFilter] = useState(urlStatus || 'all');
+  const [customerFilter, setCustomerFilter] = useState(urlCustomer || 'all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
   const [draftStatus, setDraftStatus] = useState<ProjectRecord['status'] | null>(null);
   const [draftPayment, setDraftPayment] = useState<ProjectRecord['paymentStatus'] | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
 
   const [prevUrlProjectId, setPrevUrlProjectId] = useState(urlProjectId);
   if (urlProjectId !== prevUrlProjectId) {
@@ -146,6 +156,21 @@ export function AdminProjectsTable({
     ) {
       setStatusFilter(urlStatus);
     }
+  }
+
+  const [prevUrlSearch, setPrevUrlSearch] = useState(urlSearch);
+  if (urlSearch !== prevUrlSearch) {
+    setPrevUrlSearch(urlSearch);
+    setSearchQuery(urlSearch || '');
+    setDebouncedSearch(urlSearch || '');
+    setPage(1);
+  }
+
+  const [prevUrlCustomer, setPrevUrlCustomer] = useState(urlCustomer);
+  if (urlCustomer !== prevUrlCustomer) {
+    setPrevUrlCustomer(urlCustomer);
+    setCustomerFilter(urlCustomer || 'all');
+    setPage(1);
   }
 
   const handleSelectProject = useCallback((id: string | null) => {
@@ -174,9 +199,10 @@ export function AdminProjectsTable({
 
   const adminQuery = useAdminProjectsQuery({
     page,
-    limit: 25,
+    limit: pageSize,
     status: statusFilter,
     paymentStatus: paymentFilter,
+    customer: customerFilter,
     search: debouncedSearch,
   });
 
@@ -197,10 +223,44 @@ export function AdminProjectsTable({
   );
   const totalCount = adminQuery.data?.totalCount ?? projects.length;
   const isLoading = adminQuery.isPending || fallbackLoading;
-  const totalPages = Math.max(1, Math.ceil(totalCount / 25));
 
-  const fromIndex = totalCount === 0 ? 0 : (page - 1) * 25 + 1;
-  const toIndex = Math.min(page * 25, totalCount);
+  const customers = useMemo(() => {
+    if (adminQuery.data?.customers && adminQuery.data.customers.length > 0) {
+      return adminQuery.data.customers;
+    }
+    const map = new Map<string, { clientEmail: string; clientName: string; count: number }>();
+    for (const p of projects) {
+      const email = (p.email || '').toLowerCase().trim();
+      if (!email) continue;
+      const existing = map.get(email);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(email, {
+          clientEmail: email,
+          clientName: p.clientName || email.split('@')[0],
+          count: 1,
+        });
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => a.clientName.localeCompare(b.clientName) || a.clientEmail.localeCompare(b.clientEmail)
+    );
+  }, [adminQuery.data?.customers, projects]);
+
+  // Smart dynamic page-size tiers matching AgencyDataGrid (Credit History)
+  const PAGE_SIZE_TIERS = [5, 10, 25, 50] as const;
+  const maxNeededTier =
+    PAGE_SIZE_TIERS.find((t) => t >= Math.max(totalCount, 5)) ??
+    PAGE_SIZE_TIERS[PAGE_SIZE_TIERS.length - 1];
+  const availablePageSizes = PAGE_SIZE_TIERS.filter((t) => t <= maxNeededTier);
+  const effectivePageSize = Math.min(pageSize, maxNeededTier);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / effectivePageSize));
+  const activePage = Math.min(page, totalPages);
+
+  const fromIndex = totalCount === 0 ? 0 : (activePage - 1) * effectivePageSize + 1;
+  const toIndex = Math.min(activePage * effectivePageSize, totalCount);
 
   // Tabs for quick studio status switching with accurate per-status counts
   const filterTabs = useMemo(() => {
@@ -252,6 +312,13 @@ export function AdminProjectsTable({
   // Load detailed single project when opened in drawer (for deliverables & additions)
   const detailQuery = useProjectDetailQuery(selectedProjectId);
 
+  // Warm up jsPDF and font payloads as soon as a project drawer opens
+  useEffect(() => {
+    if (selectedProjectId) {
+      preloadProjectInvoice();
+    }
+  }, [selectedProjectId]);
+
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     if (detailQuery.data && detailQuery.data.id === selectedProjectId) {
@@ -287,7 +354,8 @@ export function AdminProjectsTable({
     onUpdateStatus(
       selectedProject.id,
       draftStatus,
-      draftPayment || selectedProject.paymentStatus
+      draftPayment || selectedProject.paymentStatus,
+      { status: selectedProject.status, paymentStatus: selectedProject.paymentStatus }
     );
   };
 
@@ -300,8 +368,19 @@ export function AdminProjectsTable({
   const resetFilters = () => {
     setSearchQuery('');
     setDebouncedSearch('');
+    setCustomerFilter('all');
     setPaymentFilter('all');
-    handleStatusTabChange('all');
+    setStatusFilter('all');
+    setPage(1);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      params.delete('status');
+      params.delete('search');
+      params.delete('customer');
+      const query = params.toString();
+      const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+      router.replace(newUrl, { scroll: false });
+    }
   };
 
   return (
@@ -318,9 +397,9 @@ export function AdminProjectsTable({
 
         {/* Bottom Toolbar: Search & Secondary Filters */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 min-w-0">
+          <div className="flex flex-1 flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 min-w-0">
             {/* Search Input */}
-            <div className="relative flex-1 sm:max-w-xs">
+            <div className="relative flex-1 min-w-[200px] sm:max-w-xs">
               <Search className="size-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <Input
                 type="text"
@@ -330,6 +409,16 @@ export function AdminProjectsTable({
                 className="pl-9 h-8 text-xs bg-card rounded-lg border-border/80 focus-visible:border-amber-400"
               />
             </div>
+
+            {/* By Customer Searchable Combobox (Shared with Credit History) */}
+            <CustomerFilterCombobox
+              customers={customers}
+              value={customerFilter}
+              onValueChange={(val) => {
+                setCustomerFilter(val);
+                setPage(1);
+              }}
+            />
 
             {/* Payment Filter Select */}
             <Select
@@ -370,7 +459,10 @@ export function AdminProjectsTable({
               <b className="text-foreground">{totalCount}</b>
             </span>
 
-            {(searchQuery || statusFilter !== 'all' || paymentFilter !== 'all') && (
+            {(searchQuery ||
+              statusFilter !== 'all' ||
+              customerFilter !== 'all' ||
+              paymentFilter !== 'all') && (
               <Button
                 type="button"
                 variant="ghost"
@@ -463,12 +555,12 @@ export function AdminProjectsTable({
                 No matching client projects found
               </EmptyTitle>
               <EmptyDescription className="text-xs text-muted-foreground">
-                {searchQuery || statusFilter !== 'all' || paymentFilter !== 'all'
+                {searchQuery || statusFilter !== 'all' || paymentFilter !== 'all' || customerFilter !== 'all'
                   ? `No projects matched your active filters. Try adjusting your search query or reset filters.`
                   : 'No client projects have been submitted yet.'}
               </EmptyDescription>
             </EmptyHeader>
-            {(searchQuery || statusFilter !== 'all' || paymentFilter !== 'all') && (
+            {(searchQuery || statusFilter !== 'all' || paymentFilter !== 'all' || customerFilter !== 'all') && (
               <EmptyContent>
                 <Button
                   variant="outline"
@@ -542,46 +634,26 @@ export function AdminProjectsTable({
                 </TableBody>
               </Table>
             </ResponsiveDesktopView>
+
+            {/* Clean Pagination Bar matching Credit History (AgencyDataGrid) */}
+            <TablePaginationBar
+              page={activePage}
+              totalPages={totalPages}
+              pageSize={effectivePageSize}
+              pageSizeOptions={availablePageSizes}
+              totalCount={totalCount}
+              fromIndex={fromIndex}
+              toIndex={toIndex}
+              isLoading={isLoading}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
           </>
         )}
       </ResponsiveTableShell>
-
-      {/* Pagination Footer Bar */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-3.5 rounded-xl bg-card border border-border/80 shadow-2xs">
-          <div className="text-xs text-muted-foreground font-medium">
-            Showing <b className="text-foreground">{fromIndex}–{toIndex}</b> of{' '}
-            <b className="text-foreground">{totalCount}</b> projects
-          </div>
-          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={page <= 1 || isLoading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-8 px-3 text-xs font-semibold cursor-pointer gap-1 rounded-lg"
-            >
-              <ChevronLeft className="size-3.5" />
-              <span>Previous</span>
-            </Button>
-            <span className="text-xs font-medium font-mono tabular-nums px-2 text-muted-foreground">
-              Page <b className="text-foreground">{page}</b> of <b className="text-foreground">{totalPages}</b>
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages || isLoading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 px-3 text-xs font-semibold cursor-pointer gap-1 rounded-lg"
-            >
-              <span>Next</span>
-              <ChevronRight className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* 3. Detail Management Drawer (Sheet) */}
       <Sheet open={Boolean(selectedProjectId)} onOpenChange={(open) => !open && handleSelectProject(null)}>
@@ -639,6 +711,14 @@ export function AdminProjectsTable({
                   <span className="truncate max-w-full">{selectedProject.email}</span>
                   <span>·</span>
                   <span>{selectedProject.platform || 'General'}</span>
+                  {selectedProject.lastChatBy && (
+                    <>
+                      <span>·</span>
+                      <span className="text-brand-text dark:text-amber-300 font-medium">
+                        Last chat by ({selectedProject.lastChatBy})
+                      </span>
+                    </>
+                  )}
                 </>
               ) : detailQuery.isPending ? (
                 <Skeleton className="h-4 w-56" />
@@ -666,12 +746,16 @@ export function AdminProjectsTable({
                           <ShieldCheck className="size-4 text-brand-text dark:text-amber-400 shrink-0" />
                           <span className="truncate">Production Management</span>
                         </div>
-                        {isDirty && (
+                        {!canManageProjects ? (
+                          <Badge variant="outline" size="xs" className="text-muted-foreground shrink-0">
+                            Viewer · Read-Only
+                          </Badge>
+                        ) : isDirty ? (
                           <Badge variant="warning" size="xs" className="gap-1 animate-pulse shrink-0">
                             <span className="size-1.5 rounded-full bg-amber-400" />
                             <span>Unsaved Changes</span>
                           </Badge>
-                        )}
+                        ) : null}
                       </div>
                     </CardHeader>
                     <CardContent className="p-3.5 sm:p-4 pt-0 space-y-3.5 min-w-0">
@@ -682,9 +766,9 @@ export function AdminProjectsTable({
                           </label>
                           <Select
                             value={draftStatus || selectedProject.status}
-                            disabled={isUpdating}
+                            disabled={isUpdating || !canManageProjects}
                             onValueChange={(val) => {
-                              if (!val) return;
+                              if (!val || !canManageProjects) return;
                               setDraftStatus(val as ProjectRecord['status']);
                             }}
                           >
@@ -710,9 +794,9 @@ export function AdminProjectsTable({
                           </label>
                           <Select
                             value={draftPayment || selectedProject.paymentStatus}
-                            disabled={isUpdating}
+                            disabled={isUpdating || !canManageProjects}
                             onValueChange={(val) => {
-                              if (!val) return;
+                              if (!val || !canManageProjects) return;
                               setDraftPayment(val as ProjectRecord['paymentStatus']);
                             }}
                           >
@@ -739,9 +823,20 @@ export function AdminProjectsTable({
                       {/* Staged Changes & Save Status Action Bar */}
                       <div className="pt-2 border-t border-border/60 flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 min-w-0">
                         <div className="flex items-center gap-1.5 text-2xs min-w-0">
-                          {isDirty ? (
+                          {!canManageProjects ? (
+                            <span className="text-muted-foreground font-medium truncate">
+                              Read-only Viewer access — status updates require Manager or Owner role
+                            </span>
+                          ) : isDirty ? (
                             <span className="text-brand-text dark:text-amber-300 font-medium truncate">
-                              Pending: {getProjectStatusLabel(selectedProject.status)} → {getProjectStatusLabel(draftStatus || selectedProject.status)}
+                              {draftStatus &&
+                              draftStatus !== selectedProject.status &&
+                              draftPayment &&
+                              draftPayment !== (selectedProject.paymentStatus || 'unpaid')
+                                ? `Pending: ${getProjectStatusLabel(selectedProject.status)} → ${getProjectStatusLabel(draftStatus)} · Payment: ${selectedProject.paymentStatus || 'unpaid'} → ${draftPayment}`
+                                : draftStatus && draftStatus !== selectedProject.status
+                                  ? `Pending: ${getProjectStatusLabel(selectedProject.status)} → ${getProjectStatusLabel(draftStatus)}`
+                                  : `Pending Payment: ${selectedProject.paymentStatus || 'unpaid'} → ${draftPayment || selectedProject.paymentStatus || 'unpaid'}`}
                             </span>
                           ) : (
                             <span className="text-muted-foreground font-medium flex items-center gap-1 truncate">
@@ -751,41 +846,43 @@ export function AdminProjectsTable({
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 self-end xs:self-auto shrink-0">
-                          {isDirty && (
+                        {canManageProjects && (
+                          <div className="flex items-center gap-2 self-end xs:self-auto shrink-0">
+                            {isDirty && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={isUpdating}
+                                onClick={handleResetDraft}
+                                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                              >
+                                Reset
+                              </Button>
+                            )}
+
                             <Button
                               type="button"
-                              variant="ghost"
+                              variant="gold"
                               size="sm"
-                              disabled={isUpdating}
-                              onClick={handleResetDraft}
-                              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                              disabled={!isDirty || isUpdating}
+                              onClick={handleSaveStatus}
+                              className="h-8 px-3 text-xs font-bold gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
                             >
-                              Reset
+                              {isUpdating ? (
+                                <>
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                  <span>Updating...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="size-3.5" />
+                                  <span>Update Status</span>
+                                </>
+                              )}
                             </Button>
-                          )}
-
-                          <Button
-                            type="button"
-                            variant="gold"
-                            size="sm"
-                            disabled={!isDirty || isUpdating}
-                            onClick={handleSaveStatus}
-                            className="h-8 px-3 text-xs font-bold gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
-                          >
-                            {isUpdating ? (
-                              <>
-                                <Loader2 className="size-3.5 animate-spin" />
-                                <span>Updating...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Check className="size-3.5" />
-                                <span>Update Status</span>
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -863,12 +960,18 @@ export function AdminProjectsTable({
                   type="button"
                   variant="outline"
                   size="sm"
+                  loading={isDownloadingInvoice}
+                  loadingText="Invoice..."
                   onClick={async () => {
+                    if (isDownloadingInvoice) return;
+                    setIsDownloadingInvoice(true);
                     try {
                       await downloadProjectInvoice(selectedProject);
                       toast.success(`Invoice INV-${selectedProject.projectCode} downloaded`);
                     } catch {
                       toast.error('Could not generate invoice PDF');
+                    } finally {
+                      setIsDownloadingInvoice(false);
                     }
                   }}
                   className="h-9 px-3.5 text-xs font-semibold gap-1.5 rounded-lg cursor-pointer shrink-0"
@@ -926,7 +1029,7 @@ export function AdminProjectsTable({
 /*  Memoized Row & Mobile Card Subcomponents                                   */
 /* -------------------------------------------------------------------------- */
 
-const ProjectStatusDotBadge = React.memo(function ProjectStatusDotBadge({
+export const ProjectStatusDotBadge = React.memo(function ProjectStatusDotBadge({
   status,
   className,
 }: {
@@ -945,7 +1048,7 @@ const ProjectStatusDotBadge = React.memo(function ProjectStatusDotBadge({
           status === 'pending_review' && 'bg-amber-400 animate-pulse',
           status === 'payment_confirmed' && 'bg-emerald-500',
           status === 'in_production' && 'bg-amber-400 animate-pulse',
-          status === 'review_round' && 'bg-purple-500',
+          status === 'review_round' && 'bg-amber-400',
           status === 'delivered' && 'bg-emerald-500',
           ![
             'pending_review',
@@ -961,13 +1064,13 @@ const ProjectStatusDotBadge = React.memo(function ProjectStatusDotBadge({
   );
 });
 
-interface AdminProjectRowItemProps {
+export interface AdminProjectRowItemProps {
   project: ProjectRecord;
   onSelect: (id: string) => void;
   onOpenChat?: (id: string) => void;
 }
 
-const AdminProjectMobileCard = React.memo(function AdminProjectMobileCard({
+export const AdminProjectMobileCard = React.memo(function AdminProjectMobileCard({
   project: p,
   onSelect,
   onOpenChat,
@@ -1015,6 +1118,11 @@ const AdminProjectMobileCard = React.memo(function AdminProjectMobileCard({
               ? p.clientName
               : p.email || 'Creator Client'}
           </div>
+          {p.lastChatBy && (
+            <div className="text-2xs text-brand-text dark:text-amber-300/90 font-medium truncate mt-0.5">
+              Last chat by ({p.lastChatBy})
+            </div>
+          )}
         </div>
 
         <ProjectStatusDotBadge status={p.status} className="text-2xs" />
@@ -1072,7 +1180,7 @@ const AdminProjectMobileCard = React.memo(function AdminProjectMobileCard({
   );
 });
 
-const AdminProjectTableRow = React.memo(function AdminProjectTableRow({
+export const AdminProjectTableRow = React.memo(function AdminProjectTableRow({
   project: p,
   onSelect,
   onOpenChat,
@@ -1095,12 +1203,17 @@ const AdminProjectTableRow = React.memo(function AdminProjectTableRow({
 
       {/* Client / Channel */}
       <TableCell className="py-3.5 px-4">
-        <div className="min-w-0 max-w-[200px] lg:max-w-[260px]">
+        <div className="min-w-0 max-w-[220px] lg:max-w-[280px]">
           <div className="text-xs font-bold text-foreground truncate">
             {p.channelName || p.clientName}
           </div>
           {p.channelName && p.clientName && p.channelName !== p.clientName && (
             <div className="text-2xs text-muted-foreground truncate">{p.clientName}</div>
+          )}
+          {p.lastChatBy && (
+            <div className="text-2xs text-brand-text dark:text-amber-300/90 font-medium truncate mt-0.5">
+              Last chat by ({p.lastChatBy})
+            </div>
           )}
         </div>
       </TableCell>

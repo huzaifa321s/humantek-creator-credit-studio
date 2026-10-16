@@ -16,6 +16,7 @@ export interface ManagementSummaryData {
     pendingReview: number;
     wireOrders: number;
     ledger: number;
+    teamAccess: number;
   };
 }
 
@@ -40,13 +41,14 @@ export async function GET(_req: NextRequest) {
       ordersRes,
       pendingWireOrdersRes,
       ledgerRes,
+      adminProfilesRes,
     ] = await Promise.all([
       admin
         .from('projects')
         .select('id, user_id, email, status, package_id, package_price_usd, payment_status, payment_method, funding_source, total_credits, applied_wallet_credits'),
       admin
         .from('orders')
-        .select('id, user_id, package_id, status, captured_amount_cents, expected_amount_cents')
+        .select('id, user_id, package_id, status, captured_amount_cents, expected_amount_cents, metadata')
         .eq('status', 'fulfilled'),
       admin
         .from('orders')
@@ -55,14 +57,27 @@ export async function GET(_req: NextRequest) {
       admin
         .from('credit_ledger')
         .select('id', { count: 'exact', head: true }),
+      admin
+        .from('profiles')
+        .select('id, email')
+        .eq('role', 'admin'),
     ]);
 
     const rawProjects = allProjectsRes.data || [];
     const projects = rawProjects.filter((p) => !isAutomatedTestEmail(p.email));
     const fulfilledOrders = ordersRes.data || [];
 
-    // Identify users who have fulfilled orders so we don't double-count the same package purchase
-    const fulfilledOrderUserIds = new Set(fulfilledOrders.map((o) => o.user_id).filter(Boolean));
+    // Identify projects and users with fulfilled orders so we don't double-count the same package purchase
+    const fulfilledOrderProjectIds = new Set<string>();
+    const fulfilledOrderUserIdsWithoutProject = new Set<string>();
+    for (const o of fulfilledOrders) {
+      const metaProjId = (o.metadata as Record<string, unknown> | null)?.project_id;
+      if (typeof metaProjId === 'string' && metaProjId) {
+        fulfilledOrderProjectIds.add(metaProjId);
+      } else if (o.user_id) {
+        fulfilledOrderUserIdsWithoutProject.add(o.user_id);
+      }
+    }
 
     // 1. Calculate Total Revenue in USD
     const orderRevenue = fulfilledOrders.reduce((sum, o) => {
@@ -77,7 +92,8 @@ export async function GET(_req: NextRequest) {
           p.payment_status === 'paid' &&
           p.funding_source !== 'wallet' &&
           p.payment_method !== 'credits' &&
-          !(p.user_id && fulfilledOrderUserIds.has(p.user_id) && orderRevenue > 0)
+          !fulfilledOrderProjectIds.has(p.id) &&
+          !(p.user_id && fulfilledOrderUserIdsWithoutProject.has(p.user_id) && orderRevenue > 0)
       )
       .reduce((sum, p) => sum + (Number(p.package_price_usd) || 0), 0);
 
@@ -102,6 +118,11 @@ export async function GET(_req: NextRequest) {
         ? ledgerRes.count
         : projects.length;
 
+    const teamAccessCount = (adminProfilesRes.data || []).filter((a) => {
+      const em = (a.email || '').toLowerCase();
+      return !em.endsWith('.test') && !em.startsWith('e2e-') && !em.startsWith('test-');
+    }).length || 1;
+
     const data: ManagementSummaryData = {
       kpis: {
         totalRevenue,
@@ -114,6 +135,7 @@ export async function GET(_req: NextRequest) {
         pendingReview: pendingReviewCount,
         wireOrders: pendingWireOrdersRes.count ?? 0,
         ledger: ledgerCount,
+        teamAccess: teamAccessCount,
       },
     };
 

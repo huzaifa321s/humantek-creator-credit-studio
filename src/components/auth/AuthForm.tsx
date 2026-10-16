@@ -198,7 +198,9 @@ export function AuthForm({
           data.user.email,
           data.user.walletBalance,
           data.user.id,
-          data.user.role
+          data.user.role,
+          data.user.avatarUrl || null,
+          data.user.teamRole || null
         );
 
         if (data.user.role === 'admin' || data.user.isAdmin) {

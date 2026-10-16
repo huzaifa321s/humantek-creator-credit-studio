@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { signReferenceFiles } from '@/lib/references';
+import { attachAdminLastChatBy } from '@/lib/orders';
 import { serializeClientProject, serializeAdminProject } from '@/lib/serializers/project';
 import { getProjectById } from '@/lib/store';
 
@@ -49,6 +50,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       // Batch generate short-lived signed URLs for reference files
       if (Array.isArray(projectRow.uploaded_files) && projectRow.uploaded_files.length > 0) {
         projectRow.uploaded_files = await signReferenceFiles(adminClient, projectRow.uploaded_files, 900);
+      }
+
+      if (user.isAdmin) {
+        await attachAdminLastChatBy(adminClient, [projectRow]);
       }
 
       const serialized = user.isAdmin

@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { resolveSafeRedirectBase } from '@/lib/auth/redirects';
+import { isPrimaryOwnerEmail, normalizeTeamRole, type TeamRole } from '@/lib/auth';
+
+function resolveUserTeamRole(
+  isAdmin: boolean,
+  email: string,
+  profile: Record<string, unknown> | null,
+  appMetadata: Record<string, unknown> | undefined
+): TeamRole | null {
+  if (!isAdmin) return null;
+  const fromProfile = normalizeTeamRole(profile?.team_role);
+  const fromAppMeta = normalizeTeamRole(appMetadata?.team_role);
+  if (isPrimaryOwnerEmail(email)) {
+    return 'owner';
+  }
+  if (fromProfile) {
+    return fromProfile;
+  }
+  if (fromAppMeta) {
+    return fromAppMeta;
+  }
+  return 'manager';
+}
 
 interface RateLimitRecord {
   attempts: number;
@@ -82,7 +104,7 @@ export async function POST(req: NextRequest) {
       const admin = createAdminClient();
       const { data: profile } = await admin
         .from('profiles')
-        .select('role, full_name')
+        .select('*')
         .eq('id', sessionUser.id)
         .maybeSingle();
 
@@ -91,6 +113,15 @@ export async function POST(req: NextRequest) {
         .select('balance_credits')
         .eq('user_id', sessionUser.id)
         .maybeSingle();
+
+      const isAdmin = profile?.role === 'admin';
+      const userRole = isAdmin ? 'admin' : 'client';
+      const teamRole = resolveUserTeamRole(
+        isAdmin,
+        sessionUser.email,
+        profile as Record<string, unknown> | null,
+        sessionUser.app_metadata
+      );
 
       const userName =
         profile?.full_name ||
@@ -106,8 +137,9 @@ export async function POST(req: NextRequest) {
           id: sessionUser.id,
           email: sessionUser.email.toLowerCase(),
           name: userName,
-          role: profile?.role || 'client',
-          isAdmin: profile?.role === 'admin',
+          role: userRole,
+          teamRole,
+          isAdmin,
           walletBalance: wallet?.balance_credits ?? 0,
         },
       });
@@ -237,7 +269,7 @@ export async function POST(req: NextRequest) {
 
       const { data: profile } = await admin
         .from('profiles')
-        .select('role, full_name')
+        .select('*')
         .eq('id', verifiedUser.id)
         .maybeSingle();
 
@@ -246,6 +278,15 @@ export async function POST(req: NextRequest) {
         .select('balance_credits')
         .eq('user_id', verifiedUser.id)
         .maybeSingle();
+
+      const isAdmin = profile?.role === 'admin';
+      const userRole = isAdmin ? 'admin' : 'client';
+      const teamRole = resolveUserTeamRole(
+        isAdmin,
+        userEmail,
+        profile as Record<string, unknown> | null,
+        verifiedUser.app_metadata
+      );
 
       const userName =
         profile?.full_name ||
@@ -261,8 +302,9 @@ export async function POST(req: NextRequest) {
           id: verifiedUser.id,
           email: userEmail,
           name: userName,
-          role: profile?.role || 'client',
-          isAdmin: profile?.role === 'admin',
+          role: userRole,
+          teamRole,
+          isAdmin,
           walletBalance: wallet?.balance_credits ?? 0,
         },
       });

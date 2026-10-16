@@ -1,8 +1,7 @@
 import React from 'react';
 import { StudioBackground } from '@/components/StudioBackground';
 import { Spinner } from '@/components/ui/spinner';
-import { TypographyLead, TypographyMuted } from '@/components/ui/typography';
-import { Sparkles } from 'lucide-react';
+import { TypographyMuted } from '@/components/ui/typography';
 
 export default function RootLoading() {
   return (
@@ -27,7 +26,6 @@ export default function RootLoading() {
         <div className="space-y-1">
           <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-foreground">
             <span>Humantek Art</span>
-            <Sparkles className="size-3 text-amber-500" />
           </div>
           <TypographyMuted className="text-2xs uppercase tracking-widest font-bold text-brand-text dark:text-amber-400">
             Creator Credits Studio

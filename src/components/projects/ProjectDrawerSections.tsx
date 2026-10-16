@@ -23,8 +23,46 @@ import {
   ItemDescription,
   ItemActions,
 } from '@/components/ui/item';
-import { FileText, ExternalLink, Sparkles, AlertCircle, RotateCcw } from 'lucide-react';
-import { extractHexColors } from '@/components/reui/color-picker';
+import { FileText, ExternalLink, AlertCircle, RotateCcw } from 'lucide-react';
+import { resolvePaletteSwatches } from '@/components/reui/color-picker';
+import { cn } from '@/lib/utils';
+
+export interface ColorPaletteValueProps {
+  colors?: string;
+  className?: string;
+  textClassName?: string;
+}
+
+export function ColorPaletteValue({ colors, className, textClassName }: ColorPaletteValueProps) {
+  const displayColors = colors || 'Brand Colors';
+  const hexColors = resolvePaletteSwatches(colors);
+
+  return (
+    <div className={cn('flex items-center gap-1.5 min-w-0', className)}>
+      {hexColors.length > 0 && (
+        <span className="inline-flex items-center -space-x-1 shrink-0">
+          {hexColors.slice(0, 4).map((hex) => (
+            <span
+              key={hex}
+              title={hex}
+              className="size-3 rounded-full ring-1 ring-black/15 dark:ring-white/25 shadow-2xs"
+              style={{ backgroundColor: hex }}
+            />
+          ))}
+        </span>
+      )}
+      <b
+        className={cn(
+          'text-foreground font-semibold truncate block text-xs sm:text-sm min-w-0',
+          textClassName
+        )}
+        title={displayColors}
+      >
+        {displayColors}
+      </b>
+    </div>
+  );
+}
 
 export interface ProjectDrawerSpecsCardProps {
   style?: string;
@@ -33,8 +71,6 @@ export interface ProjectDrawerSpecsCardProps {
 
 export function ProjectDrawerSpecsCard({ style, colors }: ProjectDrawerSpecsCardProps) {
   const displayStyle = style || 'Custom Art';
-  const displayColors = colors || 'Brand Colors';
-  const hexColors = extractHexColors(colors);
 
   return (
     <Card className="bg-secondary/10 border-border/70 shadow-none min-w-0">
@@ -54,26 +90,7 @@ export function ProjectDrawerSpecsCard({ style, colors }: ProjectDrawerSpecsCard
           <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-1 truncate">
             Color Palette
           </span>
-          <div className="flex items-center gap-1.5 min-w-0">
-            {hexColors.length > 0 && (
-              <span className="inline-flex items-center -space-x-1 shrink-0">
-                {hexColors.slice(0, 4).map((hex) => (
-                  <span
-                    key={hex}
-                    title={hex}
-                    className="size-3 rounded-full ring-1 ring-background shadow-2xs"
-                    style={{ backgroundColor: hex }}
-                  />
-                ))}
-              </span>
-            )}
-            <b
-              className="text-foreground font-semibold truncate block text-xs sm:text-sm min-w-0"
-              title={displayColors}
-            >
-              {displayColors}
-            </b>
-          </div>
+          <ColorPaletteValue colors={colors} />
         </div>
       </CardContent>
     </Card>

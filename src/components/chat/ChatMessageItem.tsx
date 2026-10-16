@@ -3,7 +3,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   CheckCheck,
-  Sparkles,
   Eye,
   ThumbsUp,
   CornerUpLeft,
@@ -16,6 +15,7 @@ import { toast } from 'sonner';
 import { cn, formatChatTimestamp } from '@/lib/utils';
 
 import { ChatMessage, ChatAttachment } from '@/lib/chatStore';
+import { useUserStore } from '@/lib/userStore';
 import { useMessageGestures } from '@/hooks/use-message-gestures';
 import {
   Message,
@@ -38,6 +38,7 @@ import {
   ChatMessageActionToolbar,
   useMessageActions,
 } from '@/components/chat/ChatMessageActions';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -60,13 +61,20 @@ interface ChatMessageItemProps {
 
 const LIKE_POP_MS = 650;
 
+function getSenderInitials(name?: string): string {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'CR';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 /** System notices rendered with the official shadcn `Marker` (separator variant). */
 function SystemMarker({ content }: { content: string }) {
   return (
     <div className="flex justify-center my-4 w-full">
       <Marker variant="separator" className="text-xs text-muted-foreground py-1">
         <MarkerIcon>
-          <Sparkles className="size-3.5 text-brand-text dark:text-amber-400" />
+          <CheckCheck className="size-3.5 text-brand-text dark:text-amber-400" />
         </MarkerIcon>
         <MarkerContent className="font-medium text-xs max-w-[80%] text-center">{content}</MarkerContent>
       </Marker>
@@ -77,7 +85,7 @@ function SystemMarker({ content }: { content: string }) {
 export const ChatMessageItem = React.memo(
   function ChatMessageItem({
     message,
-    currentUserId,
+    currentUserId: currentUserIdProp,
     viewerRole = 'client',
     onPreviewAttachment,
     onReply,
@@ -91,11 +99,19 @@ export const ChatMessageItem = React.memo(
     const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [likePopKey, setLikePopKey] = useState(0);
+    const storeUserId = useUserStore((s) => s.user?.id);
+    const currentUserId =
+      storeUserId ||
+      (currentUserIdProp && currentUserIdProp !== 'admin' ? currentUserIdProp : undefined);
 
     const isSystem = message.sender === 'system';
     const isDeleted = Boolean(message.isDeleted);
     const isOutgoing = viewerRole === 'admin' ? message.sender === 'agent' : message.sender === 'client';
-    const isOwn = isOutgoing;
+    const isCurrentStaffSender =
+      !message.senderId ||
+      message.senderId === 'admin-1' ||
+      Boolean(currentUserId && message.senderId === currentUserId);
+    const isOwn = viewerRole === 'admin' ? Boolean(isOutgoing && isCurrentStaffSender) : isOutgoing;
     const likes = useMemo(() => (isDeleted ? [] : message.likes ?? []), [isDeleted, message.likes]);
     const hasLikes = likes.length > 0;
     const hasAttachments = !isDeleted && !!message.attachments && message.attachments.length > 0;
@@ -168,28 +184,52 @@ export const ChatMessageItem = React.memo(
         className="group/message relative scroll-mt-20"
       >
         <MessageContent className="gap-1.5 relative">
-          {/* Header: Name · Role · Timestamp · (edited) · desktop actions */}
-          <MessageHeader className="gap-1.5 text-xs text-muted-foreground items-center">
-            <span className="font-semibold text-foreground/90 truncate">
-              {isOutgoing ? 'You' : message.sender === 'agent' ? 'Studio Team' : message.senderName}
+          {/* Header: Avatar · Name · Role · Timestamp · (edited) · desktop actions */}
+          <MessageHeader className="px-0 gap-1.5 text-xs text-muted-foreground items-center leading-none">
+            {!isOutgoing && message.sender === 'client' && (
+              <Avatar className="size-5 rounded-full shrink-0 border border-amber-400/30">
+                {message.senderAvatarUrl && (
+                  <AvatarImage
+                    src={message.senderAvatarUrl}
+                    alt={message.senderName}
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <AvatarFallback className="text-[9px] font-bold leading-none bg-amber-400/15 text-brand-text dark:text-amber-300">
+                  {getSenderInitials(message.senderName)}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            <span className="font-semibold text-foreground/90 truncate leading-none">
+              {isOutgoing
+                ? viewerRole === 'admin'
+                  ? isCurrentStaffSender
+                    ? message.staffName
+                      ? `You (${message.staffName})`
+                      : 'You'
+                    : message.staffName || 'Studio Team'
+                  : 'You'
+                : message.sender === 'agent'
+                  ? 'Studio Team'
+                  : message.senderName}
             </span>
             {message.senderRole &&
               !isOutgoing &&
               !compact &&
               message.sender !== 'agent' &&
               message.senderRole !== message.senderName && (
-                <span className="text-2xs font-mono text-brand-text/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline">
+                <span className="text-2xs font-mono text-brand-text/80 dark:text-amber-400/80 font-medium truncate hidden sm:inline leading-none">
                   · {message.senderRole}
                 </span>
               )}
-            <span className="text-2xs font-mono tabular-nums whitespace-nowrap text-muted-foreground/80 ml-1 inline-flex items-center gap-1">
+            <span className="text-2xs font-mono tabular-nums whitespace-nowrap text-muted-foreground/80 ml-0.5 inline-flex items-center gap-1 leading-none">
               <span>{formatChatTimestamp(message.timestamp)}</span>
               {isOutgoing && !isDeleted && message.status !== 'failed' && message.status !== 'sending' && (
                 <CheckCheck className="size-3 text-brand-text/90 dark:text-amber-400/90 inline-block" />
               )}
             </span>
             {message.isEdited && !isDeleted && (
-              <span className="text-3xs font-mono text-muted-foreground/70 italic ml-1">(edited)</span>
+              <span className="text-3xs font-mono text-muted-foreground/70 italic ml-0.5 leading-none">(edited)</span>
             )}
           </MessageHeader>
 
@@ -374,7 +414,7 @@ export const ChatMessageItem = React.memo(
 
           {/* Message Delivery Status Indicator: only show for sending or failed error, removing repetitive 'Sent to client' clutter */}
           {isOutgoing && !isDeleted && (message.status === 'sending' || message.status === 'failed') && (
-            <MessageFooter className="gap-1 text-2xs">
+            <MessageFooter className="px-0.5 gap-1 text-2xs">
               {message.status === 'sending' ? (
                 <span className="flex items-center gap-1 text-muted-foreground/80 animate-pulse font-mono text-3xs">
                   <Clock className="size-3 text-muted-foreground/70" />
@@ -424,6 +464,10 @@ export const ChatMessageItem = React.memo(
   (prev, next) =>
     prev.message.id === next.message.id &&
     prev.message.content === next.message.content &&
+    prev.message.senderId === next.message.senderId &&
+    prev.message.staffName === next.message.staffName &&
+    prev.message.senderName === next.message.senderName &&
+    prev.message.senderAvatarUrl === next.message.senderAvatarUrl &&
     prev.message.timestamp === next.message.timestamp &&
     prev.message.status === next.message.status &&
     prev.message.errorReason === next.message.errorReason &&

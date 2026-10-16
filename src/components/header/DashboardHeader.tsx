@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   ChevronLeft,
   Coins,
-  Sparkles,
   Search,
   MessageSquare,
   ShieldCheck,
@@ -184,7 +183,7 @@ function HeaderCreditBalanceBadge({ effectiveBalance }: { effectiveBalance: numb
               : 'bg-zinc-950/95 border border-amber-400/50 text-amber-300 shadow-amber-500/15'
           )}
         >
-          {isPositive && <Sparkles className="size-2.5 text-amber-400 shrink-0" />}
+          {isPositive && <Coins className="size-2.5 text-amber-400 shrink-0" />}
           <span>
             {isPositive ? `+${activeDelta.delta}` : activeDelta.delta} CR
           </span>
@@ -228,7 +227,8 @@ export function DashboardHeader({
   const pathname = usePathname();
   const { isSearchOpen, setSearchOpen, toggleSearch } = useUIStore();
   const { user, isHydrated } = useUserStore();
-  const isManagementRoute = Boolean(pathname?.startsWith('/management'));
+  const isAdminUser = Boolean(user?.role && user.role.toLowerCase() === 'admin');
+  const isManagementRoute = Boolean(pathname?.startsWith('/management') || isAdminUser);
 
   // Ensure global search is closed in management console
   useEffect(() => {
@@ -269,6 +269,10 @@ export function DashboardHeader({
       ? 'Messages'
       : pathname === '/wallet'
       ? 'Credit History'
+      : pathname === '/notifications'
+      ? 'Notifications'
+      : pathname === '/profile'
+      ? 'Account Profile'
       : pathname === '/management'
       ? 'Studio Overview'
       : pathname === '/management/projects'
@@ -277,6 +281,8 @@ export function DashboardHeader({
       ? 'Client Messages'
       : pathname === '/management/ledger'
       ? 'Credit History'
+      : pathname === '/management/team'
+      ? 'Team Access'
       : pathname?.startsWith('/management')
       ? 'Studio Management'
       : pathname === '/redeem-code'
@@ -324,7 +330,7 @@ export function DashboardHeader({
 
             {/* Unified Brand Logo & Title across all modes */}
             <Link
-              href="/projects"
+              href={isManagementRoute ? '/management' : '/projects'}
               className={cn(
                 'flex items-center gap-2 group select-none shrink-0 min-w-0',
                 isSidebarCollapsed && 'hidden'
@@ -338,7 +344,6 @@ export function DashboardHeader({
                   <span className="font-bold text-white tracking-tight text-xs truncate">
                     Humantek Art
                   </span>
-                  <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
                 </div>
                 <span className="block text-2xs tracking-wider uppercase font-bold text-amber-400 leading-tight truncate">
                   Creator Credits Studio
@@ -382,7 +387,7 @@ export function DashboardHeader({
                 <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
                   <BreadcrumbItem>
                     <BreadcrumbLink
-                      href="/projects"
+                      href={isManagementRoute ? '/management' : '/projects'}
                       className="text-xs font-medium text-zinc-300 hover:text-white transition-colors"
                     >
                       Home
@@ -493,7 +498,15 @@ export function DashboardHeader({
               {isManagementRoute ? (
                 <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-amber-300 text-xs font-semibold select-none shadow-2xs">
                   <ShieldCheck className="size-3.5 text-amber-400 shrink-0" />
-                  <span className="font-semibold text-xs tracking-tight">Studio Admin</span>
+                  <span className="font-semibold text-xs tracking-tight">
+                    {user?.teamRole === 'owner'
+                      ? 'Studio Owner'
+                      : user?.teamRole === 'viewer'
+                        ? 'Viewer · Read-Only'
+                        : user?.teamRole === 'manager'
+                          ? 'Studio Manager'
+                          : 'Studio Admin'}
+                  </span>
                 </div>
               ) : !isBalanceLoaded ? (
                 <div

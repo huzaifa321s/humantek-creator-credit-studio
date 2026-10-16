@@ -10,8 +10,8 @@ const CLIENT_ONLY_PATHS = [
   '/messages',
   '/redeem-code',
   '/account',
-  '/notifications',
 ];
+const SHARED_AUTH_PATHS = ['/notifications', '/profile'];
 
 const AUTH_PREFIXES = ['/login', '/sign-in'];
 const ADMIN_AUTH_PATH = '/admin-login';
@@ -38,6 +38,16 @@ function sanitizeRedirectUrl(urlParam: string | null | undefined, fallback = '/p
     return decoded;
   }
   return fallback;
+}
+
+function redirectWithCookies(
+  url: URL,
+  supabaseResponse: NextResponse,
+  status?: number
+): NextResponse {
+  const res = status ? NextResponse.redirect(url, status) : NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((c) => res.cookies.set(c));
+  return res;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -116,31 +126,32 @@ export async function updateSession(request: NextRequest) {
   const isClientAuthPage = AUTH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isAdminPath = !isAdminAuthPage && !isAdminTotpPage && ADMIN_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isClientPath = !isClientAuthPage && CLIENT_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const isSharedAuthPath = SHARED_AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isNewProjectPath = pathname === '/new-project' || pathname.startsWith('/new-project/');
 
   // Handle Root Gateway ('/')
   if (pathname === '/') {
     if (!isAuthenticated) {
-      return NextResponse.redirect(new URL('/new-project', request.url));
+      return redirectWithCookies(new URL('/new-project', request.url), supabaseResponse);
     }
     if (userRole === 'admin') {
-      return NextResponse.redirect(new URL('/management', request.url));
+      return redirectWithCookies(new URL('/management', request.url), supabaseResponse);
     }
-    return NextResponse.redirect(new URL('/projects', request.url));
+    return redirectWithCookies(new URL('/projects', request.url), supabaseResponse);
   }
 
   // 1. UNHEALTHY / UNAUTHENTICATED USERS
   if (!isAuthenticated) {
     if (isAdminPath || isAdminTotpPage) {
-      return NextResponse.redirect(new URL('/admin-login', request.url));
+      return redirectWithCookies(new URL('/admin-login', request.url), supabaseResponse);
     }
-    if (isClientPath) {
+    if (isClientPath || isSharedAuthPath) {
       const redirectUrl = new URL('/login', request.url);
       const targetUrl = sanitizeRedirectUrl(pathname + request.nextUrl.search, '');
       if (targetUrl && targetUrl !== '/projects') {
         redirectUrl.searchParams.set('next', targetUrl);
       }
-      return NextResponse.redirect(redirectUrl);
+      return redirectWithCookies(redirectUrl, supabaseResponse);
     }
     // /new-project, /admin-login, and /login are public for guests
     return supabaseResponse;
@@ -152,21 +163,21 @@ export async function updateSession(request: NextRequest) {
 
   if (userRole === 'admin') {
     if (isAdminTotpPage) {
-      return NextResponse.redirect(new URL('/management', request.url));
+      return redirectWithCookies(new URL('/management', request.url), supabaseResponse);
     }
 
-    if (isAdminPath || isPasswordResetFlow) {
+    if (isAdminPath || isSharedAuthPath || isPasswordResetFlow) {
       return supabaseResponse;
     }
 
     // Admins are prohibited from accessing client project creation & self-service pages
     if (isClientPath || isNewProjectPath) {
-      return NextResponse.redirect(new URL('/management', request.url));
+      return redirectWithCookies(new URL('/management', request.url), supabaseResponse);
     }
 
     // Admins accessing login routes are redirected to console
     if (isClientAuthPage || isAdminAuthPage) {
-      return NextResponse.redirect(new URL('/management', request.url));
+      return redirectWithCookies(new URL('/management', request.url), supabaseResponse);
     }
 
     return supabaseResponse;
@@ -176,7 +187,7 @@ export async function updateSession(request: NextRequest) {
   if (userRole === 'client') {
     // Clients attempting to access administration console or legacy TOTP are redirected to their projects
     if (isAdminPath || isAdminTotpPage) {
-      return NextResponse.redirect(new URL('/projects', request.url));
+      return redirectWithCookies(new URL('/projects', request.url), supabaseResponse);
     }
     // Allow password reset completion screen (/login?reset=true) even when recovery session is active
     if (isPasswordResetFlow) {
@@ -186,7 +197,7 @@ export async function updateSession(request: NextRequest) {
     if (isClientAuthPage) {
       const nextParam = request.nextUrl.searchParams.get('next');
       const target = sanitizeRedirectUrl(nextParam, '/projects');
-      return NextResponse.redirect(new URL(target, request.url));
+      return redirectWithCookies(new URL(target, request.url), supabaseResponse);
     }
 
     // Canonical Redirect Bridge: /projects/:id -> /projects?project=:id (HTTP 307 Temporary Redirect)
@@ -197,7 +208,7 @@ export async function updateSession(request: NextRequest) {
       request.nextUrl.searchParams.forEach((val, key) => {
         if (key !== 'project') targetUrl.searchParams.set(key, val);
       });
-      return NextResponse.redirect(targetUrl, 307);
+      return redirectWithCookies(targetUrl, supabaseResponse, 307);
     }
     // Allow /admin-login so users can authenticate with staff credentials if they possess them
     if (isAdminAuthPage) {

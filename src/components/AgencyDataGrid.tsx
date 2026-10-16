@@ -16,6 +16,7 @@ import {
   MobileDataCardHeader,
   MobileDataCardBody,
   MobileDataCardFooter,
+  TablePaginationBar,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ import {
   EmptyContent,
 } from '@/components/ui/empty';
 import { CreditValue } from '@/components/ui/credit-value';
+import { CustomerFilterCombobox } from '@/components/management/CustomerFilterCombobox';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -47,13 +49,10 @@ import {
   CheckCircle2,
   Clock,
   RotateCcw,
-  Users,
-  UserCheck,
   Wallet,
   TrendingUp,
   TrendingDown,
   DollarSign,
-  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -93,21 +92,56 @@ export interface LedgerCustomerSummary {
 interface AgencyDataGridProps {
   transactions: LedgerTransaction[];
   customers?: LedgerCustomerSummary[];
+  customerFilter?: string;
+  onCustomerFilterChange?: (val: string) => void;
+  typeFilter?: string;
+  onTypeFilterChange?: (val: string) => void;
+  statusFilter?: string;
+  onStatusFilterChange?: (val: string) => void;
   className?: string;
 }
 
 type SortField = 'reference' | 'clientEmail' | 'type' | 'creditsDelta' | 'usdAmount' | 'timestamp';
 type SortOrder = 'asc' | 'desc';
 
-export function AgencyDataGrid({ transactions, customers, className }: AgencyDataGridProps) {
+export function AgencyDataGrid({
+  transactions,
+  customers,
+  customerFilter: controlledCustomerFilter,
+  onCustomerFilterChange,
+  typeFilter: controlledTypeFilter,
+  onTypeFilterChange,
+  statusFilter: controlledStatusFilter,
+  onStatusFilterChange,
+  className,
+}: AgencyDataGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [customerFilter, setCustomerFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [internalCustomerFilter, setInternalCustomerFilter] = useState<string>('all');
+  const [internalTypeFilter, setInternalTypeFilter] = useState<string>('all');
+  const [internalStatusFilter, setInternalStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('timestamp');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+
+  const customerFilter = controlledCustomerFilter ?? internalCustomerFilter;
+  const setCustomerFilter = (next: string | ((prev: string) => string)) => {
+    const resolved = typeof next === 'function' ? next(customerFilter) : next;
+    setInternalCustomerFilter(resolved);
+    onCustomerFilterChange?.(resolved);
+  };
+
+  const typeFilter = controlledTypeFilter ?? internalTypeFilter;
+  const setTypeFilter = (next: string) => {
+    setInternalTypeFilter(next);
+    onTypeFilterChange?.(next);
+  };
+
+  const statusFilter = controlledStatusFilter ?? internalStatusFilter;
+  const setStatusFilter = (next: string) => {
+    setInternalStatusFilter(next);
+    onStatusFilterChange?.(next);
+  };
 
   // Build or use provided customer summaries
   const resolvedCustomers = useMemo<LedgerCustomerSummary[]>(() => {
@@ -168,6 +202,16 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
       resolvedCustomers.find((c) => c.clientEmail.toLowerCase().trim() === customerFilter) || null
     );
   }, [resolvedCustomers, customerFilter]);
+
+  const customerComboboxOptions = useMemo(
+    () =>
+      resolvedCustomers.map((c) => ({
+        clientEmail: c.clientEmail,
+        clientName: c.clientName,
+        count: c.transactionCount,
+      })),
+    [resolvedCustomers]
+  );
 
   // Overall studio summary across all customers
   const studioSummary = useMemo(() => {
@@ -314,56 +358,12 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
     activeSummary.settledCreditsUsed + activeSummary.pendingCreditsUsed;
   const totalUsd = activeSummary.settledUsdVolume + activeSummary.pendingUsdVolume;
 
+  const fromIndex =
+    sortedTransactions.length === 0 ? 0 : (activePage - 1) * effectivePageSize + 1;
+  const toIndex = Math.min(activePage * effectivePageSize, sortedTransactions.length);
+
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Selected Customer Profile Banner (shown when a specific customer is selected) */}
-      {selectedCustomer && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-amber-400/10 border border-amber-400/30 animate-in fade-in duration-150">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="size-10 rounded-xl bg-amber-400/20 border border-amber-400/40 text-brand-text dark:text-amber-300 flex items-center justify-center font-black text-sm shrink-0">
-              {(selectedCustomer.clientName || selectedCustomer.clientEmail)
-                .slice(0, 2)
-                .toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-bold text-foreground truncate">
-                  {selectedCustomer.clientName}
-                </h3>
-                <Badge variant="gold" size="xs" className="font-semibold">
-                  Customer Credit View
-                </Badge>
-                <Badge variant="outline" size="xs" className="font-mono">
-                  {selectedCustomer.projectCount}{' '}
-                  {selectedCustomer.projectCount === 1 ? 'project' : 'projects'}
-                </Badge>
-                <Badge variant="outline" size="xs" className="font-mono">
-                  {selectedCustomer.transactionCount}{' '}
-                  {selectedCustomer.transactionCount === 1 ? 'entry' : 'entries'}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">
-                {selectedCustomer.clientEmail}
-              </p>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() => {
-              setCustomerFilter('all');
-              setCurrentPage(1);
-            }}
-            className="h-8 text-xs font-semibold gap-1.5 rounded-lg shrink-0 self-start sm:self-center bg-card hover:bg-secondary cursor-pointer"
-          >
-            <X className="size-3.5" />
-            All Customers
-          </Button>
-        </div>
-      )}
-
       {/* Credit Summary KPI Cards (Dynamically shows Overall Studio OR Selected Customer Details) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Card 1: Available / Remaining Credits */}
@@ -454,11 +454,12 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
         </div>
       </div>
 
-      {/* Control Bar: Search, Customer Filter, Type Filter, Status Filter, Reset */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-3.5 rounded-xl bg-secondary/35 border border-border/80">
-        <div className="flex flex-col sm:flex-row flex-wrap flex-1 items-stretch sm:items-center gap-2 min-w-0">
+      {/* Control Toolbar — matches AdminProjectsTable compact layout */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+        <div className="flex flex-1 flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 min-w-0">
+          {/* Search Input */}
           <div className="relative flex-1 min-w-[200px] sm:max-w-xs">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="size-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               type="text"
               placeholder="Search reference, email, creator..."
@@ -467,58 +468,21 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 h-9 text-xs bg-card rounded-lg border-border/80"
+              className="pl-9 h-8 text-xs bg-card rounded-lg border-border/80 focus-visible:border-amber-400"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 lg:flex items-center gap-2">
-            {/* By Customer Filter */}
-            <Select
+            {/* By Customer Searchable Combobox */}
+            <CustomerFilterCombobox
+              customers={customerComboboxOptions}
               value={customerFilter}
               onValueChange={(val) => {
-                setCustomerFilter((val as string) || 'all');
+                setCustomerFilter(val);
                 setCurrentPage(1);
               }}
-            >
-              <SelectTrigger className="h-9 text-xs bg-card w-full lg:w-[220px] rounded-lg">
-                <span className="inline-flex items-center gap-1.5 truncate">
-                  {selectedCustomer ? (
-                    <UserCheck className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-                  ) : (
-                    <Users className="size-3.5 text-muted-foreground shrink-0" />
-                  )}
-                  <SelectValue>
-                    {selectedCustomer
-                      ? `${selectedCustomer.clientName} (${selectedCustomer.transactionCount})`
-                      : `All Customers (${resolvedCustomers.length})`}
-                  </SelectValue>
-                </span>
-              </SelectTrigger>
-              <SelectContent className="w-72 max-h-80">
-                <SelectItem value="all" className="text-xs font-semibold">
-                  All Customers ({resolvedCustomers.length})
-                </SelectItem>
-                {resolvedCustomers.map((c) => (
-                  <SelectItem
-                    key={c.clientEmail}
-                    value={c.clientEmail}
-                    className="text-xs py-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-2 w-full min-w-0">
-                      <div className="truncate">
-                        <span className="font-semibold text-foreground">{c.clientName}</span>
-                        <span className="text-2xs text-muted-foreground ml-1.5 font-mono">
-                          ({c.clientEmail})
-                        </span>
-                      </div>
-                      <span className="text-2xs font-mono text-muted-foreground shrink-0">
-                        {c.transactionCount}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="lg:w-[220px]"
+            />
 
             {/* Type Filter */}
             <Select
@@ -528,7 +492,7 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-9 text-xs bg-card w-full lg:w-[150px] rounded-lg">
+              <SelectTrigger className="h-8 text-xs bg-card w-full lg:w-[145px] rounded-lg border-border/80">
                 <SelectValue>
                   {typeFilter === 'package_purchase'
                     ? 'Package Purchase'
@@ -558,7 +522,7 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-9 text-xs bg-card w-full lg:w-[130px] rounded-lg">
+              <SelectTrigger className="h-8 text-xs bg-card w-full lg:w-[125px] rounded-lg border-border/80">
                 <SelectValue>
                   {statusFilter === 'completed'
                     ? 'Settled'
@@ -579,21 +543,22 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
           </div>
         </div>
 
-        {/* Clear Filters / Summary Count */}
-        <div className="flex items-center gap-3 justify-between lg:justify-end shrink-0">
-          <span className="text-xs text-muted-foreground font-medium">
-            Showing <b className="text-foreground">{sortedTransactions.length}</b> records
+        {/* Counts & Clear Filters — matches AdminProjectsTable */}
+        <div className="flex items-center gap-2 justify-between sm:justify-end shrink-0">
+          <span className="text-xs text-muted-foreground font-mono tabular-nums">
+            Showing <b className="text-foreground">{fromIndex}–{toIndex}</b> of{' '}
+            <b className="text-foreground">{sortedTransactions.length}</b>
           </span>
           {hasActiveFilters && (
             <Button
               type="button"
-              variant="outline"
-              size="xs"
+              variant="ghost"
+              size="sm"
               onClick={resetFilters}
-              className="h-8 text-xs font-semibold gap-1.5 rounded-lg cursor-pointer"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1 cursor-pointer"
             >
-              <RotateCcw className="w-3 h-3" />
-              Reset
+              <RotateCcw className="size-3" />
+              <span>Reset</span>
             </Button>
           )}
         </div>
@@ -736,62 +701,20 @@ export function AgencyDataGrid({ transactions, customers, className }: AgencyDat
           </ResponsiveDesktopView>
 
           {/* Clean Pagination Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 border-t border-border/70 bg-card text-xs">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span>Rows per page:</span>
-              <Select
-                value={String(effectivePageSize)}
-                onValueChange={(val) => {
-                  setPageSize(Number(val));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-7 w-16 text-xs bg-card rounded-lg">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePageSizes.map((size) => (
-                    <SelectItem key={size} value={String(size)} className="text-xs">
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span>
-                Page <b className="text-foreground font-mono tabular-nums">{activePage}</b> of <b className="text-foreground font-mono tabular-nums">{totalPages}</b>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-xs"
-                disabled={activePage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="size-7 rounded-lg"
-                aria-label="Previous Page"
-              >
-                <ChevronLeft className="size-3.5" />
-              </Button>
-
-              <span className="text-2xs px-2 font-mono font-semibold tabular-nums text-muted-foreground">
-                {startIndex + 1}–{Math.min(startIndex + effectivePageSize, sortedTransactions.length)} of {sortedTransactions.length}
-              </span>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-xs"
-                disabled={activePage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="size-7 rounded-lg"
-                aria-label="Next Page"
-              >
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
-          </div>
+          <TablePaginationBar
+            page={activePage}
+            totalPages={totalPages}
+            pageSize={effectivePageSize}
+            pageSizeOptions={availablePageSizes}
+            totalCount={sortedTransactions.length}
+            fromIndex={fromIndex}
+            toIndex={toIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
         </ResponsiveTableShell>
       )}
     </div>

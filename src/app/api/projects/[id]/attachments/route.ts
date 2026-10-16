@@ -26,10 +26,17 @@ function sanitizeFilename(name: string): string {
  */
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
-    const { id } = await context.params;
+    const { id: rawId } = await context.params;
+    const id = rawId.startsWith('global:') ? 'global' : rawId;
     const user = await getRequestUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (user.isAdmin && !user.canManageProjects) {
+      return NextResponse.json(
+        { error: 'Viewers have read-only access and cannot upload attachments.' },
+        { status: 403 }
+      );
     }
 
     const rl = checkRateLimit(`upload:${user.id}`, 10, 60_000);
@@ -42,6 +49,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const admin = createAdminClient();
     const isGlobal = id === 'global';
+
+    if (isGlobal && !user.isAdmin) {
+      if (!user.emailConfirmed || !user.canChat) {
+        return NextResponse.json(
+          { error: 'Chat requires a verified email and at least one submitted project.' },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!isGlobal) {
       const { data: project, error: projErr } = await admin

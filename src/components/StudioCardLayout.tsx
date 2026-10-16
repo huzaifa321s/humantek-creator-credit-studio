@@ -13,6 +13,8 @@ import {
   Bell,
   Plus,
   PencilLine,
+  Users,
+  User,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -39,6 +41,7 @@ import { useNotificationStore } from '@/lib/notificationStore';
 import { ChatGate } from '@/components/chat/ChatGate';
 import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
 import { useActiveWizardDraft } from '@/lib/wizardStore';
+import { useManagementTeamQuery } from '@/lib/queries/management';
 
 interface StudioCardLayoutProps {
   children: React.ReactNode;
@@ -72,6 +75,13 @@ interface StudioSidebarNavigationProps {
   user: StudioUser | null;
 }
 
+const SIDEBAR_ITEM_BASE =
+  'h-9 min-h-9 px-2.5 rounded-lg text-sm gap-2.5 transition-all cursor-pointer border';
+const SIDEBAR_ITEM_ACTIVE =
+  'bg-amber-400/12 data-active:bg-amber-400/12 hover:bg-amber-400/16 border-amber-400/40 text-brand-text dark:text-amber-300 data-active:text-brand-text dark:data-active:text-amber-300 font-bold shadow-2xs';
+const SIDEBAR_ITEM_INACTIVE =
+  'border-transparent text-sidebar-foreground/80 font-medium hover:bg-muted/70 hover:text-foreground';
+
 function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const { unreadCounts } = useStudioChat();
@@ -91,10 +101,8 @@ function SidebarAdminCommunicationsItem({ pathname }: { pathname: string }) {
         render={<Link href="/management/inbox" onClick={handleNavClick} />}
         tooltip="Client Messages"
         className={cn(
-          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-          isActive
-            ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+          SIDEBAR_ITEM_BASE,
+          isActive ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
         )}
       >
         <MessageSquare
@@ -136,10 +144,8 @@ function SidebarClientMessagesItem() {
           onClick={handleMessagesClick}
           tooltip="Messages"
           className={cn(
-            'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-            isOpen
-              ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-              : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+            SIDEBAR_ITEM_BASE,
+            isOpen ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
           )}
         >
           <MessageSquare
@@ -160,7 +166,13 @@ function SidebarClientMessagesItem() {
   );
 }
 
-function SidebarNotificationsItem({ pathname }: { pathname: string }) {
+function SidebarNotificationsItem({
+  pathname,
+  suppressActive = false,
+}: {
+  pathname: string;
+  suppressActive?: boolean;
+}) {
   const { isMobile, setOpenMobile } = useSidebar();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
 
@@ -168,7 +180,7 @@ function SidebarNotificationsItem({ pathname }: { pathname: string }) {
     if (isMobile) setOpenMobile(false);
   };
 
-  const isActive = pathname.startsWith('/notifications');
+  const isActive = !suppressActive && pathname.startsWith('/notifications');
 
   return (
     <SidebarMenuItem>
@@ -178,10 +190,8 @@ function SidebarNotificationsItem({ pathname }: { pathname: string }) {
         render={<Link href="/notifications" onClick={handleNavClick} />}
         tooltip="Notifications"
         className={cn(
-          'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-          isActive
-            ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-            : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+          SIDEBAR_ITEM_BASE,
+          isActive ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
         )}
       >
         <Bell
@@ -201,12 +211,60 @@ function SidebarNotificationsItem({ pathname }: { pathname: string }) {
   );
 }
 
+function SidebarTeamAccessItem({ pathname }: { pathname: string }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { data } = useManagementTeamQuery();
+  const memberCount = data?.members?.length ?? 0;
+
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
+  const isActive = pathname.startsWith('/management/team');
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={isActive}
+        onClick={handleNavClick}
+        render={<Link href="/management/team" onClick={handleNavClick} />}
+        tooltip="Team Access"
+        className={cn(
+          SIDEBAR_ITEM_BASE,
+          isActive ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
+        )}
+      >
+        <Users
+          className={cn(
+            'size-4 shrink-0 transition-colors',
+            isActive
+              ? 'text-brand-text dark:text-amber-400'
+              : 'text-muted-foreground group-hover/menu-button:text-foreground'
+          )}
+        />
+        <span className="truncate group-data-[collapsible=icon]:hidden">Team Access</span>
+        {memberCount > 0 && (
+          <SidebarMenuBadge className="bg-muted text-muted-foreground font-bold font-mono tabular-nums text-2xs px-1.5 h-4 min-w-4 rounded-full group-data-[collapsible=icon]:hidden border border-border/60">
+            {memberCount}
+          </SidebarMenuBadge>
+        )}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 /**
  * Draft-aware sidebar entry point into the project wizard.
  * Shows "Resume Project" (with current step) when a saved draft exists,
  * otherwise "New Project".
  */
-function SidebarNewProjectItem() {
+function SidebarNewProjectItem({
+  pathname,
+  suppressActive = false,
+}: {
+  pathname: string;
+  suppressActive?: boolean;
+}) {
   const { isMobile, setOpenMobile } = useSidebar();
   const { hasDraft, step } = useActiveWizardDraft();
 
@@ -214,16 +272,23 @@ function SidebarNewProjectItem() {
     if (isMobile) setOpenMobile(false);
   };
 
+  const isActive = !suppressActive && pathname.startsWith('/new-project');
   const label = hasDraft ? 'Resume Project' : 'New Project';
   const Icon = hasDraft ? PencilLine : Plus;
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
+        isActive={isActive}
         onClick={handleNavClick}
         render={<Link href="/new-project" onClick={handleNavClick} />}
         tooltip={hasDraft ? `Resume Project (Step ${step})` : 'New Project'}
-        className="h-9 min-h-9 px-2.5 rounded-lg text-sm font-semibold gap-2.5 transition-colors cursor-pointer text-brand-text dark:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30"
+        className={cn(
+          SIDEBAR_ITEM_BASE,
+          isActive
+            ? SIDEBAR_ITEM_ACTIVE
+            : 'bg-card/90 border-border/80 text-foreground font-semibold hover:bg-amber-400/10 hover:border-amber-400/40 hover:text-brand-text dark:hover:text-amber-300 shadow-2xs'
+        )}
       >
         <Icon className="size-4 shrink-0 text-brand-text dark:text-amber-400" />
         <span className="truncate group-data-[collapsible=icon]:hidden">{label}</span>
@@ -239,8 +304,12 @@ function SidebarNewProjectItem() {
 
 function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProps) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const { isOpen: isChatOpen, setIsOpen: setChatOpen } = useStudioChat();
 
   const handleNavClick = () => {
+    if (isChatOpen) {
+      setChatOpen(false);
+    }
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -250,6 +319,10 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
     user?.role &&
     user.role.toLowerCase() === 'admin'
   );
+
+  const isProjectsActive = !isChatOpen && pathname === '/projects';
+  const isWalletActive = !isChatOpen && pathname.startsWith('/wallet');
+  const isPromoActive = !isChatOpen && pathname === '/redeem-code';
 
   return (
     <SidebarContent className="p-1.5 space-y-1.5 flex-1">
@@ -269,10 +342,8 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     render={<Link href="/management" onClick={handleNavClick} />}
                     tooltip="Agency Overview"
                     className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      pathname === '/management'
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                      SIDEBAR_ITEM_BASE,
+                      pathname === '/management' ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
                     )}
                   >
                     <LayoutDashboard
@@ -295,10 +366,10 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     render={<Link href="/management/projects" onClick={handleNavClick} />}
                     tooltip="Client Projects"
                     className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      SIDEBAR_ITEM_BASE,
                       pathname.startsWith('/management/projects')
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                        ? SIDEBAR_ITEM_ACTIVE
+                        : SIDEBAR_ITEM_INACTIVE
                     )}
                   >
                     <FolderKanban
@@ -324,10 +395,10 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                     render={<Link href="/management/ledger" onClick={handleNavClick} />}
                     tooltip="Credit History"
                     className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
+                      SIDEBAR_ITEM_BASE,
                       pathname.startsWith('/management/ledger')
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                        ? SIDEBAR_ITEM_ACTIVE
+                        : SIDEBAR_ITEM_INACTIVE
                     )}
                   >
                     <Receipt
@@ -342,8 +413,39 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* 5. Notifications */}
+                {/* 5. Team Access (Strictly Owner Only) */}
+                {user?.teamRole === 'owner' && (
+                  <SidebarTeamAccessItem pathname={pathname} />
+                )}
+
+                {/* 6. Notifications */}
                 <SidebarNotificationsItem pathname={pathname} />
+
+                {/* 7. Account Profile */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname.startsWith('/profile')}
+                    onClick={handleNavClick}
+                    render={<Link href="/profile" onClick={handleNavClick} />}
+                    tooltip="Account Profile"
+                    className={cn(
+                      SIDEBAR_ITEM_BASE,
+                      pathname.startsWith('/profile')
+                        ? SIDEBAR_ITEM_ACTIVE
+                        : SIDEBAR_ITEM_INACTIVE
+                    )}
+                  >
+                    <User
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/profile')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Profile</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </>
             ) : (
               // =========================================================
@@ -351,26 +453,24 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
               // =========================================================
               <>
                 {/* 0. New / Resume Project (draft-aware) */}
-                <SidebarNewProjectItem />
+                <SidebarNewProjectItem pathname={pathname} suppressActive={isChatOpen} />
 
                 {/* 1. My Projects */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={pathname === '/projects'}
+                    isActive={isProjectsActive}
                     onClick={handleNavClick}
                     render={<Link href="/projects" onClick={handleNavClick} />}
                     tooltip="My Projects"
                     className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      pathname === '/projects'
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                      SIDEBAR_ITEM_BASE,
+                      isProjectsActive ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
                     )}
                   >
                     <FolderKanban
                       className={cn(
                         'size-4 shrink-0 transition-colors',
-                        pathname === '/projects'
+                        isProjectsActive
                           ? 'text-brand-text dark:text-amber-400'
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
@@ -385,21 +485,19 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                 {/* 3. Credit History */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={pathname.startsWith('/wallet')}
+                    isActive={isWalletActive}
                     onClick={handleNavClick}
                     render={<Link href="/wallet" onClick={handleNavClick} />}
                     tooltip="Credit History"
                     className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      pathname.startsWith('/wallet')
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                      SIDEBAR_ITEM_BASE,
+                      isWalletActive ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
                     )}
                   >
                     <Receipt
                       className={cn(
                         'size-4 shrink-0 transition-colors',
-                        pathname.startsWith('/wallet')
+                        isWalletActive
                           ? 'text-brand-text dark:text-amber-400'
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
@@ -411,21 +509,19 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                 {/* 4. Promo Code */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={pathname === '/redeem-code'}
+                    isActive={isPromoActive}
                     onClick={handleNavClick}
                     render={<Link href="/redeem-code" onClick={handleNavClick} />}
                     tooltip="Promo Code"
                     className={cn(
-                      'h-9 min-h-9 px-2.5 rounded-lg text-sm font-medium gap-2.5 transition-colors cursor-pointer',
-                      pathname === '/redeem-code'
-                        ? 'bg-amber-400/15 text-brand-text dark:text-amber-300 font-bold shadow-2xs'
-                        : 'text-sidebar-foreground/80 hover:bg-muted/70 hover:text-foreground'
+                      SIDEBAR_ITEM_BASE,
+                      isPromoActive ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
                     )}
                   >
                     <Ticket
                       className={cn(
                         'size-4 shrink-0 transition-colors',
-                        pathname === '/redeem-code'
+                        isPromoActive
                           ? 'text-brand-text dark:text-amber-400'
                           : 'text-muted-foreground group-hover/menu-button:text-foreground'
                       )}
@@ -435,7 +531,33 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                 </SidebarMenuItem>
 
                 {/* 5. Notifications */}
-                <SidebarNotificationsItem pathname={pathname} />
+                <SidebarNotificationsItem pathname={pathname} suppressActive={isChatOpen} />
+
+                {/* 6. Account Profile */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={!isChatOpen && pathname.startsWith('/profile')}
+                    onClick={handleNavClick}
+                    render={<Link href="/profile" onClick={handleNavClick} />}
+                    tooltip="Account Profile"
+                    className={cn(
+                      SIDEBAR_ITEM_BASE,
+                      !isChatOpen && pathname.startsWith('/profile')
+                        ? SIDEBAR_ITEM_ACTIVE
+                        : SIDEBAR_ITEM_INACTIVE
+                    )}
+                  >
+                    <User
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        !isChatOpen && pathname.startsWith('/profile')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Profile</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </>
             )}
           </SidebarMenu>
@@ -475,19 +597,24 @@ export function StudioCardLayout({
   const router = useRouter();
   const topLoader = useTopLoader();
 
+  const { user, isHydrated, isSessionVerified } = useUserStore();
+  const isAdminUser = Boolean(user?.role && user.role.toLowerCase() === 'admin');
+
   const handleBack = () => {
     if (onBack) {
       onBack();
     } else if (currentStep > 1 && mode === 'wizard') {
       onSelectStep(currentStep - 1);
-    } else if (pathname !== '/projects') {
-      topLoader.start();
-      router.push('/projects');
+    } else {
+      const targetHome = isAdminUser ? '/management' : '/projects';
+      if (pathname !== targetHome) {
+        topLoader.start();
+        router.push(targetHome);
+      }
     }
   };
 
   const isBackDisabled = mode === 'wizard' && currentStep === 1 && !onBack;
-  const { user, isHydrated, isSessionVerified } = useUserStore();
 
   // Fallback client check for expired sessions and role confinement
   useEffect(() => {
@@ -503,14 +630,15 @@ export function StudioCardLayout({
       return;
     }
 
-    const isAdminUser = Boolean(user.role && user.role.toLowerCase() === 'admin');
+    const isSharedPath =
+      pathname.startsWith('/notifications') || pathname.startsWith('/profile');
 
-    if (isAdminUser && !pathname.startsWith('/management')) {
+    if (isAdminUser && !pathname.startsWith('/management') && !isSharedPath) {
       router.replace('/management');
     } else if (!isAdminUser && pathname.startsWith('/management')) {
       router.replace('/projects');
     }
-  }, [isHydrated, isSessionVerified, user?.email, user?.role, pathname, router]);
+  }, [isHydrated, isSessionVerified, user?.email, isAdminUser, pathname, router]);
 
   const effectiveName = isHydrated ? (user?.name || '') : '';
   const effectiveEmail = isHydrated ? (userEmail || user?.email || '') : (userEmail || '');
@@ -546,7 +674,7 @@ export function StudioCardLayout({
           userEmail={effectiveEmail}
           userName={effectiveName}
           userAvatarUrl={effectiveAvatarUrl}
-          topRightBadge={topRightBadge === undefined ? <StudioNewProjectButton /> : topRightBadge}
+          topRightBadge={topRightBadge === undefined ? (isAdminUser ? null : <StudioNewProjectButton />) : topRightBadge}
           onSignInClick={onSignInClick}
         />
 

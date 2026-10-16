@@ -9,13 +9,14 @@ import {
   Ticket,
   Receipt,
   ShieldCheck,
-  Sparkles,
   Plus,
   MessageSquare,
   Coins,
   ArrowRight,
   Sliders,
   X,
+  Users,
+  User,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
@@ -78,101 +79,160 @@ export function DashboardSearchDialog({
   );
 
   const searchItems: SearchItem[] = useMemo(
-    () => [
-      {
-        id: 'nav-projects',
-        category: 'Navigation' as const,
-        title: 'My Projects',
-        description: 'See where each project is and how many credits it uses',
-        icon: FolderKanban,
-        keywords: ['projects', 'status', 'deliverables', 'history', 'milestones', 'progress'],
-        action: () => navigateTo('/projects'),
-      },
-      {
-        id: 'nav-wizard',
-        category: 'Navigation' as const,
-        title: 'New Project',
-        description: 'Configure and start your next creative media project',
-        icon: Plus,
-        keywords: ['new', 'project', 'brief', 'create', 'order', 'package', 'home', 'services', 'wizard'],
-        action: () => navigateTo('/new-project'),
-      },
-      ...(canChat
-        ? [
-            {
-              id: 'nav-messages',
-              category: 'Navigation' as const,
-              title: 'Messages',
-              description: 'Direct chat with our team for project updates, feedback, and questions',
-              icon: MessageSquare,
-              keywords: ['chat', 'messages', 'team', 'feedback', 'support', 'talk', 'producer'],
-              action: () => {
-                useChatStore.getState().setIsOpen(true);
-                if (isMobile) setOpenMobile(false);
-              },
-              badge: 'Chat',
-            },
-          ]
-        : []),
-      {
-        id: 'nav-wallet',
-        category: 'Navigation' as const,
-        title: 'Credit History',
-        description: 'View your studio credit balance, package allocations, and usage ledger',
-        icon: Receipt,
-        keywords: ['credit', 'history', 'ledger', 'wallet', 'balance', 'transactions', 'usage'],
-        action: () => navigateTo('/wallet'),
-      },
-      {
-        id: 'nav-redeem',
-        category: 'Navigation' as const,
-        title: 'Promo Code',
-        description: 'Enter promotional codes to claim instant studio credits',
-        icon: Ticket,
-        keywords: ['promo', 'code', 'redeem', 'voucher', 'coupon', 'discount', 'free credits'],
-        action: () => navigateTo('/redeem-code'),
-      },
-      ...(isStaffOrAdmin
+    () =>
+      isStaffOrAdmin
         ? [
             {
               id: 'nav-management',
               category: 'Navigation' as const,
-              title: 'Agency Console',
-              description: 'Administrative workspace, client overview, and billing',
+              title: 'Agency Overview',
+              description: 'Studio operations dashboard, active production metrics, and KPIs',
               icon: ShieldCheck,
-              keywords: ['agency', 'management', 'admin', 'console', 'workspace', 'billing'],
+              keywords: ['agency', 'management', 'admin', 'console', 'overview', 'dashboard'],
               action: () => navigateTo('/management'),
             },
-          ]
-        : []),
-      ...(canChat
-        ? [
             {
-              id: 'action-chat',
-              category: 'Actions' as const,
-              title: 'Chat with Our Team',
-              description: 'Instant live briefing, revisions, and creative feedback',
+              id: 'nav-admin-projects',
+              category: 'Navigation' as const,
+              title: 'Client Projects',
+              description: 'Manage client briefs, production statuses, and deliverables',
+              icon: FolderKanban,
+              keywords: ['projects', 'clients', 'status', 'deliverables', 'queue', 'production'],
+              action: () => navigateTo('/management/projects'),
+            },
+            {
+              id: 'nav-admin-inbox',
+              category: 'Navigation' as const,
+              title: 'Client Messages',
+              description: 'Real-time studio inbox and client project communications',
               icon: MessageSquare,
-              keywords: ['chat', 'team', 'producer', 'support', 'message', 'help'],
-              action: () => {
-                useChatStore.getState().setIsOpen(true);
-                if (isMobile) setOpenMobile(false);
-              },
+              keywords: ['inbox', 'chat', 'messages', 'clients', 'support', 'feedback'],
+              action: () => navigateTo('/management/inbox'),
               badge: 'Live',
             },
+            {
+              id: 'nav-admin-ledger',
+              category: 'Navigation' as const,
+              title: 'Credit History & Promo Codes',
+              description: 'Audit studio credit transactions, issue credits, and manage promo codes',
+              icon: Receipt,
+              keywords: ['credit', 'history', 'ledger', 'promo', 'code', 'issue', 'transactions', 'billing'],
+              action: () => navigateTo('/management/ledger'),
+            },
+            ...(user?.teamRole === 'owner'
+              ? [
+                  {
+                    id: 'nav-admin-team',
+                    category: 'Navigation' as const,
+                    title: 'Team Access',
+                    description: 'Control Owner, Manager, and Viewer roles for studio team members',
+                    icon: Users,
+                    keywords: ['team', 'access', 'roles', 'owner', 'manager', 'viewer', 'permissions', 'staff'],
+                    action: () => navigateTo('/management/team'),
+                  },
+                ]
+              : []),
+            {
+              id: 'nav-admin-profile',
+              category: 'Navigation' as const,
+              title: 'Account Profile',
+              description: 'View your account status, role permissions, and edit your personal details',
+              icon: User,
+              keywords: ['profile', 'account', 'name', 'password', 'settings', 'details'],
+              action: () => navigateTo('/profile'),
+            },
           ]
-        : []),
-      {
-        id: 'action-balance',
-        category: 'Actions' as const,
-        title: `Credit balance (${walletBalance} CR)`,
-        description: 'Review credit utilization, top-ups, and balance breakdown',
-        icon: Coins,
-        keywords: ['balance', 'credits', 'wallet', 'funds', 'cr', 'coins', 'ledger'],
-        action: () => navigateTo('/wallet'),
-      },
-    ],
-    [navigateTo, isMobile, setOpenMobile, canChat, isStaffOrAdmin, walletBalance]
+        : [
+            {
+              id: 'nav-projects',
+              category: 'Navigation' as const,
+              title: 'My Projects',
+              description: 'See where each project is and how many credits it uses',
+              icon: FolderKanban,
+              keywords: ['projects', 'status', 'deliverables', 'history', 'milestones', 'progress'],
+              action: () => navigateTo('/projects'),
+            },
+            {
+              id: 'nav-wizard',
+              category: 'Navigation' as const,
+              title: 'New Project',
+              description: 'Configure and start your next creative media project',
+              icon: Plus,
+              keywords: ['new', 'project', 'brief', 'create', 'order', 'package', 'home', 'services', 'wizard'],
+              action: () => navigateTo('/new-project'),
+            },
+            ...(canChat
+              ? [
+                  {
+                    id: 'nav-messages',
+                    category: 'Navigation' as const,
+                    title: 'Messages',
+                    description: 'Direct chat with our team for project updates, feedback, and questions',
+                    icon: MessageSquare,
+                    keywords: ['chat', 'messages', 'team', 'feedback', 'support', 'talk', 'producer'],
+                    action: () => {
+                      useChatStore.getState().setIsOpen(true);
+                      if (isMobile) setOpenMobile(false);
+                    },
+                    badge: 'Chat',
+                  },
+                ]
+              : []),
+            {
+              id: 'nav-wallet',
+              category: 'Navigation' as const,
+              title: 'Credit History',
+              description: 'View your studio credit balance, package allocations, and usage ledger',
+              icon: Receipt,
+              keywords: ['credit', 'history', 'ledger', 'wallet', 'balance', 'transactions', 'usage'],
+              action: () => navigateTo('/wallet'),
+            },
+            {
+              id: 'nav-redeem',
+              category: 'Navigation' as const,
+              title: 'Promo Code',
+              description: 'Enter promotional codes to claim instant studio credits',
+              icon: Ticket,
+              keywords: ['promo', 'code', 'redeem', 'voucher', 'coupon', 'discount', 'free credits'],
+              action: () => navigateTo('/redeem-code'),
+            },
+            {
+              id: 'nav-profile',
+              category: 'Navigation' as const,
+              title: 'Account Profile',
+              description: 'View your account status and edit your personal details or password',
+              icon: User,
+              keywords: ['profile', 'account', 'name', 'password', 'settings', 'details'],
+              action: () => navigateTo('/profile'),
+            },
+            ...(canChat
+              ? [
+                  {
+                    id: 'action-chat',
+                    category: 'Actions' as const,
+                    title: 'Chat with Our Team',
+                    description: 'Instant live briefing, revisions, and creative feedback',
+                    icon: MessageSquare,
+                    keywords: ['chat', 'team', 'producer', 'support', 'message', 'help'],
+                    action: () => {
+                      useChatStore.getState().setIsOpen(true);
+                      if (isMobile) setOpenMobile(false);
+                    },
+                    badge: 'Live',
+                  },
+                ]
+              : []),
+            {
+              id: 'action-balance',
+              category: 'Actions' as const,
+              title: `Credit balance (${walletBalance} CR)`,
+              description: 'Review credit utilization, top-ups, and balance breakdown',
+              icon: Coins,
+              keywords: ['balance', 'credits', 'wallet', 'funds', 'cr', 'coins', 'ledger'],
+              action: () => navigateTo('/wallet'),
+            },
+          ],
+    [navigateTo, isMobile, setOpenMobile, canChat, isStaffOrAdmin, user?.teamRole, walletBalance]
   );
 
   const filteredItems = useMemo(() => {

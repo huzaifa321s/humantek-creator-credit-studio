@@ -17,9 +17,10 @@ import {
   Package,
   Search,
   MessageSquare,
-  Sparkles,
+  Plus,
   ChevronDown,
   CheckCircle2,
+  XCircle,
   Loader2,
   FileText,
   Clock,
@@ -28,6 +29,7 @@ import {
 import { useStudioChat } from '@/lib/chatStore';
 import { ProjectPipelineStepper } from '@/components/ProjectPipelineStepper';
 import { ClientProjectDetailsDrawer } from '@/components/projects/ClientProjectDetailsDrawer';
+import { ColorPaletteValue } from '@/components/projects/ProjectDrawerSections';
 import {
   Empty,
   EmptyContent,
@@ -71,9 +73,9 @@ function ProjectCardChatButton({
         <span className="truncate">Messages</span>
         {unread > 0 && (
           <Badge
-            variant="destructive"
+            variant="gold-solid"
             size="xs"
-            className="size-4 p-0 font-bold font-mono tabular-nums text-2xs rounded-full shrink-0"
+            className="size-4 p-0 font-black font-mono tabular-nums text-2xs rounded-full shrink-0"
           >
             {unread}
           </Badge>
@@ -101,6 +103,13 @@ function CompactProjectRow({
   const detailQuery = useProjectDetailQuery(isExpanded ? project.id : null);
   const effectiveProject = detailQuery.data || project;
   const selections = effectiveProject.selections || [];
+  const isDeclinedOrCancelled = project.status === 'declined' || project.status === 'cancelled';
+  const compactStatusLabel =
+    project.status === 'cancelled'
+      ? 'Cancelled'
+      : project.status === 'declined'
+        ? 'Declined'
+        : 'Delivered';
 
   return (
     <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs transition-all hover:border-amber-400/40">
@@ -143,18 +152,32 @@ function CompactProjectRow({
             {project.usedCredits > 0 && (
               <CreditValue value={project.usedCredits} size="xs" variant="pill" />
             )}
-            <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1">
-              <CheckCircle2 className="size-3" />
-              <span>Delivered</span>
+            <Badge
+              variant={isDeclinedOrCancelled ? 'destructive' : 'success'}
+              className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1"
+            >
+              {isDeclinedOrCancelled ? (
+                <XCircle className="size-3" />
+              ) : (
+                <CheckCircle2 className="size-3" />
+              )}
+              <span>{compactStatusLabel}</span>
             </Badge>
           </div>
         </div>
 
         <div className="flex flex-wrap sm:flex-nowrap items-center justify-between md:justify-end gap-2 shrink-0 pt-2.5 md:pt-0 border-t border-border/40 md:border-t-0">
           <div className="hidden md:flex items-center gap-2">
-            <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1">
-              <CheckCircle2 className="size-3" />
-              <span>Delivered</span>
+            <Badge
+              variant={isDeclinedOrCancelled ? 'destructive' : 'success'}
+              className="text-2xs font-semibold px-2 py-0.5 rounded-md gap-1"
+            >
+              {isDeclinedOrCancelled ? (
+                <XCircle className="size-3" />
+              ) : (
+                <CheckCircle2 className="size-3" />
+              )}
+              <span>{compactStatusLabel}</span>
             </Badge>
 
             {project.usedCredits > 0 && (
@@ -213,7 +236,9 @@ function CompactProjectRow({
             </p>
             <ProjectPipelineStepper
               status={project.status}
+              paymentStatus={project.paymentStatus}
               createdAt={project.createdAt}
+              updatedAt={project.updatedAt}
               projectCode={project.projectCode}
             />
           </div>
@@ -228,13 +253,11 @@ function CompactProjectRow({
                 {project.style || 'Custom Art'}
               </b>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-muted-foreground text-2xs block font-bold uppercase tracking-wider mb-0.5">
                 Color Palette
               </span>
-              <b className="font-semibold text-foreground truncate block">
-                {project.colors || 'Brand Colors'}
-              </b>
+              <ColorPaletteValue colors={project.colors} textClassName="text-xs" />
             </div>
             <div>
               <span className="text-muted-foreground text-2xs block font-bold uppercase tracking-wider mb-0.5">
@@ -246,10 +269,10 @@ function CompactProjectRow({
             </div>
             <div>
               <span className="text-muted-foreground text-2xs block font-bold uppercase tracking-wider mb-0.5">
-                Delivered Date
+                {isDeclinedOrCancelled ? 'Updated Date' : 'Delivered Date'}
               </span>
               <b className="font-semibold font-mono tabular-nums text-foreground">
-                {formatStudioDate(project.createdAt)}
+                {formatStudioDate(project.updatedAt || project.createdAt)}
               </b>
             </div>
           </div>
@@ -495,7 +518,7 @@ function ProjectsPageContent() {
                 render={<Link href="/new-project" />}
                 nativeButton={false}
               >
-                <Sparkles className="size-4" />
+                <Plus className="size-4" />
                 Start a project
               </Button>
             </EmptyContent>
@@ -545,6 +568,11 @@ function ProjectsPageContent() {
               }
 
               // In-progress projects (or all projects when <= 3) render as full cards
+              const effectiveStatus: ProjectRecord['status'] =
+                proj.status === 'pending_review' && proj.paymentStatus === 'paid'
+                  ? 'payment_confirmed'
+                  : proj.status;
+
               return (
                 <Card
                   key={proj.id}
@@ -570,38 +598,38 @@ function ProjectsPageContent() {
                         <span
                           className={cn(
                             'size-2 rounded-full shrink-0 mt-1 sm:mt-1.5',
-                            proj.status === 'pending_review' && 'bg-amber-400 animate-pulse',
-                            proj.status === 'payment_confirmed' && 'bg-emerald-500',
-                            proj.status === 'in_production' && 'bg-amber-400 animate-pulse',
-                            proj.status === 'review_round' && 'bg-purple-500',
-                            proj.status === 'delivered' && 'bg-emerald-500',
-                            !['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(proj.status) && 'bg-muted-foreground/50'
+                            effectiveStatus === 'pending_review' && 'bg-amber-400 animate-pulse',
+                            effectiveStatus === 'payment_confirmed' && 'bg-emerald-500',
+                            effectiveStatus === 'in_production' && 'bg-amber-400 animate-pulse',
+                            effectiveStatus === 'review_round' && 'bg-amber-400',
+                            effectiveStatus === 'delivered' && 'bg-emerald-500',
+                            !['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(effectiveStatus) && 'bg-muted-foreground/50'
                           )}
                         />
                         <p className="min-w-0 flex-1 leading-snug">
                           <span className="font-semibold text-foreground/90">
-                            {proj.status === 'pending_review'
+                            {effectiveStatus === 'pending_review'
                               ? 'Pending Studio Review'
-                              : proj.status === 'payment_confirmed'
+                              : effectiveStatus === 'payment_confirmed'
                               ? 'Payment Confirmed'
-                              : proj.status === 'in_production'
+                              : effectiveStatus === 'in_production'
                               ? 'In Production'
-                              : proj.status === 'review_round'
+                              : effectiveStatus === 'review_round'
                               ? 'Review Round Open'
-                              : proj.status === 'delivered'
+                              : effectiveStatus === 'delivered'
                               ? 'Delivered'
-                              : `Project ${proj.status.replace(/_/g, ' ')}`}
+                              : `Project ${effectiveStatus.replace(/_/g, ' ')}`}
                           </span>
                           <span className="text-muted-foreground">
-                            {proj.status === 'pending_review'
+                            {effectiveStatus === 'pending_review'
                               ? ' · Studio team is reviewing your project'
-                              : proj.status === 'payment_confirmed'
+                              : effectiveStatus === 'payment_confirmed'
                               ? ' · Queued for production'
-                              : proj.status === 'in_production'
+                              : effectiveStatus === 'in_production'
                               ? ' · Artists are working on your assets'
-                              : proj.status === 'review_round'
+                              : effectiveStatus === 'review_round'
                               ? ' · Draft ready for your review'
-                              : proj.status === 'delivered'
+                              : effectiveStatus === 'delivered'
                               ? ' · Project completed'
                               : ''}
                           </span>
@@ -618,19 +646,40 @@ function ProjectsPageContent() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
                           variant={
-                            proj.paymentStatus === 'paid'
+                            effectiveStatus === 'delivered'
+                              ? 'success'
+                              : proj.status === 'declined' || proj.status === 'cancelled'
+                              ? 'destructive'
+                              : proj.paymentStatus === 'paid'
                               ? 'success'
                               : proj.status === 'pending_review'
                               ? 'gold'
                               : 'secondary'
                           }
-                          className="text-xs font-semibold uppercase px-2.5 py-0.5 rounded-md"
+                          className="text-xs font-semibold uppercase px-2.5 py-0.5 rounded-md gap-1"
                         >
-                          {proj.paymentStatus === 'paid'
-                            ? 'Payment Confirmed'
-                            : proj.status === 'pending_review'
-                            ? 'Pending Review'
-                            : 'Awaiting Payment'}
+                          {effectiveStatus === 'delivered' ? (
+                            <>
+                              <CheckCircle2 className="size-3" />
+                              <span>Delivered</span>
+                            </>
+                          ) : proj.status === 'declined' ? (
+                            <>
+                              <XCircle className="size-3" />
+                              <span>Declined</span>
+                            </>
+                          ) : proj.status === 'cancelled' ? (
+                            <>
+                              <XCircle className="size-3" />
+                              <span>Cancelled</span>
+                            </>
+                          ) : proj.paymentStatus === 'paid' ? (
+                            'Payment Confirmed'
+                          ) : proj.status === 'pending_review' ? (
+                            'Pending Review'
+                          ) : (
+                            'Awaiting Payment'
+                          )}
                         </Badge>
                         {proj.usedCredits > 0 && (
                           <div className="flex items-center gap-1.5">
@@ -662,8 +711,10 @@ function ProjectsPageContent() {
                         Project Progress
                       </p>
                       <ProjectPipelineStepper
-                        status={proj.status}
+                        status={effectiveStatus}
+                        paymentStatus={proj.paymentStatus}
                         createdAt={proj.createdAt}
+                        updatedAt={proj.updatedAt}
                         projectCode={proj.projectCode}
                       />
                     </div>
@@ -674,12 +725,12 @@ function ProjectsPageContent() {
                         <Clock className="size-3.5 text-brand-text dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
                         <p className="text-muted-foreground leading-snug break-words">
                           <b className="text-foreground font-semibold">Next step:</b>{' '}
-                          {proj.status === 'pending_review' && 'Studio lead review in progress (expected 2–4h)'}
-                          {proj.status === 'payment_confirmed' && 'Queued for artist assignment'}
-                          {proj.status === 'in_production' && 'Draft concepts in illustration and rendering'}
-                          {proj.status === 'review_round' && 'Review your draft assets and share feedback'}
-                          {proj.status === 'delivered' && 'Project completed and delivered'}
-                          {!['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(proj.status) && 'Project update will appear here'}
+                          {effectiveStatus === 'pending_review' && 'Studio lead review in progress (expected 2–4h)'}
+                          {effectiveStatus === 'payment_confirmed' && 'Queued for artist assignment'}
+                          {effectiveStatus === 'in_production' && 'Draft concepts in illustration and rendering'}
+                          {effectiveStatus === 'review_round' && 'Review your draft assets and share feedback'}
+                          {effectiveStatus === 'delivered' && 'Project completed and delivered'}
+                          {!['pending_review', 'payment_confirmed', 'in_production', 'review_round', 'delivered'].includes(effectiveStatus) && 'Project update will appear here'}
                         </p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
@@ -691,7 +742,7 @@ function ProjectsPageContent() {
                         )}
                         {proj.additions && proj.additions.some((a: string) => /rush|express|24h/i.test(a)) && (
                           <span className="flex items-center gap-1 text-2xs text-amber-500 font-semibold" title="Express priority">
-                            <Sparkles className="size-3" />
+                            <Clock className="size-3" />
                             <span>Express</span>
                           </span>
                         )}
@@ -711,7 +762,7 @@ function ProjectsPageContent() {
                       </div>
                       <div className="min-w-0">
                         <span className="text-muted-foreground text-2xs sm:text-xs block font-bold uppercase tracking-wider mb-1">Color Palette</span>
-                        <b className="text-xs sm:text-sm font-semibold text-foreground truncate block">{proj.colors || 'Brand Colors'}</b>
+                        <ColorPaletteValue colors={proj.colors} />
                       </div>
                       {proj.platform && proj.platform.toLowerCase() !== 'general' && (
                         <div className="min-w-0">

@@ -6,7 +6,7 @@ import {
   ArrowUpRight,
   Trash2,
   Layers,
-  Sparkles,
+  Plus,
   Info,
   AlertTriangle,
   RefreshCw,
@@ -48,7 +48,7 @@ const EXTRA_METADATA: Record<
     tag: 'Format',
   },
   'Additional concept': {
-    icon: Sparkles,
+    icon: Layers,
     tag: 'Creative',
   },
   'Rush delivery request': {
@@ -339,7 +339,7 @@ export function CartSidebar({
                       : 'text-brand-text dark:text-amber-400 bg-amber-400/15 border-amber-400/25'
                   )}
                 >
-                  <Sparkles className="w-3 h-3 text-current" />
+                  <Plus className="w-3 h-3 text-current" />
                   Click &ldquo;Add to Cart&rdquo; on any service
                 </span>
               </EmptyContent>
@@ -353,7 +353,7 @@ export function CartSidebar({
             <div className="flex items-center justify-between pb-0.5">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-md bg-amber-400/20 text-brand-text dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Layers className="w-3.5 h-3.5" />
                 </div>
                 <div>
                   <h4 className="text-xs font-black uppercase tracking-wider text-foreground">
@@ -380,7 +380,7 @@ export function CartSidebar({
                 const isChecked = additions?.includes(extra) ?? false;
                 const id = `cart-addition-${extra.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
                 const meta = EXTRA_METADATA[extra];
-                const Icon = meta?.icon || Sparkles;
+                const Icon = meta?.icon || Layers;
                 const cost = ADDITIONS_PRICING[extra] ?? 0;
 
                 return (
@@ -492,7 +492,7 @@ export function CartSidebar({
         {/* Dynamic Contextual Upgrade Callout */}
         {isOverBudget && (
           <Alert variant="warning" className="rounded-xl p-3 border-amber-400/35 bg-amber-400/[0.08] animate-in fade-in [&>svg]:text-brand-text dark:[&>svg]:text-amber-400">
-            <Sparkles className="w-4 h-4" />
+            <AlertTriangle className="w-4 h-4" />
             <AlertTitle className="text-xs sm:text-sm font-bold text-foreground truncate">
               {recommendedPack ? `Upgrade to ${recommendedPack.name}` : 'Upgrade Required'}
             </AlertTitle>

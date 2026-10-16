@@ -69,13 +69,16 @@ export function formatChatTimestamp(raw?: string | null): string {
   }
 
   // If already formatted like "09:15 AM" or "14:30"
-  if (/^\d{1,2}:\d{2}(:\d{2})?(\s*[APap][Mm])?$/.test(trimmed)) {
+  if (/^\d{1,2}:\d{2}(:\d{2})?(\s*[APap]\.?[Mm]\.?)?$/.test(trimmed)) {
     return trimmed;
   }
 
   // Parse as Date (handles ISO 8601 strings from Postgres like 2026-10-08T08:30:00Z)
   const d = new Date(trimmed);
   if (isNaN(d.getTime())) {
+    if (/\d/.test(trimmed)) {
+      return trimmed;
+    }
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -93,6 +96,23 @@ export const PROJECT_STATUS_LABELS: Record<string, string> = {
 export function getProjectStatusLabel(status?: string): string {
   if (!status) return 'Unknown'
   return PROJECT_STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+export function getProjectStatusBadgeClass(status?: string): string {
+  switch (status) {
+    case 'delivered':
+    case 'completed':
+    case 'payment_confirmed':
+      return 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/25'
+    case 'declined':
+    case 'cancelled':
+      return 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/25'
+    case 'pending_review':
+    case 'in_production':
+    case 'review_round':
+    default:
+      return 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/25'
+  }
 }
 
 export const PAYMENT_STATUS_LABELS: Record<string, string> = {

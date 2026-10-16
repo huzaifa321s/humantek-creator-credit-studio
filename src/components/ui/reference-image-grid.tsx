@@ -211,7 +211,12 @@ export function UploadedAttachmentList({
 
   return (
     <>
-      <AttachmentGroup className={cn('pt-0.5', className)}>
+      <AttachmentGroup
+        className={cn(
+          'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 pt-0.5',
+          className
+        )}
+      >
         {files.map((f) => {
           const lbIndex = lightboxImages.findIndex((img) => img.id === f.id);
           const canPreview = lbIndex !== -1;
@@ -222,7 +227,7 @@ export function UploadedAttachmentList({
               key={f.id}
               size="sm"
               className={cn(
-                'min-w-0 max-w-[220px] border-border/80 bg-card/90 shadow-2xs transition-all',
+                'w-full max-w-none min-w-0 border-border/80 bg-card/90 shadow-2xs transition-all',
                 canPreview && 'hover:border-amber-400/50 cursor-pointer'
               )}
             >
@@ -284,7 +289,7 @@ export function UploadedAttachmentList({
             key={`uploading-${name}`}
             size="sm"
             state="uploading"
-            className="min-w-0 max-w-[220px] border-border/80 bg-card/90 shadow-2xs"
+            className="w-full max-w-none min-w-0 border-border/80 bg-card/90 shadow-2xs"
           >
             <AttachmentMedia className="size-9 rounded-lg border border-border/60 shrink-0">
               <Skeleton className="size-full rounded-none" />

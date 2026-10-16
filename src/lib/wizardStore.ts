@@ -48,8 +48,6 @@ export interface WizardStoreState {
 
   brief: WizardBriefState;
   uploadedFiles: UploadedFile[];
-  redeemCodeInput: string;
-  redeemCodeAttached: boolean;
 
   isSubmitting: boolean;
   errorMessage: string;
@@ -97,9 +95,6 @@ export interface WizardStoreState {
   addUploadedFile: (file: UploadedFile) => void;
   removeUploadedFile: (id: string) => void;
 
-  setRedeemCodeInput: (code: string) => void;
-  setRedeemCodeAttached: (attached: boolean) => void;
-
   setIsSubmitting: (submitting: boolean) => void;
   setErrorMessage: (msg: string) => void;
   setSubmittedProject: (project: ProjectRecord | null) => void;
@@ -128,8 +123,6 @@ export const useWizardStore = create<WizardStoreState>()(
 
       brief: INITIAL_BRIEF,
       uploadedFiles: [],
-      redeemCodeInput: '',
-      redeemCodeAttached: false,
 
       isSubmitting: false,
       errorMessage: '',
@@ -249,9 +242,6 @@ export const useWizardStore = create<WizardStoreState>()(
           uploadedFiles: state.uploadedFiles.filter((f) => f.id !== id),
         })),
 
-      setRedeemCodeInput: (code) => set({ redeemCodeInput: code }),
-      setRedeemCodeAttached: (attached) => set({ redeemCodeAttached: attached }),
-
       setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
       setErrorMessage: (msg) => set({ errorMessage: msg }),
       setSubmittedProject: (project) => set({ submittedProject: project }),
@@ -281,8 +271,6 @@ export const useWizardStore = create<WizardStoreState>()(
           isTermsExpanded: false,
           brief: INITIAL_BRIEF,
           uploadedFiles: [],
-          redeemCodeInput: '',
-          redeemCodeAttached: false,
           isSubmitting: false,
           errorMessage: '',
           submittedProject: null,
@@ -299,6 +287,7 @@ export const useWizardStore = create<WizardStoreState>()(
         projectId: state.projectId,
         selectedPackageId: state.selectedPackageId,
         fundingSource: state.fundingSource,
+        applyWalletCredits: state.applyWalletCredits,
         currentStep: state.currentStep,
         selections: Object.fromEntries(
           Object.entries(state.selections).map(([id, s]) => [

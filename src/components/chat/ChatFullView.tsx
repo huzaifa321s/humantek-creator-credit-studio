@@ -17,9 +17,15 @@ import { ChatProjectSidebar } from './ChatProjectSidebar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getErrorMessage } from '@/lib/utils';
+import { FilterTabs } from '@/components/ui/filter-tabs';
 import {
-  Sparkles,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn, getErrorMessage, getProjectStatusLabel, getProjectStatusBadgeClass } from '@/lib/utils';
+import {
   Plus,
   ShieldCheck,
   FolderKanban,
@@ -51,6 +57,7 @@ export function ChatFullView() {
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatReplyTo | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+  const [mobileTab, setMobileTab] = useState<'chat' | 'threads'>('chat');
 
   const [syncedThreadId, setSyncedThreadId] = useState(projectId);
   if (syncedThreadId !== projectId) {
@@ -88,18 +95,19 @@ export function ChatFullView() {
   } = useProjectChat({ projectId: targetProjectId });
 
   const displayMeta = isGlobal
-    ? GLOBAL_META
+    ? { ...GLOBAL_META, channelName: undefined as string | undefined }
     : activeProject
     ? {
         id: activeProject.id,
         projectCode: activeProject.projectCode,
         packageName: activeProject.packageName,
+        channelName: activeProject.channelName,
         clientName: activeProject.clientName,
         status: activeProject.status,
         price: activeProject.packagePrice,
         credits: activeProject.packageCredits,
       }
-    : GLOBAL_META;
+    : { ...GLOBAL_META, channelName: undefined as string | undefined };
 
   // Mark active conversation as read
   useEffect(() => {
@@ -269,57 +277,49 @@ export function ChatFullView() {
         </div>
       </div>
 
+      {/* Mobile / Tablet 2-Tab Switcher (Active Chat | All Chats) */}
+      <div className="lg:hidden">
+        <FilterTabs
+          value={mobileTab}
+          onValueChange={(val) => setMobileTab(val as 'chat' | 'threads')}
+          size="sm"
+          listClassName="w-full grid grid-cols-2 h-9 p-0.5 bg-card border border-border/80 rounded-xl shadow-2xs"
+          tabs={[
+            {
+              value: 'chat',
+              label: 'Active Chat',
+              icon: MessageSquare,
+            },
+            {
+              value: 'threads',
+              label: 'All Chats',
+              count: projects.length + 1,
+              icon: FolderKanban,
+            },
+          ]}
+        />
+      </div>
+
       {/* Main 2-Column Chat Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ========================================================= */}
         {/* LEFT COLUMN: PROJECT DIRECTORY & ASSETS                   */}
         {/* ========================================================= */}
-        <div className="lg:col-span-4 xl:col-span-3 space-y-4 order-2 lg:order-1">
-          {/* Studio Team Card */}
-          <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-4">
-            <div className="flex items-start gap-3.5">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-brand-text dark:text-amber-400 shadow-xs border border-amber-400/30">
-                <MessageSquare className="size-5" />
-              </span>
-
-              <div className="space-y-0.5 flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-bold text-foreground truncate">Studio Team</h3>
-                  <Badge variant="gold" className="text-2xs font-mono font-bold uppercase tracking-wider py-0 px-1.5 h-4">
-                    Live
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground truncate">Project Messages &amp; Direct Support</p>
-                <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground font-medium">
-                  Direct Studio Line
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-secondary/30 border border-border/60 space-y-2 text-xs">
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> Studio Hours
-                </span>
-                <span className="font-medium text-foreground">Mon–Fri · 9AM–7PM EST</span>
-              </div>
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Mode
-                </span>
-                <span className="font-medium text-foreground">Project-Isolated</span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Project Conversation Threads Directory */}
-          <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden h-[380px]">
+        <div
+          className={cn(
+            'lg:col-span-4 xl:col-span-3 space-y-4 order-2 lg:order-1',
+            mobileTab === 'threads' ? 'block' : 'hidden lg:block'
+          )}
+        >
+          {/* Project Conversation Threads Directory (Tall, comfortable height) */}
+          <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden h-[520px] lg:h-[560px]">
             <ChatProjectSidebar
               projects={projects}
               activeProjectId={projectId}
               unreadCounts={unreadCounts}
               onSelectProject={(id) => {
                 setActiveProjectId(id);
+                setMobileTab('chat');
                 if (typeof window !== 'undefined' && window.location.pathname === '/messages') {
                   const url = new URL(window.location.href);
                   url.searchParams.delete('thread');
@@ -338,17 +338,36 @@ export function ChatFullView() {
           {/* Reference Moodboards or Studio Overview */}
           {isGlobal ? (
             <Card className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs space-y-3">
-              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
-                <Sparkles className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
-                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Need help?
-                </span>
+              <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Direct Studio Support
+                  </span>
+                </div>
+                <Badge variant="gold" className="text-3xs font-mono font-bold uppercase tracking-wider py-0 px-1.5 h-4">
+                  1-on-1
+                </Badge>
               </div>
               <div className="space-y-2.5 text-xs text-muted-foreground leading-relaxed">
                 <p>
-                  Message our studio team about packages, credits, or your projects.
+                  Ask our studio team about packages, credit top-ups, or custom creative briefs.
                 </p>
-                <div className="pt-2 border-t border-border/70 space-y-2 font-medium text-2xs text-foreground/90">
+                <div className="p-2.5 rounded-lg bg-secondary/30 border border-border/60 space-y-1.5 text-2xs">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Studio Hours
+                    </span>
+                    <span className="font-medium text-foreground">Mon–Fri · 9AM–7PM EST</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-emerald-500" /> Privacy
+                    </span>
+                    <span className="font-medium text-foreground">Private 1-on-1 Thread</span>
+                  </div>
+                </div>
+                <div className="pt-1.5 border-t border-border/70 font-medium text-2xs text-foreground/90">
                   <a
                     href="mailto:support@humantek.com"
                     className="flex items-center gap-2 text-brand-text dark:text-amber-400 hover:underline"
@@ -408,45 +427,76 @@ export function ChatFullView() {
         {/* ========================================================= */}
         {/* RIGHT COLUMN: CHAT STREAM                                 */}
         {/* ========================================================= */}
-        <div className="lg:col-span-8 xl:col-span-9 order-1 lg:order-2">
+        <div
+          className={cn(
+            'lg:col-span-8 xl:col-span-9 order-1 lg:order-2',
+            mobileTab === 'chat' ? 'block' : 'hidden lg:block'
+          )}
+        >
           <Card className="rounded-xl border border-border/80 bg-card shadow-sm flex flex-col gap-0 py-0 h-[620px] sm:h-[700px] lg:h-[740px] max-h-[85vh] overflow-hidden">
             {/* Chat Pane Header */}
             {isGlobal ? (
-              <div className="px-3.5 sm:px-5 py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-[56px] flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs">
-                    <MessageSquare className="size-3.5" />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm sm:text-base font-bold tracking-tight text-foreground">Studio Help</span>
-                    </div>
-                    <p className="text-2xs text-muted-foreground mt-0.5 leading-normal truncate">
-                      Packages, credits, or anything else
-                    </p>
+              <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-0.5">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 shrink-0 shadow-2xs border border-amber-400/25">
+                      <MessageSquare className="size-3.5" />
+                    </span>
+                    <span className="text-sm sm:text-base font-bold tracking-tight text-foreground truncate">
+                      Ask the Studio Team
+                    </span>
                   </div>
+
+                  <span className="text-2xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 shrink-0">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Studio Team Live</span>
+                  </span>
                 </div>
+                <p className="text-2xs text-muted-foreground truncate pl-0 sm:pl-9">
+                  Packages, credits &amp; custom requests
+                </p>
               </div>
             ) : (
               <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1">
                 <div className="flex items-center justify-between gap-2 min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                    <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-2 py-0.5 rounded border border-border/80 shrink-0">
                       {displayMeta.projectCode}
                     </span>
-                    <span className="text-foreground/90 font-semibold text-xs sm:text-sm truncate max-w-[130px] sm:max-w-[240px]">
-                      {displayMeta.packageName}
-                    </span>
+                    <TooltipProvider delay={200}>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <span className="text-foreground font-bold text-xs sm:text-sm truncate max-w-[160px] sm:max-w-[320px] cursor-default" />
+                          }
+                        >
+                          {displayMeta.channelName || displayMeta.packageName}
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start" className="px-2.5 py-1.5 text-2xs">
+                          <span>
+                            <span className="text-zinc-400 font-medium">
+                              {displayMeta.channelName ? 'Channel / Brand:' : 'Package:'}
+                            </span>{' '}
+                            <span className="font-semibold text-white">
+                              {displayMeta.channelName || displayMeta.packageName}
+                            </span>
+                          </span>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <Badge
                       variant="outline"
-                      className="text-3xs sm:text-2xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                      className={cn(
+                        'text-3xs sm:text-2xs font-semibold px-1.5 py-0 h-4 shrink-0 rounded-md',
+                        getProjectStatusBadgeClass(displayMeta.status)
+                      )}
                     >
-                      {(displayMeta.status || 'in_progress').replace(/_/g, ' ').toLowerCase()}
+                      {getProjectStatusLabel(displayMeta.status)}
                     </Badge>
                   </div>
 
                   <Link
-                    href="/projects"
+                    href={displayMeta.id ? `/projects?project=${encodeURIComponent(displayMeta.id)}` : '/projects'}
                     className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                   >
                     <span>View Project</span>
@@ -454,8 +504,16 @@ export function ChatFullView() {
                   </Link>
                 </div>
 
-                <div className="flex items-center gap-x-1.5 gap-y-0.5 text-2xs text-muted-foreground flex-wrap min-w-0">
-                  <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/25 shrink-0">
+                <div className="flex items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground flex-wrap min-w-0">
+                  {displayMeta.channelName && (
+                    <>
+                      <span className="text-foreground/85 font-medium truncate">
+                        {displayMeta.packageName}
+                      </span>
+                      <span className="text-muted-foreground/40">·</span>
+                    </>
+                  )}
+                  <span className="inline-flex items-center font-mono tabular-nums font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 dark:bg-amber-400/20 px-1.5 py-0.2 rounded border border-amber-400/25 shrink-0 text-3xs">
                     {displayMeta.credits || 0} CR
                   </span>
                   {displayMeta.price && (
@@ -480,6 +538,14 @@ export function ChatFullView() {
                 onClearUnread={clearUnreadBelowScroll}
                 onIncrementUnread={incrementUnreadBelowScroll}
                 contentClassName="px-5 py-4 gap-3"
+                emptyTitle={isGlobal ? 'Ask the Studio Team' : 'No messages in this project yet'}
+                emptyDescription={
+                  isGlobal
+                    ? 'Have a question about packages, credits, or custom ideas? Send a message below and our team will reply here in real time.'
+                    : `Send a message below to discuss deliverables, share references, or request updates for ${
+                        displayMeta.channelName || displayMeta.packageName
+                      }.`
+                }
                 renderMessage={(msg) => (
                   <ChatMessageItem
                     message={msg}
@@ -507,7 +573,9 @@ export function ChatFullView() {
                 isGlobal={isGlobal}
                 projectId={projectId}
                 activeProjectCode={isGlobal ? undefined : displayMeta.projectCode}
-                activeProjectName={isGlobal ? undefined : displayMeta.packageName}
+                activeProjectName={
+                  isGlobal ? undefined : displayMeta.channelName || displayMeta.packageName
+                }
               />
             </div>
           </Card>

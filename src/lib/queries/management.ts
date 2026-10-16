@@ -5,6 +5,7 @@ import { ApiError } from '@/components/Providers';
 import { useUserStore } from '@/lib/userStore';
 import type { ManagementSummaryData } from '@/app/api/management/summary/route';
 import type { LedgerTransaction, LedgerCustomerSummary } from '@/components/AgencyDataGrid';
+import type { TeamAccessResponse } from '@/app/api/management/team/route';
 
 interface LedgerResponse {
   transactions: LedgerTransaction[];
@@ -56,7 +57,7 @@ export function useManagementLedgerQuery(filters?: {
   status?: string;
   customer?: string;
 }) {
-  const { page = 1, limit = 50, type, status, customer } = filters || {};
+  const { page = 1, limit = 500, type, status, customer } = filters || {};
   const isVerifiedAdmin = useUserStore((s) =>
     Boolean(s.user?.email && s.user?.role === 'admin' && s.isSessionVerified)
   );
@@ -64,6 +65,7 @@ export function useManagementLedgerQuery(filters?: {
   return useQuery<LedgerResponse, ApiError>({
     queryKey: ['management', 'ledger', { page, limit, type, status, customer }],
     enabled: isVerifiedAdmin,
+    placeholderData: (prev) => prev,
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('page', String(page));
@@ -88,3 +90,38 @@ export function useManagementLedgerQuery(filters?: {
     staleTime: 10_000,
   });
 }
+
+/**
+ * Team Access approved accounts and role query.
+ */
+export function useManagementTeamQuery() {
+  const isVerifiedOwner = useUserStore((s) =>
+    Boolean(
+      s.user?.email &&
+        s.user?.role === 'admin' &&
+        s.user?.teamRole === 'owner' &&
+        s.isSessionVerified
+    )
+  );
+
+  return useQuery<TeamAccessResponse, ApiError>({
+    queryKey: ['management', 'team'],
+    enabled: isVerifiedOwner,
+    queryFn: async () => {
+      const res = await fetch('/api/management/team');
+      if (res.status === 401 || res.status === 403) {
+        throw new ApiError('Unauthorized', res.status);
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new ApiError(
+          (data as { error?: string }).error || `Team access request failed (${res.status})`,
+          res.status
+        );
+      }
+      return data as TeamAccessResponse;
+    },
+    staleTime: 15_000,
+  });
+}
+

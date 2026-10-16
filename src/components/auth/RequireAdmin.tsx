@@ -20,8 +20,8 @@ export function RequireAdmin({ children }: RequireAdminProps) {
     let active = true;
 
     async function verify() {
-      // 1. Only permit immediately if session has already been verified against the server
-      if (isHydrated && isSessionVerified && user?.email && isAdmin()) {
+      // 1. Only permit immediately if session has already been verified against the server and teamRole is resolved
+      if (isHydrated && isSessionVerified && user?.email && isAdmin() && user?.teamRole) {
         React_useState(false);
         return;
       }
@@ -37,6 +37,7 @@ export function RequireAdmin({ children }: RequireAdminProps) {
               email: data.user.email,
               name: data.user.name || data.user.email?.split('@')[0],
               role: data.user.role || 'client',
+              teamRole: data.user.teamRole || null,
               emailVerified: Boolean(data.user.emailConfirmed),
               hasProjects: Boolean(data.user.hasProjects),
               canChat: Boolean(data.user.canChat),

@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTopLoader } from 'nextjs-toploader';
-import { Bell, CheckCheck, Coins, Layers, MessageSquare, Sparkles, ChevronRight } from 'lucide-react';
+import { Bell, CheckCheck, Coins, FolderKanban, Layers, MessageSquare, ChevronRight } from 'lucide-react';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 
 const TYPE_ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
-  project_status: Sparkles,
+  project_status: FolderKanban,
   order_status: Layers,
   payment_confirmed: Coins,
   wallet_credit: Coins,

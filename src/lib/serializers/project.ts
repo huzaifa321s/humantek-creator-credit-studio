@@ -11,10 +11,12 @@ export interface ClientReferenceFile {
 
 export interface ClientProjectView {
   id: string;
+  userId?: string;
   projectCode: string;
   packageName: string;
   packageId: string;
   packageCredits?: number;
+  appliedWalletCredits?: number;
   clientName?: string;
   email?: string;
   channelName: string;
@@ -38,6 +40,8 @@ export interface ClientProjectView {
   fundingSource?: string;
   usedCredits: number;
   packagePrice: number;
+  lastMessageAt?: string | null;
+  lastMessagePreview?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,13 +52,22 @@ export interface ClientProjectView {
  * NEVER leaks admin notes, fraud/risk flags, internal comments, ledger entries, or payment payloads.
  */
 export function serializeClientProject(p: any): ClientProjectView {
-  const referenceLinks: string[] = Array.isArray(p.reference_links || p.referenceLinks)
-    ? (p.reference_links || p.referenceLinks).filter((l: any) => typeof l === 'string' && /^https?:\/\//i.test(l))
-    : [];
+  const rawLinks =
+    Array.isArray(p.reference_links) && p.reference_links.length > 0
+      ? p.reference_links
+      : Array.isArray(p.referenceLinks)
+        ? p.referenceLinks
+        : [];
+  const referenceLinks: string[] = rawLinks.filter(
+    (l: any) => typeof l === 'string' && /^https?:\/\//i.test(l)
+  );
 
-  const rawFiles: any[] = Array.isArray(p.uploaded_files || p.uploadedFiles)
-    ? (p.uploaded_files || p.uploadedFiles)
-    : [];
+  const rawFiles: any[] =
+    Array.isArray(p.uploaded_files) && p.uploaded_files.length > 0
+      ? p.uploaded_files
+      : Array.isArray(p.uploadedFiles)
+        ? p.uploadedFiles
+        : [];
 
   const uploadedFiles: ClientReferenceFile[] = rawFiles.map((f: any) => ({
     id: String(f.id || ''),
@@ -80,10 +93,12 @@ export function serializeClientProject(p: any): ClientProjectView {
 
   return {
     id: String(p.id),
+    userId: p.user_id || p.userId,
     projectCode: String(p.project_code || p.projectCode || ''),
     packageName: String(p.package_name || p.packageName || ''),
     packageId: String(p.package_id || p.packageId || ''),
     packageCredits: Number(p.package_credits ?? p.packageCredits) || 0,
+    appliedWalletCredits: Number(p.applied_wallet_credits ?? p.appliedWalletCredits) || 0,
     clientName: String(p.client_name || p.clientName || ''),
     email: String(p.email || ''),
     channelName: String(p.channel_name || p.channelName || ''),
@@ -101,6 +116,8 @@ export function serializeClientProject(p: any): ClientProjectView {
     fundingSource: p.funding_source || p.fundingSource,
     usedCredits: Number(p.total_credits ?? p.usedCredits) || 0,
     packagePrice: Number(p.package_price_usd ?? p.packagePrice) || 0,
+    lastMessageAt: p.last_message_at ?? p.lastMessageAt ?? null,
+    lastMessagePreview: p.last_message_preview ?? p.lastMessagePreview ?? null,
     createdAt: String(p.created_at || p.createdAt || ''),
     updatedAt: String(p.updated_at || p.updatedAt || p.created_at || p.createdAt || ''),
   };
@@ -121,5 +138,6 @@ export function serializeAdminProject(p: any) {
     appliedWalletCredits: Number(p.applied_wallet_credits ?? p.appliedWalletCredits) || 0,
     lastMessageAt: p.last_message_at || p.lastMessageAt || null,
     lastMessagePreview: p.last_message_preview || p.lastMessagePreview || null,
+    lastChatBy: p.last_chat_by || p.lastChatBy || null,
   };
 }

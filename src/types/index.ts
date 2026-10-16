@@ -102,7 +102,9 @@ export interface ProjectRecord {
   referenceLinks?: string[];
   lastMessageAt?: string | null;
   lastMessagePreview?: string | null;
+  lastChatBy?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface CreditLedgerEntry {
@@ -174,6 +176,7 @@ export interface ChatMessage {
   sender: 'client' | 'agent' | 'system';
   senderName: string;
   senderRole?: string;
+  senderAvatarUrl?: string | null;
   content: string;
   timestamp: string;
   attachments?: ChatAttachment[];

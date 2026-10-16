@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Sheet,
@@ -17,9 +17,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { MessageSquare, Zap, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatStudioDate, getProjectStatusLabel } from '@/lib/utils';
+import { cn, formatStudioDate, getProjectStatusLabel, getProjectStatusBadgeClass } from '@/lib/utils';
 import { useStudioChat } from '@/lib/chatStore';
-import { downloadProjectInvoice } from '@/lib/invoice';
+import { ChatGate } from '@/components/chat/ChatGate';
+import { downloadProjectInvoice, preloadProjectInvoice } from '@/lib/invoice';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { ReferenceImageGrid } from '@/components/ui/reference-image-grid';
 import {
@@ -48,6 +49,13 @@ export function ClientProjectDetailsDrawer({
 
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
   const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+
+  // Warm up jsPDF and font payloads as soon as the drawer opens
+  useEffect(() => {
+    if (projectId) {
+      preloadProjectInvoice();
+    }
+  }, [projectId]);
 
   // On-demand project details fetch (signed URLs generated only when drawer opens)
   const {
@@ -111,7 +119,14 @@ export function ClientProjectDetailsDrawer({
                   <Badge variant="gold" size="sm" className="font-bold truncate max-w-[200px]">
                     {project.packageName}
                   </Badge>
-                  <Badge variant="secondary" size="sm" className="font-semibold text-2xs shrink-0">
+                  <Badge
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'font-semibold text-2xs shrink-0',
+                      getProjectStatusBadgeClass(project.status)
+                    )}
+                  >
                     {getProjectStatusLabel(project.status)}
                   </Badge>
                   {project.paymentStatus === 'paid' && (
@@ -235,20 +250,22 @@ export function ClientProjectDetailsDrawer({
                   <Download className="size-3.5 text-brand-text dark:text-amber-400" />
                   <span>Invoice</span>
                 </Button>
-                <Button
-                  type="button"
-                  variant="gold"
-                  size="sm"
-                  onClick={() => {
-                    onClose();
-                    setChatOpen(true, project.id);
-                  }}
-                  className="text-xs font-bold h-9 px-3 sm:px-4 gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20 shrink-0"
-                >
-                  <MessageSquare className="size-3.5" />
-                  <span className="sm:hidden">Project Chat</span>
-                  <span className="hidden sm:inline">Open Project Chat</span>
-                </Button>
+                <ChatGate>
+                  <Button
+                    type="button"
+                    variant="gold"
+                    size="sm"
+                    onClick={() => {
+                      onClose();
+                      setChatOpen(true, project.id);
+                    }}
+                    className="text-xs font-bold h-9 px-3 sm:px-4 gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20 shrink-0"
+                  >
+                    <MessageSquare className="size-3.5" />
+                    <span className="sm:hidden">Project Chat</span>
+                    <span className="hidden sm:inline">Open Project Chat</span>
+                  </Button>
+                </ChatGate>
               </div>
             )}
           </SheetFooter>

@@ -38,9 +38,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Rate limiting per user / IP
-    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || user.email;
-    if (isRateLimited(`redeem:${clientIp}`)) {
+    // Rate limiting per authenticated user AND per IP
+    const userIdentifier = user.id || user.email.toLowerCase().trim();
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || userIdentifier;
+    if (isRateLimited(`redeem:user:${userIdentifier}`) || isRateLimited(`redeem:ip:${clientIp}`)) {
       return NextResponse.json(
         { error: 'Too many redemption attempts. Please wait a minute and try again.' },
         { status: 429 }

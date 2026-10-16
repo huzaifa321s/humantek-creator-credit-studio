@@ -51,6 +51,7 @@ interface MessageProfile {
   email?: string | null;
   full_name?: string | null;
   role?: string | null;
+  avatar_url?: string | null;
 }
 
 interface MessageRow {
@@ -192,12 +193,18 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const searchParams = req.nextUrl.searchParams;
     const afterIdParam = searchParams.get('after_id');
     const beforeIdParam = searchParams.get('before_id');
-    const limitParam = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
+    const maxAllowed = isGlobal && user.isAdmin ? 200 : 100;
+    const defaultLimit = isGlobal && user.isAdmin ? '150' : '50';
+    const limitParam = Math.min(maxAllowed, Math.max(1, parseInt(searchParams.get('limit') || defaultLimit, 10)));
 
     let query = admin
       .from('project_messages')
-      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role)')
+      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role, avatar_url)')
       .eq('project_id', id);
+
+    if (isGlobal && !user.isAdmin) {
+      query = query.or(`sender_id.eq.${user.id},body.ilike.%${user.id}%`);
+    }
 
     let isReversed = false;
 
@@ -292,10 +299,14 @@ export async function GET(req: NextRequest, context: RouteContext) {
       const row = m as unknown as MessageRow;
       const parsed = parseMessageBody(row.body);
       const profile = extractSenderProfile(row.profiles);
+      const isSenderStaff = profile?.role === 'admin' || profile?.role === 'manager';
+      const resolvedClientUserId =
+        parsed.clientUserId || (!isSenderStaff ? row.sender_id : null);
       return {
         id: row.id,
         projectId: row.project_id,
         senderId: row.sender_id,
+        clientUserId: resolvedClientUserId,
         kind: row.kind,
         body: parsed.isDeleted ? '' : parsed.body,
         replyTo: parsed.isDeleted ? null : parsed.replyTo,
@@ -312,8 +323,17 @@ export async function GET(req: NextRequest, context: RouteContext) {
                 profile.role === 'admin' || profile.role === 'manager'
                   ? 'Studio Team'
                   : profile.full_name || projectClientName || null,
+              staffName:
+                user.isAdmin && (profile.role === 'admin' || profile.role === 'manager')
+                  ? (profile.full_name || '').trim() ||
+                    (profile.email ? profile.email.split('@')[0] : null)
+                  : null,
               email: user.isAdmin || row.sender_id === user.id ? profile.email : null,
               role: profile.role,
+              avatarUrl:
+                profile.role === 'admin' || profile.role === 'manager'
+                  ? null
+                  : profile.avatar_url || null,
             }
           : null,
         attachments: parsed.isDeleted ? [] : (attachmentsByMsgId[row.id] || []),
@@ -350,10 +370,26 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    if (user.isAdmin && !user.canManageProjects) {
+      return NextResponse.json(
+        { error: 'Read-only access: Viewer accounts cannot send or modify client messages.' },
+        { status: 403 }
+      );
+    }
+
     const admin = createAdminClient();
     const isGlobal = id === 'global';
     let postProjectClientName: string | null = null;
     let projectUserId: string | null = null;
+
+    if (isGlobal && !user.isAdmin) {
+      if (!user.emailConfirmed || !user.canChat) {
+        return NextResponse.json(
+          { error: 'Chat requires a verified email and at least one submitted project.' },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!isGlobal) {
       // Verify membership or admin
@@ -451,8 +487,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       if (!user.isAdmin) {
         globalClientUserId = user.id;
       } else {
+        // Explicit target client from Admin 1-on-1 General Inquiry view
+        if (typeof body.targetClientUserId === 'string' && body.targetClientUserId.trim()) {
+          globalClientUserId = body.targetClientUserId.trim();
+        }
         // Admin replying in global chat: resolve target client from replyTo message or latest client inquiry
-        if (replyTo?.id && !isNaN(Number(replyTo.id))) {
+        if (!globalClientUserId && replyTo?.id && !isNaN(Number(replyTo.id))) {
           const { data: repliedMsg } = await admin
             .from('project_messages')
             .select('sender_id, body')
@@ -502,7 +542,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         body: encodedBody,
         client_message_id: clientMessageId,
       })
-      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role)')
+      .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role, avatar_url)')
       .single();
 
     if (insertErr) {
@@ -510,7 +550,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       if (insertErr.code === '23505') {
         const { data: existingMsg } = await admin
           .from('project_messages')
-          .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role)')
+          .select('id, project_id, sender_id, kind, body, client_message_id, created_at, profiles(id, email, full_name, role, avatar_url)')
           .eq('project_id', id)
           .eq('sender_id', user.id)
           .eq('client_message_id', clientMessageId)
@@ -523,6 +563,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           message: existingMsg
             ? {
                 ...existingMsg,
+                clientUserId: parsedExisting?.clientUserId || globalClientUserId,
                 body: parsedExisting?.body ?? existingMsg.body,
                 replyTo: parsedExisting?.replyTo || null,
                 likes: parsedExisting?.likes || [],
@@ -590,6 +631,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
         id: newMsg.id,
         projectId: newMsg.project_id,
         senderId: newMsg.sender_id,
+        clientUserId:
+          parsedNew.clientUserId || (!user.isAdmin ? newMsg.sender_id : globalClientUserId),
         kind: newMsg.kind,
         body: parsedNew.body,
         replyTo: parsedNew.replyTo,
@@ -608,8 +651,21 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 newSenderProfile.role === 'manager'
                   ? 'Studio Team'
                   : newSenderProfile.full_name || postProjectClientName || null,
+              staffName:
+                user.isAdmin ||
+                newSenderProfile.role === 'admin' ||
+                newSenderProfile.role === 'manager'
+                  ? (newSenderProfile.full_name || user.name || '').trim() ||
+                    ((newSenderProfile.email || user.email || '').split('@')[0] || null)
+                  : null,
               email: newSenderProfile.email || user.email,
               role: newSenderProfile.role || user.role,
+              avatarUrl:
+                user.isAdmin ||
+                newSenderProfile.role === 'admin' ||
+                newSenderProfile.role === 'manager'
+                  ? null
+                  : newSenderProfile.avatar_url || user.avatarUrl || null,
             }
           : null,
         attachments: createdAttachments,
@@ -645,7 +701,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
         message: isGlobal
           ? `${senderDisplay} sent a support inquiry.`
           : `${senderDisplay} sent a message.`,
-        link: `/management/inbox?thread=${encodeURIComponent(id)}`,
+        link: isGlobal
+          ? `/management/inbox?thread=global&client=${encodeURIComponent(user.id)}`
+          : `/management/inbox?thread=${encodeURIComponent(id)}`,
         actionLabel: 'Open Chat',
         actionId: id,
         entityType: 'chat',
@@ -693,6 +751,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const requestedId = parseInt(body?.messageId, 10);
     if (isNaN(requestedId) || requestedId < 0) {
       return NextResponse.json({ error: 'Valid positive messageId required' }, { status: 400 });
+    }
+
+    if (action !== 'mark_read' && user.isAdmin && !user.canManageProjects) {
+      return NextResponse.json(
+        { error: 'Read-only access: Viewer accounts cannot modify or delete messages.' },
+        { status: 403 }
+      );
     }
 
     // ── ACTION: TOGGLE LIKE (Thumb Only) ──
@@ -782,7 +847,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: 'Message not found' }, { status: 404 });
       }
 
-      if (!user.isAdmin && targetMsg.sender_id !== user.id) {
+      if (targetMsg.sender_id !== user.id) {
         return NextResponse.json({ error: 'Only the author can edit this message' }, { status: 403 });
       }
 
@@ -825,7 +890,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       });
     }
 
-    // ── ACTION: DELETE MESSAGE (Sender or Admin, soft tombstone) ──
+    // ── ACTION: DELETE MESSAGE (Sender or Owner, soft tombstone) ──
     if (action === 'delete') {
       const { data: targetMsg, error: fetchErr } = await admin
         .from('project_messages')
@@ -838,8 +903,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: 'Message not found' }, { status: 404 });
       }
 
-      if (!user.isAdmin && targetMsg.sender_id !== user.id) {
-        return NextResponse.json({ error: 'Only the author or admin can delete this message' }, { status: 403 });
+      const canDelete =
+        targetMsg.sender_id === user.id || (user.isAdmin && user.teamRole === 'owner');
+      if (!canDelete) {
+        return NextResponse.json(
+          { error: 'Only the author or studio owner can delete this message' },
+          { status: 403 }
+        );
       }
 
       const parsed = parseMessageBody(targetMsg.body);
@@ -857,7 +927,24 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: updateErr.message }, { status: 500 });
       }
 
-      // Remove attachment rows for the deleted message so they no longer appear in galleries
+      // Remove attachment files from storage and attachment rows so they no longer appear in galleries or remain orphaned
+      const { data: msgAttachments } = await admin
+        .from('project_message_attachments')
+        .select('storage_path')
+        .eq('message_id', requestedId);
+
+      const storagePaths = (msgAttachments || [])
+        .map((a) => a.storage_path)
+        .filter((p): p is string => typeof p === 'string' && p.length > 0);
+
+      if (storagePaths.length > 0) {
+        try {
+          await admin.storage.from('project-attachments').remove(storagePaths);
+        } catch (storageErr) {
+          console.warn('Failed to remove deleted message attachments from storage:', storageErr);
+        }
+      }
+
       await admin
         .from('project_message_attachments')
         .delete()

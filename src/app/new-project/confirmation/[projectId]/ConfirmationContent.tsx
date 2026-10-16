@@ -20,7 +20,7 @@ import { ChatGate } from '@/components/chat/ChatGate';
 import { useUserStore, refreshUserSession } from '@/lib/userStore';
 import { useChatStore } from '@/lib/chatStore';
 import { useWizardStore } from '@/lib/wizardStore';
-import { downloadProjectInvoice } from '@/lib/invoice';
+import { downloadProjectInvoice, preloadProjectInvoice } from '@/lib/invoice';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PACKAGES } from '@/lib/catalog';
@@ -41,7 +41,10 @@ export function getConfirmationState(project: ProjectRecord): ConfirmationPaymen
   if (project.fundingSource === 'wallet' || project.paymentMethod === 'credits') {
     return 'paid_credits';
   }
-  if (project.paymentStatus === 'paid') {
+  if (
+    project.paymentStatus === 'paid' ||
+    Boolean(project.instructions?.includes('[PAYMENT RECEIVED via PayPal]'))
+  ) {
     return 'online_completed';
   }
   if (
@@ -93,6 +96,9 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
     // Clear wizard draft now that project confirmation has successfully mounted
     resetWizard();
 
+    // Warm up jsPDF chunk and subsetted font payloads so clicking Download Invoice is instant
+    preloadProjectInvoice();
+
     // Accessible focus to heading
     headingRef.current?.focus();
   }, [project, canChat, resetWizard]);
@@ -112,7 +118,7 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
           spread: 75,
           origin: { x: 0.5, y: 0.4 },
           zIndex: 99999,
-          colors: ['#f59e0b', '#fbbf24', '#10b981', '#3b82f6', '#ec4899', '#ffffff'],
+          colors: ['#f59e0b', '#fbbf24', '#fde68a', '#10b981', '#ffffff'],
         });
 
         // Stage 2: Dual side-cannon follow-up wave
@@ -254,8 +260,8 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
             {/* 1. Project Code with Copy */}
             <div className="flex items-center justify-between gap-3 pt-0 first:pt-0">
               <span className="text-muted-foreground font-medium shrink-0">Project code</span>
-              <div className="flex items-center gap-1 min-w-0">
-                <span className="font-mono font-bold text-foreground text-xs sm:text-sm tracking-wide truncate">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-mono font-bold text-foreground text-xs tracking-tight bg-secondary/80 dark:bg-secondary/60 px-2 py-0.5 rounded border border-border/80 truncate">
                   {project.projectCode}
                 </span>
                 <Button
@@ -344,7 +350,10 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
 
           {/* Actions: Primary View Button, Download Invoice & Responsive Secondary Actions */}
           <div className="space-y-2.5 pt-0.5 w-full">
-            <Link href="/projects" className="block w-full">
+            <Link
+              href={project.id ? `/projects?project=${encodeURIComponent(project.id)}` : '/projects'}
+              className="block w-full"
+            >
               <Button
                 type="button"
                 variant="default"

@@ -33,13 +33,13 @@ const badgeVariants = cva(
         "warning-light":
           "border-amber-400/25 bg-amber-400/10 text-brand-text dark:text-amber-300 font-semibold",
         info:
-          "border-sky-200/80 bg-sky-50 text-sky-800 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-300 font-semibold",
+          "border-border/80 bg-secondary text-foreground dark:border-border dark:bg-secondary/80 dark:text-foreground font-semibold",
         "info-light":
-          "border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-400 font-semibold",
+          "border-border/70 bg-secondary/70 text-muted-foreground dark:text-zinc-300 font-semibold",
         "success-light":
           "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold",
         purple:
-          "border-purple-200/80 bg-purple-50 text-purple-800 dark:border-purple-800/50 dark:bg-purple-950/40 dark:text-purple-300 font-semibold",
+          "border-amber-400/40 bg-amber-400/10 text-brand-text dark:border-amber-400/40 dark:bg-amber-400/15 dark:text-amber-300 font-semibold",
         neutral:
           "border-border/70 bg-muted/60 text-muted-foreground font-medium",
       },

@@ -8,10 +8,9 @@ import {
   X,
   PanelLeft,
   ExternalLink,
-  ChevronLeft,
+  FolderKanban,
 } from 'lucide-react';
-import { cn, getErrorMessage } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { cn, getErrorMessage, getProjectStatusLabel, getProjectStatusBadgeClass } from '@/lib/utils';
 
 import { useStudioChat, ChatAttachment, GLOBAL_CHAT_ID, GLOBAL_META, ChatMessage, ChatReplyTo } from '@/lib/chatStore';
 import { mapProjectChatMessage } from '@/lib/chat/mapMessage';
@@ -27,7 +26,14 @@ import { ChatMessageList } from './ChatMessageList';
 import { ChatProjectSidebar } from './ChatProjectSidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { FilterTabs } from '@/components/ui/filter-tabs';
 import { ChatGate } from '@/components/chat/ChatGate';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const EMPTY_PROJECTS: ProjectRecord[] = [];
 
@@ -65,9 +71,8 @@ function ChatFloatingWidgetInner() {
     setPreviewAttachment(null);
   }
 
-  const isMobile = useIsMobile();
-  const [userToggledSidebar, setUserToggledSidebar] = useState<boolean | null>(null);
-  const isSidebarOpen = userToggledSidebar ?? !isMobile;
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
+  const [mobileTab, setMobileTab] = useState<'chat' | 'threads'>('chat');
 
   const pathname = usePathname();
   const isMessagesRoute = pathname === '/messages';
@@ -116,6 +121,7 @@ function ChatFloatingWidgetInner() {
         id: activeProject.id,
         projectCode: activeProject.projectCode,
         packageName: activeProject.packageName,
+        channelName: activeProject.channelName,
         clientName: activeProject.clientName,
         status: activeProject.status,
         price: activeProject.packagePrice,
@@ -290,9 +296,7 @@ function ChatFloatingWidgetInner() {
 
   const handleSelectProject = (id: string) => {
     setActiveProjectId(id);
-    if (isMobile) {
-      setUserToggledSidebar(false);
-    }
+    setMobileTab('chat');
   };
 
   if (!user?.email || isMessagesRoute || isAuthRoute || isManagementRoute) return null;
@@ -356,8 +360,8 @@ function ChatFloatingWidgetInner() {
           {/* Unread Message Count Badge */}
           {totalUnreadCount > 0 && (
             <Badge
-              variant="destructive"
-              className="ml-0.5 h-4.5 px-1.5 text-2xs font-mono tabular-nums font-black rounded-full bg-amber-400 text-zinc-950 animate-pulse shadow-xs shadow-amber-400/30"
+              variant="gold-solid"
+              className="ml-0.5 h-4.5 px-1.5 text-2xs font-mono tabular-nums font-black rounded-full animate-pulse shadow-xs shadow-amber-400/30"
             >
               {totalUnreadCount}
             </Badge>
@@ -398,11 +402,11 @@ function ChatFloatingWidgetInner() {
                     type="button"
                     variant="outline"
                     size="icon-sm"
-                    onClick={() => setUserToggledSidebar(!isSidebarOpen)}
-                    title={isSidebarOpen ? 'Collapse Project Chats' : 'Show Project Chats'}
+                    onClick={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
+                    title={isDesktopSidebarOpen ? 'Collapse Project Chats' : 'Show Project Chats'}
                     className={cn(
                       'hidden sm:inline-flex h-8 w-8 rounded-lg cursor-pointer transition-colors',
-                      isSidebarOpen && 'bg-accent text-accent-foreground'
+                      isDesktopSidebarOpen && 'bg-amber-400/15 border-amber-400/40 text-brand-text dark:text-amber-300'
                     )}
                   >
                     <PanelLeft className="size-4" />
@@ -442,15 +446,39 @@ function ChatFloatingWidgetInner() {
               </div>
             </div>
 
+            {/* Mobile 2-Tab Switcher (Active Chat | All Chats) */}
+            <div className="sm:hidden px-3 py-1.5 border-b border-border/75 bg-secondary/25 shrink-0">
+              <FilterTabs
+                value={mobileTab}
+                onValueChange={(val) => setMobileTab(val as 'chat' | 'threads')}
+                size="sm"
+                listClassName="w-full grid grid-cols-2 h-8 p-0.5 bg-background/70 border border-border/70 rounded-lg"
+                tabs={[
+                  {
+                    value: 'chat',
+                    label: 'Active Chat',
+                    icon: MessageSquare,
+                  },
+                  {
+                    value: 'threads',
+                    label: 'All Chats',
+                    count: projects.length + 1,
+                    icon: FolderKanban,
+                  },
+                ]}
+              />
+            </div>
+
             {/* Main Body */}
             <div className="flex-1 flex min-h-0 overflow-hidden relative">
               {/* Left Column: Sessions Sidebar */}
               <div
                 className={cn(
-                  'border-r border-border/80 flex flex-col transition-all duration-200 z-10',
-                  isSidebarOpen
-                    ? 'w-full sm:w-[260px] md:w-[270px] shrink-0 flex'
-                    : 'hidden sm:hidden'
+                  'border-r border-border/80 flex-col transition-all duration-200 z-10',
+                  mobileTab === 'threads' ? 'flex w-full' : 'hidden',
+                  isDesktopSidebarOpen
+                    ? 'sm:flex sm:w-[260px] md:w-[270px] shrink-0'
+                    : 'sm:hidden'
                 )}
               >
                 <ChatProjectSidebar
@@ -466,47 +494,73 @@ function ChatFloatingWidgetInner() {
               {/* Right Column: Chat Feed or Global Help View */}
               <div
                 className={cn(
-                  'flex-1 flex flex-col min-w-0 bg-card overflow-hidden',
-                  isSidebarOpen ? 'hidden sm:flex' : 'flex'
+                  'flex-1 flex-col min-w-0 bg-card overflow-hidden',
+                  mobileTab === 'chat' ? 'flex' : 'hidden',
+                  'sm:flex'
                 )}
               >
-                {/* Mobile Back button when sidebar is collapsed */}
-                <div className="sm:hidden px-3.5 py-1.5 border-b border-border/70 bg-secondary/30 flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => setUserToggledSidebar(true)}
-                    className="h-7 text-xs font-semibold gap-1 text-brand-text dark:text-amber-400 hover:underline p-0 hover:bg-transparent cursor-pointer"
-                  >
-                    <ChevronLeft className="size-3.5" />
-                    <span>All Project Chats</span>
-                  </Button>
-                  <span className="text-3xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
-                    {projects.length} {projects.length === 1 ? 'Project' : 'Projects'}
-                  </span>
-                </div>
 
-                {!isGlobal && activeProject && (
+                {isGlobal ? (
+                  <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex items-center justify-between gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 border border-amber-400/25">
+                        <MessageSquare className="size-3.5" />
+                      </span>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-xs text-foreground block truncate">
+                          Ask the Studio Team
+                        </span>
+                        <p className="text-2xs text-muted-foreground truncate">
+                          Packages, credits &amp; custom requests
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0"
+                      title="Studio Team Live"
+                    />
+                  </div>
+                ) : activeProject ? (
                   <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-border/70 bg-secondary/20 shrink-0 min-h-0 h-auto flex flex-col justify-center gap-1">
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                        <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/70 shrink-0">
+                        <span className="font-mono text-xs font-bold tracking-tight text-foreground bg-secondary/80 dark:bg-secondary/60 px-1.5 py-0.5 rounded border border-border/80 shrink-0">
                           {displayMeta.projectCode}
                         </span>
-                        <span className="text-foreground/90 font-semibold text-xs truncate max-w-[110px] sm:max-w-[200px]">
-                          {displayMeta.packageName}
-                        </span>
+                        <TooltipProvider delay={200}>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <span className="text-foreground/90 font-semibold text-xs truncate max-w-[110px] sm:max-w-[200px] cursor-default" />
+                              }
+                            >
+                              {displayMeta.channelName || displayMeta.packageName}
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" align="start" className="px-2.5 py-1.5 text-2xs">
+                              <span>
+                                <span className="text-zinc-400 font-medium">
+                                  {displayMeta.channelName ? 'Channel / Brand:' : 'Package:'}
+                                </span>{' '}
+                                <span className="font-semibold text-white">
+                                  {displayMeta.channelName || displayMeta.packageName}
+                                </span>
+                              </span>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Badge
                           variant="outline"
-                          className="text-3xs font-medium lowercase px-1.5 py-0 h-4 shrink-0 text-muted-foreground border-border/70 rounded-md"
+                          className={cn(
+                            'text-3xs font-semibold px-1.5 py-0 h-4 shrink-0 rounded-md',
+                            getProjectStatusBadgeClass(displayMeta.status)
+                          )}
                         >
-                          {displayMeta.status.replace(/_/g, ' ').toLowerCase()}
+                          {getProjectStatusLabel(displayMeta.status)}
                         </Badge>
                       </div>
 
                       <Link
-                        href="/projects"
+                        href={displayMeta.id ? `/projects?project=${encodeURIComponent(displayMeta.id)}` : '/projects'}
                         onClick={() => setIsOpen(false)}
                         className="inline-flex items-center gap-1 text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline shrink-0 bg-amber-400/10 dark:bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/25 transition-colors"
                       >
@@ -529,7 +583,7 @@ function ChatFloatingWidgetInner() {
                       )}
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 {/* Message Scroller Feed */}
                 <div className="flex-1 min-h-0 bg-card/60">

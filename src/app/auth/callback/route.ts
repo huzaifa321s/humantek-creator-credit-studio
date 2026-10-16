@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
         data.user.app_metadata?.provider === 'google' ||
         data.user.identities?.some((i) => i.provider === 'google');
 
+      const updatePayload: Record<string, string> = {};
       if (isGoogle) {
         const rawAvatar =
           data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture;
@@ -71,25 +72,41 @@ export async function GET(request: NextRequest) {
             ? rawName.replace(/[\r\n\t\x00-\x1F\x7F]/g, '').trim().slice(0, 80)
             : null;
 
-        const updatePayload: Record<string, string> = {};
         if (safeAvatar && safeAvatar !== profile?.avatar_url) {
           updatePayload.avatar_url = safeAvatar;
         }
         if (cleanName && (!profile?.full_name || profile.full_name === 'Creator')) {
           updatePayload.full_name = cleanName;
         }
-
-        if (Object.keys(updatePayload).length > 0) {
-          await adminClient.from('profiles').update(updatePayload).eq('id', data.user.id);
-        }
       }
 
-      const isAdmin = profile?.role === 'admin';
+      if (!profile) {
+        if (data.user.email) {
+          await adminClient.from('profiles').upsert(
+            {
+              id: data.user.id,
+              email: data.user.email.toLowerCase(),
+              role: 'client',
+              ...updatePayload,
+            },
+            { onConflict: 'id' }
+          );
+        }
+      } else if (Object.keys(updatePayload).length > 0) {
+        await adminClient.from('profiles').update(updatePayload).eq('id', data.user.id);
+      }
+
+      const userRole = profile?.role === 'admin' ? 'admin' : 'client';
+      const isAdmin = userRole === 'admin';
 
       // If user is admin, redirect directly to management console
       if (isAdmin) {
+        const isClientTarget =
+          targetPath.startsWith('/projects') ||
+          targetPath.startsWith('/new-project') ||
+          targetPath.startsWith('/wallet');
         return NextResponse.redirect(
-          `${redirectBase}${targetPath === '/projects' ? '/management' : targetPath}`
+          `${redirectBase}${isClientTarget ? '/management' : targetPath}`
         );
       }
 

@@ -170,6 +170,66 @@ export const CREATOR_COLOR_PRESETS: ColorPreset[] = [
   { hex: "#0F172A", name: "Deep Slate" },
 ]
 
+const NAMED_COLOR_KEYWORDS: Array<{ pattern: RegExp; hex: string }> = [
+  { pattern: /\bcrimson\b/i, hex: "#EF4444" },
+  { pattern: /\bred\b/i, hex: "#EF4444" },
+  { pattern: /\bpink\b/i, hex: "#FF007F" },
+  { pattern: /\bmagenta\b/i, hex: "#EC4899" },
+  { pattern: /\bsakura\b/i, hex: "#EC4899" },
+  { pattern: /\bcyan\b/i, hex: "#00F0FF" },
+  { pattern: /\bteal\b/i, hex: "#14B8A6" },
+  { pattern: /\bmint\b/i, hex: "#14B8A6" },
+  { pattern: /\bgold\b/i, hex: "#F59E0B" },
+  { pattern: /\bamber\b/i, hex: "#F59E0B" },
+  { pattern: /\byellow\b/i, hex: "#EAB308" },
+  { pattern: /\borange\b/i, hex: "#F97316" },
+  { pattern: /\bviolet\b/i, hex: "#8B5CF6" },
+  { pattern: /\bpurple\b/i, hex: "#A855F7" },
+  { pattern: /\bemerald\b/i, hex: "#10B981" },
+  { pattern: /\bgreen\b/i, hex: "#10B981" },
+  { pattern: /\bcobalt\b/i, hex: "#3B82F6" },
+  { pattern: /\bblue\b/i, hex: "#3B82F6" },
+  { pattern: /\bslate\b/i, hex: "#1E293B" },
+  { pattern: /\bobsidian\b/i, hex: "#0F172A" },
+  { pattern: /\bblack\b/i, hex: "#0F172A" },
+  { pattern: /\bdark\b/i, hex: "#1E293B" },
+  { pattern: /\bwhite\b/i, hex: "#F8FAFC" },
+  { pattern: /\bsilver\b/i, hex: "#94A3B8" },
+]
+
+/**
+ * Resolves visual hex swatches for display in project cards and details drawers.
+ * Matches explicit `#HEX` codes first, then falls back to preset/named color keywords.
+ */
+export function resolvePaletteSwatches(text?: string): string[] {
+  if (!text) return []
+  const hexes = extractHexColors(text)
+  if (hexes.length > 0) return hexes
+
+  const matched: Array<{ index: number; hex: string }> = []
+  for (const preset of CREATOR_COLOR_PRESETS) {
+    const idx = text.toLowerCase().indexOf(preset.name.toLowerCase())
+    if (idx !== -1) {
+      matched.push({ index: idx, hex: preset.hex })
+    }
+  }
+  for (const kw of NAMED_COLOR_KEYWORDS) {
+    const m = kw.pattern.exec(text)
+    if (m && m.index !== undefined) {
+      matched.push({ index: m.index, hex: kw.hex })
+    }
+  }
+
+  matched.sort((a, b) => a.index - b.index)
+  const unique: string[] = []
+  for (const item of matched) {
+    if (!unique.includes(item.hex)) {
+      unique.push(item.hex)
+    }
+  }
+  return unique
+}
+
 // ============================================================================
 // ReUI / Shadcn Composable ColorPicker Primitives
 // ============================================================================
@@ -576,7 +636,7 @@ function ColorPickerFields({
           type="button"
           size="sm"
           onClick={() => onAddColor(hex, matchedPreset?.name)}
-          className="h-8 px-2.5 text-xs font-semibold rounded-lg shrink-0 gap-1 cursor-pointer bg-amber-400 text-slate-950 hover:bg-amber-300"
+          className="h-8 px-2.5 text-xs font-semibold rounded-lg shrink-0 gap-1 cursor-pointer bg-amber-400 text-zinc-950 hover:bg-amber-300"
         >
           <Plus className="size-3.5 stroke-[2.5]" />
           {addButtonLabel}
@@ -751,26 +811,33 @@ function ColorPaletteInput({
             maxLength={maxLength}
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className={cn("pr-9", className)}
+            className={cn("pr-28", className)}
           />
-          {/* Inline active color dot indicator inside input right edge */}
+          {/* Inline interactive 'Pick color' pill button inside input right edge */}
           <ColorPicker value={pickerColor} onValueChange={setPickerColor}>
             <ColorPickerTrigger
               type="button"
               aria-label="Open color picker"
               title="Pick custom hex color or preset swatch"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-6 rounded-md flex items-center justify-center hover:bg-muted/80 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group/picker absolute right-1.5 top-1/2 -translate-y-1/2 h-7 px-2.5 rounded-md border border-border/80 bg-secondary/75 hover:bg-amber-400/15 hover:border-amber-400/50 text-foreground inline-flex items-center gap-1.5 text-2xs font-semibold shadow-2xs transition-all cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {detectedHexes.length > 0 ? (
                 <span
-                  className="size-4 rounded-full ring-1 ring-black/20 dark:ring-white/25 shadow-2xs transition-transform hover:scale-110"
+                  className="size-3.5 rounded-full ring-1 ring-black/20 dark:ring-white/25 shadow-2xs shrink-0 transition-transform group-hover/picker:scale-110"
                   style={{
                     backgroundColor: detectedHexes[detectedHexes.length - 1],
                   }}
                 />
               ) : (
-                <Palette className="size-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                <span
+                  className="size-3.5 rounded-full ring-1 ring-black/20 dark:ring-white/25 shadow-2xs shrink-0 transition-transform group-hover/picker:scale-110"
+                  style={{
+                    background:
+                      "conic-gradient(from 0deg, #FF007F, #F59E0B, #10B981, #00F0FF, #3B82F6, #8B5CF6, #FF007F)",
+                  }}
+                />
               )}
+              <span className="leading-none whitespace-nowrap">Pick color</span>
             </ColorPickerTrigger>
 
             <ColorPickerContent align="end">

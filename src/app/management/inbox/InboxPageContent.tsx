@@ -8,10 +8,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 function InnerInboxContent() {
   const searchParams = useSearchParams();
   const threadId = searchParams.get('thread');
+  const clientId = searchParams.get('client');
 
   return (
     <div className="w-full h-full max-h-full flex-1 flex flex-col min-h-0 overflow-hidden animate-in fade-in duration-200">
-      <AdminInbox initialProjectId={threadId} />
+      <AdminInbox initialProjectId={threadId} initialClientId={clientId} />
     </div>
   );
 }

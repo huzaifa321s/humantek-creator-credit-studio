@@ -9,6 +9,7 @@ export interface ProjectChatMessage {
   id: number;
   projectId: string;
   senderId: string | null;
+  clientUserId?: string | null;
   kind: 'user' | 'system';
   body: string;
   clientMessageId: string | null;
@@ -30,8 +31,10 @@ export interface ProjectChatMessage {
   sender: {
     id: string;
     name: string;
+    staffName?: string | null;
     email: string;
     role: string;
+    avatarUrl?: string | null;
   } | null;
   attachments?: Array<{
     id: string;
@@ -251,7 +254,8 @@ export function useProjectChat({
       bodyText: string,
       attachments?: ChatAttachment[],
       existingClientMsgId?: string,
-      replyTo?: ChatReplyTo
+      replyTo?: ChatReplyTo,
+      targetClientUserId?: string | null
     ) => {
       const targetId = projectId;
       const uploaded = (attachments || []).filter((a) => a.storagePath);
@@ -279,6 +283,7 @@ export function useProjectChat({
               mimeType: a.mimeType,
             })),
             replyTo: replyTo || undefined,
+            targetClientUserId: targetClientUserId || undefined,
           }),
         });
 

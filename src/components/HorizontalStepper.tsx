@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Check, Sparkles } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -217,7 +217,7 @@ export function HorizontalStepper({
                     stepNum === 5 && currentStep === 5 ? (
                       <div className="mt-1.5 pt-1.5 border-t border-zinc-700/80 space-y-0.5">
                         <p className="text-amber-400 text-xs font-bold flex items-center gap-1">
-                          <Sparkles className="w-3.5 h-3.5" />
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
                           <span>Ready for Review & Payment</span>
                         </p>
                         <p className="text-zinc-300 text-xs">

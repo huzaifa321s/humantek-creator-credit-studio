@@ -13,9 +13,9 @@ import {
   recordWalletFundedProject,
 } from '@/lib/store';
 import { computeOrderQuote } from '@/lib/pricing';
-import { buildProjectRecord, formatDbProject } from '@/lib/orders';
+import { buildProjectRecord, formatDbProject, attachAdminLastChatBy } from '@/lib/orders';
 import { serializeClientProject, serializeAdminProject } from '@/lib/serializers/project';
-import { PACKAGES, SERVICES } from '@/lib/catalog';
+import { PACKAGES, SERVICES, ADDITIONS_PRICING } from '@/lib/catalog';
 import { attachProjectReferences, signReferenceFiles, verifyReferenceFiles } from '@/lib/references';
 import {
   clampLimit,
@@ -66,6 +66,9 @@ export async function GET(req: NextRequest) {
         if (Array.isArray(data.uploaded_files) && data.uploaded_files.length > 0) {
           data.uploaded_files = await signReferenceFiles(createAdminClient(), data.uploaded_files, 900);
         }
+        if (user.isAdmin) {
+          await attachAdminLastChatBy(dbClient, [data]);
+        }
         const serialized = user.isAdmin
           ? serializeAdminProject(data)
           : serializeClientProject(data);
@@ -95,6 +98,7 @@ export async function GET(req: NextRequest) {
   const cursorParam = searchParams.get('cursor');
   const statusParam = searchParams.get('status') || 'all';
   const paymentStatusParam = searchParams.get('paymentStatus') || 'all';
+  const customerParam = searchParams.get('customer')?.toLowerCase().trim() || 'all';
   const rawSearch = searchParams.get('search')?.trim() || '';
   const cleanSearch = sanitizeSearchQuery(rawSearch);
   const summaryParam = searchParams.get('summary') !== 'false';
@@ -110,11 +114,10 @@ export async function GET(req: NextRequest) {
     try {
       const tDb = performance.now();
 
-      // Aggregate tab counts
-      let statusQuery = dbClient.from('projects').select('status');
-      if (!user.isAdmin) {
-        statusQuery = statusQuery.eq('user_id', user.id);
-      }
+      // Aggregate tab counts (and customer project counts for admin combobox)
+      let statusQuery = user.isAdmin
+        ? dbClient.from('projects').select('status, email, client_name')
+        : dbClient.from('projects').select('status').eq('user_id', user.id);
 
       // Build data query (always include project_items and additions so cards display selected services accurately)
       let dataQuery = summaryParam
@@ -131,6 +134,11 @@ export async function GET(req: NextRequest) {
       // Tenant isolation: clients only see their own projects (enforced both in query & RLS)
       if (!user.isAdmin) {
         dataQuery = dataQuery.eq('user_id', user.id);
+      }
+
+      // Customer filter (admin)
+      if (user.isAdmin && customerParam && customerParam !== 'all') {
+        dataQuery = dataQuery.ilike('email', customerParam);
       }
 
       // Status filter
@@ -198,7 +206,30 @@ export async function GET(req: NextRequest) {
       let cancelledCount = 0;
       let declinedCount = 0;
 
-      (statusRes.data || []).forEach((row) => {
+      const customerMap = new Map<string, { clientEmail: string; clientName: string; count: number }>();
+
+      ((statusRes.data || []) as Array<{ status: string; email?: string | null; client_name?: string | null }>).forEach((row) => {
+        const normalizedEmail = (row.email || '').toLowerCase().trim();
+        if (user.isAdmin && normalizedEmail) {
+          const existing = customerMap.get(normalizedEmail);
+          if (existing) {
+            existing.count += 1;
+            if (row.client_name && existing.clientName === normalizedEmail.split('@')[0]) {
+              existing.clientName = row.client_name;
+            }
+          } else {
+            customerMap.set(normalizedEmail, {
+              clientEmail: normalizedEmail,
+              clientName: row.client_name || normalizedEmail.split('@')[0],
+              count: 1,
+            });
+          }
+        }
+
+        if (user.isAdmin && customerParam && customerParam !== 'all' && normalizedEmail !== customerParam) {
+          return;
+        }
+
         allCount++;
         if (row.status === 'delivered') {
           deliveredCount++;
@@ -214,6 +245,12 @@ export async function GET(req: NextRequest) {
           else if (row.status === 'review_round') reviewRoundCount++;
         }
       });
+
+      const customers = user.isAdmin
+        ? Array.from(customerMap.values()).sort(
+            (a, b) => a.clientName.localeCompare(b.clientName) || a.clientEmail.localeCompare(b.clientEmail)
+          )
+        : undefined;
 
       const rows: any[] = (dataRes.data as any[]) || [];
       let items = rows;
@@ -233,9 +270,18 @@ export async function GET(req: NextRequest) {
         hasMore = pageNum * limit < (dataRes.count ?? 0);
       }
 
-      const projects = items.map(formatDbProject);
+      if (user.isAdmin && items.length > 0) {
+        await attachAdminLastChatBy(dbClient, items);
+      }
+
+      const projects = items.map((r) =>
+        user.isAdmin
+          ? serializeAdminProject(formatDbProject(r))
+          : serializeClientProject(formatDbProject(r))
+      );
       const res = NextResponse.json({
         projects,
+        customers,
         totalCount: dataRes.count ?? projects.length,
         counts: {
           all: allCount,
@@ -283,7 +329,27 @@ export async function GET(req: NextRequest) {
   let cancelledCount = 0;
   let declinedCount = 0;
 
+  const fallbackCustomerMap = new Map<string, { clientEmail: string; clientName: string; count: number }>();
+
   all.forEach((p) => {
+    const normalizedEmail = (p.email || '').toLowerCase().trim();
+    if (user.isAdmin && normalizedEmail) {
+      const existing = fallbackCustomerMap.get(normalizedEmail);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        fallbackCustomerMap.set(normalizedEmail, {
+          clientEmail: normalizedEmail,
+          clientName: p.clientName || normalizedEmail.split('@')[0],
+          count: 1,
+        });
+      }
+    }
+
+    if (user.isAdmin && customerParam && customerParam !== 'all' && normalizedEmail !== customerParam) {
+      return;
+    }
+
     allCount++;
     if (p.status === 'delivered') deliveredCount++;
     else if (p.status === 'cancelled') cancelledCount++;
@@ -297,7 +363,17 @@ export async function GET(req: NextRequest) {
     }
   });
 
+  const fallbackCustomers = user.isAdmin
+    ? Array.from(fallbackCustomerMap.values()).sort(
+        (a, b) => a.clientName.localeCompare(b.clientName) || a.clientEmail.localeCompare(b.clientEmail)
+      )
+    : undefined;
+
   let filtered = all;
+  if (user.isAdmin && customerParam && customerParam !== 'all') {
+    filtered = filtered.filter((p) => (p.email || '').toLowerCase().trim() === customerParam);
+  }
+
   if (statusParam && statusParam !== 'all') {
     if (statusParam === 'active') {
       filtered = filtered.filter((p) => p.status !== 'delivered' && p.status !== 'declined' && p.status !== 'cancelled');
@@ -360,12 +436,16 @@ export async function GET(req: NextRequest) {
     hasMore = pageNum * limit < totalCount;
   }
 
-  const projects = summaryParam
+  const rawItems = summaryParam
     ? items.map((p) => ({ ...p, selections: [], additions: [] }))
     : items;
+  const projects = rawItems.map((r) =>
+    user.isAdmin ? serializeAdminProject(r) : serializeClientProject(r)
+  );
 
   const res = NextResponse.json({
     projects,
+    customers: fallbackCustomers,
     totalCount,
     counts: {
       all: allCount,
@@ -541,10 +621,29 @@ export async function POST(req: NextRequest) {
           };
         });
 
-        const totalCreditsRequired = itemsToInsert.reduce(
+        const ADDITION_CREDITS_MAP: Record<string, number> = {
+          ...ADDITIONS_PRICING,
+          '24-Hour Express Delivery': 20,
+          'Source Project Files (PSD/AI/AEP)': 15,
+          'Commercial Usage & Full Buyout Rights': 25,
+          'Extra Strategy & Consultation Call (30m)': 50,
+        };
+
+        const additionsToInsert = (parsed.data.additions || []).map((addName: string) => ({
+          project_id: parsed.data.projectId,
+          name: addName,
+          unit_credits: ADDITION_CREDITS_MAP[addName] ?? 0,
+        }));
+
+        const itemsCreditsTotal = itemsToInsert.reduce(
           (sum: number, item) => sum + item.total_credits,
           0
         );
+        const additionsCreditsTotal = additionsToInsert.reduce(
+          (sum: number, add) => sum + add.unit_credits,
+          0
+        );
+        const totalCreditsRequired = itemsCreditsTotal + additionsCreditsTotal;
 
         // Check if unpaid project was already submitted (idempotency replay)
         const { data: existingUnpaid } = await adminClient
@@ -611,12 +710,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Insert additions
-        if (parsed.data.additions && parsed.data.additions.length > 0) {
-          const additionsToInsert = parsed.data.additions.map((addName: string) => ({
-            project_id: parsed.data.projectId,
-            name: addName,
-            unit_credits: 0,
-          }));
+        if (additionsToInsert.length > 0) {
           await adminClient.from('project_additions').insert(additionsToInsert);
         }
 
@@ -662,7 +756,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           success: true,
           project: freshProj ? formatDbProject(freshProj) : null,
-          fundingSource: 'package',
+          fundingSource: parsed.data.fundingSource || 'package',
           notificationStatus: 'sent',
           message: 'Project brief submitted for manual studio review!',
         });
@@ -907,9 +1001,24 @@ export async function PATCH(req: NextRequest) {
   if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
     const adminClient = createAdminClient();
 
-    // Cancellation: can be initiated by project owner or admin
+    // Cancellation: can be initiated by project owner or admin with write access (Owner/Manager)
     if (status === 'cancelled') {
-      const { error: cancelErr } = await adminClient.rpc('cancel_project_and_refund', {
+      if (user.isAdmin && !user.canManageProjects) {
+        return NextResponse.json(
+          { error: 'Read-only access: Viewer accounts cannot cancel or modify projects.' },
+          { status: 403 }
+        );
+      }
+
+      const { data: existingBeforeCancel } = await adminClient
+        .from('projects')
+        .select('id, user_id, payment_status, total_credits')
+        .eq('id', id)
+        .maybeSingle();
+
+      const wasPaidBeforeCancel = existingBeforeCancel?.payment_status === 'paid';
+
+      const { data: cancelResult, error: cancelErr } = await adminClient.rpc('cancel_project_and_refund', {
         p_project_id: id,
         p_user_id: user.id,
         p_reason: 'Status updated to cancelled',
@@ -930,14 +1039,19 @@ export async function PATCH(req: NextRequest) {
 
       if (updatedProj) {
         const pCode = updatedProj.project_code || id;
-        const refundedCr = Number(updatedProj.total_credits) || 0;
+        const refundedCr = Number(
+          (cancelResult as any)?.refunded_credits ??
+            existingBeforeCancel?.total_credits ??
+            updatedProj.total_credits ??
+            0
+        );
         if (user.isAdmin && updatedProj.user_id !== user.id) {
           void createNotification({
             userId: updatedProj.user_id,
             type: 'project_status',
             title: `Project cancelled · ${pCode}`,
             message:
-              updatedProj.payment_status === 'paid' && refundedCr > 0
+              wasPaidBeforeCancel && refundedCr > 0
                 ? `Your project (${pCode}) was cancelled and +${refundedCr} CR were refunded to your Studio Wallet.`
                 : `Your project (${pCode}) was cancelled.`,
             link: `/projects/${id}`,
@@ -960,12 +1074,29 @@ export async function PATCH(req: NextRequest) {
         }
       }
 
-      return NextResponse.json({ success: true, project: formatDbProject(updatedProj) });
+      if (updatedProj && user.isAdmin) {
+        await attachAdminLastChatBy(adminClient, [updatedProj]);
+      }
+
+      return NextResponse.json({
+        success: true,
+        project: updatedProj
+          ? user.isAdmin
+            ? serializeAdminProject(formatDbProject(updatedProj))
+            : serializeClientProject(formatDbProject(updatedProj))
+          : null,
+      });
     }
 
-    // Other status updates strictly require admin access
+    // Other status updates strictly require admin write access (Owner or Manager)
     if (!user.isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+    if (!user.canManageProjects) {
+      return NextResponse.json(
+        { error: 'Read-only access: Viewer accounts cannot update project status or payment verification.' },
+        { status: 403 }
+      );
     }
 
     // Load current project before updating so paymentStatus transitions can be applied first
@@ -1205,12 +1336,29 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, project: formatDbProject(updatedProj) });
+    if (updatedProj && user.isAdmin) {
+      await attachAdminLastChatBy(adminClient, [updatedProj]);
+    }
+
+    return NextResponse.json({
+      success: true,
+      project: updatedProj
+        ? user.isAdmin
+          ? serializeAdminProject(formatDbProject(updatedProj))
+          : serializeClientProject(formatDbProject(updatedProj))
+        : null,
+    });
   }
 
   // 2. Dev Mock Fallback (strictly disabled in production)
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Database service unavailable' }, { status: 503 });
+  }
+  if (user.isAdmin && !user.canManageProjects) {
+    return NextResponse.json(
+      { error: 'Viewers have read-only access and cannot modify project status.' },
+      { status: 403 }
+    );
   }
   if (!user.isAdmin && status !== 'cancelled') {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
@@ -1232,5 +1380,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ success: true, project: updated });
+  return NextResponse.json({
+    success: true,
+    project: user.isAdmin
+      ? serializeAdminProject(formatDbProject(updated))
+      : serializeClientProject(formatDbProject(updated)),
+  });
 }
