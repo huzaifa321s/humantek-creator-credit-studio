@@ -160,9 +160,25 @@ export function CartSidebar({
           </div>
 
           <div className="text-right shrink-0 flex flex-col items-end justify-start pt-0.5">
-            <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-              <span className="text-xs font-bold text-foreground">
-                Selected <span className="font-mono text-brand-text dark:text-amber-400">({entries.length})</span>
+            <span
+              className={cn(
+                'text-xs sm:text-sm font-bold font-mono tabular-nums whitespace-nowrap block',
+                isOverBudget
+                  ? 'text-rose-600 dark:text-rose-400 font-extrabold'
+                  : 'text-foreground'
+              )}
+            >
+              {isOverBudget ? (
+                `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`
+              ) : (
+                `${remainingCredits.toLocaleString('en-US')} CR left`
+              )}
+            </span>
+            <div className="flex items-center justify-end gap-1.5 whitespace-nowrap mt-0.5">
+              <span className="text-2xs text-muted-foreground font-medium">
+                {entries.length === 0
+                  ? '0 services'
+                  : `${entries.length} ${entries.length === 1 ? 'service' : 'services'}`}
               </span>
               {entries.length > 0 && onClearAll && (
                 <>
@@ -178,8 +194,24 @@ export function CartSidebar({
                 </>
               )}
             </div>
-            <span className="text-2xs sm:text-xs font-semibold text-brand-text dark:text-amber-400 block mt-1 font-mono tabular-nums whitespace-nowrap">
-              {usedCredits.toLocaleString('en-US')} CR used
+          </div>
+        </div>
+
+        {/* Compact Integrated Budget Progress Bar */}
+        <div className="space-y-1 pt-1">
+          <Progress
+            value={percentage}
+            indicatorClassName={isOverBudget ? 'bg-rose-500' : undefined}
+            className="h-1.5"
+          />
+          <div className="flex items-center justify-between text-3xs text-muted-foreground font-mono">
+            <span>{usedCredits.toLocaleString('en-US')} CR allocated</span>
+            <span>
+              {isOverBudget ? (
+                <strong className="text-rose-600 dark:text-rose-400 font-bold">Over budget</strong>
+              ) : (
+                `${percentage}% used`
+              )}
             </span>
           </div>
         </div>
@@ -421,7 +453,7 @@ export function CartSidebar({
                             : 'text-muted-foreground group-hover:text-foreground'
                         )}
                       />
-                      <span className="text-xs font-bold leading-tight text-foreground truncate">
+                      <span className="text-xs font-bold leading-snug text-foreground break-words">
                         {extra}
                       </span>
                     </div>
@@ -446,78 +478,50 @@ export function CartSidebar({
         )}
       </div>
 
-      {/* FIXED FOOTER: Totals, Progress, Warnings & Upgrade Button */}
-      <div className="p-4 sm:p-5 pt-3.5 border-t border-border/80 bg-card/95 backdrop-blur-xs shrink-0 space-y-2.5">
-        {/* Totals & Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs sm:text-sm text-muted-foreground items-center">
-            <span>Allocated</span>
-            <CreditValue value={usedCredits} size="sm" variant="subtle" />
-          </div>
+      {/* CONDITIONAL FOOTER: Alerts, Warnings & Upgrade Actions (clean and unobtrusive) */}
+      {(isTierRestricted || isOverBudget) && (
+        <div className="p-3 sm:p-4 border-t border-border/80 bg-card/95 backdrop-blur-xs shrink-0 space-y-2">
+          {/* Tier Limit Warning */}
+          {isTierRestricted && (
+            <Alert variant="destructive" className="rounded-xl p-2.5 animate-in fade-in">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <AlertTitle className="text-xs font-bold">Tier Unit Limit Reached</AlertTitle>
+              <AlertDescription className="text-xs text-muted-foreground leading-normal">
+                {pack.name} has reached maximum Standard or Elite units. Upgrade your package or adjust service tiers to continue.
+              </AlertDescription>
+            </Alert>
+          )}
 
-          <div className="flex justify-between text-sm sm:text-base font-bold items-center">
-            <span className={isOverBudget ? 'text-rose-600 font-extrabold' : 'text-foreground'}>
-              Remaining
-            </span>
-            <CreditValue
-              value={remainingCredits}
-              size="md"
-              variant={isOverBudget ? 'delta' : 'default'}
-            />
-          </div>
-
-          <Progress
-            value={percentage}
-            indicatorClassName={isOverBudget ? 'bg-rose-500' : undefined}
-          />
-
-          <p className="text-xs text-muted-foreground text-center">
-            {isOverBudget
-              ? <>Budget exceeded by <span className="font-mono tabular-nums font-semibold">{Math.abs(remainingCredits)} CR</span>.</>
-              : <><span className="font-mono tabular-nums font-semibold">{percentage}%</span> of {appliedWalletCredits > 0 ? 'combined budget' : isWalletFunding ? 'wallet' : 'package'} credits allocated.</>}
-          </p>
+          {/* Dynamic Contextual Upgrade Callout */}
+          {isOverBudget && (
+            <Alert variant="warning" className="rounded-xl p-3 border-amber-400/35 bg-amber-400/[0.08] animate-in fade-in [&>svg]:text-brand-text dark:[&>svg]:text-amber-400">
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle className="text-xs sm:text-sm font-bold text-foreground truncate">
+                {recommendedPack ? `Upgrade to ${recommendedPack.name}` : 'Upgrade Required'}
+              </AlertTitle>
+              <AlertDescription className="text-xs text-muted-foreground leading-snug">
+                <span className="block">
+                  {recommendedPack
+                    ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString('en-US')}`
+                    : 'Contact us for a larger custom creator package.'}
+                </span>
+                {recommendedPack && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    className="mt-2 w-full text-xs gap-1.5 font-semibold h-8 sm:h-9 rounded-xl shadow-xs cursor-pointer"
+                    onClick={() => onUpgradePackage(recommendedPack.id)}
+                  >
+                    <span>Upgrade to {recommendedPack.name}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
-
-        {/* Tier Limit Warning */}
-        {isTierRestricted && (
-          <Alert variant="destructive" className="rounded-xl p-2.5 animate-in fade-in">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <AlertTitle className="text-xs font-bold">Tier Unit Limit Reached</AlertTitle>
-            <AlertDescription className="text-xs text-muted-foreground leading-normal">
-              {pack.name} has reached maximum Standard or Elite units. Upgrade your package or adjust service tiers to continue.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Dynamic Contextual Upgrade Callout */}
-        {isOverBudget && (
-          <Alert variant="warning" className="rounded-xl p-3 border-amber-400/35 bg-amber-400/[0.08] animate-in fade-in [&>svg]:text-brand-text dark:[&>svg]:text-amber-400">
-            <AlertTriangle className="w-4 h-4" />
-            <AlertTitle className="text-xs sm:text-sm font-bold text-foreground truncate">
-              {recommendedPack ? `Upgrade to ${recommendedPack.name}` : 'Upgrade Required'}
-            </AlertTitle>
-            <AlertDescription className="text-xs text-muted-foreground leading-snug">
-              <span className="block">
-                {recommendedPack
-                  ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString('en-US')}`
-                  : 'Contact us for a larger custom creator package.'}
-              </span>
-              {recommendedPack && (
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  className="mt-2 w-full text-xs gap-1.5 font-semibold h-8 sm:h-9 rounded-xl shadow-xs cursor-pointer"
-                  onClick={() => onUpgradePackage(recommendedPack.id)}
-                >
-                  <span>Upgrade to {recommendedPack.name}</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </Button>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
+      )}
     </Card>
   );
 }

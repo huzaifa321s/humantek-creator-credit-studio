@@ -14,6 +14,7 @@ import {
   Clock,
   RotateCcw,
   Plus,
+  Gift,
 } from 'lucide-react';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
@@ -212,17 +213,30 @@ export default function ClientWalletLedgerPage() {
             </p>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            render={<Link href="/redeem-code" />}
-            nativeButton={false}
-            className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer self-start sm:self-auto"
-          >
-            <Ticket className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
-            <span>Redeem Promo Code</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              render={<Link href="/redeem-code?tab=share" />}
+              nativeButton={false}
+              className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
+            >
+              <Gift className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+              <span>Share / Gift Credits</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              render={<Link href="/redeem-code" />}
+              nativeButton={false}
+              className="h-8 px-3 text-xs font-semibold gap-1.5 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
+            >
+              <Ticket className="size-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+              <span>Redeem Promo Code</span>
+            </Button>
+          </div>
         </div>
 
         {/* 3 Compact Summary KPI Cards — exact same pattern as AgencyDataGrid */}
@@ -350,6 +364,15 @@ export default function ClientWalletLedgerPage() {
                 >
                   <Plus className="size-4" />
                   Start a project
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-sm font-semibold h-10 px-4 gap-2 rounded-lg border-border text-foreground hover:bg-muted cursor-pointer"
+                  render={<Link href="/redeem-code?tab=share" />}
+                  nativeButton={false}
+                >
+                  <Gift className="size-4 text-brand-text dark:text-amber-400" />
+                  Share / Gift Credits
                 </Button>
                 <Button
                   variant="outline"

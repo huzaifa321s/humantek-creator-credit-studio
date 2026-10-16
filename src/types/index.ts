@@ -5,8 +5,7 @@ export type ServiceCategory =
   | 'VTuber'
   | 'Artwork'
   | 'Content'
-  | '3D'
-  | 'Custom';
+  | '3D';
 
 export type ServiceTierLevel = 0 | 1 | 2; // 0 = Basic, 1 = Standard, 2 = Elite
 

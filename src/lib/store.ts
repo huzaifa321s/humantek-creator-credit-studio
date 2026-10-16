@@ -309,5 +309,65 @@ export function setUserBalance(email: string, targetBalance: number, description
   }
 }
 
+export interface ClientGiftPromoRecord {
+  id: string;
+  code: string;
+  credits: number;
+  senderId: string;
+  senderEmail: string;
+  senderName: string;
+  recipientEmail: string;
+  note?: string;
+  status: 'active' | 'claimed';
+  claimedByEmail?: string | null;
+  claimedAt?: string | null;
+  createdAt: string;
+}
+
+const gGift = globalThis as unknown as {
+  __humantekGiftPromos?: ClientGiftPromoRecord[];
+};
+
+function getGiftStore(): ClientGiftPromoRecord[] {
+  if (!gGift.__humantekGiftPromos) {
+    gGift.__humantekGiftPromos = [];
+  }
+  return gGift.__humantekGiftPromos;
+}
+
+export function addClientGiftPromo(record: ClientGiftPromoRecord): ClientGiftPromoRecord {
+  const store = getGiftStore();
+  store.unshift(record);
+  return record;
+}
+
+export function getClientGiftPromosBySender(senderEmail: string): ClientGiftPromoRecord[] {
+  const norm = (senderEmail || '').trim().toLowerCase();
+  if (!norm) return [];
+  return getGiftStore().filter((r) => r.senderEmail.toLowerCase() === norm);
+}
+
+export function getClientGiftPromosForRecipient(recipientEmail: string): ClientGiftPromoRecord[] {
+  const norm = (recipientEmail || '').trim().toLowerCase();
+  if (!norm) return [];
+  return getGiftStore().filter((r) => r.recipientEmail.toLowerCase() === norm);
+}
+
+export function getClientGiftPromoByCode(code: string): ClientGiftPromoRecord | null {
+  const norm = (code || '').trim().toUpperCase();
+  if (!norm) return null;
+  return getGiftStore().find((r) => r.code.toUpperCase() === norm) || null;
+}
+
+export function markClientGiftPromoRedeemed(code: string, claimedByEmail: string): ClientGiftPromoRecord | null {
+  const target = getClientGiftPromoByCode(code);
+  if (!target) return null;
+  target.status = 'claimed';
+  target.claimedByEmail = claimedByEmail.trim().toLowerCase();
+  target.claimedAt = new Date().toISOString();
+  return target;
+}
+
 export { recordWalletFundedProject } from '@/lib/orders';
+
 

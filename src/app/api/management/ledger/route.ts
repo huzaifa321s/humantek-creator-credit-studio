@@ -423,11 +423,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/**
- * POST /api/management/ledger
- * Allows Owner and Manager to issue or adjust credits for a client wallet.
- * Rejects Viewer accounts with 403 Forbidden.
- */
+/* ============================================================================
+ * FUTURE USE: Manual Credit Issuing API (Commented out for future activation)
+ * ============================================================================
 export async function POST(req: NextRequest) {
   const { requireAdminWrite } = await import('@/lib/auth');
   const { createNotification } = await import('@/lib/notifications');
@@ -535,4 +533,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to issue credits' }, { status: 500 });
   }
 }
+============================================================================ */
+
 

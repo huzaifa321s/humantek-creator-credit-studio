@@ -12,6 +12,8 @@ export const walletKeys = {
     [...walletKeys.all, 'balance', (email || 'anonymous').toLowerCase().trim()] as const,
   ledger: (email?: string | null) =>
     [...walletKeys.all, 'ledger', (email || 'anonymous').toLowerCase().trim()] as const,
+  gifts: (email?: string | null) =>
+    [...walletKeys.all, 'gifts', (email || 'anonymous').toLowerCase().trim()] as const,
 };
 
 async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
@@ -84,6 +86,11 @@ export interface RedeemPromoResult {
   code: string;
   creditsAdded: number;
   newWalletBalance: number;
+  sharedBy?: {
+    name: string;
+    email: string;
+    note?: string;
+  } | null;
   message: string;
 }
 
@@ -102,6 +109,80 @@ export function useRedeemPromoCode() {
         body: JSON.stringify({
           code: code.trim().toUpperCase(),
           email: (email || 'kira@example.com').toLowerCase().trim(),
+        }),
+      });
+    },
+    onSuccess: (data) => {
+      if (typeof data.newWalletBalance === 'number') {
+        useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
+      }
+      void queryClient.invalidateQueries({ queryKey: walletKeys.all });
+    },
+  });
+}
+
+export interface GiftPromoRecordItem {
+  id: string;
+  code: string;
+  credits: number;
+  senderId: string;
+  senderEmail: string;
+  senderName: string;
+  recipientEmail: string;
+  note?: string;
+  status: 'active' | 'claimed';
+  claimedByEmail?: string | null;
+  claimedAt?: string | null;
+  createdAt: string;
+}
+
+export interface GiftPromosApiResponse {
+  success: boolean;
+  sentGifts: GiftPromoRecordItem[];
+  receivedGifts: GiftPromoRecordItem[];
+}
+
+export function useGiftPromoCodesQuery(email?: string | null) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  const userRole = useUserStore((s) => s.user?.role);
+  const isAdmin = Boolean(userRole && userRole.toLowerCase() === 'admin');
+
+  return useQuery({
+    queryKey: walletKeys.gifts(normalizedEmail || 'none'),
+    queryFn: async ({ signal }) => {
+      return fetchJson<GiftPromosApiResponse>('/api/wallet/gift', { signal });
+    },
+    enabled: Boolean(normalizedEmail) && !isAdmin,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export interface CreateGiftPromoInput {
+  recipientEmail: string;
+  credits: number;
+  note?: string;
+}
+
+export interface CreateGiftPromoResult {
+  success: boolean;
+  gift: GiftPromoRecordItem;
+  newWalletBalance: number;
+  message: string;
+}
+
+export function useCreateGiftPromoCode() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreateGiftPromoInput) => {
+      return fetchJson<CreateGiftPromoResult>('/api/wallet/gift', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientEmail: input.recipientEmail.trim().toLowerCase(),
+          credits: input.credits,
+          note: input.note?.trim() || undefined,
         }),
       });
     },

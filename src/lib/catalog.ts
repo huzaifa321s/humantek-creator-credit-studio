@@ -367,14 +367,6 @@ export const SERVICES: ServiceDefinition[] = [
     description: 'High-volume short-form production for active creators.',
     prices: [640, 960, 1600],
   },
-  {
-    id: 'custom',
-    name: 'Other Custom Request',
-    category: 'Custom',
-    description: 'Unlisted work; team review required.',
-    prices: [0, 0, 0],
-    quoteOnly: true,
-  },
 ];
 
 export const EXTRAS_AND_ADDITIONS = [
@@ -667,19 +659,11 @@ export const CATEGORY_DEFAULT_METADATA: Record<
       'FBX / OBJ / Blend formats',
     ],
   },
-  Custom: {
-    bestFor: 'Bespoke agency projects & special scopes',
-    deliverables: [
-      'Tailored milestone deliverables',
-      'Dedicated art director review',
-      'Full commercial rights transfer',
-    ],
-  },
 };
 
 export function getServiceMetadata(svc: ServiceDefinition) {
   const custom = SERVICE_METADATA_EXTRAS[svc.id];
-  const catDefault = CATEGORY_DEFAULT_METADATA[svc.category] || CATEGORY_DEFAULT_METADATA.Custom;
+  const catDefault = CATEGORY_DEFAULT_METADATA[svc.category] || CATEGORY_DEFAULT_METADATA.Branding;
 
   return {
     bestFor: svc.bestFor || custom?.bestFor || catDefault.bestFor,

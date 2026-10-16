@@ -1,11 +1,15 @@
 'use client';
 
 import React, { Suspense, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { AgencyDataGrid } from '@/components/AgencyDataGrid';
 import { useManagementLedgerQuery } from '@/lib/queries/management';
-import { useUserStore } from '@/lib/userStore';
 import { Skeleton } from '@/components/ui/skeleton';
+
+/* ============================================================================
+ * FUTURE USE: Imports for Manual Credit Issuing System
+ * ============================================================================
+import { useQueryClient } from '@tanstack/react-query';
+import { useUserStore } from '@/lib/userStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,14 +29,18 @@ import {
 } from '@/components/ui/select';
 import { Coins, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+============================================================================ */
 
 function InnerLedgerContent() {
-  const queryClient = useQueryClient();
-  const canIssueCredits = useUserStore((s) => s.canIssueCredits());
-
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  /* ============================================================================
+   * FUTURE USE: Manual Credit Issuing System (Commented out for future activation)
+   * ============================================================================
+  const queryClient = useQueryClient();
+  const canIssueCredits = useUserStore((s) => s.canIssueCredits());
 
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [issueEmail, setIssueEmail] = useState('');
@@ -40,15 +48,6 @@ function InnerLedgerContent() {
   const [issueBucket, setIssueBucket] = useState<'promo' | 'purchased'>('promo');
   const [issueDesc, setIssueDesc] = useState('');
   const [isIssuing, setIsIssuing] = useState(false);
-
-  const { data, isPending } = useManagementLedgerQuery({
-    limit: 500,
-    customer: customerFilter,
-    type: typeFilter,
-    status: statusFilter,
-  });
-  const transactions = data?.transactions || [];
-  const customers = data?.customers || [];
 
   const handleOpenIssueModal = () => {
     if (customerFilter !== 'all') {
@@ -98,6 +97,16 @@ function InnerLedgerContent() {
       setIsIssuing(false);
     }
   };
+  ============================================================================ */
+
+  const { data, isPending } = useManagementLedgerQuery({
+    limit: 500,
+    customer: customerFilter,
+    type: typeFilter,
+    status: statusFilter,
+  });
+  const transactions = data?.transactions || [];
+  const customers = data?.customers || [];
 
   if (isPending && !data) {
     return (
@@ -116,6 +125,9 @@ function InnerLedgerContent() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
+      {/* ============================================================================
+        * FUTURE USE: Manual Credit Issuing Header Bar & Trigger Button
+        * ============================================================================
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="text-xs text-muted-foreground">
           {canIssueCredits
@@ -135,6 +147,7 @@ function InnerLedgerContent() {
           </Button>
         )}
       </div>
+      ============================================================================ */}
 
       <AgencyDataGrid
         transactions={transactions}
@@ -147,6 +160,9 @@ function InnerLedgerContent() {
         onStatusFilterChange={setStatusFilter}
       />
 
+      {/* ============================================================================
+        * FUTURE USE: Manual Credit Issuing Modal (Dialog)
+        * ============================================================================
       <Dialog open={isIssueModalOpen} onOpenChange={setIsIssueModalOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl border-border/80 bg-card">
           <DialogHeader>
@@ -271,6 +287,7 @@ function InnerLedgerContent() {
           </form>
         </DialogContent>
       </Dialog>
+      ============================================================================ */}
     </div>
   );
 }
