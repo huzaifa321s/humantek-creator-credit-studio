@@ -2,6 +2,16 @@ import { PackageDefinition, ServiceDefinition } from '@/types';
 
 export const PACKAGES: PackageDefinition[] = [
   {
+    // Low-cost package used only to test the payment flow end to end.
+    id: 'payment-test',
+    name: 'Payment Test',
+    price: 20,
+    credits: 10,
+    group: 'Testing',
+    bestFor: 'Testing payments only',
+    maxLevel: 2,
+  },
+  {
     id: 'creator-forge',
     name: 'Creator Forge',
     price: 1500,

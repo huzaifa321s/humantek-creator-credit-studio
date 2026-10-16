@@ -1895,19 +1895,22 @@ export default function CreatorStudioPage() {
               </div>
 
               {/* 3 Clean Package Cards (Shows only their own credits, no confusing repeated math formulas) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 items-stretch">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5 items-stretch">
                 {PACKAGES.map((pkg) => {
                   const pkgCredits = pkg.credits;
                   const isSelected = selectedPackageId === pkg.id;
                   const isPopular = pkg.id === 'studio-momentum';
-                  const tierRuleLabel =
-                    pkg.id === 'creator-forge'
+                  const isTest = pkg.id === 'payment-test';
+                  const tierRuleLabel = isTest
+                    ? 'Testing only, for checking the payment flow'
+                    : pkg.id === 'creator-forge'
                       ? 'Basic services + up to 2 Standard units (Elite locked)'
                       : pkg.id === 'studio-momentum'
                         ? 'Basic & Standard services + up to 2 Elite units'
                         : 'All Basic, Standard & Elite tiers across 39 services';
-                  const bestForSummary =
-                    pkg.id === 'creator-forge'
+                  const bestForSummary = isTest
+                    ? 'For testing payments only. Not a production package.'
+                    : pkg.id === 'creator-forge'
                       ? 'Ideal for essential channel branding, emotes, and stream graphics.'
                       : pkg.id === 'studio-momentum'
                         ? 'Balanced credit budget for multi-asset rebrands and animated packages.'
