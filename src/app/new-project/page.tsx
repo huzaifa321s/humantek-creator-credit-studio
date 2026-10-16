@@ -1450,33 +1450,31 @@ export default function CreatorStudioPage() {
                 {currentPackage && isStep1Valid ? (
                   isWalletFunding ? (
                     <>
-                      <Check className="size-3.5 text-emerald-600 inline shrink-0" />
-                      <span className="text-foreground font-semibold">Using Wallet only</span>
+                      <span className="text-muted-foreground">Funding:</span>
+                      <strong className="text-foreground font-bold">Wallet ({userBalance.toLocaleString('en-US')} CR)</strong>
                       <span>·</span>
-                      <span className="font-mono font-bold text-foreground">{userBalance.toLocaleString('en-US')} CR</span>
-                      <span>·</span>
-                      <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">$0</span>
-                      <span className="hidden md:inline">· Click Next to pick services</span>
+                      <span className="text-muted-foreground">Pay today:</span>
+                      <strong className="font-mono font-bold text-emerald-600 dark:text-emerald-400">$0</strong>
                     </>
                   ) : effectiveApplyWallet ? (
                     <>
-                      <Check className="size-3.5 text-emerald-600 inline shrink-0" />
-                      <span className="text-foreground font-semibold">{currentPackage.name} + Wallet</span>
+                      <span className="text-muted-foreground">Funding:</span>
+                      <strong className="text-foreground font-bold">{currentPackage.name} + wallet</strong>
                       <span>·</span>
-                      <span className="font-mono font-bold text-foreground">{totalUsableCredits.toLocaleString('en-US')} CR</span>
+                      <span className="font-mono font-bold text-foreground">{(currentPackage.credits + userBalance).toLocaleString('en-US')} CR</span>
                       <span>·</span>
-                      <span className="font-mono font-semibold text-foreground">${currentPackage.price.toLocaleString('en-US')}</span>
-                      <span className="hidden md:inline">· Click Next to pick services</span>
+                      <span className="text-muted-foreground">Pay today:</span>
+                      <strong className="font-mono font-bold text-foreground">${currentPackage.price.toLocaleString('en-US')}</strong>
                     </>
                   ) : (
                     <>
-                      <Check className="size-3.5 text-emerald-600 inline shrink-0" />
-                      <span className="text-foreground font-semibold">{currentPackage.name}</span>
+                      <span className="text-muted-foreground">Funding:</span>
+                      <strong className="text-foreground font-bold">{currentPackage.name}</strong>
                       <span>·</span>
                       <span className="font-mono font-bold text-foreground">{currentPackage.credits.toLocaleString('en-US')} CR</span>
                       <span>·</span>
-                      <span className="font-mono font-semibold text-foreground">${currentPackage.price.toLocaleString('en-US')}</span>
-                      <span className="hidden md:inline">· Click Next to pick services</span>
+                      <span className="text-muted-foreground">Pay today:</span>
+                      <strong className="font-mono font-bold text-foreground">${currentPackage.price.toLocaleString('en-US')}</strong>
                     </>
                   )
                 ) : (
@@ -1490,7 +1488,7 @@ export default function CreatorStudioPage() {
           )}
         </div>
 
-        {/* Right Side: Primary Next Button matching reference image */}
+        {/* Right Side: Primary Next / Continue Button */}
         <div className={cn(
           "flex items-center gap-2 sm:gap-3",
           currentStep === 1 ? "w-full sm:w-auto sm:ml-auto" : "flex-1 sm:flex-none justify-end"
@@ -1514,7 +1512,7 @@ export default function CreatorStudioPage() {
                   !isStep1Valid && 'opacity-60 cursor-not-allowed'
                 )}
               >
-                <span>Next</span>
+                <span>Continue</span>
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Button>
             </div>
@@ -1713,19 +1711,17 @@ export default function CreatorStudioPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-border/60 pb-2.5 sm:pb-4">
             <div>
               <div className="text-2xs sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5 sm:mb-1">
-                STEP 1 OF 5 · {userBalance > 0 ? 'CHOOSE PROJECT FUNDING' : 'CHOOSE A PACKAGE'}
+                STEP 1 OF 5 · {userBalance > 0 ? 'FUND YOUR PROJECT' : 'CHOOSE A PACKAGE'}
               </div>
               <h1
                 ref={headingRef}
                 tabIndex={-1}
                 className="scroll-mt-[140px] text-xl sm:text-3xl font-extrabold tracking-tight text-foreground outline-none"
               >
-                Start with the right credit wallet.
+                {userBalance > 0 ? 'How would you like to pay for this project?' : 'Choose a package to fund your project.'}
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed">
-                {userBalance > 0
-                  ? 'Use your existing Studio Wallet balance with $0 checkout, or purchase a new package and combine credits.'
-                  : 'Choose a package, then build a multi-service project and see your remaining credits in real time.'}
+                Credits are used to pay for your art services. Unused credits always stay safely in your wallet.
               </p>
             </div>
           </div>
@@ -1733,12 +1729,13 @@ export default function CreatorStudioPage() {
           {/* ReUI Standardized Announcement & Status Banner */}
           <StudioNoticeBanner type="step1-scope" />
 
-          {/* Returning Client Funding Choice: Clean, Beginner-Friendly Radio Cards */}
+          {/* Step 1 Funding Options: Clean, Beginner-Friendly Mode Selection */}
           {userBalance > 0 ? (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="space-y-5">
+              {/* Contextual Chat Question Trigger */}
+              <div className="flex items-center justify-between gap-2.5">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Choose how to fund this project:
+                  Select your funding method:
                 </span>
 
                 <ChatGate>
@@ -1759,124 +1756,116 @@ export default function CreatorStudioPage() {
                 </ChatGate>
               </div>
 
-              {/* Funding Choice 1: Use Studio Wallet Balance */}
-              <Card
-                onClick={() => handleSwitchStep1Tab('wallet')}
-                className={cn(
-                  'rounded-xl p-4 sm:p-5 transition-all duration-200 cursor-pointer select-none shadow-2xs',
-                  isWalletFunding
-                    ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400/20'
-                    : 'border border-border/80 bg-card hover:border-amber-400/50'
-                )}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className={cn(
-                        'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors',
-                        isWalletFunding
-                          ? 'bg-amber-400 text-zinc-950 font-bold shadow-xs'
-                          : 'bg-secondary text-muted-foreground'
-                      )}
-                    >
-                      <Wallet className="size-4" />
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-sm sm:text-base font-bold text-foreground">
-                          Option 1: Use Existing Studio Wallet ({userBalance.toLocaleString('en-US')} CR)
-                        </h2>
-                        <Badge variant="success" size="sm">
-                          $0 Checkout Today
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Start your project using your available balance. No extra payment required. Unused credits stay in your wallet.
-                      </p>
-                    </div>
-                  </div>
-
-                  <Badge
-                    variant={isWalletFunding ? 'gold' : 'secondary'}
-                    size="sm"
-                    className="self-start sm:self-center shrink-0 font-bold"
-                  >
-                    {isWalletFunding ? (
-                      <>
-                        <Check className="size-3 mr-1 stroke-[2.5]" />
-                        Selected
-                      </>
-                    ) : (
-                      'Use Wallet'
-                    )}
-                  </Badge>
-                </div>
-              </Card>
-
-              {/* Funding Choice 2: Buy a New Package Header & Optional Wallet Boost */}
-              <div className="pt-1 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Option 2: Buy a New Credit Package
-                  </span>
-                  {!isWalletFunding && (
-                    <Badge variant="outline" size="sm" className="font-semibold text-2xs text-muted-foreground border-border/70">
-                      Pick a package below
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Clear, Optional Checkbox to apply wallet on top of purchased package */}
-                <div
-                  onClick={() => {
-                    if (isWalletFunding) {
-                      handleSwitchStep1Tab('packages');
-                      setApplyWalletCredits(true);
-                      setFundingSource('hybrid');
-                    } else {
-                      const next = !applyWalletCredits;
-                      setApplyWalletCredits(next);
-                      setFundingSource(next ? 'hybrid' : 'package');
-                    }
-                  }}
+              {/* 2 Equal Radio-Style Mode Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Radio Card 1: Use My Wallet */}
+                <Card
+                  onClick={() => handleSwitchStep1Tab('wallet')}
                   className={cn(
-                    'p-3 sm:px-4 rounded-xl border transition-all cursor-pointer select-none flex flex-col sm:flex-row sm:items-center justify-between gap-2.5',
-                    !isWalletFunding && applyWalletCredits
-                      ? 'border-amber-400/60 bg-amber-400/[0.04] shadow-2xs'
-                      : 'border-border/80 bg-card hover:bg-secondary/40'
+                    'p-5 rounded-2xl transition-all duration-200 cursor-pointer select-none flex flex-col justify-between gap-3 shadow-2xs',
+                    isWalletFunding
+                      ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/25 shadow-md ring-2 ring-amber-400/20'
+                      : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
                   )}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Checkbox
-                      id="apply-wallet-toggle"
-                      checked={!isWalletFunding && applyWalletCredits}
-                      onCheckedChange={(checked) => {
-                        const next = Boolean(checked);
-                        if (isWalletFunding) {
-                          handleSwitchStep1Tab('packages');
-                        }
-                        setApplyWalletCredits(next);
-                        setFundingSource(next ? 'hybrid' : 'package');
-                      }}
-                      className="cursor-pointer"
-                    />
-                    <label
-                      htmlFor="apply-wallet-toggle"
-                      className="text-xs font-medium text-foreground cursor-pointer select-none leading-normal"
-                    >
-                      Also add my <strong className="font-mono font-bold text-brand-text dark:text-amber-300">{userBalance.toLocaleString('en-US')} CR</strong> wallet to this new project
-                    </label>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          'size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                          isWalletFunding
+                            ? 'border-amber-400 bg-amber-400 text-zinc-950'
+                            : 'border-muted-foreground/40 bg-transparent'
+                        )}
+                      >
+                        {isWalletFunding && <div className="size-2 rounded-full bg-zinc-950" />}
+                      </div>
+                      <h2 className="text-base sm:text-lg font-bold text-foreground">
+                        Use my wallet
+                      </h2>
+                    </div>
+                    <Badge variant={isWalletFunding ? 'success' : 'secondary'} size="sm">
+                      $0 today
+                    </Badge>
                   </div>
 
-                  {!isWalletFunding && currentPackage && (
-                    <Badge variant="gold" size="sm" className="font-mono tabular-nums font-bold self-start sm:self-center shrink-0">
-                      {applyWalletCredits
-                        ? `Total: ${(currentPackage.credits + userBalance).toLocaleString('en-US')} CR`
-                        : `${currentPackage.credits.toLocaleString('en-US')} CR (Package only)`}
-                    </Badge>
+                  <div className="pl-8 space-y-1">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-2xl font-black font-mono tracking-tight text-foreground">
+                        {userBalance.toLocaleString('en-US')} CR
+                      </span>
+                      <span className="text-xs text-muted-foreground font-semibold">available</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Pay using credits you already own. $0 checkout today.
+                    </p>
+                  </div>
+                </Card>
+
+                {/* Radio Card 2: Buy More Credits */}
+                <Card
+                  onClick={() => handleSwitchStep1Tab('packages')}
+                  className={cn(
+                    'p-5 rounded-2xl transition-all duration-200 cursor-pointer select-none flex flex-col justify-between gap-3 shadow-2xs',
+                    !isWalletFunding
+                      ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/25 shadow-md ring-2 ring-amber-400/20'
+                      : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
                   )}
-                </div>
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          'size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                          !isWalletFunding
+                            ? 'border-amber-400 bg-amber-400 text-zinc-950'
+                            : 'border-muted-foreground/40 bg-transparent'
+                        )}
+                      >
+                        {!isWalletFunding && <div className="size-2 rounded-full bg-zinc-950" />}
+                      </div>
+                      <h2 className="text-base sm:text-lg font-bold text-foreground">
+                        Buy more credits
+                      </h2>
+                    </div>
+                    <Badge variant={!isWalletFunding ? 'gold' : 'secondary'} size="sm">
+                      + Add to Wallet
+                    </Badge>
+                  </div>
+
+                  <div className="pl-8 space-y-1">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-base sm:text-lg font-bold text-foreground">
+                        Choose a package
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Pick a package to add credits to your balance and combine with your wallet.
+                    </p>
+                  </div>
+                </Card>
               </div>
+
+              {/* State 1: "Use My Wallet" selected -> Clean Ready Card (Packages completely hidden) */}
+              {isWalletFunding && (
+                <div className="p-5 sm:p-6 rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-400/[0.08] via-background to-secondary/30 shadow-2xs space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-7 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <Check className="size-4 stroke-[3]" />
+                    </div>
+                    <h3 className="text-base font-bold text-foreground">You&apos;re all set</h3>
+                  </div>
+
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed pl-9">
+                    Your <strong className="font-mono text-foreground font-bold">{userBalance.toLocaleString('en-US')} CR</strong> is ready to use. Click <strong className="text-foreground">Continue</strong> below to pick your art services, and we&apos;ll show exactly how many credits each asset uses in real time.
+                  </p>
+
+                  <div className="pl-9 pt-1 flex items-center gap-3">
+                    <ScopeGuideModal />
+                    <span className="text-2xs text-muted-foreground">· Unused credits stay safely in your wallet</span>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             /* Contextual chat link when userBalance === 0 (desktop only, mobile has sticky bottom button) */
@@ -1894,16 +1883,24 @@ export default function CreatorStudioPage() {
             </ChatGate>
           )}
 
-          {/* Centered 3 Compact Package Cards Grid (Always visible for clarity, highlighted when package is chosen) */}
-          {(userBalance <= 0 || !isWalletFunding || step1TabMode === 'packages') && (
-            <>
+          {/* State 2: Packages Selection (Shown when userBalance === 0 OR when "Buy more credits" is chosen) */}
+          {(userBalance <= 0 || !isWalletFunding) && (
+            <div className="space-y-4 pt-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Choose a package:
+                </span>
+                <span className="text-2xs text-muted-foreground hidden sm:inline">
+                  Higher tiers unlock elite services and priority turnarounds
+                </span>
+              </div>
+
+              {/* 3 Clean Package Cards (Shows only their own credits, no confusing repeated math formulas) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 items-stretch">
                 {PACKAGES.map((pkg) => {
                   const pkgCredits = pkg.credits;
                   const isSelected = selectedPackageId === pkg.id;
                   const isPopular = pkg.id === 'studio-momentum';
-                  const showHybridAddition = userBalance > 0 && applyWalletCredits;
-                  const combinedBudget = showHybridAddition ? pkgCredits + userBalance : pkgCredits;
                   const tierRuleLabel =
                     pkg.id === 'creator-forge'
                       ? 'Basic services + up to 2 Standard units (Elite locked)'
@@ -1922,7 +1919,7 @@ export default function CreatorStudioPage() {
                       key={pkg.id}
                       onClick={() => handleSelectPackage(pkg.id)}
                       className={cn(
-                        'relative flex flex-col justify-between rounded-xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0',
+                        'relative flex flex-col justify-between rounded-2xl transition-all duration-200 cursor-pointer select-none overflow-hidden shadow-2xs py-0 gap-0',
                         isSelected
                           ? 'border-2 border-amber-400 bg-amber-400/[0.06] dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400/25'
                           : 'border border-border/80 bg-card hover:border-border hover:shadow-xs'
@@ -1943,7 +1940,7 @@ export default function CreatorStudioPage() {
                         </div>
                       )}
 
-                      <CardHeader className="p-4 pb-2">
+                      <CardHeader className="p-4 sm:p-5 pb-2">
                         {!isPopular ? (
                           <Badge variant="secondary" className="w-fit text-xs font-semibold uppercase tracking-wider mb-1 px-2.5 py-0.5">
                             {pkg.group}
@@ -1961,26 +1958,17 @@ export default function CreatorStudioPage() {
                           <span className="text-xs text-muted-foreground font-semibold">USD</span>
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <CreditValue value={combinedBudget} size="sm" variant="pill" />
-                          {showHybridAddition && (
-                            <span className="text-2xs text-emerald-600 dark:text-emerald-400 font-bold font-mono">
-                              ({pkgCredits.toLocaleString('en-US')} + {userBalance.toLocaleString('en-US')} Wallet)
-                            </span>
-                          )}
+                          <CreditValue value={pkgCredits} size="sm" variant="pill" />
                         </div>
                         <CardDescription className="text-xs leading-relaxed text-muted-foreground line-clamp-2 min-h-[2.5rem] mt-1">
                           {bestForSummary}
                         </CardDescription>
                       </CardHeader>
 
-                      <CardContent className="p-4 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
+                      <CardContent className="p-4 sm:p-5 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
                         <div className="flex items-start gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>
-                            {showHybridAddition
-                              ? `${combinedBudget.toLocaleString('en-US')} CR combined budget (${pkgCredits.toLocaleString('en-US')} CR + ${userBalance.toLocaleString('en-US')} CR wallet)`
-                              : `${pkgCredits.toLocaleString('en-US')} CR package allocation`}
-                          </span>
+                          <span>{pkgCredits.toLocaleString('en-US')} CR package allocation</span>
                         </div>
                         <div className="flex items-start gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -1988,11 +1976,11 @@ export default function CreatorStudioPage() {
                         </div>
                         <div className="flex items-start gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>Unused package credits roll over into your Studio Wallet</span>
+                          <span>Unused credits roll over into your Studio Wallet</span>
                         </div>
                       </CardContent>
 
-                      <div className="p-4 pt-0">
+                      <div className="p-4 sm:p-5 pt-0">
                         <Button
                           type="button"
                           variant={isSelected ? 'default' : 'secondary'}
@@ -2022,11 +2010,31 @@ export default function CreatorStudioPage() {
                 })}
               </div>
 
+              {/* Automatic Wallet Combine Summary: Appears cleanly once a package is selected */}
+              {userBalance > 0 && currentPackage && (
+                <div className="p-4 sm:p-4.5 rounded-xl border border-amber-400/40 bg-amber-400/[0.05] dark:bg-amber-950/20 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Coins className="size-4 text-amber-500" />
+                      <span className="text-xs font-bold text-foreground">
+                        Your wallet automatically adds {userBalance.toLocaleString('en-US')} CR
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      New purchase {currentPackage.credits.toLocaleString('en-US')} CR + wallet {userBalance.toLocaleString('en-US')} CR = <strong className="font-mono font-bold text-foreground">{(currentPackage.credits + userBalance).toLocaleString('en-US')} CR total budget</strong>
+                    </p>
+                  </div>
+                  <Badge variant="gold" size="sm" className="font-mono font-bold self-start sm:self-center shrink-0">
+                    {(currentPackage.credits + userBalance).toLocaleString('en-US')} CR Total
+                  </Badge>
+                </div>
+              )}
+
               {/* Centered Bottom Fine Print */}
               <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
                 Base service value: <span className="font-semibold text-foreground/90">$2.50 per CR</span> before package bonuses. Higher packages receive a stronger effective rate.
               </p>
-            </>
+            </div>
           )}
         </div>
       )}
