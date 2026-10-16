@@ -55,22 +55,42 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Read package authoritatively from database catalog
-    const { data: pkg, error: pkgErr } = await adminClient
+    // Read package authoritatively from database catalog or catalog top-up definitions
+    let resolvedPackage: { id: string; name: string; price_usd: number; credits: number } | null = null;
+
+    const { data: pkg } = await adminClient
       .from('packages')
       .select('*')
       .eq('id', packageId.trim())
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
-    if (pkgErr || !pkg) {
+    if (pkg) {
+      resolvedPackage = {
+        id: pkg.id,
+        name: pkg.name,
+        price_usd: Number(pkg.price_usd),
+        credits: Number(pkg.credits),
+      };
+    } else if (packageId.trim() === 'topup-100') {
+      resolvedPackage = {
+        id: 'topup-100',
+        name: '$100 Top-Up (40 Credits)',
+        price_usd: 100,
+        credits: 40,
+      };
+    }
+
+    if (!resolvedPackage) {
       return NextResponse.json({ error: 'Unknown or inactive package selected' }, { status: 400 });
     }
 
-    const priceUSD = Number(pkg.price_usd);
+    const pkgData = resolvedPackage;
+
+    const priceUSD = pkgData.price_usd;
     const expectedAmountCents = Math.round(priceUSD * 100);
 
-    if (expectedAmountCents <= 0 || pkg.credits <= 0) {
+    if (expectedAmountCents <= 0 || pkgData.credits <= 0) {
       return NextResponse.json(
         { error: 'Selected package cannot be purchased via PayPal' },
         { status: 400 }
@@ -83,8 +103,8 @@ export async function POST(req: NextRequest) {
         .from('orders')
         .insert({
           user_id: user.id,
-          package_id: pkg.id,
-          credits_to_grant: pkg.credits,
+          package_id: pkgData.id,
+          credits_to_grant: pkgData.credits,
           expected_amount_cents: expectedAmountCents,
           currency: 'USD',
           status: 'created',
@@ -101,9 +121,9 @@ export async function POST(req: NextRequest) {
       // Attach the selected package, deliverables and brief so buyer + merchant both see them in PayPal
       const orderDetails = buildPayPalOrderDetails({
         internalOrderId: newOrder.id,
-        package: { name: pkg.name, credits: pkg.credits },
+        package: { name: pkgData.name, credits: pkgData.credits },
         customer: { name: user.name, email: user.email },
-        body: { ...(body as Record<string, unknown>), packageId: pkg.id },
+        body: { ...(body as Record<string, unknown>), packageId: pkgData.id },
       });
       const paypalOrder = await createPayPalOrder(priceUSD, newOrder.id, idempKey, orderDetails);
 

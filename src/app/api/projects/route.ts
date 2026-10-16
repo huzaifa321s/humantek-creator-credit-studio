@@ -799,7 +799,15 @@ export async function POST(req: NextRequest) {
         p_instructions: parsed.data.instructions || '',
         p_uploaded_files: verifiedReferences,
         p_selections: parsed.data.selections,
-        p_additions: parsed.data.additions || [],
+        p_additions: (parsed.data.additions || []).map((add: string) => {
+          const ALIAS_TO_CANONICAL: Record<string, string> = {
+            '24-Hour Express Delivery': 'Rush delivery request',
+            'Source Project Files (PSD/AI/AEP)': 'Additional size / platform',
+            'Commercial Usage & Full Buyout Rights': 'Additional concept',
+            'Extra Strategy & Consultation Call (30m)': 'Rush delivery request',
+          };
+          return ALIAS_TO_CANONICAL[add] || add;
+        }),
         p_idempotency_key: parsed.data.projectId,
       });
 

@@ -50,6 +50,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!user.emailConfirmed) {
+      return NextResponse.json(
+        { error: 'Please confirm your email address before redeeming promotional credits.' },
+        { status: 403 }
+      );
+    }
+
     // Rate limiting per authenticated user AND per IP
     const userIdentifier = user.id || user.email.toLowerCase().trim();
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || userIdentifier;
