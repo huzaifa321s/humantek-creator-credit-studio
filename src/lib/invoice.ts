@@ -1,5 +1,6 @@
 import { PACKAGES, TIER_NAMES, TOP_UP_OPTIONS } from '@/lib/catalog';
 import { getProjectStatusLabel } from '@/lib/utils';
+import { getPaymentPlatform, PAYMENT_PLATFORM_LABELS } from '@/lib/payment-platform';
 import { resolvePaletteSwatches, hexToRgb } from '@/components/reui/color-picker';
 import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import type { ClientProjectView } from '@/lib/serializers/project';
@@ -397,12 +398,13 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setFont(fontSans, 'normal');
   doc.setFontSize(8.8);
   doc.text(`Package: ${packageName}`, rightCardX + 14, y + 52);
+  const platform = getPaymentPlatform(project);
   doc.text(
     `Funding: ${
       isWalletFunded
         ? 'Studio Wallet Credits'
-        : project.paymentMethod === 'paypal' || isPaid
-          ? 'PayPal / Online Checkout'
+        : platform !== 'none'
+          ? PAYMENT_PLATFORM_LABELS[platform]
           : 'Manual Order Review'
     }`,
     rightCardX + 14,

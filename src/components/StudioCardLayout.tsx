@@ -10,6 +10,7 @@ import {
   MessageSquare,
   LayoutDashboard,
   Receipt,
+  CreditCard,
   Bell,
   Plus,
   PencilLine,
@@ -413,6 +414,45 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
+                {/* Billing & invoices (Owner / Manager only) */}
+                {(user?.teamRole === 'owner' || user?.teamRole === 'manager') && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      isActive={pathname.startsWith('/management/billing')}
+                      onClick={handleNavClick}
+                      render={<Link href="/management/billing" onClick={handleNavClick} />}
+                      tooltip="Billing & Invoices"
+                      className={cn(
+                        SIDEBAR_ITEM_BASE,
+                        pathname.startsWith('/management/billing') ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
+                      )}
+                    >
+                      <CreditCard
+                        className={cn(
+                          'size-4 shrink-0 transition-colors',
+                          pathname.startsWith('/management/billing')
+                            ? 'text-brand-text dark:text-amber-400'
+                            : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                        )}
+                      />
+                      <span className="truncate group-data-[collapsible=icon]:hidden">Billing</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                    )}
+                  >
+                    <CreditCard
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/management/billing')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Billing</span>
+                  </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+
                 {/* 5. Team Access (Strictly Owner Only) */}
                 {user?.teamRole === 'owner' && (
                   <SidebarTeamAccessItem pathname={pathname} />
@@ -503,6 +543,30 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                       )}
                     />
                     <span className="truncate group-data-[collapsible=icon]:hidden">Credit History</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Billing & invoices */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={!isChatOpen && pathname.startsWith('/billing')}
+                    onClick={handleNavClick}
+                    render={<Link href="/billing" onClick={handleNavClick} />}
+                    tooltip="Billing & Invoices"
+                    className={cn(
+                      SIDEBAR_ITEM_BASE,
+                      !isChatOpen && pathname.startsWith('/billing') ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_INACTIVE
+                    )}
+                  >
+                    <CreditCard
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        !isChatOpen && pathname.startsWith('/billing')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Billing</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 

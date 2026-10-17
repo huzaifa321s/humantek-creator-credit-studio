@@ -7,6 +7,7 @@ const CLIENT_ONLY_PATHS = [
   '/projects',
   '/configure',
   '/wallet',
+  '/billing',
   '/messages',
   '/redeem-code',
   '/account',
