@@ -438,19 +438,6 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                       <span className="truncate group-data-[collapsible=icon]:hidden">Billing</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                    )}
-                  >
-                    <CreditCard
-                      className={cn(
-                        'size-4 shrink-0 transition-colors',
-                        pathname.startsWith('/management/billing')
-                          ? 'text-brand-text dark:text-amber-400'
-                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
-                      )}
-                    />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Billing</span>
-                  </SidebarMenuButton>
-                  </SidebarMenuItem>
                 )}
 
                 {/* 5. Team Access (Strictly Owner Only) */}
