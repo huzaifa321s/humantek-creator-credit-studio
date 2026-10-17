@@ -30,6 +30,7 @@ import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
 import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
+import { ManualPaymentOptions } from '@/components/ManualPaymentOptions';
 import { PayPalButtonWrapper, type ClientCapturedPayment } from '@/components/PayPalButtonWrapper';
 import { isPayPalClientConfigured } from '@/lib/paypal-config';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -4019,6 +4020,8 @@ export default function CreatorStudioPage() {
                               toast.error(sanitized);
                             }}
                           />
+
+                          <ManualPaymentOptions />
 
                           {/* Instant contextual error alert placed directly below payment options */}
                           {errorMessage && (
