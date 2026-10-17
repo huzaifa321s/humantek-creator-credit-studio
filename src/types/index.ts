@@ -78,7 +78,7 @@ export interface ProjectRecord {
   remainingCredits?: number;
   status: 'pending_review' | 'payment_confirmed' | 'in_production' | 'review_round' | 'delivered' | 'declined' | 'cancelled';
   paymentStatus: 'unpaid' | 'paid' | 'refunded' | 'pending';
-  paymentMethod?: 'credits' | 'paypal' | 'unpaid' | 'manual' | string;
+  paymentMethod?: 'credits' | 'paypal' | 'unpaid' | 'manual' | 'bank_transfer' | 'cashapp' | string;
   fundingSource?: 'wallet' | 'package' | 'hybrid';
   appliedWalletCredits?: number;
   clientName: string;

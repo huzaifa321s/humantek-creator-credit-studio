@@ -677,7 +677,7 @@ export async function POST(req: NextRequest) {
             funding_source: parsed.data.fundingSource || 'wallet',
             status: 'pending_review',
             payment_status: 'unpaid',
-            payment_method: 'unpaid',
+            payment_method: parsed.data.paymentMethod ?? 'unpaid',
             package_price_usd: pkg.price || 0,
             package_credits: pkg.credits || 0,
             total_credits: totalCreditsRequired,

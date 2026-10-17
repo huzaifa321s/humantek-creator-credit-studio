@@ -1251,10 +1251,13 @@ export default function CreatorStudioPage() {
     ]
       .filter(Boolean)
       .join(' | ');
-    void submitProjectBrief(paymentNote);
+    void submitProjectBrief(paymentNote, method === 'Cash App' ? 'cashapp' : 'bank_transfer');
   };
 
-  const submitProjectBrief = async (paymentNote?: string) => {
+  const submitProjectBrief = async (
+    paymentNote?: string,
+    paymentMethod?: 'bank_transfer' | 'cashapp'
+  ) => {
     if (!user?.email) {
       setShowAuthModal(true);
       return;
@@ -1289,6 +1292,7 @@ export default function CreatorStudioPage() {
           : instructions,
         uploadedFiles,
         paymentStatus: 'unpaid',
+        paymentMethod,
         status: 'pending_review',
       });
 

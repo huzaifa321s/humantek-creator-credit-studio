@@ -220,6 +220,8 @@ export const orderRequestSchema = orderCoreSchema.extend(projectBriefSchema.shap
   clientName: z.string().optional(),
   email: z.string().optional(),
   paymentStatus: z.enum(['paid', 'unpaid', 'pending', 'refunded']).optional(),
+  /** Offline method the client says they paid with; the studio verifies it before marking paid. */
+  paymentMethod: z.enum(['bank_transfer', 'cashapp']).optional(),
   status: z.enum(['pending_review', 'active', 'in_progress', 'completed', 'cancelled']).optional(),
 });
 export type OrderRequest = z.infer<typeof orderRequestSchema>;
