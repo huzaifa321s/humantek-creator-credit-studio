@@ -30,7 +30,7 @@ import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
 import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
-import { ManualPaymentOptions } from '@/components/ManualPaymentOptions';
+import { ManualPaymentOptions, type ManualPaymentMethod } from '@/components/ManualPaymentOptions';
 import { PayPalButtonWrapper, type ClientCapturedPayment } from '@/components/PayPalButtonWrapper';
 import { isPayPalClientConfigured } from '@/lib/paypal-config';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -1235,6 +1235,19 @@ export default function CreatorStudioPage() {
       payment.captureId ? `Capture ID: ${payment.captureId}` : '',
       `Status: ${payment.status}`,
       payment.payerEmail ? `Payer: ${payment.payerEmail}` : '',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    void submitProjectBrief(paymentNote);
+  };
+
+  /** Bank / Cash App: the client says they sent the money; the studio verifies it before starting. */
+  const handleManualPaymentSent = (method: ManualPaymentMethod, reference: string) => {
+    bypassUnsavedChangesWarning(true);
+    const paymentNote = [
+      `[PAYMENT SENT via ${method} - VERIFY]`,
+      `Amount: $${currentPackage?.price ?? 0} USD`,
+      reference ? `Reference: ${reference}` : '',
     ]
       .filter(Boolean)
       .join(' | ');
@@ -4021,7 +4034,11 @@ export default function CreatorStudioPage() {
                             }}
                           />
 
-                          <ManualPaymentOptions />
+                          <ManualPaymentOptions
+                            amount={currentPackage.price}
+                            isSubmitting={isSubmitting}
+                            onConfirm={handleManualPaymentSent}
+                          />
 
                           {/* Instant contextual error alert placed directly below payment options */}
                           {errorMessage && (

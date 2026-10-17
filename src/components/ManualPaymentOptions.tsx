@@ -1,6 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Landmark, DollarSign } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -20,8 +24,55 @@ const BANK_DETAILS: { label: string; value: string }[] = [
 const optionClass =
   'flex flex-col items-center gap-2 rounded-xl p-3 cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950';
 
+export type ManualPaymentMethod = 'Bank Transfer' | 'Cash App';
+
+interface ManualPaymentOptionsProps {
+  amount: number;
+  isSubmitting: boolean;
+  onConfirm: (method: ManualPaymentMethod, reference: string) => void;
+}
+
+/** "I've sent the payment" checkbox and submit button shown inside each payment popup. */
+function ConfirmSentPayment({
+  method,
+  amount,
+  isSubmitting,
+  onConfirm,
+}: ManualPaymentOptionsProps & { method: ManualPaymentMethod }) {
+  const [sent, setSent] = useState(false);
+  const [reference, setReference] = useState('');
+
+  return (
+    <div className="space-y-3 border-t pt-3">
+      <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+        <Checkbox checked={sent} onCheckedChange={(checked) => setSent(checked === true)} className="mt-0.5" />
+        <span>
+          I have sent <strong>${amount.toLocaleString('en-US')} USD</strong> via {method}.
+        </span>
+      </label>
+      <Input
+        value={reference}
+        onChange={(e) => setReference(e.target.value)}
+        placeholder="Transaction / reference ID (optional)"
+        maxLength={100}
+      />
+      <Button
+        type="button"
+        className="w-full font-bold"
+        disabled={!sent || isSubmitting}
+        onClick={() => onConfirm(method, reference.trim())}
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit for review'}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Our team will verify your payment and then start your project.
+      </p>
+    </div>
+  );
+}
+
 /** Bank transfer and Cash App options shown below the PayPal buttons. */
-export function ManualPaymentOptions() {
+export function ManualPaymentOptions(props: ManualPaymentOptionsProps) {
   return (
     <div className="grid grid-cols-2 gap-2 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-400 to-amber-200 p-4 text-zinc-950">
       <Dialog>
@@ -29,11 +80,11 @@ export function ManualPaymentOptions() {
           <Landmark className="w-9 h-9 text-sky-700" />
           <span className="text-sm sm:text-base font-bold underline underline-offset-2">Pay with Bank</span>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Pay with Bank Transfer</DialogTitle>
             <DialogDescription>
-              Send the payment to the account below, then share the receipt with our team in chat.
+              Send the payment to the account below, then tick the box and submit your brief for review.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 text-sm">
@@ -59,6 +110,7 @@ export function ManualPaymentOptions() {
                 Bank of America, N.A. 555 California St., San Francisco, CA 94104
               </p>
             </div>
+            <ConfirmSentPayment method="Bank Transfer" {...props} />
           </div>
         </DialogContent>
       </Dialog>
@@ -70,7 +122,7 @@ export function ManualPaymentOptions() {
           </span>
           <span className="text-sm sm:text-base font-bold underline underline-offset-2">Pay with Cashapp</span>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Pay with Cash App</DialogTitle>
             <DialogDescription>Scan the code or send to $humantekart.</DialogDescription>
@@ -84,6 +136,7 @@ export function ManualPaymentOptions() {
             />
             <p className="text-sm font-medium select-all">humantekart@gmail.com</p>
           </div>
+          <ConfirmSentPayment method="Cash App" {...props} />
         </DialogContent>
       </Dialog>
     </div>
