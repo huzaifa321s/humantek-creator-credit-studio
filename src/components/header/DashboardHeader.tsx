@@ -169,26 +169,22 @@ function HeaderCreditBalanceBadge({ effectiveBalance }: { effectiveBalance: numb
         >
           {displayBalance} CR
         </span>
-      </Link>
-
-      {activeDelta && (
-        <div
-          key={activeDelta.timestamp}
-          role="status"
-          aria-live="polite"
-          className={cn(
-            'pointer-events-none absolute -bottom-6 right-1 z-50 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-mono font-bold tabular-nums shadow-lg backdrop-blur-md animate-in fade-in slide-in-from-top-1 zoom-in-95 duration-200',
-            isPositive
-              ? 'bg-zinc-950/95 border border-emerald-400/60 text-emerald-300 shadow-emerald-500/20'
-              : 'bg-zinc-950/95 border border-amber-400/50 text-amber-300 shadow-amber-500/15'
-          )}
-        >
-          {isPositive && <Coins className="size-2.5 text-amber-400 shrink-0" />}
-          <span>
-            {isPositive ? `+${activeDelta.delta}` : activeDelta.delta} CR
+        {activeDelta && (
+          <span
+            key={activeDelta.timestamp}
+            role="status"
+            aria-live="polite"
+            className={cn(
+              'inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-2xs font-mono font-bold tabular-nums animate-in fade-in zoom-in-95 slide-in-from-left-1 duration-200',
+              isPositive
+                ? 'bg-emerald-400/20 text-emerald-300'
+                : 'bg-amber-400/20 text-amber-300'
+            )}
+          >
+            {isPositive ? `+${activeDelta.delta}` : activeDelta.delta}
           </span>
-        </div>
-      )}
+        )}
+      </Link>
     </div>
   );
 }
