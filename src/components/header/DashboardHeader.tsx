@@ -341,19 +341,11 @@ export function DashboardHeader({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/icon-512.png"
-                alt="Humantek Art"
-                width={28}
-                height={28}
-                className="sm:hidden size-7 rounded-lg shrink-0 group-hover:scale-105 transition-transform"
-              />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/logo.webp"
+                src="/brand/logo-light.webp"
                 alt="Humantek Art — Creator Credits Studio"
-                width={72}
-                height={28}
-                className="hidden sm:block h-7 w-auto shrink-0 group-hover:scale-105 transition-transform"
+                width={62}
+                height={24}
+                className="h-6 w-auto shrink-0 group-hover:scale-105 transition-transform"
               />
             </Link>
           </div>

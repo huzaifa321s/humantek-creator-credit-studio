@@ -42,22 +42,31 @@ async function run() {
   fs.writeFileSync(path.join(BRAND, 'logo.png'), logoPng);
   await sharp(logoPng).webp({ quality: 90, alphaQuality: 100 }).toFile(path.join(BRAND, 'logo.webp'));
 
-  // 2. Icon mark: the "ART" part (bottom ~58% of logo) on a rounded dark tile
-  const m = await sharp(trimmed).metadata();
+  // Light variant for dark surfaces: near-black letter fill -> white, yellow outline kept
+  {
+    const { data, info } = await sharp(logoPng).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] < 120 && data[i + 1] < 120 && data[i + 2] < 120) {
+        data[i] = data[i + 1] = data[i + 2] = 255;
+      }
+    }
+    const lightPng = await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+      .png()
+      .toBuffer();
+    fs.writeFileSync(path.join(BRAND, 'logo-light.png'), lightPng);
+    await sharp(lightPng).webp({ quality: 90, alphaQuality: 100 }).toFile(path.join(BRAND, 'logo-light.webp'));
+  }
+
+  // 2. Icon mark: whole logo on a TRANSPARENT square (no background tile)
   const artCrop = trimmed;
 
   async function tile(size) {
-    const pad = Math.round(size * 0.12);
+    const pad = Math.round(size * 0.04);
     const inner = size - pad * 2;
-    const art = await sharp(artCrop)
+    return sharp(artCrop)
       .resize(inner, inner, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .toBuffer();
-    const radius = Math.round(size * 0.22);
-    const bg = Buffer.from(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FBBF24"/><stop offset="1" stop-color="#F59E0B"/></linearGradient></defs><rect width="${size}" height="${size}" rx="${radius}" fill="url(#g)"/></svg>`
-    );
-    return sharp(bg)
-      .composite([{ input: art, gravity: 'center' }])
+      .extend({ top: pad, bottom: pad, left: pad, right: pad, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toBuffer();
   }

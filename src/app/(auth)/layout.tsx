@@ -32,7 +32,16 @@ export default function AuthLayout({
             alt="Humantek Art — Creator Credits Studio"
             width={72}
             height={28}
-            className="h-8 w-auto shrink-0 group-hover:scale-105 transition-transform"
+            className="dark:hidden h-8 w-auto shrink-0 group-hover:scale-105 transition-transform"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logo-light.webp"
+            alt=""
+            aria-hidden="true"
+            width={72}
+            height={28}
+            className="hidden dark:block h-8 w-auto shrink-0 group-hover:scale-105 transition-transform"
           />
         </Link>
 

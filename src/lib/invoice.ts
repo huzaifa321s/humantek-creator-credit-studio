@@ -41,7 +41,7 @@ function loadBrandLogoDataUrl(): Promise<string | null> {
     return Promise.resolve(null);
   }
   if (!brandLogoPromise) {
-    brandLogoPromise = fetch('/brand/logo.png', { cache: 'force-cache' })
+    brandLogoPromise = fetch('/brand/logo-light.png', { cache: 'force-cache' })
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to load brand logo');
         return `data:image/png;base64,${arrayBufferToBase64(await res.arrayBuffer())}`;
@@ -255,15 +255,13 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
 
   const brandLogo = await loadBrandLogoDataUrl();
   if (brandLogo) {
-    // Amber plate + official Humantek Art logo (aspect 300:115)
-    doc.setFillColor(251, 191, 36); // Amber-400
-    doc.roundedRect(margin, 18, 100, 40, 8, 8, 'F');
-    doc.addImage(brandLogo, 'PNG', margin + 8, 22, 84, 32.2, undefined, 'FAST');
+    // Light-on-dark official logo drawn directly on the header (no background plate)
+    doc.addImage(brandLogo, 'PNG', margin, 26, 58, 22.2, undefined, 'FAST');
 
     doc.setTextColor(251, 191, 36); // Amber-400
     doc.setFont(fontSans, 'bold');
     doc.setFontSize(7.5);
-    doc.text('CREATOR CREDITS STUDIO', margin + 112, 42);
+    doc.text('CREATOR CREDITS STUDIO', margin + 70, 40);
   } else {
     // Fallback: text emblem
     doc.setFillColor(251, 191, 36); // Amber-400
