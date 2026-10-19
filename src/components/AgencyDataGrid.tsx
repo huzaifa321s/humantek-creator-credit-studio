@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import {
   Table,
   TableHeader,
@@ -43,8 +45,6 @@ import {
   ArrowUp,
   ArrowDown,
   Search,
-  ChevronLeft,
-  ChevronRight,
   FileSpreadsheet,
   CheckCircle2,
   Clock,
@@ -53,8 +53,29 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
+  Gift,
+  ArrowRight,
+  ExternalLink,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatStudioDate } from '@/lib/utils';
+
+export interface SharedPromoTransferInfo {
+  code: string;
+  credits: number;
+  senderName: string;
+  senderEmail: string;
+  recipientName: string;
+  recipientEmail: string;
+  note?: string;
+  isClaimed: boolean;
+  claimedAt?: string | null;
+  createdAt: string;
+  direction?: 'sent' | 'received';
+}
+
+export interface SharedPromoAuditLogItem extends SharedPromoTransferInfo {
+  id: string;
+}
 
 export interface LedgerTransaction {
   id: string;
@@ -70,6 +91,7 @@ export interface LedgerTransaction {
   status: 'completed' | 'pending' | 'reversed';
   description?: string;
   bucket?: 'purchased' | 'promo';
+  sharedPromo?: SharedPromoTransferInfo;
 }
 
 export interface LedgerCustomerSummary {
@@ -92,6 +114,7 @@ export interface LedgerCustomerSummary {
 interface AgencyDataGridProps {
   transactions: LedgerTransaction[];
   customers?: LedgerCustomerSummary[];
+  sharedPromos?: SharedPromoAuditLogItem[];
   customerFilter?: string;
   onCustomerFilterChange?: (val: string) => void;
   typeFilter?: string;
@@ -107,6 +130,7 @@ type SortOrder = 'asc' | 'desc';
 export function AgencyDataGrid({
   transactions,
   customers,
+  sharedPromos = [],
   customerFilter: controlledCustomerFilter,
   onCustomerFilterChange,
   typeFilter: controlledTypeFilter,
@@ -115,6 +139,17 @@ export function AgencyDataGrid({
   onStatusFilterChange,
   className,
 }: AgencyDataGridProps) {
+  const router = useRouter();
+  const topLoader = useTopLoader();
+
+  const openClientWorkspace = useCallback(
+    (email: string) => {
+      if (!email) return;
+      topLoader.start();
+      router.push(`/management/clients?client=${encodeURIComponent(email.toLowerCase().trim())}`);
+    },
+    [router, topLoader]
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [internalCustomerFilter, setInternalCustomerFilter] = useState<string>('all');
   const [internalTypeFilter, setInternalTypeFilter] = useState<string>('all');
@@ -267,7 +302,9 @@ export function AgencyDataGrid({
       // 1. Customer Filter
       const matchesCustomer =
         customerFilter === 'all' ||
-        t.clientEmail.toLowerCase().trim() === customerFilter;
+        t.clientEmail.toLowerCase().trim() === customerFilter ||
+        t.sharedPromo?.senderEmail.toLowerCase().trim() === customerFilter ||
+        t.sharedPromo?.recipientEmail.toLowerCase().trim() === customerFilter;
 
       // 2. Search Query
       const q = searchQuery.toLowerCase().trim();
@@ -276,10 +313,17 @@ export function AgencyDataGrid({
         t.reference.toLowerCase().includes(q) ||
         t.clientEmail.toLowerCase().includes(q) ||
         t.clientName.toLowerCase().includes(q) ||
-        Boolean(t.description && t.description.toLowerCase().includes(q));
+        Boolean(t.description && t.description.toLowerCase().includes(q)) ||
+        Boolean(t.sharedPromo?.senderName.toLowerCase().includes(q)) ||
+        Boolean(t.sharedPromo?.senderEmail.toLowerCase().includes(q)) ||
+        Boolean(t.sharedPromo?.recipientName.toLowerCase().includes(q)) ||
+        Boolean(t.sharedPromo?.recipientEmail.toLowerCase().includes(q)) ||
+        Boolean(t.sharedPromo?.code.toLowerCase().includes(q));
 
       // 3. Type Filter
-      const matchesType = typeFilter === 'all' || t.type === typeFilter;
+      const matchesType =
+        typeFilter === 'all' ||
+        (typeFilter === 'shared_promo' ? Boolean(t.sharedPromo) : t.type === typeFilter);
 
       // 4. Status Filter
       const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
@@ -287,6 +331,28 @@ export function AgencyDataGrid({
       return matchesCustomer && matchesSearch && matchesType && matchesStatus;
     });
   }, [transactions, customerFilter, searchQuery, typeFilter, statusFilter]);
+
+  // Filtered Shared Promo Audit Log (Friend-to-Friend Promo Transfers)
+  const filteredSharedPromos = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return sharedPromos.filter((item) => {
+      const matchesCustomer =
+        customerFilter === 'all' ||
+        item.senderEmail.toLowerCase().trim() === customerFilter ||
+        item.recipientEmail.toLowerCase().trim() === customerFilter;
+
+      const matchesSearch =
+        !q ||
+        item.code.toLowerCase().includes(q) ||
+        item.senderName.toLowerCase().includes(q) ||
+        item.senderEmail.toLowerCase().includes(q) ||
+        item.recipientName.toLowerCase().includes(q) ||
+        item.recipientEmail.toLowerCase().includes(q) ||
+        Boolean(item.note && item.note.toLowerCase().includes(q));
+
+      return matchesCustomer && matchesSearch;
+    });
+  }, [sharedPromos, customerFilter, searchQuery]);
 
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((a, b) => {
@@ -457,6 +523,14 @@ export function AgencyDataGrid({
         </div>
       </div>
 
+      {/* Friend-to-Friend Shared Promo Codes Audit Log (Shows Who Shared + Who Got Credits) */}
+      {(filteredSharedPromos.length > 0 || typeFilter === 'shared_promo') && (
+        <SharedPromoTransfersPanel
+          items={filteredSharedPromos}
+          onOpenClient={openClientWorkspace}
+        />
+      )}
+
       {/* Control Toolbar — matches AdminProjectsTable compact layout */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         <div className="flex flex-1 flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 min-w-0">
@@ -497,7 +571,7 @@ export function AgencyDataGrid({
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-8 text-xs bg-card w-full lg:w-[145px] rounded-lg border-border/80">
+              <SelectTrigger className="h-8 text-xs bg-card w-full lg:w-[165px] rounded-lg border-border/80">
                 <SelectValue>
                   {typeFilter === 'package_purchase'
                     ? 'Package Purchase'
@@ -505,9 +579,11 @@ export function AgencyDataGrid({
                       ? 'Service Scope'
                       : typeFilter === 'promo_credit'
                         ? 'Promo Code'
-                        : typeFilter === 'refund'
-                          ? 'Refund'
-                          : 'All Types'}
+                        : typeFilter === 'shared_promo'
+                          ? 'Shared Promo Codes'
+                          : typeFilter === 'refund'
+                            ? 'Refund'
+                            : 'All Types'}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -515,6 +591,7 @@ export function AgencyDataGrid({
                 <SelectItem value="package_purchase" className="text-xs">Package Purchase</SelectItem>
                 <SelectItem value="service_deduction" className="text-xs">Service Scope</SelectItem>
                 <SelectItem value="promo_credit" className="text-xs">Promo Code</SelectItem>
+                <SelectItem value="shared_promo" className="text-xs">Shared Promo Codes</SelectItem>
                 <SelectItem value="refund" className="text-xs">Refund</SelectItem>
               </SelectContent>
             </Select>
@@ -605,6 +682,7 @@ export function AgencyDataGrid({
                   item.clientEmail.toLowerCase().trim() === customerFilter
                 }
                 onSelectCustomer={handleSelectCustomer}
+                onOpenClient={openClientWorkspace}
               />
             ))}
 
@@ -680,6 +758,7 @@ export function AgencyDataGrid({
                       item.clientEmail.toLowerCase().trim() === customerFilter
                     }
                     onSelectCustomer={handleSelectCustomer}
+                    onOpenClient={openClientWorkspace}
                   />
                 ))}
               </TableBody>
@@ -727,14 +806,243 @@ export function AgencyDataGrid({
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Shared Promo Codes Audit Log Panel (Friend-to-Friend Promo Transfers)      */
+/* -------------------------------------------------------------------------- */
+
+const SharedPromoTransfersPanel = React.memo(function SharedPromoTransfersPanel({
+  items,
+  onOpenClient,
+}: {
+  items: SharedPromoAuditLogItem[];
+  onOpenClient: (email: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-amber-400/30 bg-card overflow-hidden shadow-2xs">
+      <div className="px-4 py-3 bg-amber-400/10 border-b border-amber-400/20 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="size-7 rounded-lg bg-amber-400/20 text-brand-text dark:text-amber-300 flex items-center justify-center shrink-0">
+            <Gift className="size-3.5" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
+              <span>Shared Friend Promo Codes Log</span>
+              <Badge variant="gold" size="xs" className="font-mono">
+                {items.length}
+              </Badge>
+            </h3>
+            <p className="text-2xs text-muted-foreground">
+              Audit log showing the client who shared the promo code and the friend who received/claimed the credits.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="p-6 text-center text-xs text-muted-foreground">
+          No shared friend promo codes recorded yet.
+        </div>
+      ) : (
+        <>
+          {/* Mobile List */}
+          <MobileCardList>
+            {items.map((gift) => (
+              <MobileDataCard key={gift.id} className="space-y-2.5">
+                <MobileDataCardHeader>
+                  <div className="font-mono font-bold text-brand-text dark:text-amber-400 text-xs">
+                    {gift.code}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CreditValue value={gift.credits} size="xs" variant="pill" />
+                    {gift.isClaimed ? (
+                      <Badge variant="success" className="text-2xs px-2 py-0.5">
+                        Claimed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-2xs px-2 py-0.5 text-amber-600 dark:text-amber-400 border-amber-400/30">
+                        Pending Claim
+                      </Badge>
+                    )}
+                  </div>
+                </MobileDataCardHeader>
+
+                <MobileDataCardBody className="flex-col items-stretch gap-2 text-xs">
+                  <div className="grid grid-cols-1 gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                    <div>
+                      <span className="text-2xs uppercase tracking-wider font-bold text-muted-foreground block">
+                        Shared By (Sender)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenClient(gift.senderEmail)}
+                        className="text-left group cursor-pointer mt-0.5"
+                      >
+                        <div className="font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400">
+                          {gift.senderName}
+                        </div>
+                        <div className="text-2xs text-muted-foreground font-mono group-hover:underline">
+                          {gift.senderEmail}
+                        </div>
+                      </button>
+                    </div>
+                    <div className="pt-1.5 border-t border-border/50">
+                      <span className="text-2xs uppercase tracking-wider font-bold text-muted-foreground block">
+                        Received By (Who Got Credits)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenClient(gift.recipientEmail)}
+                        className="text-left group cursor-pointer mt-0.5"
+                      >
+                        <div className="font-bold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400">
+                          {gift.recipientName}
+                        </div>
+                        <div className="text-2xs text-muted-foreground font-mono group-hover:underline">
+                          {gift.recipientEmail}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </MobileDataCardBody>
+
+                <MobileDataCardFooter className="text-2xs text-muted-foreground font-mono">
+                  <span>Shared {formatStudioDate(gift.createdAt)}</span>
+                  {gift.claimedAt && <span>Claimed {formatStudioDate(gift.claimedAt)}</span>}
+                </MobileDataCardFooter>
+              </MobileDataCard>
+            ))}
+          </MobileCardList>
+
+          {/* Desktop Table */}
+          <ResponsiveDesktopView>
+            <Table className="min-w-[740px]">
+              <TableHeader className="bg-muted/30">
+                <TableRow className="border-b border-border/80 hover:bg-transparent select-none">
+                  <TableHead className="pl-5 font-bold text-xs text-foreground/80 h-10">
+                    Promo Code
+                  </TableHead>
+                  <TableHead className="font-bold text-xs text-foreground/80 h-10">
+                    Shared By (Sender)
+                  </TableHead>
+                  <TableHead className="font-bold text-xs text-foreground/80 h-10">
+                    Received By (Who Got Credits)
+                  </TableHead>
+                  <TableHead className="font-bold text-xs text-foreground/80 text-right h-10">
+                    Credits
+                  </TableHead>
+                  <TableHead className="pr-5 font-bold text-xs text-foreground/80 text-right h-10">
+                    Status &amp; Date
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((gift) => (
+                  <TableRow
+                    key={gift.id}
+                    className="hover:bg-muted/40 transition-colors border-b border-border/60 last:border-b-0"
+                  >
+                    <TableCell className="pl-5 py-3 text-xs">
+                      <div className="font-mono font-bold text-brand-text dark:text-amber-400">
+                        {gift.code}
+                      </div>
+                      {gift.note && (
+                        <div className="text-2xs text-muted-foreground truncate max-w-[200px] mt-0.5">
+                          Note: &ldquo;{gift.note}&rdquo;
+                        </div>
+                      )}
+                    </TableCell>
+
+                    {/* Sender */}
+                    <TableCell className="py-3 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => onOpenClient(gift.senderEmail)}
+                        title={`Open ${gift.senderName}'s 360° Client Workspace`}
+                        className="text-left group cursor-pointer"
+                      >
+                        <div className="font-semibold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 flex items-center gap-1">
+                          <span>{gift.senderName}</span>
+                          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="text-2xs text-muted-foreground font-mono group-hover:underline">
+                          {gift.senderEmail}
+                        </div>
+                      </button>
+                    </TableCell>
+
+                    {/* Recipient */}
+                    <TableCell className="py-3 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => onOpenClient(gift.recipientEmail)}
+                        title={`Open ${gift.recipientName}'s 360° Client Workspace`}
+                        className="text-left group cursor-pointer"
+                      >
+                        <div className="font-semibold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400 flex items-center gap-1">
+                          <span>{gift.recipientName}</span>
+                          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="text-2xs text-muted-foreground font-mono group-hover:underline">
+                          {gift.recipientEmail}
+                        </div>
+                      </button>
+                    </TableCell>
+
+                    {/* Credits */}
+                    <TableCell className="py-3 text-right">
+                      <CreditValue value={gift.credits} size="xs" variant="pill" />
+                    </TableCell>
+
+                    {/* Status & Date */}
+                    <TableCell className="pr-5 py-3 text-right text-xs">
+                      <div className="inline-flex items-center gap-1.5">
+                        {gift.isClaimed ? (
+                          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="size-3" />
+                            Claimed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-2xs font-medium text-brand-text dark:text-amber-400">
+                            <Clock className="size-3" />
+                            Pending Claim
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-2xs text-muted-foreground font-mono mt-0.5">
+                        {gift.claimedAt
+                          ? `Claimed ${formatStudioDate(gift.claimedAt)}`
+                          : `Shared ${formatStudioDate(gift.createdAt)}`}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ResponsiveDesktopView>
+        </>
+      )}
+    </div>
+  );
+});
+
+/* -------------------------------------------------------------------------- */
 /*  Memoized Ledger Row & Mobile Card Subcomponents                            */
 /* -------------------------------------------------------------------------- */
 
 const LedgerTypeBadge = React.memo(function LedgerTypeBadge({
   type,
+  sharedPromo,
 }: {
   type: LedgerTransaction['type'];
+  sharedPromo?: SharedPromoTransferInfo;
 }) {
+  if (sharedPromo) {
+    return (
+      <Badge variant="gold" className="text-2xs font-semibold px-2 py-0.5 gap-1">
+        <Gift className="size-3" />
+        <span>{sharedPromo.direction === 'sent' ? 'Promo Shared' : 'Friend Promo'}</span>
+      </Badge>
+    );
+  }
   if (type === 'package_purchase') {
     return (
       <Badge variant="success" className="text-2xs font-semibold px-2 py-0.5">
@@ -796,10 +1104,12 @@ const LedgerMobileCard = React.memo(function LedgerMobileCard({
   item,
   isSelectedCustomer,
   onSelectCustomer,
+  onOpenClient,
 }: {
   item: LedgerTransaction;
   isSelectedCustomer: boolean;
   onSelectCustomer: (email: string) => void;
+  onOpenClient: (email: string) => void;
 }) {
   return (
     <MobileDataCard className="space-y-2.5">
@@ -815,8 +1125,34 @@ const LedgerMobileCard = React.memo(function LedgerMobileCard({
             </div>
           )}
         </div>
-        <LedgerTypeBadge type={item.type} />
+        <LedgerTypeBadge type={item.type} sharedPromo={item.sharedPromo} />
       </MobileDataCardHeader>
+
+      {/* Shared Promo Counterparty Pill (Shows both Who Shared and Who Got) */}
+      {item.sharedPromo && (
+        <div className="p-2 rounded-lg bg-amber-400/10 border border-amber-400/25 text-2xs space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground font-medium">Shared by:</span>
+            <button
+              type="button"
+              onClick={() => onOpenClient(item.sharedPromo!.senderEmail)}
+              className="font-semibold text-foreground hover:text-brand-text dark:hover:text-amber-400 truncate cursor-pointer"
+            >
+              {item.sharedPromo.senderName} ({item.sharedPromo.senderEmail})
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground font-medium">Received by:</span>
+            <button
+              type="button"
+              onClick={() => onOpenClient(item.sharedPromo!.recipientEmail)}
+              className="font-semibold text-foreground hover:text-brand-text dark:hover:text-amber-400 truncate cursor-pointer"
+            >
+              {item.sharedPromo.recipientName} ({item.sharedPromo.recipientEmail})
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Middle Row: Client Identity & Settlement Status */}
       <MobileDataCardBody className="items-start text-xs">
@@ -879,22 +1215,49 @@ const LedgerTableRow = React.memo(function LedgerTableRow({
   item,
   isSelectedCustomer,
   onSelectCustomer,
+  onOpenClient,
 }: {
   item: LedgerTransaction;
   isSelectedCustomer: boolean;
   onSelectCustomer: (email: string) => void;
+  onOpenClient: (email: string) => void;
 }) {
   return (
     <TableRow className="hover:bg-muted/40 transition-colors border-b border-border/60">
-      {/* Reference */}
+      {/* Reference & Shared Promo Details */}
       <TableCell className="pl-5 text-xs">
         <div className="font-mono font-bold text-brand-text dark:text-amber-400">
           {item.reference}
         </div>
-        {item.description && (
-          <div className="text-2xs text-muted-foreground max-w-[260px] truncate mt-0.5" title={item.description}>
-            {item.description}
+        {item.sharedPromo ? (
+          <div className="mt-1 space-y-0.5 text-2xs">
+            <div className="text-muted-foreground flex items-center gap-1 flex-wrap">
+              <span className="font-semibold text-foreground/80">Shared by:</span>
+              <button
+                type="button"
+                onClick={() => onOpenClient(item.sharedPromo!.senderEmail)}
+                className="font-semibold text-foreground hover:text-brand-text dark:hover:text-amber-400 hover:underline cursor-pointer"
+              >
+                {item.sharedPromo.senderName} ({item.sharedPromo.senderEmail})
+              </button>
+            </div>
+            <div className="text-muted-foreground flex items-center gap-1 flex-wrap">
+              <span className="font-semibold text-foreground/80">Received by:</span>
+              <button
+                type="button"
+                onClick={() => onOpenClient(item.sharedPromo!.recipientEmail)}
+                className="font-semibold text-foreground hover:text-brand-text dark:hover:text-amber-400 hover:underline cursor-pointer"
+              >
+                {item.sharedPromo.recipientName} ({item.sharedPromo.recipientEmail})
+              </button>
+            </div>
           </div>
+        ) : (
+          item.description && (
+            <div className="text-2xs text-muted-foreground max-w-[260px] truncate mt-0.5" title={item.description}>
+              {item.description}
+            </div>
+          )
         )}
       </TableCell>
 
@@ -928,7 +1291,7 @@ const LedgerTableRow = React.memo(function LedgerTableRow({
 
       {/* Type Badge */}
       <TableCell>
-        <LedgerTypeBadge type={item.type} />
+        <LedgerTypeBadge type={item.type} sharedPromo={item.sharedPromo} />
       </TableCell>
 
       {/* Credits Delta */}

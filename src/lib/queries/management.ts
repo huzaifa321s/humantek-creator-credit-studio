@@ -5,7 +5,11 @@ import { ApiError } from '@/components/Providers';
 import { useUserStore } from '@/lib/userStore';
 import type { TeamRole } from '@/lib/auth';
 import type { ManagementSummaryData } from '@/app/api/management/summary/route';
-import type { LedgerTransaction, LedgerCustomerSummary } from '@/components/AgencyDataGrid';
+import type {
+  LedgerTransaction,
+  LedgerCustomerSummary,
+  SharedPromoAuditLogItem,
+} from '@/components/AgencyDataGrid';
 import type { TeamAccessResponse, TeamMemberRecord } from '@/app/api/management/team/route';
 
 export const managementKeys = {
@@ -24,6 +28,7 @@ export const managementKeys = {
 interface LedgerResponse {
   transactions: LedgerTransaction[];
   customers?: LedgerCustomerSummary[];
+  sharedPromos?: SharedPromoAuditLogItem[];
   totalCount: number;
   hasMore: boolean;
   nextCursor: string | null;

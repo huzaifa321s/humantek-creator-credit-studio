@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAal2 } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
-import { clampLimit, PAGINATION_LIMITS } from '@/lib/pagination';
+import { clampLimit } from '@/lib/pagination';
 import { PACKAGES } from '@/lib/catalog';
-import type { LedgerTransaction, LedgerCustomerSummary } from '@/components/AgencyDataGrid';
+import { parseGiftPromoMetadata } from '@/lib/email';
+import type {
+  LedgerTransaction,
+  LedgerCustomerSummary,
+  SharedPromoTransferInfo,
+  SharedPromoAuditLogItem,
+} from '@/components/AgencyDataGrid';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,8 +37,16 @@ export async function GET(req: NextRequest) {
   try {
     const admin = createAdminClient();
 
-    // Fetch credit_ledger, projects, orders, wallets, and profiles in parallel for full enrichment & customer credit summaries
-    const [ledgerRes, projectsRes, ordersRes, walletsRes, profilesRes] = await Promise.all([
+    // Fetch credit_ledger, projects, orders, wallets, profiles, promo_codes, and promo_redemptions in parallel
+    const [
+      ledgerRes,
+      projectsRes,
+      ordersRes,
+      walletsRes,
+      profilesRes,
+      promoCodesRes,
+      promoRedemptionsRes,
+    ] = await Promise.all([
       admin
         .from('credit_ledger')
         .select(
@@ -63,6 +77,16 @@ export async function GET(req: NextRequest) {
         .from('profiles')
         .select('id, email, full_name, role')
         .limit(500),
+      admin
+        .from('promo_codes')
+        .select('id, code, credits, max_uses, used_count, is_active, description, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500),
+      admin
+        .from('promo_redemptions')
+        .select('id, user_id, promo_code_id, credits_granted, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500),
     ]);
 
     if (ledgerRes.error) {
@@ -74,18 +98,105 @@ export async function GET(req: NextRequest) {
     const dbOrders = ordersRes.data || [];
     const dbWallets = walletsRes.data || [];
     const dbProfiles = profilesRes.data || [];
+    const dbPromoCodes = promoCodesRes.data || [];
+    const dbPromoRedemptions = promoRedemptionsRes.data || [];
 
-    // Build lookup maps for USD enrichment, wallets, and deduplication
+    // Build lookup maps for USD enrichment, wallets, profiles, and gift promo codes
     const walletByUserId = new Map<string, (typeof dbWallets)[number]>();
     for (const w of dbWallets) {
       if (w.user_id) walletByUserId.set(w.user_id, w);
     }
 
     const profileByEmail = new Map<string, (typeof dbProfiles)[number]>();
+    const profileById = new Map<string, (typeof dbProfiles)[number]>();
     for (const prof of dbProfiles) {
+      if (prof.id) profileById.set(prof.id, prof);
       if (prof.email) {
         profileByEmail.set(prof.email.toLowerCase().trim(), prof);
       }
+    }
+
+    // Map promo redemptions by promo_code_id
+    const redemptionByPromoId = new Map<
+      string,
+      { userId: string; creditsGranted: number; createdAt: string }
+    >();
+    for (const red of dbPromoRedemptions) {
+      if (red.promo_code_id) {
+        redemptionByPromoId.set(String(red.promo_code_id), {
+          userId: String(red.user_id || ''),
+          creditsGranted: Number(red.credits_granted || 0),
+          createdAt: String(red.created_at || ''),
+        });
+      }
+    }
+
+    // Build lookup maps for Client-to-Client Shared Promo Codes (by code and by promo_code.id)
+    const giftTransferByRef = new Map<string, SharedPromoTransferInfo>();
+    const sharedPromos: SharedPromoAuditLogItem[] = [];
+
+    for (const row of dbPromoCodes) {
+      const meta = parseGiftPromoMetadata(row.description);
+      if (!meta) continue;
+
+      const senderEmail = meta.senderEmail.toLowerCase().trim();
+      if (isAutomatedTestEmail(senderEmail) && isAutomatedTestEmail(meta.recipientEmail)) {
+        continue;
+      }
+
+      const senderProfile =
+        (meta.senderId ? profileById.get(meta.senderId) : undefined) ||
+        profileByEmail.get(senderEmail);
+      const senderName =
+        senderProfile?.full_name ||
+        meta.senderName ||
+        senderEmail.split('@')[0] ||
+        'Creator';
+
+      const redemption = redemptionByPromoId.get(String(row.id));
+      const redeemedProfile = redemption?.userId
+        ? profileById.get(redemption.userId)
+        : undefined;
+      const targetRecipientEmail = (
+        redeemedProfile?.email ||
+        meta.recipientEmail ||
+        ''
+      )
+        .toLowerCase()
+        .trim();
+      const recipientProfile =
+        redeemedProfile || profileByEmail.get(targetRecipientEmail);
+      const recipientName =
+        recipientProfile?.full_name ||
+        (targetRecipientEmail ? targetRecipientEmail.split('@')[0] : 'Recipient');
+
+      const isClaimed =
+        Boolean(redemption) || Number(row.used_count) >= Number(row.max_uses);
+
+      const transferInfo: SharedPromoTransferInfo = {
+        code: String(row.code),
+        credits: Number(row.credits || 0),
+        senderName,
+        senderEmail,
+        recipientName,
+        recipientEmail: targetRecipientEmail,
+        note: meta.note,
+        isClaimed,
+        claimedAt: redemption?.createdAt || null,
+        createdAt: String(row.created_at || meta.createdAt),
+      };
+
+      if (row.code) {
+        giftTransferByRef.set(String(row.code).toUpperCase(), transferInfo);
+      }
+      if (row.id) {
+        giftTransferByRef.set(String(row.id), transferInfo);
+      }
+
+      sharedPromos.push({
+        id: String(row.id),
+        ...transferInfo,
+      });
     }
 
     const projectByRef = new Map<string, (typeof dbProjects)[number]>();
@@ -138,6 +249,20 @@ export async function GET(req: NextRequest) {
         matchedProject?.client_name ||
         clientEmail.split('@')[0];
 
+      // Check if this ledger row is part of a Client-to-Client Shared Promo Transfer
+      const rawRefStr = r.reference_id ? String(r.reference_id).trim() : '';
+      const codeFromDescMatch =
+        typeof r.description === 'string'
+          ? r.description.match(/HT-GIFT-[A-Z0-9-]+/i)
+          : null;
+      const candidateGiftCode = codeFromDescMatch
+        ? codeFromDescMatch[0].toUpperCase()
+        : rawRefStr.toUpperCase();
+
+      const matchedGiftTransfer =
+        (rawRefStr ? giftTransferByRef.get(rawRefStr) : undefined) ||
+        (candidateGiftCode ? giftTransferByRef.get(candidateGiftCode) : undefined);
+
       let txType: LedgerTransaction['type'] = 'service_deduction';
       if (r.type === 'package_purchase') {
         txType = 'package_purchase';
@@ -149,7 +274,8 @@ export async function GET(req: NextRequest) {
       } else if (
         r.type === 'promo_redeem' ||
         r.type === 'admin_adjustment' ||
-        r.type === 'manual_Adjustment'
+        r.type === 'manual_Adjustment' ||
+        Boolean(matchedGiftTransfer)
       ) {
         txType = 'promo_credit';
       } else if (r.type?.includes('refund') || r.type === 'chargeback') {
@@ -183,10 +309,22 @@ export async function GET(req: NextRequest) {
       }
 
       const isReversed = reversedLedgerIds.has(Number(r.id));
+      const deltaNum = Number(r.delta);
+
+      // Build clear description when this row is a friend-to-friend gift promo transfer
+      let enrichedDescription: string | undefined = r.description || undefined;
+      if (matchedGiftTransfer) {
+        if (deltaNum > 0) {
+          enrichedDescription = `Redeemed friend promo ${matchedGiftTransfer.code} — Shared by ${matchedGiftTransfer.senderName} (${matchedGiftTransfer.senderEmail})`;
+        } else if (deltaNum < 0) {
+          enrichedDescription = `Shared promo code ${matchedGiftTransfer.code} to ${matchedGiftTransfer.recipientName} (${matchedGiftTransfer.recipientEmail})`;
+        }
+      }
 
       allTransactions.push({
         id: `tx-${r.id}`,
         reference:
+          matchedGiftTransfer?.code ||
           matchedProject?.project_code ||
           matchedOrder?.id ||
           r.reference_id ||
@@ -194,7 +332,7 @@ export async function GET(req: NextRequest) {
         clientEmail,
         clientName,
         type: txType,
-        creditsDelta: Number(r.delta),
+        creditsDelta: deltaNum,
         usdAmount,
         date: new Date(r.created_at).toLocaleDateString('en-US', {
           month: 'short',
@@ -203,14 +341,20 @@ export async function GET(req: NextRequest) {
         }),
         timestamp: new Date(r.created_at).getTime(),
         paymentMethod:
-          r.bucket === 'promo'
+          r.bucket === 'promo' || matchedGiftTransfer
             ? 'promo'
             : txType === 'package_purchase'
               ? 'paypal'
               : 'credits',
         status: isReversed ? 'reversed' : 'completed',
-        description: r.description || undefined,
+        description: enrichedDescription,
         bucket: r.bucket || 'purchased',
+        sharedPromo: matchedGiftTransfer
+          ? {
+              ...matchedGiftTransfer,
+              direction: deltaNum >= 0 ? 'received' : 'sent',
+            }
+          : undefined,
       });
     }
 
@@ -355,7 +499,13 @@ export async function GET(req: NextRequest) {
       if (isAutomatedTestEmail(t.clientEmail)) continue;
       const entry = ensureCustomer(t.clientEmail, t.clientName);
       entry.transactionCount += 1;
-      if (t.reference && t.reference.startsWith('HT-')) {
+      if (
+        t.reference &&
+        t.reference.startsWith('HT-') &&
+        !t.reference.startsWith('HT-GIFT-') &&
+        !t.reference.startsWith('HT-CR-') &&
+        !t.reference.startsWith('HT-ADJ-')
+      ) {
         entry._projectKeys.add(t.reference);
       }
 
@@ -399,7 +549,11 @@ export async function GET(req: NextRequest) {
       filtered = filtered.filter((t) => t.clientEmail.toLowerCase().trim() === customerParam);
     }
     if (typeParam && typeParam !== 'all') {
-      filtered = filtered.filter((t) => t.type === typeParam);
+      if (typeParam === 'shared_promo') {
+        filtered = filtered.filter((t) => Boolean(t.sharedPromo));
+      } else {
+        filtered = filtered.filter((t) => t.type === typeParam);
+      }
     }
     if (statusParam && statusParam !== 'all') {
       filtered = filtered.filter((t) => t.status === statusParam);
@@ -417,6 +571,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       transactions: pagedTransactions,
       customers,
+      sharedPromos,
       totalCount,
       hasMore,
       nextCursor: null,

@@ -633,6 +633,7 @@ function InnerClientsPage() {
               <AgencyDataGrid
                 transactions={ledgerData?.transactions || []}
                 customers={ledgerData?.customers || []}
+                sharedPromos={ledgerData?.sharedPromos || []}
                 customerFilter={selectedClient.clientEmail}
               />
             </div>
@@ -661,6 +662,7 @@ function InnerClientsPage() {
           <AgencyDataGrid
             transactions={ledgerData?.transactions || []}
             customers={ledgerData?.customers || []}
+            sharedPromos={ledgerData?.sharedPromos || []}
             customerFilter={selectedClient.clientEmail}
           />
         )}

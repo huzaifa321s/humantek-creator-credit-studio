@@ -4,6 +4,7 @@ import React, { Suspense, useState } from 'react';
 import { AgencyDataGrid } from '@/components/AgencyDataGrid';
 import { useManagementLedgerQuery } from '@/lib/queries/management';
 import { StudioPageLoader } from '@/components/ui/studio-page-loader';
+import { FilterTabs } from '@/components/ui/filter-tabs';
 
 /* ============================================================================
  * FUTURE USE: Imports for Manual Credit Issuing System
@@ -107,6 +108,7 @@ function InnerLedgerContent() {
   });
   const transactions = data?.transactions || [];
   const customers = data?.customers || [];
+  const sharedPromos = data?.sharedPromos || [];
 
   if (isPending && !data) {
     return (
@@ -120,6 +122,22 @@ function InnerLedgerContent() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
+      {/* Quick View Filter Tabs: All Credit Activity vs Shared Friend Promo Codes */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <FilterTabs
+          tabs={[
+            { value: 'all', label: 'All Credit Activity' },
+            {
+              value: 'shared_promo',
+              label: 'Shared Promo Codes',
+              count: sharedPromos.length,
+            },
+          ]}
+          value={typeFilter === 'shared_promo' ? 'shared_promo' : 'all'}
+          onValueChange={(val: string) => setTypeFilter(val)}
+        />
+      </div>
+
       {/* ============================================================================
         * FUTURE USE: Manual Credit Issuing Header Bar & Trigger Button
         * ============================================================================
@@ -147,6 +165,7 @@ function InnerLedgerContent() {
       <AgencyDataGrid
         transactions={transactions}
         customers={customers}
+        sharedPromos={sharedPromos}
         customerFilter={customerFilter}
         onCustomerFilterChange={setCustomerFilter}
         typeFilter={typeFilter}
