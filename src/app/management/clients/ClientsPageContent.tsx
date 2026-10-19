@@ -161,13 +161,19 @@ function InnerClientsPage() {
         params.delete('project');
       }
       const qs = params.toString();
-      router.replace(qs ? `/management/clients?${qs}` : '/management/clients', {
-        scroll: false,
+      const targetUrl = qs ? `/management/clients?${qs}` : '/management/clients';
+      topLoader.start();
+      router.push(targetUrl, {
+        scroll: true,
       });
       setActiveTab(section);
     },
-    [router, searchParams]
+    [router, searchParams, topLoader]
   );
+
+  useEffect(() => {
+    topLoader.done();
+  }, [selectedClientParam, topLoader]);
 
   const handleSectionChange = useCallback(
     (val: string) => {

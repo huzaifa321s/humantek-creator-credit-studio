@@ -126,6 +126,7 @@ async function run() {
     const outFile = path.join(OUT, name + '.webp');
     await sharp(data, { raw: { width: w, height: h, channels: 4 } })
       .trim()
+      .extend({ top: 14, bottom: 14, left: 14, right: 14, background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .webp({ quality: 80, alphaQuality: 90 })
       .toFile(outFile);

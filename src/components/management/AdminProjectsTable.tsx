@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import { ProjectRecord } from '@/types';
 import {
   Table,
@@ -126,6 +127,7 @@ export function AdminProjectsTable({
   isUpdatingId = null,
 }: AdminProjectsTableProps) {
   const router = useRouter();
+  const topLoader = useTopLoader();
   const searchParams = useSearchParams();
   const canManageProjects = useUserStore((s) => s.canManageProjects());
   const urlProjectId = searchParams.get('project');
@@ -767,6 +769,7 @@ export function AdminProjectsTable({
                       <button
                         type="button"
                         onClick={() => {
+                          topLoader.start();
                           router.push(
                             `/management/clients?client=${encodeURIComponent(
                               selectedProject.email.toLowerCase().trim()
