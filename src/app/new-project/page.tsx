@@ -1241,8 +1241,6 @@ export default function CreatorStudioPage() {
     }
   };
 
-  const handleSubmitForReview = () => submitProjectBrief();
-
   /**
    * Client-id-only PayPal checkout: the browser captured the payment, so register the brief for
    * studio review with the PayPal transaction attached. The studio verifies it in PayPal and
@@ -1278,8 +1276,8 @@ export default function CreatorStudioPage() {
   };
 
   const submitProjectBrief = async (
-    paymentNote?: string,
-    paymentMethod?: 'paypal' | 'bank_transfer' | 'cashapp'
+    paymentNote: string,
+    paymentMethod: 'paypal' | 'bank_transfer' | 'cashapp'
   ) => {
     if (!user?.email) {
       setShowAuthModal(true);
@@ -1315,7 +1313,7 @@ export default function CreatorStudioPage() {
           : instructions,
         uploadedFiles,
         paymentStatus: 'unpaid',
-        ...(paymentMethod ? { paymentMethod } : {}),
+        paymentMethod,
         status: 'pending_review',
       });
 
@@ -4124,21 +4122,6 @@ export default function CreatorStudioPage() {
                     </>
                   )}
                 </div>
-
-                    {/* Secondary Alternative Path: Quiet link for users needing PO / sponsor sign-off */}
-                    <div className="pt-1.5 border-t border-border/60 text-center">
-                      <button
-                        type="button"
-                        onClick={handleSubmitForReview}
-                        disabled={isSubmitting}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer underline-offset-4 hover:underline py-1 group"
-                      >
-                        <span>Need sponsor or agency PO approval first?</span>
-                        <span className="font-semibold text-foreground group-hover:text-brand-text dark:group-hover:text-amber-400">
-                          {isSubmitting ? 'Submitting review...' : 'Request review (no payment yet) →'}
-                        </span>
-                      </button>
-                    </div>
 
                     {/* Direct Producer Chat Trigger */}
                     <ChatGate>

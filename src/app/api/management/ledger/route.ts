@@ -339,6 +339,11 @@ export async function GET(req: NextRequest) {
       return entry;
     };
 
+    for (const prof of dbProfiles) {
+      if (!prof.email || prof.role === 'admin' || isAutomatedTestEmail(prof.email)) continue;
+      ensureCustomer(prof.email, prof.full_name, prof.id);
+    }
+
     for (const p of dbProjects) {
       if (!p.email || isAutomatedTestEmail(p.email)) continue;
       const entry = ensureCustomer(p.email, p.client_name, p.user_id);

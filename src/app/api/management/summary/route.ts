@@ -56,7 +56,7 @@ export async function GET(_req: NextRequest) {
         .eq('status', 'pending_manual'),
       admin
         .from('credit_ledger')
-        .select('id', { count: 'exact', head: true }),
+        .select('id, profiles(email)'),
       admin
         .from('profiles')
         .select('id, email')
@@ -112,10 +112,14 @@ export async function GET(_req: NextRequest) {
         return sum + (Number(p.total_credits) || Number(p.applied_wallet_credits) || 0);
       }, 0);
 
-    // 4. Ledger count (if credit_ledger has records use count, otherwise derived from projects)
+    // 4. Ledger count (excluding automated test/archived rows)
+    const realLedgerRows = (ledgerRes.data || []).filter((r: any) => {
+      const prof = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+      return !isAutomatedTestEmail(prof?.email);
+    });
     const ledgerCount =
-      (ledgerRes.count && ledgerRes.count > 0)
-        ? ledgerRes.count
+      realLedgerRows.length > 0
+        ? realLedgerRows.length
         : projects.length;
 
     const teamAccessCount = (adminProfilesRes.data || []).filter((a) => {

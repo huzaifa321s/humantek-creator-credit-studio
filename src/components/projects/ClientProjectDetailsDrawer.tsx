@@ -25,6 +25,7 @@ import { ReferenceImageGrid } from '@/components/ui/reference-image-grid';
 import {
   ProjectDrawerSpecsCard,
   ProjectDrawerBriefSection,
+  ProjectDrawerPaymentBanner,
   ProjectDrawerLinksSection,
   ProjectDrawerServicesSection,
   ProjectDrawerSkeleton,
@@ -159,6 +160,9 @@ export function ClientProjectDetailsDrawer({
                 <ProjectDrawerNotFound onClose={onClose} onRetry={() => refetch()} />
               ) : (
                 <>
+                  {/* 0. Payment status */}
+                  <ProjectDrawerPaymentBanner instructions={project.instructions} audience="client" />
+
                   {/* 1. Aesthetic Style & Color Palette */}
                   <ProjectDrawerSpecsCard style={project.style} colors={project.colors} />
 

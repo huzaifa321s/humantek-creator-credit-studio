@@ -432,45 +432,33 @@
   align-items: center;
 }
 
-/* Success Toast: Synced with Humantek studio palette */
-[data-sonner-toast][data-type="success"] {
-  border-color: oklch(0.85 0.08 145 / 0.7) !important;
-  background: linear-gradient(135deg, oklch(0.985 0.02 145 / 0.5), var(--card)) !important;
+/* Toasts: fully opaque solid backgrounds for maximum legibility */
+[data-sonner-toast][data-visible="true"] {
+  opacity: 1 !important;
 }
-.dark [data-sonner-toast][data-type="success"] {
-  border-color: oklch(0.35 0.08 145 / 0.6) !important;
-  background: linear-gradient(135deg, oklch(0.20 0.04 145 / 0.5), var(--card)) !important;
+[data-sonner-toast] {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
 }
+.dark [data-sonner-toast] {
+  background-color: oklch(0.21 0.01 270) !important;
+  background-image: none !important;
+}
+[data-sonner-toast] [data-title] { color: var(--foreground) !important; font-weight: 600; }
+[data-sonner-toast] [data-description] { color: var(--muted-foreground) !important; opacity: 1 !important; }
 
-/* Info / Brand Toast: Synced with Humantek Golden Amber primary palette */
-[data-sonner-toast][data-type="info"] {
-  border-color: oklch(0.85 0.10 55 / 0.7) !important;
-  background: linear-gradient(135deg, oklch(0.985 0.03 55 / 0.5), var(--card)) !important;
-}
-.dark [data-sonner-toast][data-type="info"] {
-  border-color: oklch(0.40 0.10 55 / 0.6) !important;
-  background: linear-gradient(135deg, oklch(0.22 0.05 55 / 0.5), var(--card)) !important;
-}
+[data-sonner-toast][data-type="success"] { border-color: oklch(0.75 0.12 145) !important; }
+.dark [data-sonner-toast][data-type="success"] { border-color: oklch(0.45 0.10 145) !important; }
 
-/* Warning Toast: Warm amber */
-[data-sonner-toast][data-type="warning"] {
-  border-color: oklch(0.85 0.12 70 / 0.7) !important;
-  background: linear-gradient(135deg, oklch(0.985 0.03 70 / 0.5), var(--card)) !important;
-}
-.dark [data-sonner-toast][data-type="warning"] {
-  border-color: oklch(0.40 0.12 70 / 0.6) !important;
-  background: linear-gradient(135deg, oklch(0.22 0.05 70 / 0.5), var(--card)) !important;
-}
+[data-sonner-toast][data-type="info"] { border-color: oklch(0.78 0.12 55) !important; }
+.dark [data-sonner-toast][data-type="info"] { border-color: oklch(0.50 0.10 55) !important; }
 
-/* Error Toast: Refined destructive rose */
-[data-sonner-toast][data-type="error"] {
-  border-color: oklch(0.85 0.10 25 / 0.7) !important;
-  background: linear-gradient(135deg, oklch(0.985 0.03 25 / 0.5), var(--card)) !important;
-}
-.dark [data-sonner-toast][data-type="error"] {
-  border-color: oklch(0.40 0.10 25 / 0.6) !important;
-  background: linear-gradient(135deg, oklch(0.22 0.05 25 / 0.5), var(--card)) !important;
-}
+[data-sonner-toast][data-type="warning"] { border-color: oklch(0.78 0.14 70) !important; }
+.dark [data-sonner-toast][data-type="warning"] { border-color: oklch(0.50 0.12 70) !important; }
+
+[data-sonner-toast][data-type="error"] { border-color: oklch(0.72 0.14 25) !important; }
+.dark [data-sonner-toast][data-type="error"] { border-color: oklch(0.50 0.12 25) !important; }
 
 /* Close button styling */
 [data-sonner-toast] [data-close-button] {

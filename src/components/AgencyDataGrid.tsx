@@ -326,15 +326,18 @@ export function AgencyDataGrid({
   const netCreditsDelta = filteredTransactions.reduce((acc, t) => acc + t.creditsDelta, 0);
   const totalUsdVolume = filteredTransactions.reduce((acc, t) => acc + t.usdAmount, 0);
 
+  const isCustomerLocked = Boolean(controlledCustomerFilter && !onCustomerFilterChange);
   const hasActiveFilters =
     Boolean(searchQuery) ||
-    customerFilter !== 'all' ||
+    (!isCustomerLocked && customerFilter !== 'all') ||
     typeFilter !== 'all' ||
     statusFilter !== 'all';
 
   const resetFilters = () => {
     setSearchQuery('');
-    setCustomerFilter('all');
+    if (!isCustomerLocked) {
+      setCustomerFilter('all');
+    }
     setTypeFilter('all');
     setStatusFilter('all');
     setCurrentPage(1);
@@ -474,15 +477,17 @@ export function AgencyDataGrid({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 lg:flex items-center gap-2">
             {/* By Customer Searchable Combobox */}
-            <CustomerFilterCombobox
-              customers={customerComboboxOptions}
-              value={customerFilter}
-              onValueChange={(val) => {
-                setCustomerFilter(val);
-                setCurrentPage(1);
-              }}
-              className="lg:w-[220px]"
-            />
+            {(!controlledCustomerFilter || onCustomerFilterChange) && (
+              <CustomerFilterCombobox
+                customers={customerComboboxOptions}
+                value={customerFilter}
+                onValueChange={(val) => {
+                  setCustomerFilter(val);
+                  setCurrentPage(1);
+                }}
+                className="lg:w-[220px]"
+              />
+            )}
 
             {/* Type Filter */}
             <Select

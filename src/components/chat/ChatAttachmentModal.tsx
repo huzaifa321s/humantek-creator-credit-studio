@@ -9,8 +9,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { ChatAttachment } from '@/lib/chatStore';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
 
 interface ChatAttachmentModalProps {
   attachment: ChatAttachment | null;
@@ -22,45 +20,25 @@ export function ChatAttachmentModal({ attachment, onClose }: ChatAttachmentModal
 
   return (
     <Dialog open={!!attachment} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl p-4 sm:p-6 bg-card border border-border/80 shadow-2xl rounded-xl">
-        <DialogHeader className="pb-3 border-b border-border/60">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <DialogTitle className="text-sm sm:text-base font-bold text-foreground">
-                {attachment.name}
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Shared Attachment · {attachment.size || 'Image Asset'}
-              </DialogDescription>
-            </div>
-            <div className="flex items-center gap-2 pr-6">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5"
-                onClick={() => window.open(attachment.url, '_blank')}
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Open Original</span>
-              </Button>
-            </div>
-          </div>
+      <DialogContent className="w-auto max-w-[min(92vw,64rem)] p-0 gap-0 overflow-hidden bg-card border border-border/80 shadow-2xl rounded-xl">
+        {/* Title/description kept for screen readers only */}
+        <DialogHeader className="sr-only">
+          <DialogTitle>Image Preview: {attachment.name}</DialogTitle>
+          <DialogDescription>Shared attachment preview</DialogDescription>
         </DialogHeader>
 
-        <div className="relative mt-3 rounded-xl overflow-hidden bg-black/40 border border-border/60 flex items-center justify-center min-h-[300px] max-h-[65vh]">
-          {attachment.previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={attachment.previewUrl}
-              alt={attachment.name}
-              className="max-h-[60vh] w-auto object-contain rounded-lg"
-            />
-          ) : (
-            <div className="text-center p-8 text-muted-foreground text-xs">
-              Preview unavailable for this file format.
-            </div>
-          )}
-        </div>
+        {attachment.previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={attachment.previewUrl}
+            alt={attachment.name}
+            className="block w-full h-auto max-h-[85vh] object-contain"
+          />
+        ) : (
+          <div className="text-center p-8 text-muted-foreground text-xs">
+            Preview unavailable for this file format.
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

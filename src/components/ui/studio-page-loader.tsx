@@ -74,40 +74,11 @@ export function StudioPageLoader({
         aria-busy="true"
         aria-label={label}
         className={cn(
-          'w-full flex-1 flex flex-col min-h-[460px] rounded-xl border border-border/70 bg-card/60 p-3.5 sm:p-4 space-y-3.5 animate-in fade-in duration-150',
+          'w-full flex-1 flex items-center justify-center min-h-[460px] animate-in fade-in duration-150',
           className
         )}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2.5">
-            <Skeleton className="size-8 rounded-lg shrink-0" />
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-36 rounded-md" />
-              <Skeleton className="h-3 w-24 rounded-md" />
-            </div>
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/60 border border-border/70 text-2xs font-medium text-muted-foreground">
-            <Spinner className="size-3 text-amber-500" />
-            <span>{label}</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 flex-1 min-h-[380px]">
-          <div className="md:col-span-4 space-y-2.5 border-r border-border/50 pr-0 md:pr-3">
-            <Skeleton className="h-8 w-full rounded-lg" />
-            <Skeleton className="h-14 w-full rounded-xl" />
-            <Skeleton className="h-14 w-full rounded-xl" />
-            <Skeleton className="h-14 w-full rounded-xl" />
-          </div>
-          <div className="md:col-span-8 flex flex-col justify-between space-y-3">
-            <div className="space-y-2.5 pt-2">
-              <Skeleton className="h-12 w-2/3 rounded-xl" />
-              <Skeleton className="h-12 w-1/2 rounded-xl ml-auto" />
-              <Skeleton className="h-14 w-3/5 rounded-xl" />
-            </div>
-            <Skeleton className="h-10 w-full rounded-xl" />
-          </div>
-        </div>
+        <Spinner className="size-10 text-amber-500" />
       </div>
     );
   }

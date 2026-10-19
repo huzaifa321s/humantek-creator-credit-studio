@@ -243,6 +243,9 @@ interface ColorPickerContextValue {
 
 const ColorPickerContext = React.createContext<ColorPickerContextValue | null>(null)
 
+// Context to allow nested components (e.g., ColorPickerContent) to close the popover
+const ColorPickerCloseContext = React.createContext<((open: boolean) => void) | null>(null)
+
 function useColorPickerContext() {
   const ctx = React.useContext(ColorPickerContext)
   if (!ctx) {
@@ -306,12 +309,40 @@ function ColorPicker({
     [onValueChange]
   )
 
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const isOpen = open !== undefined ? open : internalOpen
+  const handleOpenChange = React.useCallback(
+    (next: boolean) => {
+      setInternalOpen(next)
+      onOpenChange?.(next)
+    },
+    [onOpenChange]
+  )
+
   return (
-    <ColorPickerContext.Provider value={{ hex: currentHex, hsv, setHex, setHsv }}>
-      <Popover open={open} onOpenChange={onOpenChange}>
-        {children}
-      </Popover>
-    </ColorPickerContext.Provider>
+    <ColorPickerCloseContext.Provider value={handleOpenChange}>
+      <ColorPickerContext.Provider value={{ hex: currentHex, hsv, setHex, setHsv }}>
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
+          {children}
+        </Popover>
+      </ColorPickerContext.Provider>
+    </ColorPickerCloseContext.Provider>
+  )
+}
+
+function ColorPickerClose() {
+  const close = React.useContext(ColorPickerCloseContext)
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Close color picker"
+      onClick={() => close?.(false)}
+      className="size-8"
+    >
+      <X className="size-4" />
+    </Button>
   )
 }
 
@@ -330,7 +361,9 @@ function ColorPickerContent({
       sideOffset={sideOffset}
       className={cn("w-72 p-3 flex flex-col gap-3 rounded-xl shadow-lg border border-border/80", className)}
       {...props}
-    />
+    >
+      {props.children}
+    </PopoverContent>
   )
 }
 
@@ -842,13 +875,10 @@ function ColorPaletteInput({
 
             <ColorPickerContent align="end">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">
-                  Color Picker
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Pick &amp; add to brief
-                </span>
-              </div>
+  <span className="text-xs font-bold text-foreground">Color Picker</span>
+  <span className="text-[11px] text-muted-foreground">Pick &amp; add to brief</span>
+  <ColorPickerClose />
+</div>
 
               <ColorPickerArea />
               <ColorPickerSlider />

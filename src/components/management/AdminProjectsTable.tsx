@@ -91,6 +91,7 @@ import { ReferenceImageGrid } from '@/components/ui/reference-image-grid';
 import {
   ProjectDrawerSpecsCard,
   ProjectDrawerBriefSection,
+  ProjectDrawerPaymentBanner,
   ProjectDrawerLinksSection,
   ProjectDrawerServicesSection,
   ProjectDrawerSkeleton,
@@ -100,6 +101,7 @@ import {
 interface AdminProjectsTableProps {
   projects?: ProjectRecord[];
   isLoading?: boolean;
+  lockedCustomer?: string;
   onOpenChat?: (projectId: string) => void;
   onUpdateStatus: (
     id: string,
@@ -118,6 +120,7 @@ interface AdminProjectsTableProps {
 export function AdminProjectsTable({
   projects: fallbackProjects,
   isLoading: fallbackLoading = false,
+  lockedCustomer,
   onOpenChat,
   onUpdateStatus,
   isUpdatingId = null,
@@ -129,13 +132,16 @@ export function AdminProjectsTable({
   const urlStatus = searchParams.get('status');
   const urlSearch = searchParams.get('search');
   const urlCustomer = searchParams.get('customer');
+  const normalizedLockedCustomer = lockedCustomer ? lockedCustomer.toLowerCase().trim() : '';
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [searchQuery, setSearchQuery] = useState(urlSearch || '');
   const [debouncedSearch, setDebouncedSearch] = useState(urlSearch || '');
   const [statusFilter, setStatusFilter] = useState(urlStatus || 'all');
-  const [customerFilter, setCustomerFilter] = useState(urlCustomer || 'all');
+  const [customerFilter, setCustomerFilter] = useState(
+    normalizedLockedCustomer || urlCustomer || 'all'
+  );
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
   const [draftStatus, setDraftStatus] = useState<ProjectRecord['status'] | null>(null);
@@ -180,11 +186,13 @@ export function AdminProjectsTable({
   }
 
   const [prevUrlCustomer, setPrevUrlCustomer] = useState(urlCustomer);
-  if (urlCustomer !== prevUrlCustomer) {
+  if (urlCustomer !== prevUrlCustomer && !normalizedLockedCustomer) {
     setPrevUrlCustomer(urlCustomer);
     setCustomerFilter(urlCustomer || 'all');
     setPage(1);
   }
+
+  const effectiveCustomerFilter = normalizedLockedCustomer || customerFilter;
 
   const handleSelectProject = useCallback((id: string | null) => {
     setSelectedProjectId(id);
@@ -215,7 +223,7 @@ export function AdminProjectsTable({
     limit: pageSize,
     status: statusFilter,
     paymentStatus: paymentFilter,
-    customer: customerFilter,
+    customer: effectiveCustomerFilter,
     search: debouncedSearch,
   });
 
@@ -406,7 +414,7 @@ export function AdminProjectsTable({
   const resetFilters = () => {
     setSearchQuery('');
     setDebouncedSearch('');
-    setCustomerFilter('all');
+    setCustomerFilter(normalizedLockedCustomer || 'all');
     setPaymentFilter('all');
     setStatusFilter('all');
     setPage(1);
@@ -414,7 +422,9 @@ export function AdminProjectsTable({
       const params = new URLSearchParams(window.location.search);
       params.delete('status');
       params.delete('search');
-      params.delete('customer');
+      if (!normalizedLockedCustomer) {
+        params.delete('customer');
+      }
       const query = params.toString();
       const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
       router.replace(newUrl, { scroll: false });
@@ -449,14 +459,16 @@ export function AdminProjectsTable({
             </div>
 
             {/* By Customer Searchable Combobox (Shared with Credit History) */}
-            <CustomerFilterCombobox
-              customers={customers}
-              value={customerFilter}
-              onValueChange={(val) => {
-                setCustomerFilter(val);
-                setPage(1);
-              }}
-            />
+            {!normalizedLockedCustomer && (
+              <CustomerFilterCombobox
+                customers={customers}
+                value={customerFilter}
+                onValueChange={(val) => {
+                  setCustomerFilter(val);
+                  setPage(1);
+                }}
+              />
+            )}
 
             {/* Payment Filter Select */}
             <Select
@@ -499,7 +511,7 @@ export function AdminProjectsTable({
 
             {(searchQuery ||
               statusFilter !== 'all' ||
-              customerFilter !== 'all' ||
+              (!normalizedLockedCustomer && customerFilter !== 'all') ||
               paymentFilter !== 'all') && (
               <Button
                 type="button"
@@ -749,6 +761,24 @@ export function AdminProjectsTable({
                   <span className="truncate max-w-full">{selectedProject.email}</span>
                   <span>·</span>
                   <span>{selectedProject.platform || 'General'}</span>
+                  {!normalizedLockedCustomer && selectedProject.email && (
+                    <>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push(
+                            `/management/clients?client=${encodeURIComponent(
+                              selectedProject.email.toLowerCase().trim()
+                            )}`
+                          );
+                        }}
+                        className="text-brand-text dark:text-amber-300 font-semibold hover:underline cursor-pointer"
+                      >
+                        View Client 360°
+                      </button>
+                    </>
+                  )}
                   {selectedProject.lastChatBy && (
                     <>
                       <span>·</span>
@@ -976,6 +1006,12 @@ export function AdminProjectsTable({
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Payment status (admin verification) */}
+                  <ProjectDrawerPaymentBanner
+                    instructions={selectedProject.instructions}
+                    audience="admin"
+                  />
 
                   {/* Latest Discussion Preview */}
                   {selectedProject.lastMessagePreview && (

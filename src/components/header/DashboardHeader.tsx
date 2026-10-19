@@ -279,6 +279,8 @@ export function DashboardHeader({
       ? 'Studio Overview'
       : pathname === '/management/projects'
       ? 'Client Projects'
+      : pathname === '/management/clients'
+      ? 'Studio Clients'
       : pathname === '/management/inbox'
       ? 'Client Messages'
       : pathname === '/management/ledger'

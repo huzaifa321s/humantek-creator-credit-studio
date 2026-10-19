@@ -385,6 +385,32 @@ function StudioSidebarNavigation({ pathname, user }: StudioSidebarNavigationProp
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
+                {/* 2b. Studio Clients (360° Client Activity Workspace) */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname.startsWith('/management/clients')}
+                    onClick={handleNavClick}
+                    render={<Link href="/management/clients" onClick={handleNavClick} />}
+                    tooltip="Clients"
+                    className={cn(
+                      SIDEBAR_ITEM_BASE,
+                      pathname.startsWith('/management/clients')
+                        ? SIDEBAR_ITEM_ACTIVE
+                        : SIDEBAR_ITEM_INACTIVE
+                    )}
+                  >
+                    <Users
+                      className={cn(
+                        'size-4 shrink-0 transition-colors',
+                        pathname.startsWith('/management/clients')
+                          ? 'text-brand-text dark:text-amber-400'
+                          : 'text-muted-foreground group-hover/menu-button:text-foreground'
+                      )}
+                    />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Clients</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
                 {/* 3. Client Messages (Realtime Chat) */}
                 <SidebarAdminCommunicationsItem pathname={pathname} />
 

@@ -19,9 +19,9 @@ import {
   Empty,
   EmptyDescription,
   EmptyHeader,
-  EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
+import { Illustration } from '@/components/ui/illustration';
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -128,40 +128,27 @@ export function ChatMessageList({
   if (messages.length === 0) {
     if (isLoading) {
       return (
-        <Empty className="h-full border-0" role="status" aria-busy="true">
-          <EmptyHeader>
-            <EmptyMedia
-              variant="icon"
-              className="size-10 rounded-xl bg-amber-400/15 border border-amber-400/25 text-brand-text dark:text-amber-400 shadow-2xs"
-            >
-              <Spinner className="size-5 text-brand-text dark:text-amber-400" />
-            </EmptyMedia>
-            <EmptyTitle className="text-sm font-semibold">Loading conversation...</EmptyTitle>
-            <EmptyDescription className="text-xs max-w-xs">
-              {projectId === 'global'
-                ? 'Syncing your studio support thread...'
-                : 'Fetching your project messages and references...'}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <div
+          className="h-full w-full flex items-center justify-center"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading conversation"
+        >
+          <Spinner className="size-10 text-amber-500" />
+        </div>
       );
     }
 
     return (
       <Empty className="h-full border-0">
         <EmptyHeader>
-          <EmptyMedia
-            variant="icon"
-            className="size-10 rounded-xl bg-amber-400/15 border border-amber-400/25 text-brand-text dark:text-amber-400 shadow-2xs"
-          >
-            <MessageSquareDashed className="size-5" />
-          </EmptyMedia>
+          <Illustration name="empty-messages" size={96} />
           <EmptyTitle className="text-sm font-semibold">{emptyTitle || 'No messages yet'}</EmptyTitle>
           <EmptyDescription className="text-xs max-w-sm">
             {emptyDescription ||
               (projectId === 'global'
-                ? 'Message our studio team about packages, credits, or your projects.'
-                : 'Drop references, ask questions, or leave feedback for the team.')}
+                ? 'Say hello and ask about packages, credits or your projects. Our team will reply here.'
+                : 'Say hello, share references or ask a question. Our team will reply here.')}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

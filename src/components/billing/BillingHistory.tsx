@@ -65,15 +65,27 @@ const usd = (n: number) =>
  * `scope="all"` is the studio-wide view for Owner / Manager accounts and adds the client
  * column and payment-platform totals.
  */
-export function BillingHistory({ scope }: { scope: 'mine' | 'all' }) {
-  const isAdminView = scope === 'all';
+export function BillingHistory({
+  scope,
+  customerEmail,
+}: {
+  scope: 'mine' | 'all';
+  customerEmail?: string;
+}) {
+  const isAdminView = scope === 'all' && !customerEmail;
   const [platform, setPlatform] = useState<PlatformFilter>('all');
   const [search, setSearch] = useState('');
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const { data: invoices = [], isLoading, error } = useBillingInvoicesQuery(scope);
+  const { data: rawInvoices = [], isLoading, error } = useBillingInvoicesQuery(scope);
+
+  const invoices = useMemo(() => {
+    if (!customerEmail || customerEmail === 'all') return rawInvoices;
+    const norm = customerEmail.toLowerCase().trim();
+    return rawInvoices.filter((inv) => (inv.email || '').toLowerCase().trim() === norm);
+  }, [rawInvoices, customerEmail]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

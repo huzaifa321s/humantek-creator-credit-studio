@@ -678,7 +678,7 @@ export async function POST(req: NextRequest) {
             funding_source: parsed.data.fundingSource || 'package',
             status: 'pending_review',
             payment_status: 'unpaid',
-            payment_method: parsed.data.paymentMethod ?? 'unpaid',
+            payment_method: parsed.data.paymentMethod ?? 'bank_transfer',
             package_price_usd: pkg.price || 0,
             package_credits: pkg.credits || 0,
             total_credits: totalCreditsRequired,
@@ -978,7 +978,7 @@ export async function POST(req: NextRequest) {
       paymentStatus: 'unpaid',
     }
   );
-  project.paymentMethod = parsed.data.paymentMethod ?? 'unpaid';
+  project.paymentMethod = parsed.data.paymentMethod ?? 'bank_transfer';
   project.fundingSource = parsed.data.fundingSource || 'package';
   addProject(project);
 

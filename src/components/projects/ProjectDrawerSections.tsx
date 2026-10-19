@@ -105,25 +105,69 @@ export interface ProjectDrawerBriefSectionProps {
   redeemCode?: string;
 }
 
+function splitPaymentBanner(instructions?: string) {
+  const raw = (instructions || '').trim();
+  if (raw.startsWith('[PAYMENT RECEIVED') || raw.startsWith('[PAYMENT SENT')) {
+    const newlineIdx = raw.indexOf('\n');
+    if (newlineIdx !== -1) {
+      return { banner: raw.slice(0, newlineIdx).trim(), brief: raw.slice(newlineIdx).trim() };
+    }
+    return { banner: raw, brief: '' };
+  }
+  return { banner: null as string | null, brief: raw };
+}
+
+export interface ProjectDrawerPaymentBannerProps {
+  instructions?: string;
+  /** 'admin' shows the verification state; 'client' shows a friendly summary. */
+  audience?: 'admin' | 'client';
+}
+
+export function ProjectDrawerPaymentBanner({
+  instructions,
+  audience = 'client',
+}: ProjectDrawerPaymentBannerProps) {
+  const { banner } = splitPaymentBanner(instructions);
+  if (!banner) return null;
+
+  const platform = banner.includes('PayPal')
+    ? 'paypal'
+    : banner.includes('Cash App')
+      ? 'cashapp'
+      : 'bank_transfer';
+  const methodLabel =
+    platform === 'paypal' ? 'PayPal' : platform === 'cashapp' ? 'Cash App' : 'Bank Transfer';
+  const amount = /Amount:\s*([^|]+)/i.exec(banner)?.[1]?.trim();
+  const isReceived = banner.startsWith('[PAYMENT RECEIVED');
+  const status = isReceived
+    ? 'Payment received'
+    : audience === 'admin'
+      ? 'Needs verification'
+      : 'Awaiting verification';
+
+  return (
+    <div
+      data-testid="payment-banner"
+      className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center gap-2.5 min-w-0"
+    >
+      <PaymentPlatformIcon platform={platform} size="xs" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-foreground truncate">
+          {isReceived ? 'Paid' : 'Payment sent'} via {methodLabel}
+          {amount ? ` · ${amount}` : ''}
+        </p>
+        <p className="text-2xs text-muted-foreground">{status}</p>
+      </div>
+    </div>
+  );
+}
+
 export function ProjectDrawerBriefSection({
   instructions,
   title = 'Project Brief',
   redeemCode,
 }: ProjectDrawerBriefSectionProps) {
-  const raw = (instructions || '').trim();
-  let paymentBanner: string | null = null;
-  let cleanBrief = raw;
-
-  if (raw.startsWith('[PAYMENT RECEIVED') || raw.startsWith('[PAYMENT SENT')) {
-    const newlineIdx = raw.indexOf('\n');
-    if (newlineIdx !== -1) {
-      paymentBanner = raw.slice(0, newlineIdx).trim();
-      cleanBrief = raw.slice(newlineIdx).trim();
-    } else {
-      paymentBanner = raw;
-      cleanBrief = '';
-    }
-  }
+  const cleanBrief = splitPaymentBanner(instructions).brief;
 
   return (
     <div className="space-y-2 min-w-0">
@@ -132,21 +176,7 @@ export function ProjectDrawerBriefSection({
           {title}
         </span>
       </div>
-      {paymentBanner && (
-        <div className="p-2.5 rounded-lg bg-amber-400/10 border border-amber-400/30 text-2xs font-mono text-foreground/90 break-words flex items-center gap-2">
-          <PaymentPlatformIcon
-            platform={
-              paymentBanner.includes('PayPal')
-                ? 'paypal'
-                : paymentBanner.includes('Cash App')
-                  ? 'cashapp'
-                  : 'bank_transfer'
-            }
-            size="xs"
-          />
-          <span className="min-w-0 flex-1">{paymentBanner}</span>
-        </div>
-      )}
+
       {/* Strict plain text rendering with preserved line breaks (immune to HTML/XSS injection) */}
       <div
         data-testid="brief-instructions"

@@ -51,7 +51,7 @@ const Toaster = ({
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-card group-[.toaster]:!opacity-100 group-[.toaster]:backdrop-blur-none group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-xl font-sans text-sm border",
+            "group toast group-[.toaster]:bg-card bg-opacity-100 group-[.toaster]:!opacity-100 group-[.toaster]:backdrop-blur-none group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-xl font-sans text-sm border",
           title: "font-bold text-foreground text-sm tracking-tight",
           description: "text-muted-foreground text-xs leading-relaxed",
           actionButton:
