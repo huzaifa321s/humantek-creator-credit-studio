@@ -38,19 +38,14 @@ export default function ErrorPage({
           href="/"
           className="flex items-center gap-2.5 group transition-transform hover:opacity-95"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center font-black text-zinc-950 text-xs tracking-wider shadow-xs shadow-amber-400/30 group-hover:scale-105 transition-transform shrink-0">
-            ART
-          </div>
-          <div>
-            <div className="flex items-center gap-1">
-              <span className="font-bold text-foreground tracking-tight text-sm">
-                Humantek Art
-              </span>
-            </div>
-            <span className="block text-3xs tracking-wider uppercase font-bold text-brand-text dark:text-amber-400 leading-tight">
-              Creator Credits Studio
-            </span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logo.webp"
+            alt="Humantek Art — Creator Credits Studio"
+            width={72}
+            height={28}
+            className="h-8 w-auto shrink-0 group-hover:scale-105 transition-transform"
+          />
         </Link>
       </header>
 

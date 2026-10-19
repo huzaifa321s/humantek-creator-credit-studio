@@ -339,19 +339,22 @@ export function DashboardHeader({
                 isSidebarCollapsed && 'hidden'
               )}
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center font-black text-zinc-950 text-2xs tracking-wider shadow-xs shadow-amber-400/30 group-hover:scale-105 transition-transform shrink-0">
-                ART
-              </div>
-              <div className="hidden sm:block min-w-0 truncate">
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-white tracking-tight text-xs truncate">
-                    Humantek Art
-                  </span>
-                </div>
-                <span className="block text-2xs tracking-wider uppercase font-bold text-amber-400 leading-tight truncate">
-                  Creator Credits Studio
-                </span>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/icon-512.png"
+                alt="Humantek Art"
+                width={28}
+                height={28}
+                className="sm:hidden size-7 rounded-lg shrink-0 group-hover:scale-105 transition-transform"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/logo.webp"
+                alt="Humantek Art — Creator Credits Studio"
+                width={72}
+                height={28}
+                className="hidden sm:block h-7 w-auto shrink-0 group-hover:scale-105 transition-transform"
+              />
             </Link>
           </div>
 

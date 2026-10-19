@@ -11,6 +11,7 @@ import {
 import {
   addClientGiftPromo,
   adjustUserBalance,
+  getClientGiftPromosBySender,
   getClientGiftPromosForRecipient,
   getUserBalance,
   type ClientGiftPromoRecord,
@@ -56,26 +57,42 @@ export async function GET() {
     if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
       const admin = createAdminClient();
 
-      // Fetch only unclaimed active client_gift promo codes addressed to this user's email
+      // Fetch promo_codes containing client_gift metadata
       const { data: rows } = await admin
         .from('promo_codes')
         .select('id, code, credits, max_uses, used_count, is_active, description, created_at')
-        .eq('is_active', true)
         .like('description', '%"kind":"client_gift"%')
-        .ilike('description', `%"recipientEmail":"${cleanEmail}"%`)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(200);
 
+      const promoIds = (rows || []).map((r) => r.id).filter(Boolean);
+      const redemptionMap = new Map<string, { createdAt: string }>();
+
+      if (promoIds.length > 0) {
+        const { data: redemptions } = await admin
+          .from('promo_redemptions')
+          .select('promo_code_id, created_at')
+          .in('promo_code_id', promoIds);
+
+        for (const red of redemptions || []) {
+          redemptionMap.set(String(red.promo_code_id), {
+            createdAt: String(red.created_at),
+          });
+        }
+      }
+
+      const sentGifts: ClientGiftPromoRecord[] = [];
       const receivedGifts: ClientGiftPromoRecord[] = [];
 
       for (const row of rows || []) {
         const meta = parseGiftPromoMetadata(row.description);
-        if (!meta || meta.recipientEmail !== cleanEmail) continue;
+        if (!meta) continue;
 
-        const isClaimed = Number(row.used_count) >= Number(row.max_uses);
-        if (isClaimed) continue;
+        const isClaimed =
+          Number(row.used_count) >= Number(row.max_uses) || redemptionMap.has(String(row.id));
+        const redInfo = redemptionMap.get(String(row.id));
 
-        receivedGifts.push({
+        const record: ClientGiftPromoRecord = {
           id: String(row.id),
           code: String(row.code),
           credits: Number(row.credits),
@@ -83,16 +100,22 @@ export async function GET() {
           senderEmail: meta.senderEmail,
           senderName: meta.senderName,
           recipientEmail: meta.recipientEmail,
-          status: 'active',
-          claimedByEmail: null,
-          claimedAt: null,
+          status: isClaimed ? 'claimed' : 'active',
+          claimedByEmail: isClaimed ? meta.recipientEmail : null,
+          claimedAt: redInfo?.createdAt || null,
           createdAt: String(row.created_at || meta.createdAt),
-        });
+        };
+
+        if (meta.senderId === user.id || meta.senderEmail === cleanEmail) {
+          sentGifts.push(record);
+        } else if (meta.recipientEmail === cleanEmail) {
+          receivedGifts.push(record);
+        }
       }
 
       return NextResponse.json({
         success: true,
-        sentGifts: [],
+        sentGifts,
         receivedGifts,
       });
     }
@@ -100,8 +123,8 @@ export async function GET() {
     // Offline / Dev Fallback
     return NextResponse.json({
       success: true,
-      sentGifts: [],
-      receivedGifts: getClientGiftPromosForRecipient(cleanEmail).filter((g) => g.status === 'active'),
+      sentGifts: getClientGiftPromosBySender(cleanEmail),
+      receivedGifts: getClientGiftPromosForRecipient(cleanEmail),
     });
   } catch (err) {
     console.error('Error in GET /api/wallet/gift:', err);

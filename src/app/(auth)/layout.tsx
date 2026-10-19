@@ -26,19 +26,14 @@ export default function AuthLayout({
           className="flex items-center gap-2 group select-none shrink-0"
           title="Humantek Art Creator Studio"
         >
-          <div className="size-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center font-black text-zinc-950 text-2xs tracking-wider shadow-xs shadow-amber-400/30 group-hover:scale-105 transition-transform shrink-0">
-            ART
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1">
-              <span className="font-bold text-foreground tracking-tight text-xs">
-                Humantek Art
-              </span>
-            </div>
-            <span className="text-3xs uppercase tracking-wider font-semibold text-muted-foreground leading-none">
-              Creator Credits Studio
-            </span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logo.webp"
+            alt="Humantek Art — Creator Credits Studio"
+            width={72}
+            height={28}
+            className="h-8 w-auto shrink-0 group-hover:scale-105 transition-transform"
+          />
         </Link>
 
         {/* Right: Small subtle link to 'Start a project' */}

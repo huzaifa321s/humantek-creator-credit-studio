@@ -33,6 +33,28 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+let brandLogoPromise: Promise<string | null> | null = null;
+
+/** Fetches the official Humantek Art logo (PNG, transparent) as a data URL for the PDF header. */
+function loadBrandLogoDataUrl(): Promise<string | null> {
+  if (typeof window === 'undefined' || typeof fetch === 'undefined') {
+    return Promise.resolve(null);
+  }
+  if (!brandLogoPromise) {
+    brandLogoPromise = fetch('/brand/logo.png', { cache: 'force-cache' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load brand logo');
+        return `data:image/png;base64,${arrayBufferToBase64(await res.arrayBuffer())}`;
+      })
+      .catch((err) => {
+        console.warn('[Invoice] Brand logo unavailable, using text emblem:', err);
+        brandLogoPromise = null;
+        return null;
+      });
+  }
+  return brandLogoPromise;
+}
+
 function loadJsPdfModule(): Promise<typeof import('jspdf')> {
   if (!jsPdfModulePromise) {
     jsPdfModulePromise = import('jspdf');
@@ -231,24 +253,36 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setFillColor(245, 158, 11); // Amber-500
   doc.rect(0, 109, pageWidth, 3, 'F');
 
-  // Signature Studio Gold "ART" Emblem Box (matches rounded-xl / 7pt radius)
-  doc.setFillColor(251, 191, 36); // Amber-400
-  doc.roundedRect(margin, 24, 26, 26, 7, 7, 'F');
-  doc.setTextColor(9, 9, 11); // Zinc-950
-  doc.setFont(fontSans, 'bold');
-  doc.setFontSize(8.5);
-  doc.text('ART', margin + 13, 40, { align: 'center' });
+  const brandLogo = await loadBrandLogoDataUrl();
+  if (brandLogo) {
+    // Amber plate + official Humantek Art logo (aspect 300:115)
+    doc.setFillColor(251, 191, 36); // Amber-400
+    doc.roundedRect(margin, 18, 100, 40, 8, 8, 'F');
+    doc.addImage(brandLogo, 'PNG', margin + 8, 22, 84, 32.2, undefined, 'FAST');
 
-  // Brand Title & Subtitle next to Emblem
-  doc.setTextColor(255, 255, 255);
-  doc.setFont(fontSans, 'bold');
-  doc.setFontSize(10.5);
-  doc.text('Humantek Art', margin + 34, 35);
+    doc.setTextColor(251, 191, 36); // Amber-400
+    doc.setFont(fontSans, 'bold');
+    doc.setFontSize(7.5);
+    doc.text('CREATOR CREDITS STUDIO', margin + 112, 42);
+  } else {
+    // Fallback: text emblem
+    doc.setFillColor(251, 191, 36); // Amber-400
+    doc.roundedRect(margin, 24, 26, 26, 7, 7, 'F');
+    doc.setTextColor(9, 9, 11); // Zinc-950
+    doc.setFont(fontSans, 'bold');
+    doc.setFontSize(8.5);
+    doc.text('ART', margin + 13, 40, { align: 'center' });
 
-  doc.setTextColor(251, 191, 36); // Amber-400
-  doc.setFont(fontSans, 'bold');
-  doc.setFontSize(7.5);
-  doc.text('CREATOR CREDITS STUDIO', margin + 34, 46);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(fontSans, 'bold');
+    doc.setFontSize(10.5);
+    doc.text('Humantek Art', margin + 34, 35);
+
+    doc.setTextColor(251, 191, 36); // Amber-400
+    doc.setFont(fontSans, 'bold');
+    doc.setFontSize(7.5);
+    doc.text('CREATOR CREDITS STUDIO', margin + 34, 46);
+  }
 
   // Main Invoice Document Title
   doc.setTextColor(255, 255, 255);
