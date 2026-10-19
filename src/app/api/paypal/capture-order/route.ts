@@ -113,6 +113,28 @@ export async function POST(req: NextRequest) {
           'Project creation RPC error after capture (credits remain safely in wallet):',
           rpcErr
         );
+      } else if (rawPayload.projectId) {
+        const expectedUsd = Number(order.expected_amount_cents) > 0 ? Number(order.expected_amount_cents) / 100 : 0;
+        const pkgCredits = Number(order.credits_to_grant) || 0;
+        await adminClient
+          .from('projects')
+          .update({
+            payment_method: 'paypal',
+            funding_source: rawPayload.fundingSource === 'hybrid' ? 'hybrid' : 'package',
+            ...(expectedUsd > 0 ? { package_price_usd: expectedUsd } : {}),
+            ...(pkgCredits > 0 ? { package_credits: pkgCredits } : {}),
+            ...(order.provider_capture_id || order.provider_order_id
+              ? {
+                  instructions: [
+                    `[PAYMENT RECEIVED via PayPal] | PayPal Order ID: ${order.provider_order_id || order.id}${order.provider_capture_id ? ` | Capture ID: ${order.provider_capture_id}` : ''}`,
+                    rawPayload.instructions || '',
+                  ]
+                    .filter(Boolean)
+                    .join('\n\n'),
+                }
+              : {}),
+          })
+          .eq('id', rawPayload.projectId);
       }
 
       const { data: projRow } = await adminClient

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Landmark, DollarSign } from 'lucide-react';
+import { Landmark } from 'lucide-react';
+import { CashAppBrandMark, PaymentPlatformIcon } from '@/components/ui/payment-platform-icon';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -38,7 +39,11 @@ function ConfirmSentPayment({
   amount,
   isSubmitting,
   onConfirm,
-}: ManualPaymentOptionsProps & { method: ManualPaymentMethod }) {
+  onSubmitted,
+}: ManualPaymentOptionsProps & {
+  method: ManualPaymentMethod;
+  onSubmitted: () => void;
+}) {
   const [sent, setSent] = useState(false);
   const [reference, setReference] = useState('');
 
@@ -58,9 +63,12 @@ function ConfirmSentPayment({
       />
       <Button
         type="button"
-        className="w-full font-bold"
+        className="w-full font-bold cursor-pointer"
         disabled={!sent || isSubmitting}
-        onClick={() => onConfirm(method, reference.trim())}
+        onClick={() => {
+          onConfirm(method, reference.trim());
+          onSubmitted();
+        }}
       >
         {isSubmitting ? 'Submitting...' : 'Submit for review'}
       </Button>
@@ -73,16 +81,22 @@ function ConfirmSentPayment({
 
 /** Bank transfer and Cash App options shown below the PayPal buttons. */
 export function ManualPaymentOptions(props: ManualPaymentOptionsProps) {
+  const [bankOpen, setBankOpen] = useState(false);
+  const [cashAppOpen, setCashAppOpen] = useState(false);
+
   return (
     <div className="grid grid-cols-2 gap-2 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-400 to-amber-200 p-4 text-zinc-950">
-      <Dialog>
+      <Dialog open={bankOpen} onOpenChange={setBankOpen}>
         <DialogTrigger className={optionClass}>
           <Landmark className="w-9 h-9 text-sky-700" />
           <span className="text-sm sm:text-base font-bold underline underline-offset-2">Pay with Bank</span>
         </DialogTrigger>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pay with Bank Transfer</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <PaymentPlatformIcon platform="bank_transfer" size="sm" />
+              <span>Pay with Bank Transfer</span>
+            </DialogTitle>
             <DialogDescription>
               Send the payment to the account below, then tick the box and submit your brief for review.
             </DialogDescription>
@@ -110,21 +124,28 @@ export function ManualPaymentOptions(props: ManualPaymentOptionsProps) {
                 Bank of America, N.A. 555 California St., San Francisco, CA 94104
               </p>
             </div>
-            <ConfirmSentPayment method="Bank Transfer" {...props} />
+            <ConfirmSentPayment
+              method="Bank Transfer"
+              {...props}
+              onSubmitted={() => setBankOpen(false)}
+            />
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog>
+      <Dialog open={cashAppOpen} onOpenChange={setCashAppOpen}>
         <DialogTrigger className={optionClass}>
           <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#00d64f]">
-            <DollarSign className="w-6 h-6 text-white stroke-[3]" />
+            <CashAppBrandMark className="w-6 h-6 text-white" />
           </span>
           <span className="text-sm sm:text-base font-bold underline underline-offset-2">Pay with Cashapp</span>
         </DialogTrigger>
         <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pay with Cash App</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <PaymentPlatformIcon platform="cashapp" size="sm" />
+              <span>Pay with Cash App</span>
+            </DialogTitle>
             <DialogDescription>Scan the code or send to $humantekart.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-3">
@@ -136,7 +157,11 @@ export function ManualPaymentOptions(props: ManualPaymentOptionsProps) {
             />
             <p className="text-sm font-medium select-all">humantekart@gmail.com</p>
           </div>
-          <ConfirmSentPayment method="Cash App" {...props} />
+          <ConfirmSentPayment
+            method="Cash App"
+            {...props}
+            onSubmitted={() => setCashAppOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

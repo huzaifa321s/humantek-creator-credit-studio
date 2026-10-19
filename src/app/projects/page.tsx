@@ -11,6 +11,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { FilterTabs } from '@/components/ui/filter-tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
+import { Illustration } from '@/components/ui/illustration';
 import { CreditValue } from '@/components/ui/credit-value';
 import { cn, formatStudioDate } from '@/lib/utils';
 import {
@@ -503,9 +505,7 @@ function ProjectsPageContent() {
         ) : totalCount === 0 ? (
           <Empty className="rounded-xl border border-dashed border-border bg-card/80 p-12 sm:p-14 shadow-xs">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Package className="size-6 text-muted-foreground" />
-              </EmptyMedia>
+              <Illustration name="empty-projects" size={96} />
               <EmptyTitle className="text-xl font-bold text-foreground">No projects yet</EmptyTitle>
               <EmptyDescription className="text-muted-foreground text-sm">
                 Start your first project to see its progress here.
@@ -852,7 +852,17 @@ function ProjectsPageContent() {
 
 export default function ProjectsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <StudioCardLayout
+          mode="standalone"
+          backLabel="Back to Studio"
+          topRightBadge={<StudioNewProjectButton />}
+        >
+          <StudioPageLoader label="Loading projects..." variant="cards" />
+        </StudioCardLayout>
+      }
+    >
       <ProjectsPageContent />
     </Suspense>
   );

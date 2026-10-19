@@ -100,6 +100,7 @@ export const ChatMessageItem = React.memo(
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [likePopKey, setLikePopKey] = useState(0);
     const storeUserId = useUserStore((s) => s.user?.id);
+    const storeUserName = useUserStore((s) => s.user?.name);
     const currentUserId =
       storeUserId ||
       (currentUserIdProp && currentUserIdProp !== 'admin' ? currentUserIdProp : undefined);
@@ -111,6 +112,7 @@ export const ChatMessageItem = React.memo(
       !message.senderId ||
       message.senderId === 'admin-1' ||
       Boolean(currentUserId && message.senderId === currentUserId);
+    const resolvedOwnStaffName = message.staffName || storeUserName?.trim() || null;
     const isOwn = viewerRole === 'admin' ? Boolean(isOutgoing && isCurrentStaffSender) : isOutgoing;
     const likes = useMemo(() => (isDeleted ? [] : message.likes ?? []), [isDeleted, message.likes]);
     const hasLikes = likes.length > 0;
@@ -204,8 +206,8 @@ export const ChatMessageItem = React.memo(
               {isOutgoing
                 ? viewerRole === 'admin'
                   ? isCurrentStaffSender
-                    ? message.staffName
-                      ? `You (${message.staffName})`
+                    ? resolvedOwnStaffName
+                      ? `You (${resolvedOwnStaffName})`
                       : 'You'
                     : message.staffName || 'Studio Team'
                   : 'You'

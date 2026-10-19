@@ -117,28 +117,28 @@ export function HorizontalStepper({
             const isAccessible = (isPackageSelected && stepNum <= currentStep + 1) || stepNum === 1;
 
             return (
-              <StepperItem key={step.number} step={stepNum} disabled={!isAccessible} className="gap-2 sm:gap-2.5">
+              <StepperItem key={step.number} step={stepNum} disabled={!isAccessible} className="gap-1.5 md:gap-2 lg:gap-2.5 min-w-0">
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <StepperTrigger className="group gap-2 sm:gap-2.5 rounded-xl px-2 sm:px-2.5 py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed" />
+                      <StepperTrigger className="group gap-1.5 md:gap-2 lg:gap-2.5 rounded-xl px-1.5 md:px-2 lg:px-2.5 py-1.5 hover:bg-secondary/70 transition-colors disabled:cursor-not-allowed min-w-0" />
                     }
                   >
                     <StepperIndicator
                       className={cn(
-                        'size-8 sm:size-9 rounded-full border-2 text-xs sm:text-sm font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
+                        'size-7.5 md:size-8 lg:size-9 rounded-full border-2 text-xs lg:text-sm font-mono font-bold tabular-nums transition-all duration-200 shrink-0',
                         // Inactive / Upcoming step: crisp and legible
                         'border-border/90 bg-card text-foreground/80 font-bold group-hover:border-amber-400/60 group-hover:text-foreground',
                         // Completed step: clean emerald green with white checkmark
                         'data-[state=completed]:border-emerald-500 data-[state=completed]:bg-emerald-500 data-[state=completed]:text-white data-[state=completed]:shadow-xs data-[state=completed]:shadow-emerald-500/20',
                         // Active step: slightly larger size, rich gradient, elevated shadow & vibrant amber-400 ring
-                        'data-[state=active]:size-9 sm:data-[state=active]:size-10 data-[state=active]:scale-105 data-[state=active]:border-amber-400 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-400 data-[state=active]:to-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-400/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-400/25'
+                        'data-[state=active]:size-8.5 md:data-[state=active]:size-9 lg:data-[state=active]:size-10 data-[state=active]:scale-105 data-[state=active]:border-amber-400 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-400 data-[state=active]:to-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-md data-[state=active]:shadow-amber-400/30 data-[state=active]:ring-4 data-[state=active]:ring-amber-400/25'
                       )}
                     >
                       {stepNum}
                     </StepperIndicator>
 
-                    <StepperTitle className="whitespace-nowrap text-xs sm:text-sm font-semibold tracking-tight text-foreground/75 group-hover:text-foreground transition-colors duration-200 data-[state=completed]:font-semibold data-[state=completed]:text-foreground/90 data-[state=active]:font-extrabold data-[state=active]:text-foreground">
+                    <StepperTitle className="whitespace-nowrap text-xs lg:text-sm font-semibold tracking-tight text-foreground/75 group-hover:text-foreground transition-colors duration-200 data-[state=completed]:font-semibold data-[state=completed]:text-foreground/90 data-[state=active]:font-extrabold data-[state=active]:text-foreground">
                       {step.name}
                     </StepperTitle>
                   </TooltipTrigger>
@@ -237,7 +237,7 @@ export function HorizontalStepper({
 
                 {/* Substantial, high-contrast connecting line (3px height with rounded caps) */}
                 {stepNum < STUDIO_STEPS.length && (
-                  <StepperSeparator className="mx-1 sm:mx-1.5 md:mx-2 min-w-3 sm:min-w-4 md:min-w-6 lg:min-w-10 h-[3px] rounded-full bg-border transition-colors duration-250 ease-out motion-reduce:transition-none group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-emerald-500/20" />
+                  <StepperSeparator className="mx-1 md:mx-1.5 lg:mx-2 min-w-2 sm:min-w-3 md:min-w-5 lg:min-w-8 h-[3px] rounded-full bg-border transition-colors duration-250 ease-out motion-reduce:transition-none group-data-[state=completed]/step:bg-emerald-500 group-data-[state=completed]/step:shadow-xs group-data-[state=completed]/step:shadow-emerald-500/20" />
                 )}
               </StepperItem>
             );

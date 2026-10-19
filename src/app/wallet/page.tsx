@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Illustration } from '@/components/ui/illustration';
 import { CreditValue } from '@/components/ui/credit-value';
 import { FilterTabs } from '@/components/ui/filter-tabs';
 import { formatStudioDate } from '@/lib/utils';
@@ -344,9 +345,7 @@ export default function ClientWalletLedgerPage() {
         ) : ledgerEntries.length === 0 ? (
           <Empty className="rounded-xl border border-dashed border-border bg-card/80 p-12 sm:p-14 shadow-xs">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Receipt className="size-6 text-muted-foreground" />
-              </EmptyMedia>
+              <Illustration name="empty-wallet" size={96} />
               <EmptyTitle className="text-xl font-bold text-foreground">
                 No credit history yet
               </EmptyTitle>

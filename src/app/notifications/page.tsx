@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTopLoader } from 'nextjs-toploader';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCheck, Coins, FolderKanban, Layers, MessageSquare, ChevronRight } from 'lucide-react';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Card } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FilterTabs } from '@/components/ui/filter-tabs';
 import { IconTile } from '@/components/reui/icon-tile';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Illustration } from '@/components/ui/illustration';
 import {
   Empty,
   EmptyHeader,
@@ -23,6 +25,12 @@ import {
   type StudioNotification,
   type NotificationType,
 } from '@/lib/notificationStore';
+import {
+  notificationKeys,
+  useNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+} from '@/lib/queries/notifications';
 import { useUserStore } from '@/lib/userStore';
 import { useChatStore } from '@/lib/chatStore';
 import { createClient } from '@/lib/supabase/client';
@@ -41,23 +49,19 @@ export default function NotificationsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const topLoader = useTopLoader();
+  const queryClient = useQueryClient();
   const user = useUserStore((s) => s.user);
-  const {
-    notifications,
-    unreadCount,
-    isLoading,
-    activeFilter,
-    setFilter,
-    fetchNotifications,
-    markAsRead,
-    markAllAsRead,
-  } = useNotificationStore();
+  const { activeFilter, setFilter } = useNotificationStore();
 
-  useEffect(() => {
-    void fetchNotifications();
-  }, [fetchNotifications]);
+  const notificationsQuery = useNotificationsQuery(activeFilter);
+  const markReadMutation = useMarkNotificationReadMutation();
+  const markAllReadMutation = useMarkAllNotificationsReadMutation();
 
-  // Refresh the list when a new notification arrives
+  const notifications = notificationsQuery.data?.notifications ?? [];
+  const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
+  const isLoading = notificationsQuery.isPending;
+
+  // Refresh the list when a new notification arrives via Realtime
   useEffect(() => {
     if (!user?.id) return;
     const supabase = createClient();
@@ -66,16 +70,18 @@ export default function NotificationsPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        () => void fetchNotifications()
+        () => void queryClient.invalidateQueries({ queryKey: notificationKeys.all })
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fetchNotifications]);
+  }, [user?.id, queryClient]);
 
   const handleOpen = (item: StudioNotification) => {
-    void markAsRead(item.id);
+    if (!item.isRead) {
+      markReadMutation.mutate(item.id);
+    }
     const isClientRole = (user?.role || 'client') !== 'admin';
     if (isClientRole && (item.actionId === 'open-chat' || item.type === 'chat_message' || item.entityType === 'chat')) {
       const targetChatId =
@@ -112,7 +118,7 @@ export default function NotificationsPage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void markAllAsRead()}
+              onClick={() => markAllReadMutation.mutate()}
               className="self-start sm:self-auto"
             >
               <CheckCheck className="size-3.5" />
@@ -146,9 +152,7 @@ export default function NotificationsPage() {
         ) : notifications.length === 0 ? (
           <Empty className="rounded-xl border border-dashed border-border bg-card/80 p-12 sm:p-14 shadow-xs">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Bell className="size-6 text-muted-foreground" />
-              </EmptyMedia>
+              <Illustration name="empty-notifications" size={96} />
               <EmptyTitle className="text-xl font-bold text-foreground">
                 {activeFilter === 'unread' ? "You're all caught up" : 'No notifications yet'}
               </EmptyTitle>

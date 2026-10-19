@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/item';
 import { FileText, ExternalLink, AlertCircle, RotateCcw } from 'lucide-react';
 import { resolvePaletteSwatches } from '@/components/reui/color-picker';
+import { PaymentPlatformIcon } from '@/components/ui/payment-platform-icon';
 import { cn } from '@/lib/utils';
 
 export interface ColorPaletteValueProps {
@@ -109,6 +110,21 @@ export function ProjectDrawerBriefSection({
   title = 'Project Brief',
   redeemCode,
 }: ProjectDrawerBriefSectionProps) {
+  const raw = (instructions || '').trim();
+  let paymentBanner: string | null = null;
+  let cleanBrief = raw;
+
+  if (raw.startsWith('[PAYMENT RECEIVED') || raw.startsWith('[PAYMENT SENT')) {
+    const newlineIdx = raw.indexOf('\n');
+    if (newlineIdx !== -1) {
+      paymentBanner = raw.slice(0, newlineIdx).trim();
+      cleanBrief = raw.slice(newlineIdx).trim();
+    } else {
+      paymentBanner = raw;
+      cleanBrief = '';
+    }
+  }
+
   return (
     <div className="space-y-2 min-w-0">
       <div className="flex items-center justify-between gap-2 min-w-0">
@@ -116,12 +132,27 @@ export function ProjectDrawerBriefSection({
           {title}
         </span>
       </div>
+      {paymentBanner && (
+        <div className="p-2.5 rounded-lg bg-amber-400/10 border border-amber-400/30 text-2xs font-mono text-foreground/90 break-words flex items-center gap-2">
+          <PaymentPlatformIcon
+            platform={
+              paymentBanner.includes('PayPal')
+                ? 'paypal'
+                : paymentBanner.includes('Cash App')
+                  ? 'cashapp'
+                  : 'bank_transfer'
+            }
+            size="xs"
+          />
+          <span className="min-w-0 flex-1">{paymentBanner}</span>
+        </div>
+      )}
       {/* Strict plain text rendering with preserved line breaks (immune to HTML/XSS injection) */}
       <div
         data-testid="brief-instructions"
         className="p-3.5 rounded-xl bg-secondary/20 border border-border/80 text-foreground/90 leading-relaxed whitespace-pre-wrap font-sans text-xs break-words overflow-hidden"
       >
-        {instructions || 'No specific creative notes submitted.'}
+        {cleanBrief || 'No specific creative notes submitted.'}
       </div>
       {redeemCode && (
         <p className="text-2xs text-brand-text dark:text-amber-300 font-semibold pt-0.5 truncate">

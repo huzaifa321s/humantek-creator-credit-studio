@@ -78,6 +78,11 @@ import {
   getPaymentStatusLabel,
 } from '@/lib/utils';
 import { downloadProjectInvoice, preloadProjectInvoice } from '@/lib/invoice';
+import { getPaymentPlatform, PAYMENT_PLATFORM_LABELS } from '@/lib/payment-platform';
+import {
+  PaymentPlatformIcon,
+  PaymentPlatformLabel,
+} from '@/components/ui/payment-platform-icon';
 import { useAdminProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
 import { useManagementSummaryQuery } from '@/lib/queries/management';
 import { useUserStore } from '@/lib/userStore';
@@ -100,7 +105,12 @@ interface AdminProjectsTableProps {
     id: string,
     newStatus: ProjectRecord['status'],
     newPayment?: ProjectRecord['paymentStatus'],
-    prev?: { status: ProjectRecord['status']; paymentStatus?: ProjectRecord['paymentStatus'] }
+    prev?: {
+      status: ProjectRecord['status'];
+      paymentStatus?: ProjectRecord['paymentStatus'];
+      paymentMethod?: ProjectRecord['paymentMethod'];
+    },
+    newPaymentMethod?: ProjectRecord['paymentMethod']
   ) => void;
   isUpdatingId?: string | null;
 }
@@ -130,6 +140,9 @@ export function AdminProjectsTable({
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
   const [draftStatus, setDraftStatus] = useState<ProjectRecord['status'] | null>(null);
   const [draftPayment, setDraftPayment] = useState<ProjectRecord['paymentStatus'] | null>(null);
+  const [draftPaymentMethod, setDraftPaymentMethod] = useState<
+    'paypal' | 'bank_transfer' | 'cashapp' | 'credits' | null
+  >(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
   const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
 
@@ -327,8 +340,20 @@ export function AdminProjectsTable({
     return projects.find((p) => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId, detailQuery.data]);
 
+  const resolveProjectMethod = useCallback(
+    (p: ProjectRecord | null): 'paypal' | 'bank_transfer' | 'cashapp' | 'credits' => {
+      if (!p) return 'bank_transfer';
+      const platform = getPaymentPlatform({ ...p, paymentStatus: 'paid' });
+      if (platform === 'paypal') return 'paypal';
+      if (platform === 'cashapp') return 'cashapp';
+      if (platform === 'wallet') return 'credits';
+      return 'bank_transfer';
+    },
+    []
+  );
+
   const selectedSyncKey = selectedProject
-    ? `${selectedProject.id}-${selectedProject.status}-${selectedProject.paymentStatus}`
+    ? `${selectedProject.id}-${selectedProject.status}-${selectedProject.paymentStatus}-${selectedProject.paymentMethod || ''}`
     : 'none';
   const [prevSelectedSyncKey, setPrevSelectedSyncKey] = useState(selectedSyncKey);
   if (selectedSyncKey !== prevSelectedSyncKey) {
@@ -336,26 +361,38 @@ export function AdminProjectsTable({
     if (selectedProject) {
       setDraftStatus(selectedProject.status);
       setDraftPayment(selectedProject.paymentStatus);
+      setDraftPaymentMethod(resolveProjectMethod(selectedProject));
     } else {
       setDraftStatus(null);
       setDraftPayment(null);
+      setDraftPaymentMethod(null);
     }
   }
 
   const isUpdating = isUpdatingId === selectedProject?.id;
+  const currentResolvedMethod = selectedProject ? resolveProjectMethod(selectedProject) : null;
   const isDirty = Boolean(
     selectedProject &&
       ((draftStatus && draftStatus !== selectedProject.status) ||
-        (draftPayment && draftPayment !== selectedProject.paymentStatus))
+        (draftPayment && draftPayment !== selectedProject.paymentStatus) ||
+        (draftPaymentMethod && draftPaymentMethod !== currentResolvedMethod))
   );
 
   const handleSaveStatus = () => {
     if (!selectedProject || !draftStatus) return;
+    const effectivePayment = draftPayment || selectedProject.paymentStatus;
+    const effectiveMethod =
+      draftPaymentMethod || resolveProjectMethod(selectedProject);
     onUpdateStatus(
       selectedProject.id,
       draftStatus,
-      draftPayment || selectedProject.paymentStatus,
-      { status: selectedProject.status, paymentStatus: selectedProject.paymentStatus }
+      effectivePayment,
+      {
+        status: selectedProject.status,
+        paymentStatus: selectedProject.paymentStatus,
+        paymentMethod: selectedProject.paymentMethod,
+      },
+      effectiveMethod
     );
   };
 
@@ -363,6 +400,7 @@ export function AdminProjectsTable({
     if (!selectedProject) return;
     setDraftStatus(selectedProject.status);
     setDraftPayment(selectedProject.paymentStatus);
+    setDraftPaymentMethod(resolveProjectMethod(selectedProject));
   };
 
   const resetFilters = () => {
@@ -759,7 +797,7 @@ export function AdminProjectsTable({
                       </div>
                     </CardHeader>
                     <CardContent className="p-3.5 sm:p-4 pt-0 space-y-3.5 min-w-0">
-                      <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 sm:gap-3 pt-0.5">
+                      <div className="grid grid-cols-1 xs:grid-cols-3 gap-2.5 sm:gap-3 pt-0.5">
                         <div className="min-w-0">
                           <label className="text-2xs font-bold text-muted-foreground uppercase block mb-1 truncate">
                             Production Status
@@ -814,6 +852,58 @@ export function AdminProjectsTable({
                               </SelectItem>
                               <SelectItem value="refunded" className="text-xs">
                                 Refunded
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="min-w-0">
+                          <label className="text-2xs font-bold text-muted-foreground uppercase block mb-1 truncate">
+                            Paid Via
+                          </label>
+                          <Select
+                            value={draftPaymentMethod || resolveProjectMethod(selectedProject)}
+                            disabled={isUpdating || !canManageProjects}
+                            onValueChange={(val) => {
+                              if (!val || !canManageProjects) return;
+                              setDraftPaymentMethod(
+                                val as 'paypal' | 'bank_transfer' | 'cashapp' | 'credits'
+                              );
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs bg-background rounded-lg border-border/80 w-full">
+                              <SelectValue>
+                                <PaymentPlatformLabel
+                                  platform={draftPaymentMethod || resolveProjectMethod(selectedProject)}
+                                  size="xs"
+                                  labelClassName="text-xs font-medium text-foreground"
+                                />
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="bank_transfer" className="text-xs">
+                                <span className="inline-flex items-center gap-2">
+                                  <PaymentPlatformIcon platform="bank_transfer" size="xs" />
+                                  <span>Bank Transfer</span>
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="cashapp" className="text-xs">
+                                <span className="inline-flex items-center gap-2">
+                                  <PaymentPlatformIcon platform="cashapp" size="xs" />
+                                  <span>Cash App</span>
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="paypal" className="text-xs">
+                                <span className="inline-flex items-center gap-2">
+                                  <PaymentPlatformIcon platform="paypal" size="xs" />
+                                  <span>PayPal</span>
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="credits" className="text-xs">
+                                <span className="inline-flex items-center gap-2">
+                                  <PaymentPlatformIcon platform="wallet" size="xs" />
+                                  <span>Studio Wallet</span>
+                                </span>
                               </SelectItem>
                             </SelectContent>
                           </Select>

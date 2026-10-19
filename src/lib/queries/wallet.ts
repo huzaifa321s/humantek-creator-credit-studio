@@ -117,6 +117,8 @@ export function useRedeemPromoCode() {
         useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
       }
       void queryClient.invalidateQueries({ queryKey: walletKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['management'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }
@@ -191,6 +193,9 @@ export function useCreateGiftPromoCode() {
         useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
       }
       void queryClient.invalidateQueries({ queryKey: walletKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['management'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }
+

@@ -20,6 +20,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { FilterTabs } from '@/components/ui/filter-tabs';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 import {
   Field,
   FieldLabel,
@@ -831,13 +832,7 @@ export default function RedeemCodePage() {
     <Suspense
       fallback={
         <StudioCardLayout mode="standalone" backLabel="Back to Studio">
-          <div className="space-y-6 py-4">
-            <Skeleton className="h-16 w-full rounded-xl" />
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <Skeleton className="lg:col-span-7 h-80 w-full rounded-xl" />
-              <Skeleton className="lg:col-span-5 h-56 w-full rounded-xl" />
-            </div>
-          </div>
+          <StudioPageLoader label="Loading promo & gift codes..." variant="split" />
         </StudioCardLayout>
       }
     >

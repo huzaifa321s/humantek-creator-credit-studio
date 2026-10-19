@@ -9,6 +9,7 @@ import {
   FolderKanban,
   Coins,
   Receipt,
+  CreditCard,
   LogOut,
   Sun,
   Moon,
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserStore, computeInitials } from '@/lib/userStore';
 import { cn } from '@/lib/utils';
@@ -220,7 +222,34 @@ export function DashboardProfileDropdown({
           }
         />
 
-        {/* 2a. Team Access (Strictly Owner Only) */}
+        {/* 2a. Billing (Owner / Manager Only) */}
+        {isStaff && (user?.teamRole === 'owner' || user?.teamRole === 'manager') && (
+          <DropdownMenuItem
+            render={
+              <Link
+                href="/management/billing"
+                className={cn(
+                  'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
+                  pathname.startsWith('/management/billing')
+                    ? 'bg-amber-400/15 text-amber-300 font-semibold'
+                    : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
+                )}
+              >
+                <CreditCard
+                  className={cn(
+                    'size-4 shrink-0 transition-colors',
+                    pathname.startsWith('/management/billing')
+                      ? 'text-amber-400'
+                      : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
+                  )}
+                />
+                <span>Billing</span>
+              </Link>
+            }
+          />
+        )}
+
+        {/* 2b. Team Access (Strictly Owner Only) */}
         {isStaff && user?.teamRole === 'owner' && (
           <DropdownMenuItem
             render={
@@ -247,31 +276,56 @@ export function DashboardProfileDropdown({
           />
         )}
 
-        {/* 2b. Credit History (Client Role) */}
+        {/* 2c. Credit History & Billing (Client Role) */}
         {!isStaff && (
-          <DropdownMenuItem
-            render={
-              <Link
-                href="/wallet"
-                className={cn(
-                  'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
-                  isWalletActive
-                    ? 'bg-amber-400/15 text-amber-300 font-semibold'
-                    : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
-                )}
-              >
-                <Receipt
+          <>
+            <DropdownMenuItem
+              render={
+                <Link
+                  href="/wallet"
                   className={cn(
-                    'size-4 shrink-0 transition-colors',
+                    'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
                     isWalletActive
-                      ? 'text-amber-400'
-                      : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
+                      ? 'bg-amber-400/15 text-amber-300 font-semibold'
+                      : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
                   )}
-                />
-                <span>Credit History</span>
-              </Link>
-            }
-          />
+                >
+                  <Receipt
+                    className={cn(
+                      'size-4 shrink-0 transition-colors',
+                      isWalletActive
+                        ? 'text-amber-400'
+                        : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
+                    )}
+                  />
+                  <span>Credit History</span>
+                </Link>
+              }
+            />
+            <DropdownMenuItem
+              render={
+                <Link
+                  href="/billing"
+                  className={cn(
+                    'group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors cursor-pointer w-full outline-none select-none',
+                    pathname.startsWith('/billing')
+                      ? 'bg-amber-400/15 text-amber-300 font-semibold'
+                      : 'text-zinc-300 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white'
+                  )}
+                >
+                  <CreditCard
+                    className={cn(
+                      'size-4 shrink-0 transition-colors',
+                      pathname.startsWith('/billing')
+                        ? 'text-amber-400'
+                        : 'text-zinc-400 group-hover:text-zinc-200 group-focus:text-zinc-200'
+                    )}
+                  />
+                  <span>Billing</span>
+                </Link>
+              }
+            />
+          </>
         )}
 
         {/* 3. Account Profile (All Roles) */}
@@ -314,7 +368,7 @@ export function DashboardProfileDropdown({
                     <span>Credit balance</span>
                   </div>
                   {!mounted || effectiveBalance === undefined ? (
-                    <div className="skeleton h-5 w-16 rounded-full bg-amber-400/20" />
+                    <Skeleton className="h-5 w-16 rounded-full bg-amber-400/20" />
                   ) : (
                     <Badge
                       variant="gold"

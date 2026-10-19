@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { StudioNewProjectButton } from '@/components/StudioNewProjectButton';
 import { useUserStore } from '@/lib/userStore';
-import type { UserProfileResponse } from '@/app/api/profile/route';
+import {
+  useProfileQuery,
+  useUpdateProfileMutation,
+  type ProfileInitialUser,
+} from '@/lib/queries/profile';
 import {
   Card,
   CardHeader,
@@ -53,37 +56,19 @@ function getRoleMeta(role?: string | null, teamRole?: string | null, email?: str
   }
 }
 
-export interface ProfilePageInitialUser {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl: string | null;
-  role: 'client' | 'admin';
-  teamRole: 'owner' | 'manager' | 'viewer' | null;
-}
+export type ProfilePageInitialUser = ProfileInitialUser;
 
 export function ProfilePageContent({ initialUser }: { initialUser?: ProfilePageInitialUser }) {
-  const queryClient = useQueryClient();
   const { user, updateUser } = useUserStore();
 
-  const { data, isPending, refetch } = useQuery<{ profile: UserProfileResponse }>({
-    queryKey: ['user', 'profile', initialUser?.id || user?.id || 'me'],
-    queryFn: async () => {
-      const res = await fetch('/api/profile', { cache: 'no-store' });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json.error || 'Failed to load profile');
-      }
-      return json as { profile: UserProfileResponse };
-    },
-    staleTime: 15_000,
-  });
+  const { data, isPending } = useProfileQuery(initialUser);
+  const updateProfileMutation = useUpdateProfileMutation();
 
   const profile = data?.profile;
 
   const [name, setName] = useState(initialUser?.name || '');
   const [hasEditedName, setHasEditedName] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const isSaving = updateProfileMutation.isPending;
 
   // Initialize name input when server profile loads (do not overwrite unsaved user typing)
   useEffect(() => {
@@ -142,32 +127,12 @@ export function ProfilePageContent({ initialUser }: { initialUser?: ProfilePageI
       return;
     }
 
-    setIsSaving(true);
     try {
-      const res = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: cleanName }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json.error || 'Could not update name.');
-        return;
-      }
-
-      // Immediately update client store so header & profile dropdown reflect the new name
+      await updateProfileMutation.mutateAsync({ name: cleanName });
       setHasEditedName(false);
-      updateUser({ name: cleanName });
-
       toast.success('Your name has been updated.');
-      await Promise.all([
-        refetch(),
-        queryClient.invalidateQueries({ queryKey: ['management', 'team'] }),
-      ]);
-    } catch {
-      toast.error('Failed to save changes.');
-    } finally {
-      setIsSaving(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save changes.');
     }
   };
 

@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
-import { serializeAdminProject } from '@/lib/serializers/project';
+import { serializeAdminProject, serializeClientProject } from '@/lib/serializers/project';
 import { getPaymentPlatform, getPaymentReference } from '@/lib/payment-platform';
+import { PACKAGES } from '@/lib/catalog';
+import { getProjects } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,8 +29,43 @@ export async function GET(req: Request) {
     );
   }
 
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json({ invoices: [] });
+  const pkgById = new Map(PACKAGES.map((p) => [p.id, p]));
+
+  if (!isSupabaseConfigured() || user.isDevFallback) {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ invoices: [] });
+    }
+    const devProjects = getProjects().filter((p) =>
+      wantsAll ? true : p.userId === user.id || p.email?.toLowerCase() === user.email?.toLowerCase()
+    );
+    const invoices = devProjects.map((row) => {
+      const project = wantsAll ? serializeAdminProject(row) : serializeClientProject(row);
+      const matchedPkg = pkgById.get(project.packageId);
+      const isPureWallet =
+        project.packageId === 'studio-wallet' ||
+        (project.fundingSource === 'wallet' && !matchedPkg);
+      const packagePrice =
+        project.packagePrice > 0
+          ? project.packagePrice
+          : !isPureWallet && matchedPkg
+            ? matchedPkg.price
+            : 0;
+      const packageCredits =
+        (project.packageCredits ?? 0) > 0
+          ? (project.packageCredits ?? 0)
+          : !isPureWallet && matchedPkg
+            ? matchedPkg.credits
+            : project.usedCredits;
+
+      return {
+        ...project,
+        packagePrice,
+        packageCredits,
+        paymentPlatform: getPaymentPlatform(project),
+        paymentReference: getPaymentReference(project.instructions),
+      };
+    });
+    return NextResponse.json({ invoices });
   }
 
   const adminClient = createAdminClient();
@@ -48,10 +85,40 @@ export async function GET(req: Request) {
   }
 
   const invoices = (data || []).map((row) => {
-    const project = serializeAdminProject(row);
+    const project = wantsAll ? serializeAdminProject(row) : serializeClientProject(row);
+    const matchedPkg = pkgById.get(project.packageId);
+    const isPureWallet =
+      project.packageId === 'studio-wallet' ||
+      (project.fundingSource === 'wallet' && !matchedPkg);
+
+    const packagePrice =
+      project.packagePrice > 0
+        ? project.packagePrice
+        : !isPureWallet && matchedPkg
+          ? matchedPkg.price
+          : 0;
+    const packageCredits =
+      (project.packageCredits ?? 0) > 0
+        ? (project.packageCredits ?? 0)
+        : !isPureWallet && matchedPkg
+          ? matchedPkg.credits
+          : project.usedCredits;
+
+    const paymentPlatform = getPaymentPlatform({
+      ...project,
+      // If a named package was purchased via server-side PayPal capture, its RPC stored funding_source='wallet'
+      // and payment_method='credits' even though the package was purchased via PayPal.
+      paymentMethod:
+        project.paymentMethod === 'credits' && matchedPkg && project.packageId !== 'studio-wallet' && project.packagePrice === 0
+          ? 'paypal'
+          : project.paymentMethod,
+    });
+
     return {
       ...project,
-      paymentPlatform: getPaymentPlatform(project),
+      packagePrice,
+      packageCredits,
+      paymentPlatform,
       paymentReference: getPaymentReference(project.instructions),
     };
   });

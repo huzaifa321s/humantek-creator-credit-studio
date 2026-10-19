@@ -39,6 +39,13 @@ import {
   type StudioNotification,
   type NotificationType,
 } from '@/lib/notificationStore';
+import {
+  notificationKeys,
+  useNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+} from '@/lib/queries/notifications';
+import { projectKeys } from '@/lib/queries/projects';
 import { useUserStore } from '@/lib/userStore';
 import { walletKeys } from '@/lib/queries/wallet';
 import { createClient } from '@/lib/supabase/client';
@@ -62,14 +69,21 @@ export function DashboardNotificationDropdown() {
   const queryClient = useQueryClient();
   const { isMobile, setOpenMobile } = useSidebar();
   const user = useUserStore((s) => s.user);
-  const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } =
-    useNotificationStore();
+  const storeNotifications = useNotificationStore((s) => s.notifications);
+  const storeUnreadCount = useNotificationStore((s) => s.unreadCount);
+
+  const notificationsQuery = useNotificationsQuery('all');
+  const markReadMutation = useMarkNotificationReadMutation();
+  const markAllReadMutation = useMarkAllNotificationsReadMutation();
+
+  const notifications = notificationsQuery.data?.notifications ?? storeNotifications;
+  const unreadCount = notificationsQuery.data?.unreadCount ?? storeUnreadCount;
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    void fetchNotifications();
-  }, [fetchNotifications]);
+  }, []);
 
   // Realtime subscription to new notifications and wallet balance changes
   useEffect(() => {
@@ -88,7 +102,7 @@ export function DashboardNotificationDropdown() {
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            void fetchNotifications();
+            void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
             const newRow = payload.new as {
               type?: string;
               title?: string;
@@ -101,7 +115,7 @@ export function DashboardNotificationDropdown() {
               newRow.type === 'project_status'
             ) {
               void queryClient.invalidateQueries({ queryKey: walletKeys.all });
-              void queryClient.invalidateQueries({ queryKey: ['projects'] });
+              void queryClient.invalidateQueries({ queryKey: projectKeys.all });
             }
 
             // Show live toast for incoming studio/payment updates (skip self-triggered wizard/redeem toasts)
@@ -139,15 +153,17 @@ export function DashboardNotificationDropdown() {
     } catch (err) {
       console.warn('[RealtimeNotifications] Failed to connect:', err);
     }
-  }, [user?.id, fetchNotifications, queryClient]);
+  }, [user?.id, queryClient]);
 
   const handleMarkAll = (e: React.MouseEvent) => {
     e.stopPropagation();
-    void markAllAsRead();
+    markAllReadMutation.mutate();
   };
 
   const handleItemClick = (item: StudioNotification) => {
-    void markAsRead(item.id);
+    if (!item.isRead) {
+      markReadMutation.mutate(item.id);
+    }
     if (isMobile) {
       setOpenMobile(false);
     }

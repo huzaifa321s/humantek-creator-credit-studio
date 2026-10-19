@@ -141,13 +141,13 @@ function HeaderCreditBalanceBadge({ effectiveBalance }: { effectiveBalance: numb
   const isPositive = (activeDelta?.delta ?? 0) > 0;
 
   return (
-    <div className="relative hidden md:inline-flex items-center">
+    <div className="relative hidden sm:inline-flex items-center shrink-0">
       <Link
         href="/wallet"
         title="View credit history and balance"
         className={cn(
           badgeVariants({ variant: 'gold', size: 'default' }),
-          'inline-flex items-center gap-1.5 py-1 px-3 rounded-full border-amber-400/40 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25 hover:border-amber-400/60 transition-all duration-300 text-xs font-semibold select-none shadow-2xs cursor-pointer',
+          'inline-flex items-center gap-1.5 py-1 px-2.5 lg:px-3 rounded-full border-amber-400/40 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25 hover:border-amber-400/60 transition-all duration-300 text-xs font-semibold select-none shadow-2xs cursor-pointer whitespace-nowrap',
           isHighlighting &&
             (isPositive
               ? 'ring-2 ring-emerald-400/70 bg-amber-400/30 border-amber-300 shadow-md shadow-amber-400/25 scale-[1.03]'
@@ -160,7 +160,7 @@ function HeaderCreditBalanceBadge({ effectiveBalance }: { effectiveBalance: numb
             isHighlighting && 'scale-125 text-amber-300'
           )}
         />
-        <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
+        <span className="hidden lg:inline text-zinc-300 font-medium text-xs">Credit balance:</span>
         <span
           className={cn(
             'font-mono tabular-nums font-bold tracking-tight transition-colors duration-300',
@@ -269,6 +269,8 @@ export function DashboardHeader({
       ? 'Messages'
       : pathname === '/wallet'
       ? 'Credit History'
+      : pathname === '/billing'
+      ? 'Billing'
       : pathname === '/notifications'
       ? 'Notifications'
       : pathname === '/profile'
@@ -281,6 +283,8 @@ export function DashboardHeader({
       ? 'Client Messages'
       : pathname === '/management/ledger'
       ? 'Credit History'
+      : pathname === '/management/billing'
+      ? 'Billing'
       : pathname === '/management/team'
       ? 'Team Access'
       : pathname?.startsWith('/management')
@@ -298,8 +302,8 @@ export function DashboardHeader({
     <>
       <header
         className={cn(
-          'dark h-13 sm:h-13.5 border-b border-zinc-800/80 flex items-center shrink-0 bg-zinc-950/95 text-zinc-100 backdrop-blur-md sticky top-0 z-40 shadow-xs',
-          mode === 'standalone' ? 'px-0' : 'px-2.5 sm:px-5 lg:px-6 justify-between'
+          'dark h-13 sm:h-13.5 border-b border-zinc-800/80 flex items-center shrink-0 bg-zinc-950/95 text-zinc-100 backdrop-blur-md sticky top-0 z-40 shadow-xs w-full max-w-full overflow-hidden',
+          mode === 'standalone' ? 'px-0' : 'px-2.5 sm:px-4 lg:px-6 justify-between gap-2'
         )}
       >
         {/* =================================================================== */}
@@ -307,20 +311,21 @@ export function DashboardHeader({
         {/* =================================================================== */}
         <div
           className={cn(
-            'h-full flex items-center shrink-0 min-w-0 transition-[width] duration-200 ease-linear select-none',
+            'h-full flex items-center min-w-0 transition-[width] duration-200 ease-linear select-none',
             mode === 'standalone'
               ? cn(
-                  'border-r border-zinc-800/80 bg-zinc-950',
+                  'shrink-0 border-r border-zinc-800/80 bg-zinc-950',
                   isSidebarCollapsed
                     ? 'w-(--sidebar-width-icon) justify-center px-1.5'
                     : 'w-auto md:w-(--sidebar-width) px-2 sm:px-3.5'
                 )
-              : 'gap-2 sm:gap-2.5'
+              : 'shrink-0 gap-1.5 sm:gap-2.5'
           )}
         >
           <div
             className={cn(
-              'flex items-center min-w-0 w-full',
+              'flex items-center min-w-0',
+              mode === 'standalone' && 'w-full',
               isSidebarCollapsed ? 'justify-center' : 'gap-2 sm:gap-2.5'
             )}
           >
@@ -355,17 +360,17 @@ export function DashboardHeader({
           {/* Optional Back Navigation Button (only in wizard mode when step > 1 to avoid duplicate "Studio") */}
           {mode === 'wizard' && currentStep > 1 && handleBack && (
             <>
-              <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80" />
+              <Separator orientation="vertical" className="h-4 hidden sm:block bg-zinc-700/80 shrink-0" />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={isBackDisabled}
                 onClick={handleBack}
-                className="gap-1 text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800/80 transition-colors h-7.5 px-2 rounded-md cursor-pointer"
+                className="gap-1 text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-800/80 transition-colors h-7.5 px-2 rounded-md cursor-pointer shrink-0"
               >
                 <ChevronLeft className="w-3.5 h-3.5 text-zinc-300" />
-                <span className="hidden md:inline">Back</span>
+                <span className="hidden lg:inline">Back</span>
               </Button>
             </>
           )}
@@ -376,14 +381,14 @@ export function DashboardHeader({
         {/* =================================================================== */}
         <div
           className={cn(
-            'flex-1 flex items-center justify-between min-w-0 h-full',
-            mode === 'standalone' ? 'px-3.5 sm:px-5 lg:px-6' : ''
+            'flex-1 flex items-center justify-between min-w-0 h-full gap-1.5 sm:gap-2',
+            mode === 'standalone' ? 'px-2.5 sm:px-4 lg:px-6' : ''
           )}
         >
           {/* Left: Breadcrumbs Trail */}
           <div className="flex items-center gap-2 shrink-0 min-w-0">
             {mode !== 'auth' && breadcrumbPage && (
-              <Breadcrumb className="hidden sm:block">
+              <Breadcrumb className="hidden lg:block">
                 <BreadcrumbList className="gap-1.5 sm:gap-2 text-xs">
                   <BreadcrumbItem>
                     <BreadcrumbLink
@@ -409,8 +414,8 @@ export function DashboardHeader({
         {/* =================================================================== */}
         {mode !== 'auth' && !isManagementRoute ? (
           <div className={cn(
-            "items-center justify-center max-w-sm mx-auto",
-            mode === 'wizard' ? "hidden sm:flex flex-1 px-2 sm:px-4" : "flex flex-1 px-2 sm:px-4"
+            "items-center justify-center min-w-0 max-w-xs mx-auto",
+            mode === 'wizard' ? "hidden sm:flex flex-1 px-1 lg:px-3" : "flex flex-1 px-1 lg:px-3"
           )}>
             {/* Desktop & Tablet Search Bar Pill */}
             <Button
@@ -418,13 +423,16 @@ export function DashboardHeader({
               variant="outline"
               size="sm"
               onClick={() => setSearchOpen(true)}
-              className="hidden sm:flex items-center justify-between gap-2.5 h-8 px-3 rounded-lg border-zinc-700/70 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-600 text-zinc-300 hover:text-white transition-all cursor-pointer w-full max-w-64 shadow-2xs text-xs select-none font-normal"
+              className="hidden sm:flex items-center justify-between gap-2 h-8 px-2.5 lg:px-3 rounded-lg border-zinc-700/70 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-600 text-zinc-300 hover:text-white transition-all cursor-pointer w-full min-w-0 max-w-56 lg:max-w-64 shadow-2xs text-xs select-none font-normal"
             >
-              <div className="flex items-center gap-2 truncate">
+              <div className="flex items-center gap-2 min-w-0 truncate">
                 <Search className="size-3.5 text-zinc-400 shrink-0" />
-                <span className="truncate text-xs font-medium text-zinc-300">Type to search...</span>
+                <span className="truncate text-xs font-medium text-zinc-300">
+                  <span className="hidden md:inline">Type to search...</span>
+                  <span className="md:hidden">Search...</span>
+                </span>
               </div>
-              <Kbd className="bg-zinc-950 border border-zinc-700/80 text-2xs font-mono tabular-nums text-zinc-400 px-1.5 py-0.5 h-4.5 rounded shadow-2xs">
+              <Kbd className="hidden lg:inline-flex bg-zinc-950 border border-zinc-700/80 text-2xs font-mono tabular-nums text-zinc-400 px-1.5 py-0.5 h-4.5 rounded shadow-2xs shrink-0">
                 ⌘K
               </Kbd>
             </Button>
@@ -450,7 +458,7 @@ export function DashboardHeader({
         {/* =================================================================== */}
         {/* Right Section: Producer Chat, Notifications, Balance & User Profile */}
         {/* =================================================================== */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 shrink-0">
           {mode === 'auth' ? (
             <div className="flex items-center gap-3">
               <a
@@ -459,6 +467,11 @@ export function DashboardHeader({
               >
                 Need help?
               </a>
+            </div>
+          ) : !isHydrated ? (
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0" aria-busy="true" aria-label="Loading account">
+              <Skeleton className="hidden sm:block h-7 w-20 lg:w-28 rounded-full bg-white/10 border border-white/10" />
+              <Skeleton className="size-8.5 rounded-full bg-white/10 border border-white/15 shrink-0" />
             </div>
           ) : !effectiveEmail ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
@@ -496,7 +509,7 @@ export function DashboardHeader({
 
               {/* Credit Balance Pill or Admin Badge */}
               {isManagementRoute ? (
-                <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-amber-300 text-xs font-semibold select-none shadow-2xs">
+                <div className="hidden md:inline-flex items-center gap-1.5 py-1 px-2.5 lg:px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-amber-300 text-xs font-semibold select-none shadow-2xs shrink-0">
                   <ShieldCheck className="size-3.5 text-amber-400 shrink-0" />
                   <span className="font-semibold text-xs tracking-tight">
                     {user?.teamRole === 'owner'
@@ -510,12 +523,12 @@ export function DashboardHeader({
                 </div>
               ) : !isBalanceLoaded ? (
                 <div
-                  className="hidden md:inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-xs font-semibold select-none shadow-2xs shrink-0"
+                  className="hidden sm:inline-flex items-center gap-1.5 py-1 px-2.5 lg:px-3 rounded-full border border-amber-400/40 bg-amber-400/15 text-xs font-semibold select-none shadow-2xs shrink-0"
                   aria-label="Loading balance"
                 >
                   <Coins className="size-3.5 text-amber-400/60 animate-pulse shrink-0" />
-                  <span className="text-zinc-300 font-medium text-xs">Credit balance:</span>
-                  <div className="skeleton h-3.5 w-11 rounded-xs bg-amber-400/25" />
+                  <span className="hidden lg:inline text-zinc-300 font-medium text-xs">Credit balance:</span>
+                  <Skeleton className="h-3.5 w-11 rounded-xs bg-amber-400/25" />
                 </div>
               ) : (
                 <HeaderCreditBalanceBadge effectiveBalance={effectiveBalance} />

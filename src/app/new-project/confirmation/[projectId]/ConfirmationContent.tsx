@@ -16,6 +16,7 @@ import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreditValue } from '@/components/ui/credit-value';
+import { Illustration } from '@/components/ui/illustration';
 import { ChatGate } from '@/components/chat/ChatGate';
 import { useUserStore, refreshUserSession } from '@/lib/userStore';
 import { useChatStore } from '@/lib/chatStore';
@@ -226,20 +227,13 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
           </div>
 
           {/* Top Status Icon */}
-          <div
-            className={cn(
-              'size-11 sm:size-12 rounded-full flex items-center justify-center mx-auto ring-6 sm:ring-8',
-              isPendingOrManual
-                ? 'bg-amber-400/15 text-brand-text dark:text-amber-400 ring-amber-400/10'
-                : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/10'
-            )}
-          >
-            {isPendingOrManual ? (
+          {isPendingOrManual ? (
+            <div className="size-11 sm:size-12 rounded-full flex items-center justify-center mx-auto ring-6 sm:ring-8 bg-amber-400/15 text-brand-text dark:text-amber-400 ring-amber-400/10">
               <Clock className="size-5 sm:size-6 stroke-[2.5]" />
-            ) : (
-              <Check className="size-5 sm:size-6 stroke-[2.5]" />
-            )}
-          </div>
+            </div>
+          ) : (
+            <Illustration name="success" size={96} priority className="mx-auto" />
+          )}
 
           {/* Title & Concise Subtitle */}
           <div className="space-y-1">

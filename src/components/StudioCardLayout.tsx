@@ -17,7 +17,7 @@ import {
   Users,
   User,
 } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 import {
   SidebarProvider,
   Sidebar,
@@ -761,13 +761,11 @@ export function StudioCardLayout({
               )}
             >
               {!isHydrated ? (
-                <div className="space-y-6 pb-24 sm:pb-32 w-full" aria-busy="true">
-                  <div className="space-y-2 border-b border-border/60 pb-5">
-                    <Skeleton className="h-9 w-48" />
-                    <Skeleton className="h-4 w-80 max-w-full" />
-                  </div>
-                  <Skeleton className="h-[520px] w-full rounded-xl border border-border/60" />
-                </div>
+                <StudioPageLoader
+                  label="Syncing studio..."
+                  variant={fullBleed ? 'chat' : 'default'}
+                  showHeader={!fullBleed}
+                />
               ) : (
                 children
               )}

@@ -286,35 +286,18 @@ if (typeof window !== 'undefined') {
 
 /**
  * Authoritative session refresh: sets canChat, hasProjects, role, and teamRole strictly
- * from the server session (/api/auth/session). Never hardcodes or fakes permissions client-side.
+ * from the server session (/api/auth/session) and updates the TanStack Query session cache.
+ * Never hardcodes or fakes permissions client-side.
  */
 export async function refreshUserSession(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   try {
-    const res = await fetch('/api/auth/session', { cache: 'no-store' });
-    if (!res.ok) return false;
-    const data = await res.json();
-    if (data.authenticated && data.user) {
-      useUserStore.getState().updateUser({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name || undefined,
-        avatarUrl: data.user.avatarUrl || null,
-        role: data.user.role || 'client',
-        teamRole: data.user.teamRole || null,
-        emailVerified: Boolean(data.user.emailConfirmed),
-        hasProjects: Boolean(data.user.hasProjects),
-        canChat: Boolean(data.user.canChat),
-      });
-      return true;
-    } else if (!data.authenticated) {
-      const current = useUserStore.getState().user;
-      if (current?.email) {
-        useUserStore.getState().signOut();
-      }
-    }
+    const { fetchAndSyncSession } = await import('@/lib/queries/session');
+    const data = await fetchAndSyncSession(null, { forceFresh: true });
+    return Boolean(data?.authenticated && data?.user);
   } catch (err) {
     console.error('Failed to refresh user session from server:', err);
   }
   return false;
 }
+

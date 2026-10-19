@@ -220,8 +220,8 @@ export const orderRequestSchema = orderCoreSchema.extend(projectBriefSchema.shap
   clientName: z.string().optional(),
   email: z.string().optional(),
   paymentStatus: z.enum(['paid', 'unpaid', 'pending', 'refunded']).optional(),
-  /** Offline method the client says they paid with; the studio verifies it before marking paid. */
-  paymentMethod: z.enum(['bank_transfer', 'cashapp']).optional(),
+  /** Payment method used or reported by the client; verified by the studio before marking paid. */
+  paymentMethod: z.enum(['paypal', 'bank_transfer', 'cashapp']).optional(),
   status: z.enum(['pending_review', 'active', 'in_progress', 'completed', 'cancelled']).optional(),
 });
 export type OrderRequest = z.infer<typeof orderRequestSchema>;
@@ -244,6 +244,7 @@ export const patchProjectSchema = z.object({
   id: z.string().trim().min(1).max(100),
   status: projectStatusSchema,
   paymentStatus: z.enum(['unpaid', 'paid', 'refunded']).optional(),
+  paymentMethod: z.enum(['paypal', 'bank_transfer', 'cashapp', 'credits']).optional(),
 });
 
 /** Formats the first Zod issue into a short, user-safe message. */

@@ -69,9 +69,10 @@ export async function GET(req: NextRequest) {
         if (user.isAdmin) {
           await attachAdminLastChatBy(dbClient, [data]);
         }
+        const formatted = formatDbProject(data);
         const serialized = user.isAdmin
-          ? serializeAdminProject(data)
-          : serializeClientProject(data);
+          ? serializeAdminProject(formatted)
+          : serializeClientProject(formatted);
         return NextResponse.json({ project: serialized });
       } catch (err) {
         console.error('Single project query exception in GET /api/projects:', err);
@@ -674,7 +675,7 @@ export async function POST(req: NextRequest) {
             user_id: user.id,
             package_id: parsed.data.packageId,
             package_name: pkg.name,
-            funding_source: parsed.data.fundingSource || 'wallet',
+            funding_source: parsed.data.fundingSource || 'package',
             status: 'pending_review',
             payment_status: 'unpaid',
             payment_method: parsed.data.paymentMethod ?? 'unpaid',
@@ -977,8 +978,8 @@ export async function POST(req: NextRequest) {
       paymentStatus: 'unpaid',
     }
   );
-  project.paymentMethod = 'unpaid';
-  project.fundingSource = parsed.data.fundingSource || 'wallet';
+  project.paymentMethod = parsed.data.paymentMethod ?? 'unpaid';
+  project.fundingSource = parsed.data.fundingSource || 'package';
   addProject(project);
 
   return NextResponse.json({ success: true, project, notificationStatus: 'sent' });
@@ -1003,7 +1004,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: firstIssue(parsed.error) }, { status: 400 });
   }
 
-  const { id, status, paymentStatus } = parsed.data;
+  const { id, status, paymentStatus, paymentMethod } = parsed.data;
 
   // 1. Production / Real Supabase Path
   if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
@@ -1111,7 +1112,7 @@ export async function PATCH(req: NextRequest) {
     // (allowing an admin to confirm payment and transition to in_production in a single save)
     const { data: currentProj } = await adminClient
       .from('projects')
-      .select('id, user_id, project_code, package_id, package_name, package_credits, total_credits, status, payment_status, funding_source')
+      .select('id, user_id, project_code, package_id, package_name, package_credits, total_credits, status, payment_status, payment_method, funding_source, instructions')
       .eq('id', id)
       .maybeSingle();
 
@@ -1120,6 +1121,41 @@ export async function PATCH(req: NextRequest) {
     }
 
     let notifiedPaymentConfirmed = false;
+
+    const currentMethod = (currentProj.payment_method || '').toLowerCase();
+    const effectivePaymentStatus = paymentStatus || currentProj.payment_status;
+    let resolvedPaymentMethod: string | undefined = paymentMethod;
+
+    if (
+      !resolvedPaymentMethod &&
+      effectivePaymentStatus === 'paid' &&
+      (!currentMethod || currentMethod === 'unpaid')
+    ) {
+      const notes = currentProj.instructions || '';
+      if (notes.includes('[PAYMENT RECEIVED via PayPal]')) {
+        resolvedPaymentMethod = 'paypal';
+      } else if (notes.includes('[PAYMENT SENT via Cash App')) {
+        resolvedPaymentMethod = 'cashapp';
+      } else if (
+        currentProj.funding_source === 'wallet' ||
+        currentProj.package_id === 'studio-wallet'
+      ) {
+        resolvedPaymentMethod = 'credits';
+      } else {
+        resolvedPaymentMethod = 'bank_transfer';
+      }
+    }
+
+    if (
+      resolvedPaymentMethod &&
+      resolvedPaymentMethod !== currentProj.payment_method &&
+      (!paymentStatus || paymentStatus === currentProj.payment_status)
+    ) {
+      await adminClient
+        .from('projects')
+        .update({ payment_method: resolvedPaymentMethod })
+        .eq('id', id);
+    }
 
     if (paymentStatus && paymentStatus !== currentProj.payment_status) {
       const catalogPkg = PACKAGES.find((p) => p.id === currentProj.package_id);
@@ -1130,6 +1166,7 @@ export async function PATCH(req: NextRequest) {
         .from('projects')
         .update({
           payment_status: paymentStatus,
+          ...(resolvedPaymentMethod ? { payment_method: resolvedPaymentMethod } : {}),
           ...(effectivePkgCredits > 0 && !currentProj.package_credits
             ? { package_credits: effectivePkgCredits }
             : {}),
@@ -1383,7 +1420,7 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  const updated = updateProjectStatus(id, status as any, paymentStatus);
+  const updated = updateProjectStatus(id, status as any, paymentStatus, paymentMethod);
   if (!updated) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }

@@ -505,12 +505,11 @@ input:-webkit-autofill:active {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-lg, 0.75rem);
+}
+:root:not(.dark) .skeleton:not([class*="bg-"]) {
   background: oklch(0.92 0.008 260);          /* clearly darker than 0.985 page and 1.0 cards */
 }
-.skeleton:not([class*="bg-"]) {
-  background: oklch(0.92 0.008 260);
-}
-.skeleton::after {
+:root:not(.dark) .skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -518,11 +517,18 @@ input:-webkit-autofill:active {
   background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.6), transparent);
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
-.dark .skeleton:not([class*="bg-"]) {
+.dark .skeleton:not([class*="bg-"]),
+.dark.skeleton:not([class*="bg-"]) {
   background: oklch(0.26 0.004 260);
 }
-.dark .skeleton::after {
-  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.07), transparent);
+.dark .skeleton::after,
+.dark.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.22), transparent);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
 @keyframes skeleton-shimmer {

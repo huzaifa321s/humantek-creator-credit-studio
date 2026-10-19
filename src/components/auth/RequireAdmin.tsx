@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUserStore } from '@/lib/userStore';
-
-import { Spinner } from '@/components/ui/spinner';
-import { StudioBackground } from '@/components/StudioBackground';
+import { fetchAndSyncSession } from '@/lib/queries/session';
+import { StudioCardLayout } from '@/components/StudioCardLayout';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 
 interface RequireAdminProps {
   children: React.ReactNode;
@@ -13,7 +14,8 @@ interface RequireAdminProps {
 
 export function RequireAdmin({ children }: RequireAdminProps) {
   const router = useRouter();
-  const { user, isHydrated, isSessionVerified, isAdmin, updateUser, setSessionVerified, signOut } = useUserStore();
+  const queryClient = useQueryClient();
+  const { user, isHydrated, isSessionVerified, isAdmin, signOut } = useUserStore();
   const [isVerifying, React_useState] = React.useState(true);
 
   React.useEffect(() => {
@@ -26,38 +28,19 @@ export function RequireAdmin({ children }: RequireAdminProps) {
         return;
       }
 
-      // 2. Fetch authoritative server session to synchronize cookie auth into client store
-      try {
-        const res = await fetch('/api/auth/session', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          if (active && data.authenticated && data.user) {
-            updateUser({
-              id: data.user.id,
-              email: data.user.email,
-              name: data.user.name || data.user.email?.split('@')[0],
-              role: data.user.role || 'client',
-              teamRole: data.user.teamRole || null,
-              emailVerified: Boolean(data.user.emailConfirmed),
-              hasProjects: Boolean(data.user.hasProjects),
-              canChat: Boolean(data.user.canChat),
-            });
-            setSessionVerified(true);
+      // 2. Fetch authoritative server session via deduplicated TanStack Query cache
+      const data = await fetchAndSyncSession(queryClient);
+      if (active && data?.authenticated && data.user) {
+        const role = (data.user.role || '').toLowerCase();
+        const isAdminUser = role === 'admin';
 
-            const role = (data.user.role || '').toLowerCase();
-            const isAdminUser = role === 'admin';
-
-            if (isAdminUser) {
-              React_useState(false);
-              return;
-            } else {
-              router.replace('/projects');
-              return;
-            }
-          }
+        if (isAdminUser) {
+          React_useState(false);
+          return;
+        } else {
+          router.replace('/projects');
+          return;
         }
-      } catch {
-        // Fallback below
       }
 
       if (active) {
@@ -67,24 +50,21 @@ export function RequireAdmin({ children }: RequireAdminProps) {
       }
     }
 
-    verify();
+    void verify();
 
     return () => {
       active = false;
     };
-  }, [user, isHydrated, isSessionVerified, isAdmin, updateUser, setSessionVerified, signOut, router]);
+  }, [user, isHydrated, isSessionVerified, isAdmin, signOut, router, queryClient]);
 
   if (isVerifying || !isSessionVerified || !user?.email || !isAdmin()) {
     return (
-      <div className="relative flex h-screen items-center justify-center bg-background text-foreground overflow-hidden">
-        <StudioBackground variant="subtle" showDots={false} />
-        <div className="relative z-10 flex flex-col items-center gap-3">
-          <Spinner className="size-6 text-amber-500" />
-          <p className="text-xs font-mono text-muted-foreground">Checking access...</p>
-        </div>
-      </div>
+      <StudioCardLayout mode="standalone" backLabel="Back to Studio">
+        <StudioPageLoader label="Verifying console access..." variant="overview" />
+      </StudioCardLayout>
     );
   }
 
   return <>{children}</>;
 }
+

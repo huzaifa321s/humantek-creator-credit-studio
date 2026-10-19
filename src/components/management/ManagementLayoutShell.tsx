@@ -27,6 +27,10 @@ const ROUTE_HEADERS: Record<string, { title: string; description: string }> = {
     title: 'Team Access',
     description: 'Manage Owner, Manager, and Viewer access to the studio management console.',
   },
+  '/management/billing': {
+    title: 'Billing',
+    description: 'Every client invoice, which platform the payment came from, and PDF downloads.',
+  },
 };
 
 function getRoleDisplayLabel(teamRole?: string | null): string {

@@ -163,6 +163,7 @@ import {
   Lock,
   RotateCcw,
   RefreshCw,
+  Zap,
   Clock,
   Coins,
   FileCheck,
@@ -210,6 +211,28 @@ const OVERLAY_HEADINGS: Record<ConfirmationPaymentState, string> = {
   online_completed: 'Payment received',
   online_pending: 'Payment processing',
   manual_order: 'Order received',
+};
+
+const EXTRA_ITEM_META: Record<
+  string,
+  { icon: React.ElementType; tag: string }
+> = {
+  'Extra revision round': {
+    icon: RefreshCw,
+    tag: 'Revision Extra',
+  },
+  'Additional size / platform': {
+    icon: Monitor,
+    tag: 'Format Extra',
+  },
+  'Additional concept': {
+    icon: Layers,
+    tag: 'Concept Extra',
+  },
+  'Rush delivery request': {
+    icon: Zap,
+    tag: 'Priority Queue',
+  },
 };
 
 function getServiceIcon(serviceId: string, category: string) {
@@ -1238,7 +1261,7 @@ export default function CreatorStudioPage() {
     ]
       .filter(Boolean)
       .join(' | ');
-    void submitProjectBrief(paymentNote);
+    void submitProjectBrief(paymentNote, 'paypal');
   };
 
   /** Bank / Cash App: the client says they sent the money; the studio verifies it before starting. */
@@ -1256,7 +1279,7 @@ export default function CreatorStudioPage() {
 
   const submitProjectBrief = async (
     paymentNote?: string,
-    paymentMethod?: 'bank_transfer' | 'cashapp'
+    paymentMethod?: 'paypal' | 'bank_transfer' | 'cashapp'
   ) => {
     if (!user?.email) {
       setShowAuthModal(true);
@@ -1292,7 +1315,7 @@ export default function CreatorStudioPage() {
           : instructions,
         uploadedFiles,
         paymentStatus: 'unpaid',
-        paymentMethod,
+        ...(paymentMethod ? { paymentMethod } : {}),
         status: 'pending_review',
       });
 
@@ -1373,48 +1396,46 @@ export default function CreatorStudioPage() {
   };
 
   // Determine top right actions on header while in wizard
-  const headerActions = (
-    <div className="flex items-center gap-1.5 sm:gap-2">
-      {hasUnsavedProgress && !submittedProject && (
-        <AlertDialog>
-          <AlertDialogTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 sm:h-7.5 px-2 sm:px-2.5 rounded-full text-2xs sm:text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/80 hover:border-destructive/30 transition-all cursor-pointer select-none gap-1 shrink-0"
-                title="Reset selections and return to Step 1"
-              >
-                <RotateCcw className="size-3" />
-                <span className="hidden sm:inline">Reset</span>
-              </Button>
-            }
-          />
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogMedia className="bg-destructive/10 text-destructive">
-                <RotateCcw className="size-5" />
-              </AlertDialogMedia>
-              <AlertDialogTitle>Reset your project setup?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will clear your selected package, services, and project details, returning you to Step 1.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={handleResetDraft}
-              >
-                Reset
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+  const headerActions = hasUnsavedProgress && !submittedProject ? (
+    <div className="flex items-center shrink-0">
+      <AlertDialog>
+        <AlertDialogTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 sm:h-7.5 px-2 lg:px-2.5 rounded-full text-2xs sm:text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/80 hover:border-destructive/30 transition-all cursor-pointer select-none gap-1 shrink-0"
+              title="Reset selections and return to Step 1"
+            >
+              <RotateCcw className="size-3 shrink-0" />
+              <span className="hidden xl:inline">Reset</span>
+            </Button>
+          }
+        />
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <RotateCcw className="size-5" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Reset your project setup?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear your selected package, services, and project details, returning you to Step 1.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleResetDraft}
+            >
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  );
+  ) : null;
 
   // Dedicated mobile chat launcher button, strictly gated by <ChatGate>
   const renderMobileChat = (label = 'Chat with Team') => (
@@ -1628,12 +1649,7 @@ export default function CreatorStudioPage() {
                   loading={isSubmitting}
                   loadingText="Submitting order..."
                   onClick={() => {
-                    const isOffline = !isPayPalClientConfigured();
-                    if (isOffline) {
-                      handleSubmitForReview();
-                    } else {
-                      document.getElementById('studio-checkout-section')?.scrollIntoView({ behavior: 'smooth' });
-                    }
+                    document.getElementById('studio-checkout-section')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                   className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
                 >
@@ -1913,22 +1929,19 @@ export default function CreatorStudioPage() {
               </div>
 
               {/* 3 Clean Package Cards (Shows only their own credits, no confusing repeated math formulas) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5 items-stretch">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 items-stretch">
                 {PACKAGES.map((pkg) => {
                   const pkgCredits = pkg.credits;
                   const isSelected = selectedPackageId === pkg.id;
                   const isPopular = pkg.id === 'studio-momentum';
-                  const isTest = pkg.id === 'payment-test';
-                  const tierRuleLabel = isTest
-                    ? 'Testing only, for checking the payment flow'
-                    : pkg.id === 'creator-forge'
+                  const tierRuleLabel =
+                    pkg.id === 'creator-forge'
                       ? 'Basic services + up to 2 Standard units (Elite locked)'
                       : pkg.id === 'studio-momentum'
                         ? 'Basic & Standard services + up to 2 Elite units'
                         : 'All Basic, Standard & Elite tiers across 39 services';
-                  const bestForSummary = isTest
-                    ? 'For testing payments only. Not a production package.'
-                    : pkg.id === 'creator-forge'
+                  const bestForSummary =
+                    pkg.id === 'creator-forge'
                       ? 'Ideal for essential channel branding, emotes, and stream graphics.'
                       : pkg.id === 'studio-momentum'
                         ? 'Balanced credit budget for multi-asset rebrands and animated packages.'
@@ -3458,13 +3471,18 @@ export default function CreatorStudioPage() {
                     </div>
                   </Card>
 
-                  {/* Configured Assets / Deliverables List */}
+                  {/* Configured Assets / Deliverables List (Services + Checked Revisions & Additions) */}
                   <Card className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
                     <CardHeader className="p-3.5 sm:p-5 pb-2.5 border-b border-border/60 flex flex-row items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <Layers className="w-4 h-4 text-brand-text dark:text-amber-400 shrink-0" />
                         <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider truncate">
-                          Deliverables ({selectedEntries.length})
+                          Deliverables ({selectedEntries.length + (additions?.length || 0)})
+                          {additions && additions.length > 0 && (
+                            <span className="text-muted-foreground font-normal lowercase ml-1.5 hidden sm:inline">
+                              ({selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} · {additions.length} {additions.length === 1 ? 'extra' : 'extras'})
+                            </span>
+                          )}
                         </CardTitle>
                       </div>
                       <CreditValue value={usedCredits} size="sm" variant="pill" suffix="CR Used" className="shrink-0" />
@@ -3472,7 +3490,7 @@ export default function CreatorStudioPage() {
 
                     {/* Mobile View: Collapsed by default */}
                     <div className="block md:hidden">
-                      {selectedEntries.length === 0 ? (
+                      {selectedEntries.length === 0 && (!additions || additions.length === 0) ? (
                         <div className="p-3 text-center text-xs text-muted-foreground">
                           No specific services pre-allocated · Full balance in wallet
                         </div>
@@ -3480,7 +3498,10 @@ export default function CreatorStudioPage() {
                         <>
                           {!deliverablesExpandedMobile && (
                             <div className="px-3.5 py-2 text-2xs text-muted-foreground truncate bg-secondary/15">
-                              {selectedEntries.map((e) => e.service.name).join(', ')}
+                              {[
+                                ...selectedEntries.map((e) => e.service.name),
+                                ...(additions || [])
+                              ].join(', ')}
                             </div>
                           )}
 
@@ -3490,7 +3511,7 @@ export default function CreatorStudioPage() {
                                 <Table containerClassName="overflow-visible">
                                   <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-xs z-10 border-b border-border/70 shadow-2xs">
                                     <TableRow className="hover:bg-transparent border-b border-border/60">
-                                      <TableHead className="text-xs font-semibold py-2 bg-card/95">Service</TableHead>
+                                      <TableHead className="text-xs font-semibold py-2 bg-card/95">Service / Item</TableHead>
                                       <TableHead className="text-xs font-semibold py-2 bg-card/95">Scope</TableHead>
                                       <TableHead className="text-xs font-semibold py-2 text-right bg-card/95">Credits</TableHead>
                                     </TableRow>
@@ -3515,6 +3536,27 @@ export default function CreatorStudioPage() {
                                         </TableCell>
                                       </TableRow>
                                     ))}
+                                    {additions && additions.map((extra) => {
+                                      const meta = EXTRA_ITEM_META[extra];
+                                      const Icon = meta?.icon || Layers;
+                                      const cost = ADDITIONS_PRICING[extra] ?? 0;
+                                      return (
+                                        <TableRow key={extra} className="hover:bg-amber-400/5 bg-amber-400/[0.02] border-b border-border/40">
+                                          <TableCell wrap className="py-2 text-xs font-bold text-foreground">
+                                            <div className="flex items-center gap-1.5">
+                                              <Icon className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                                              <span>{extra}</span>
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="py-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                            {meta?.tag || 'Addition'}
+                                          </TableCell>
+                                          <TableCell className="py-2 text-xs text-right font-mono font-bold text-foreground">
+                                            +{cost} CR
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
                                   </TableBody>
                                 </Table>
                               </ScrollArea>
@@ -3526,7 +3568,11 @@ export default function CreatorStudioPage() {
                             onClick={() => setDeliverablesExpandedMobile(!deliverablesExpandedMobile)}
                             className="w-full py-2 px-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center justify-between border-t border-border/50 bg-secondary/20 cursor-pointer transition-colors"
                           >
-                            <span>{deliverablesExpandedMobile ? 'Hide deliverables' : `View all ${selectedEntries.length} deliverables`}</span>
+                            <span>
+                              {deliverablesExpandedMobile
+                                ? 'Hide deliverables'
+                                : `View all ${selectedEntries.length + (additions?.length || 0)} items`}
+                            </span>
                             <ChevronDown className={cn("size-3.5 transition-transform text-muted-foreground", deliverablesExpandedMobile && "rotate-180")} />
                           </button>
                         </>
@@ -3535,7 +3581,7 @@ export default function CreatorStudioPage() {
 
                     {/* Desktop View: Always expanded */}
                     <CardContent className="hidden md:block p-4 sm:p-5 pt-3">
-                      {selectedEntries.length === 0 ? (
+                      {selectedEntries.length === 0 && (!additions || additions.length === 0) ? (
                         <div className="py-6 px-4 text-center rounded-xl bg-secondary/20 border border-dashed border-border/80 space-y-2">
                           <Layers className="w-5 h-5 text-brand-text/80 dark:text-amber-400/80 mx-auto" />
                           <b className="text-xs sm:text-sm font-semibold text-foreground block">
@@ -3561,7 +3607,7 @@ export default function CreatorStudioPage() {
                           <Table containerClassName="overflow-visible">
                             <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-xs z-10 border-b border-border/70 shadow-2xs">
                               <TableRow className="hover:bg-transparent border-b border-border/60">
-                                <TableHead className="text-xs font-semibold py-2 bg-card/95">Service</TableHead>
+                                <TableHead className="text-xs font-semibold py-2 bg-card/95">Service / Item</TableHead>
                                 <TableHead className="text-xs font-semibold py-2 bg-card/95">Scope</TableHead>
                                 <TableHead className="text-xs font-semibold py-2 text-right bg-card/95">Credits</TableHead>
                               </TableRow>
@@ -3586,6 +3632,27 @@ export default function CreatorStudioPage() {
                                   </TableCell>
                                 </TableRow>
                               ))}
+                              {additions && additions.map((extra) => {
+                                const meta = EXTRA_ITEM_META[extra];
+                                const Icon = meta?.icon || Layers;
+                                const cost = ADDITIONS_PRICING[extra] ?? 0;
+                                return (
+                                  <TableRow key={extra} className="hover:bg-amber-400/5 bg-amber-400/[0.02] border-b border-border/40">
+                                    <TableCell wrap className="py-2 text-xs font-bold text-foreground">
+                                      <div className="flex items-center gap-1.5">
+                                        <Icon className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                                        <span>{extra}</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="py-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                      {meta?.tag || 'Addition'}
+                                    </TableCell>
+                                    <TableCell className="py-2 text-xs text-right font-mono font-bold text-foreground">
+                                      +{cost} CR
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </ScrollArea>
@@ -4091,11 +4158,11 @@ export default function CreatorStudioPage() {
                     </ChatGate>
 
                     {/* Scope Protection Note */}
-                    <div className="pt-2 border-t border-border/50 flex items-center justify-center gap-2 text-2xs text-muted-foreground text-center">
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>
+                    <div className="pt-2 border-t border-border/50 text-center">
+                      <p className="text-2xs text-muted-foreground leading-relaxed">
+                        <CheckCircle className="size-3.5 text-emerald-600 dark:text-emerald-400 inline-block align-[-2px] mr-1.5 shrink-0" />
                         <strong className="font-semibold text-foreground/90">Full scope protection</strong> — Unused credits stay in your Studio Wallet, and credits are refunded if any request cannot be fulfilled.
-                      </span>
+                      </p>
                     </div>
                   </Card>
                 </div>

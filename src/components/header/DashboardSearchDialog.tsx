@@ -116,9 +116,22 @@ export function DashboardSearchDialog({
               title: 'Credit History & Promo Codes',
               description: 'Audit studio credit transactions, issue credits, and manage promo codes',
               icon: Receipt,
-              keywords: ['credit', 'history', 'ledger', 'promo', 'code', 'issue', 'transactions', 'billing'],
+              keywords: ['credit', 'history', 'ledger', 'promo', 'code', 'issue', 'transactions'],
               action: () => navigateTo('/management/ledger'),
             },
+            ...(user?.teamRole === 'owner' || user?.teamRole === 'manager'
+              ? [
+                  {
+                    id: 'nav-admin-billing',
+                    category: 'Navigation' as const,
+                    title: 'Billing & Invoices',
+                    description: 'Every client invoice, payment platform breakdown, and PDF downloads',
+                    icon: Receipt,
+                    keywords: ['billing', 'invoices', 'payments', 'paypal', 'bank', 'cashapp', 'receipts', 'pdf'],
+                    action: () => navigateTo('/management/billing'),
+                  },
+                ]
+              : []),
             ...(user?.teamRole === 'owner'
               ? [
                   {
@@ -186,6 +199,15 @@ export function DashboardSearchDialog({
               icon: Receipt,
               keywords: ['credit', 'history', 'ledger', 'wallet', 'balance', 'transactions', 'usage'],
               action: () => navigateTo('/wallet'),
+            },
+            {
+              id: 'nav-billing',
+              category: 'Navigation' as const,
+              title: 'Billing & Invoices',
+              description: 'View your invoices, how each order was paid, and download PDF receipts',
+              icon: Receipt,
+              keywords: ['billing', 'invoices', 'payments', 'paypal', 'bank', 'cashapp', 'receipts', 'pdf'],
+              action: () => navigateTo('/billing'),
             },
             {
               id: 'nav-redeem',

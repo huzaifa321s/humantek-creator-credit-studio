@@ -168,7 +168,8 @@ export function addProject(project: ProjectRecord) {
 export function updateProjectStatus(
   id: string,
   status: ProjectRecord['status'],
-  paymentStatus?: ProjectRecord['paymentStatus']
+  paymentStatus?: ProjectRecord['paymentStatus'],
+  paymentMethod?: ProjectRecord['paymentMethod']
 ) {
   const list = globalStore.__HUMANTEK_PROJECTS__ || [];
   const found = list.find((p) => p.id === id || p.projectCode === id);
@@ -176,6 +177,23 @@ export function updateProjectStatus(
     found.status = status;
     if (paymentStatus) {
       found.paymentStatus = paymentStatus;
+    }
+    if (paymentMethod) {
+      found.paymentMethod = paymentMethod;
+    } else if (
+      paymentStatus === 'paid' &&
+      (!found.paymentMethod || found.paymentMethod === 'unpaid')
+    ) {
+      const notes = found.instructions || '';
+      if (notes.includes('[PAYMENT RECEIVED via PayPal]')) {
+        found.paymentMethod = 'paypal';
+      } else if (notes.includes('[PAYMENT SENT via Cash App')) {
+        found.paymentMethod = 'cashapp';
+      } else if (found.fundingSource === 'wallet' || found.packageId === 'studio-wallet') {
+        found.paymentMethod = 'credits';
+      } else {
+        found.paymentMethod = 'bank_transfer';
+      }
     }
     return found;
   }

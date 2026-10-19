@@ -7,7 +7,7 @@ import { AdminProjectsTable } from '@/components/management/AdminProjectsTable';
 import { useUpdateProjectStatus } from '@/lib/queries/projects';
 import { useStudioChat } from '@/lib/chatStore';
 import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 import type { ProjectRecord } from '@/types';
 
 function InnerProjectsQueue() {
@@ -22,10 +22,15 @@ function InnerProjectsQueue() {
     id: string,
     newStatus: ProjectRecord['status'],
     newPayment?: ProjectRecord['paymentStatus'],
-    prev?: { status: ProjectRecord['status']; paymentStatus?: ProjectRecord['paymentStatus'] }
+    prev?: {
+      status: ProjectRecord['status'];
+      paymentStatus?: ProjectRecord['paymentStatus'];
+      paymentMethod?: ProjectRecord['paymentMethod'];
+    },
+    newPaymentMethod?: ProjectRecord['paymentMethod']
   ) => {
     updateStatus.mutate(
-      { id, status: newStatus, paymentStatus: newPayment },
+      { id, status: newStatus, paymentStatus: newPayment, paymentMethod: newPaymentMethod },
       {
         onSuccess: () => {
           const statusChanged = !prev || prev.status !== newStatus;
@@ -68,19 +73,11 @@ export function ProjectsQueueContent() {
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <Skeleton className="h-8 w-24 rounded-lg" />
-            <Skeleton className="h-8 w-28 rounded-lg" />
-            <Skeleton className="h-8 w-28 rounded-lg" />
-            <Skeleton className="h-8 w-24 rounded-lg" />
-          </div>
-          <div className="flex justify-between items-center gap-2">
-            <Skeleton className="h-8 w-64 rounded-lg" />
-            <Skeleton className="h-8 w-32 rounded-lg" />
-          </div>
-          <Skeleton className="h-96 w-full rounded-xl" />
-        </div>
+        <StudioPageLoader
+          label="Loading client projects..."
+          variant="table"
+          showHeader={false}
+        />
       }
     >
       <InnerProjectsQueue />

@@ -3,7 +3,7 @@
 import React, { Suspense, useState } from 'react';
 import { AgencyDataGrid } from '@/components/AgencyDataGrid';
 import { useManagementLedgerQuery } from '@/lib/queries/management';
-import { Skeleton } from '@/components/ui/skeleton';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 
 /* ============================================================================
  * FUTURE USE: Imports for Manual Credit Issuing System
@@ -110,16 +110,11 @@ function InnerLedgerContent() {
 
   if (isPending && !data) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-        </div>
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-96 w-full rounded-xl" />
-      </div>
+      <StudioPageLoader
+        label="Loading credit history..."
+        variant="table"
+        showHeader={false}
+      />
     );
   }
 
@@ -296,16 +291,11 @@ export function LedgerPageContent() {
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-          </div>
-          <Skeleton className="h-12 w-full rounded-xl" />
-          <Skeleton className="h-96 w-full rounded-xl" />
-        </div>
+        <StudioPageLoader
+          label="Loading credit history..."
+          variant="table"
+          showHeader={false}
+        />
       }
     >
       <InnerLedgerContent />

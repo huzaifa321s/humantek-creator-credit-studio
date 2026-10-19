@@ -2,8 +2,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import { useManagementTeamQuery } from '@/lib/queries/management';
+import {
+  useManagementTeamQuery,
+  useAddTeamMemberMutation,
+  useUpdateTeamRoleMutation,
+  useRemoveTeamMemberMutation,
+} from '@/lib/queries/management';
 import { useUserStore } from '@/lib/userStore';
 import type { TeamRole } from '@/lib/auth';
 import type { TeamMemberRecord } from '@/app/api/management/team/route';
@@ -115,9 +119,11 @@ function getRoleSelectClasses(role: TeamRole): string {
 
 export function TeamAccessPageContent() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { user, isHydrated, isSessionVerified } = useUserStore();
   const { data, isPending } = useManagementTeamQuery();
+  const addMemberMutation = useAddTeamMemberMutation();
+  const updateRoleMutation = useUpdateTeamRoleMutation();
+  const removeMemberMutation = useRemoveTeamMemberMutation();
 
   useEffect(() => {
     if (isHydrated && isSessionVerified && (user?.role !== 'admin' || user?.teamRole !== 'owner')) {
@@ -135,7 +141,7 @@ export function TeamAccessPageContent() {
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<'manager' | 'viewer'>('manager');
   const [newPassword, setNewPassword] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
+  const isAdding = addMemberMutation.isPending;
 
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
@@ -206,23 +212,13 @@ export function TeamAccessPageContent() {
       return;
     }
 
-    setIsAdding(true);
     try {
-      const res = await fetch('/api/management/team', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newName.trim(),
-          email: newEmail.trim().toLowerCase(),
-          teamRole: newRole,
-          password: newPassword.trim() || undefined,
-        }),
+      const json = await addMemberMutation.mutateAsync({
+        name: newName.trim(),
+        email: newEmail.trim().toLowerCase(),
+        teamRole: newRole,
+        password: newPassword.trim() || undefined,
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json.error || 'Could not add team member.');
-        return;
-      }
 
       toast.success(
         `${json.member?.name || newEmail} added as ${getRoleLabel(newRole)}.`
@@ -232,34 +228,18 @@ export function TeamAccessPageContent() {
       setNewPassword('');
       setNewRole('manager');
       setIsGrantModalOpen(false);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['management', 'team'] }),
-        queryClient.invalidateQueries({ queryKey: ['management', 'summary'] }),
-      ]);
-    } catch {
-      toast.error('Failed to add team member.');
-    } finally {
-      setIsAdding(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add team member.');
     }
   };
 
   const handleRoleChange = async (userId: string, nextRole: TeamRole) => {
     setUpdatingUserId(userId);
     try {
-      const res = await fetch('/api/management/team', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, teamRole: nextRole }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json.error || 'Could not update role.');
-        return;
-      }
+      await updateRoleMutation.mutateAsync({ userId, teamRole: nextRole });
       toast.success(`Role updated to ${getRoleLabel(nextRole)}.`);
-      await queryClient.invalidateQueries({ queryKey: ['management', 'team'] });
-    } catch {
-      toast.error('Failed to update role.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update role.');
     } finally {
       setUpdatingUserId(null);
     }
@@ -270,23 +250,11 @@ export function TeamAccessPageContent() {
     const target = memberToRemove;
     setRemovingUserId(target.id);
     try {
-      const res = await fetch(
-        `/api/management/team?userId=${encodeURIComponent(target.id)}`,
-        { method: 'DELETE' }
-      );
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json.error || 'Could not remove access.');
-        return;
-      }
+      await removeMemberMutation.mutateAsync(target.id);
       toast.success(`Removed management access for ${target.name}.`);
       setMemberToRemove(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['management', 'team'] }),
-        queryClient.invalidateQueries({ queryKey: ['management', 'summary'] }),
-      ]);
-    } catch {
-      toast.error('Failed to remove access.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove access.');
     } finally {
       setRemovingUserId(null);
     }

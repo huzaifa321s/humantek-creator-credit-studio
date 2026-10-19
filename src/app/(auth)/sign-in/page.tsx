@@ -6,7 +6,7 @@ import { useUserStore } from '@/lib/userStore';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { TypographyH1, TypographyMuted } from '@/components/ui/typography';
 import { AuthForm } from '@/components/auth/AuthForm';
-import { Spinner } from '@/components/ui/spinner';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,14 +60,7 @@ function SignInContent() {
 
   // Prevent flash of sign-in form for already authenticated users
   if (!isHydrated || (user && user.email && !isResetFlow)) {
-    return (
-      <div className="w-full max-w-sm mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[380px] space-y-3">
-        <Spinner className="size-6 text-amber-500" />
-        <span className="text-xs text-muted-foreground font-mono">
-          Loading...
-        </span>
-      </div>
-    );
+    return <StudioPageLoader label="Redirecting to workspace..." variant="auth" />;
   }
 
   return (
@@ -101,16 +94,7 @@ function SignInContent() {
 
 export default function SignInPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="w-full max-w-sm mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[380px] space-y-3">
-          <Spinner className="size-6 text-amber-500" />
-          <span className="text-xs text-muted-foreground font-mono">
-            Loading sign in...
-          </span>
-        </div>
-      }
-    >
+    <Suspense fallback={<StudioPageLoader label="Loading sign in..." variant="auth" />}>
       <SignInContent />
     </Suspense>
   );

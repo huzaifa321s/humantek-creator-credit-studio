@@ -6,6 +6,12 @@ import { useUserStore } from '@/lib/userStore';
 
 export const chatUnreadKey = ['chat', 'unread'] as const;
 
+export const chatKeys = {
+  all: ['chat'] as const,
+  unread: chatUnreadKey,
+  messages: (projectId: string | null) => [...chatKeys.all, 'messages', projectId] as const,
+};
+
 export interface ChatUnreadResponse {
   counts: Record<string, number>;
   total: number;
@@ -18,7 +24,7 @@ export function useChatUnreadQuery() {
   const isSignedIn = useUserStore((s) => Boolean(s.user?.email && s.isSessionVerified));
 
   const query = useQuery({
-    queryKey: chatUnreadKey,
+    queryKey: chatKeys.unread,
     enabled: isSignedIn,
     queryFn: async (): Promise<ChatUnreadResponse> => {
       const res = await fetch('/api/chat/unread');
@@ -39,6 +45,7 @@ export function useChatUnreadQuery() {
 export function useInvalidateChatUnread() {
   const queryClient = useQueryClient();
   return useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: chatUnreadKey });
+    void queryClient.invalidateQueries({ queryKey: chatKeys.unread });
   }, [queryClient]);
 }
+

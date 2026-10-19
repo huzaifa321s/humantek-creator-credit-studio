@@ -176,10 +176,10 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
       pkg.name.toLowerCase() === (project.packageName || '').toLowerCase()
   );
 
+  const platform = getPaymentPlatform(project);
   const isWalletFunded =
-    project.fundingSource === 'wallet' ||
-    project.paymentMethod === 'credits' ||
-    project.packageId === 'studio-wallet';
+    platform === 'wallet' &&
+    (project.packageId === 'studio-wallet' || !matchedPack);
 
   const hasPayPalReceipt = Boolean(
     project.instructions?.includes('[PAYMENT RECEIVED via PayPal]')
@@ -206,7 +206,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
 
   const usdAmount = isWalletFunded
     ? 0
-    : Number(project.packagePrice ?? matchedPack?.price ?? 0);
+    : Number((project.packagePrice && project.packagePrice > 0 ? project.packagePrice : matchedPack?.price) ?? 0);
 
   const invoiceNumber = `INV-${project.projectCode || 'HT-STUDIO'}`;
   const createdDate = project.createdAt
@@ -231,9 +231,9 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setFillColor(245, 158, 11); // Amber-500
   doc.rect(0, 109, pageWidth, 3, 'F');
 
-  // Signature Studio Gold "ART" Emblem Box (matches StudioCardLayout & loading.tsx)
+  // Signature Studio Gold "ART" Emblem Box (matches rounded-xl / 7pt radius)
   doc.setFillColor(251, 191, 36); // Amber-400
-  doc.roundedRect(margin, 24, 26, 26, 5, 5, 'F');
+  doc.roundedRect(margin, 24, 26, 26, 7, 7, 'F');
   doc.setTextColor(9, 9, 11); // Zinc-950
   doc.setFont(fontSans, 'bold');
   doc.setFontSize(8.5);
@@ -259,7 +259,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setTextColor(161, 161, 170);
   doc.setFont(fontSans, 'normal');
   doc.setFontSize(9.5);
-  doc.text('Creative Production Scope & Studio Credit Statement', margin, 91);
+  doc.text('Creative Services Summary & Studio Credits Statement', margin, 91);
 
   // Right-aligned Invoice Meta in Header (GeistMono for Invoice ID)
   doc.setTextColor(255, 255, 255);
@@ -270,7 +270,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setTextColor(212, 212, 216);
   doc.setFont(fontSans, 'normal');
   doc.setFontSize(9.5);
-  doc.text(`Issued: ${createdDate}`, pageWidth - margin, 56, { align: 'right' });
+  doc.text(`Date: ${createdDate}`, pageWidth - margin, 56, { align: 'right' });
 
   // Payment Status Pill inside Header (matches Badge design system tokens)
   const statusBadgeLabel = isRefunded
@@ -298,7 +298,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   } else {
     doc.setFillColor(251, 191, 36); // Studio Gold (Amber-400) for Pending
   }
-  doc.roundedRect(badgeX, badgeY, badgeWidth, 18, 4, 4, 'F');
+  doc.roundedRect(badgeX, badgeY, badgeWidth, 18, 9, 9, 'F');
 
   // High-contrast text: Zinc-950 on Gold/Amber pills, White on Emerald/Rose pills
   if (isGoldPill) {
@@ -315,15 +315,15 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   const cardHeight = 110;
   const colWidth = (contentWidth - 16) / 2;
 
-  // Left Card: Client & Aesthetic Profile (including Color Palette Swatches)
+  // Left Card: Client Details
   doc.setFillColor(250, 250, 250);
   doc.setDrawColor(228, 228, 231);
-  doc.roundedRect(margin, y, colWidth, cardHeight, 6, 6, 'FD');
+  doc.roundedRect(margin, y, colWidth, cardHeight, 8, 8, 'FD');
 
   doc.setTextColor(113, 113, 122);
   doc.setFont(fontSans, 'bold');
   doc.setFontSize(8);
-  doc.text('CLIENT & CREATOR PROFILE', margin + 14, y + 18);
+  doc.text('CLIENT DETAILS', margin + 14, y + 18);
 
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontSans, 'bold');
@@ -349,7 +349,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     y + 65
   );
   doc.text(
-    `Aesthetic Style: ${(project.style || 'Custom Art').slice(0, 30)}`,
+    `Style: ${(project.style || 'Custom Art').slice(0, 30)}`,
     margin + 14,
     y + 80
   );
@@ -357,7 +357,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   // Color Palette Row with rendered Swatch Circles
   const colorLabel = (project.colors || 'Brand Colors').slice(0, 24);
   const swatches = resolvePaletteSwatches(project.colors).slice(0, 4);
-  doc.text('Color Palette:', margin + 14, y + 95);
+  doc.text('Colors:', margin + 14, y + 95);
 
   let colorCursorX = margin + 14 + doc.getTextWidth('Color Palette:') + 6;
   for (const hex of swatches) {
@@ -373,16 +373,16 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setFont(fontSans, 'bold');
   doc.text(colorLabel, colorCursorX + (swatches.length > 0 ? 2 : 0), y + 95);
 
-  // Right Card: Project & Package Summary
+  // Right Card: Order Summary
   const rightCardX = margin + colWidth + 16;
   doc.setFillColor(250, 250, 250);
   doc.setDrawColor(228, 228, 231);
-  doc.roundedRect(rightCardX, y, colWidth, cardHeight, 6, 6, 'FD');
+  doc.roundedRect(rightCardX, y, colWidth, cardHeight, 8, 8, 'FD');
 
   doc.setTextColor(113, 113, 122);
   doc.setFont(fontSans, 'bold');
   doc.setFontSize(8);
-  doc.text('ORDER & PACKAGE SPECIFICATION', rightCardX + 14, y + 18);
+  doc.text('ORDER SUMMARY', rightCardX + 14, y + 18);
 
   doc.setTextColor(82, 82, 91);
   doc.setFont(fontSans, 'bold');
@@ -398,9 +398,8 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setFont(fontSans, 'normal');
   doc.setFontSize(8.8);
   doc.text(`Package: ${packageName}`, rightCardX + 14, y + 52);
-  const platform = getPaymentPlatform(project);
   doc.text(
-    `Funding: ${
+    `Payment: ${
       isWalletFunded
         ? 'Studio Wallet Credits'
         : platform !== 'none'
@@ -411,7 +410,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     y + 69
   );
   doc.text(
-    `Project Status: ${getProjectStatusLabel(project.status)}`,
+    `Status: ${getProjectStatusLabel(project.status)}`,
     rightCardX + 14,
     y + 86
   );
@@ -419,12 +418,12 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   y += cardHeight + 24;
 
   // ---------------------------------------------------------------------------
-  // 3. Itemized Service Scope Table
+  // 3. Services & Deliverables Table (Beginner-friendly language)
   // ---------------------------------------------------------------------------
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontSans, 'bold');
   doc.setFontSize(11);
-  doc.text('Itemized Creative Scope', margin, y);
+  doc.text('Selected Services & Deliverables', margin, y);
   y += 10;
 
   const drawTableHeader = (topY: number): number => {
@@ -436,17 +435,31 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     doc.setFont(fontSans, 'bold');
     doc.setFontSize(8.5);
     doc.text('#', margin + 10, topY + 15);
-    doc.text('CREATIVE SERVICE', margin + 32, topY + 15);
-    doc.text('SCOPE TIER', margin + 270, topY + 15);
+    doc.text('SERVICE', margin + 32, topY + 15);
+    doc.text('TIER', margin + 270, topY + 15);
     doc.text('QTY', margin + 365, topY + 15, { align: 'right' });
-    doc.text('UNIT CR', margin + 430, topY + 15, { align: 'right' });
-    doc.text('TOTAL CR', margin + contentWidth - 10, topY + 15, { align: 'right' });
+    doc.text('CREDITS EACH', margin + 435, topY + 15, { align: 'right' });
+    doc.text('TOTAL', margin + contentWidth - 10, topY + 15, { align: 'right' });
     return topY + 24;
   };
 
+  const selections = project.selections || [];
+  const tableTop = y;
+  const tableHeight =
+    24 +
+    (selections.length === 0 ? 28 : selections.length * 24) +
+    (project.additions && project.additions.length > 0 ? 24 : 0);
+  const tableFitsOnPage = tableTop + tableHeight <= pageHeight - 210;
+
+  if (tableFitsOnPage) {
+    doc.saveGraphicsState();
+    doc.roundedRect(margin, tableTop, contentWidth, tableHeight, 8, 8, null);
+    doc.clip();
+    doc.discardPath();
+  }
+
   y = drawTableHeader(y);
 
-  const selections = project.selections || [];
   if (selections.length === 0) {
     doc.setDrawColor(228, 228, 231);
     doc.rect(margin, y, contentWidth, 28, 'S');
@@ -523,17 +536,25 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     doc.setFont(fontSans, 'bold');
     doc.setFontSize(8.5);
     doc.text(
-      `Included Additions: ${formattedAdditions}`,
+      `Extra Additions: ${formattedAdditions}`,
       margin + 12,
       y + 15
     );
     y += 24;
   }
 
+  if (tableFitsOnPage) {
+    doc.restoreGraphicsState();
+    doc.setDrawColor(228, 228, 231);
+    doc.setLineWidth(0.8);
+    doc.roundedRect(margin, tableTop, contentWidth, tableHeight, 8, 8, 'S');
+    doc.setLineWidth(0.2);
+  }
+
   y += 20;
 
   // ---------------------------------------------------------------------------
-  // 4. Financial & Studio Credit Summary Box
+  // 4. Financial & Studio Credit Summary Box (matches rounded-xl / 8pt radius)
   // ---------------------------------------------------------------------------
   if (y > pageHeight - 180) {
     doc.addPage();
@@ -546,7 +567,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
 
   doc.setFillColor(250, 250, 250);
   doc.setDrawColor(212, 212, 216);
-  doc.roundedRect(summaryBoxX, y, summaryBoxWidth, summaryBoxHeight, 6, 6, 'FD');
+  doc.roundedRect(summaryBoxX, y, summaryBoxWidth, summaryBoxHeight, 8, 8, 'FD');
 
   let sy = y + 20;
 
@@ -554,7 +575,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     doc.setTextColor(82, 82, 91);
     doc.setFont(fontSans, 'normal');
     doc.setFontSize(9.5);
-    doc.text('Package Credits Included:', summaryBoxX + 14, sy);
+    doc.text('Credits in Package:', summaryBoxX + 14, sy);
     doc.setTextColor(24, 24, 27);
     doc.setFont(fontMono, 'bold');
     doc.setFontSize(9);
@@ -565,7 +586,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setTextColor(82, 82, 91);
   doc.setFont(fontSans, 'normal');
   doc.setFontSize(9.5);
-  doc.text('Project Scope Deduction:', summaryBoxX + 14, sy);
+  doc.text('Credits Used for Services:', summaryBoxX + 14, sy);
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontMono, 'bold');
   doc.setFontSize(9);
@@ -576,7 +597,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     doc.setTextColor(82, 82, 91);
     doc.setFont(fontSans, 'normal');
     doc.setFontSize(9.5);
-    doc.text('Remaining Wallet Rollover:', summaryBoxX + 14, sy);
+    doc.text('Remaining in Your Wallet:', summaryBoxX + 14, sy);
     doc.setTextColor(16, 185, 129);
     doc.setFont(fontMono, 'bold');
     doc.setFontSize(9);
@@ -595,10 +616,10 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setFontSize(10.5);
   doc.text(
     isWalletFunded
-      ? 'Checkout Total:'
+      ? 'Total Due:'
       : isPaid
         ? 'Total Paid (USD):'
-        : 'Amount Due (USD):',
+        : 'Total Due (USD):',
     summaryBoxX + 14,
     sy
   );
@@ -607,7 +628,7 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   doc.setFontSize(11);
   doc.text(
     isWalletFunded
-      ? '$0.00 USD (Credits)'
+      ? '$0.00 USD (Paid with Credits)'
       : `$${usdAmount.toLocaleString('en-US', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
@@ -617,12 +638,12 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     { align: 'right' }
   );
 
-  // Left-side Notes / License Box next to Summary (100% real data-driven from project & catalog)
+  // Left-side Notes / License Box next to Summary (Beginner-friendly language)
   const notesWidth = contentWidth - summaryBoxWidth - 20;
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontSans, 'bold');
   doc.setFontSize(9.5);
-  doc.text('Included Studio Scope & Wallet Terms', margin, y + 16);
+  doc.text('What is Included in Your Order', margin, y + 16);
 
   const platformLabel = project.platform || 'General';
   const hasElite = selections.some((s) => s.level === 2);
@@ -632,37 +653,37 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
 
   let scopeRightsBullet: string;
   if (hasElite && (hasStandard || hasBasic)) {
-    scopeRightsBullet = `• Deliverables: Elite source files + commercial use & ${hasStandard ? 'Standard/Basic ' : ''}platform-ready exports for ${platformLabel}.`;
+    scopeRightsBullet = `• Deliverables: High-res source files, commercial rights & ready-to-use exports for ${platformLabel}.`;
   } else if (hasElite) {
-    scopeRightsBullet = `• Elite scope: 3 concepts, layered source files, commercial use & priority review for ${platformLabel}.`;
+    scopeRightsBullet = `• Deliverables: 3 concepts, layered source files, commercial rights & priority review for ${platformLabel}.`;
   } else if (hasStandard && hasBasic) {
-    scopeRightsBullet = `• Standard & Basic scopes: 2 concepts, source files + platform sizes & web-ready exports for ${platformLabel}.`;
+    scopeRightsBullet = `• Deliverables: 2 concepts, source files, all platform sizes & ready-to-use exports for ${platformLabel}.`;
   } else if (hasStandard || selections.length === 0) {
-    scopeRightsBullet = `• Standard scope: 2 concepts, layered source files & platform-ready exports for ${platformLabel}.`;
+    scopeRightsBullet = `• Deliverables: 2 concepts, layered source files & ready-to-use exports for ${platformLabel}.`;
   } else {
-    scopeRightsBullet = `• Basic scope: Focused deliverables & final web-ready broadcast exports for ${platformLabel}.`;
+    scopeRightsBullet = `• Deliverables: Final high-quality exports ready to publish on ${platformLabel}.`;
   }
 
   let revisionsBullet: string;
   if (hasElite && (hasStandard || hasBasic)) {
-    revisionsBullet = `• Revisions: 3 rounds for Elite items & 2 rounds for Standard/Basic items${hasRush ? ' · Rush Priority Queue active.' : ' via the Review Round milestone.'}`;
+    revisionsBullet = `• Revisions: 3 revision rounds for Elite items & 2 rounds for Standard items${hasRush ? ' (Rush priority queue active).' : '.'}`;
   } else if (hasElite) {
-    revisionsBullet = `• Revisions: 3 structured revision rounds with priority review${hasRush ? ' · Rush Priority Queue active.' : ' via the Review Round milestone.'}`;
+    revisionsBullet = `• Revisions: 3 structured revision rounds with fast turnarounds${hasRush ? ' (Rush priority queue active).' : '.'}`;
   } else {
-    revisionsBullet = `• Revisions: 2 structured revision rounds included per service item${hasRush ? ' · Rush Priority Queue active.' : ' via the Review Round milestone.'}`;
+    revisionsBullet = `• Revisions: 2 structured revision rounds included per service${hasRush ? ' (Rush priority queue active).' : '.'}`;
   }
 
   let walletBullet: string;
   if (isRefunded) {
-    walletBullet = `• Credit ledger: Order refunded (${usedCredits} CR reversed in your Studio Credit History).`;
+    walletBullet = `• Credits: Order was refunded (${usedCredits} CR returned to your Studio Wallet).`;
   } else if (isWalletFunded) {
-    walletBullet = `• Credit ledger: Deducted ${usedCredits} CR directly from your available Studio Wallet balance.`;
+    walletBullet = `• Credits: ${usedCredits} CR deducted directly from your Studio Wallet balance.`;
   } else if (!isPaid) {
-    walletBullet = `• Credit ledger: ${packageCredits} CR package allocation activates in your Studio Wallet once payment is confirmed.`;
+    walletBullet = `• Credits: ${packageCredits} CR will be added to your Studio Wallet once payment is complete.`;
   } else if (remainingCredits > 0) {
-    walletBullet = `• Wallet rollover: ${remainingCredits} unused CR from this package remain in your Studio Wallet for future projects.`;
+    walletBullet = `• Credits rollover: ${remainingCredits} unused credits stay in your Studio Wallet for your next project.`;
   } else {
-    walletBullet = `• Credit ledger: All ${packageCredits} CR from this package are allocated to this project's production scope.`;
+    walletBullet = `• Credits: All ${packageCredits} package credits were used for these services.`;
   }
 
   doc.setTextColor(113, 113, 122);

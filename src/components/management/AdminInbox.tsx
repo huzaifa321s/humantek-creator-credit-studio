@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
-import { useStudioChat, ChatMessage, GLOBAL_CHAT_ID, ChatReplyTo } from '@/lib/chatStore';
+import { useStudioChat, useChatStore, ChatMessage, GLOBAL_CHAT_ID, ChatReplyTo } from '@/lib/chatStore';
 import { mapProjectChatMessage } from '@/lib/chat/mapMessage';
 import { useProjectChat } from '@/lib/chat/useProjectChat';
 import { useProjectsQuery, useProjectDetailQuery } from '@/lib/queries/projects';
@@ -86,6 +86,17 @@ export function AdminInbox({ initialProjectId, initialClientId }: AdminInboxProp
   const queryClient = useQueryClient();
   const { user, canManageProjects } = useUserStore();
   const canReply = canManageProjects();
+
+  // Synchronously initialize activeProjectId from deep-linked URL params before first render
+  // so ChatInputBar and useProjectChat have a stable projectId immediately without a render-after-effect reset.
+  useState(() => {
+    if (initialProjectId) {
+      useChatStore.setState({ activeProjectId: initialProjectId });
+    } else if (initialClientId) {
+      useChatStore.setState({ activeProjectId: GLOBAL_CHAT_ID });
+    }
+  });
+
   const {
     projectId,
     isGlobal,
@@ -166,12 +177,17 @@ export function AdminInbox({ initialProjectId, initialClientId }: AdminInboxProp
   const activeDetailQuery = useProjectDetailQuery(needsDetailLookup ? projectId : null);
   const activeProject = projectFromList ?? activeDetailQuery.data ?? null;
 
-  const targetProjectId = isGlobal ? GLOBAL_CHAT_ID : activeProject ? projectId : null;
+  const resolvedProjectId =
+    activeProject?.id ||
+    (projectId && projectId !== GLOBAL_CHAT_ID ? projectId : null) ||
+    (initialProjectId && initialProjectId !== GLOBAL_CHAT_ID ? initialProjectId : null);
+
+  const targetProjectId = isGlobal ? GLOBAL_CHAT_ID : resolvedProjectId;
 
   // Keep global inquiries loaded in real-time so the sidebar always shows 1-on-1 client inquiry cards
   const globalChat = useProjectChat({ projectId: GLOBAL_CHAT_ID });
   const projectChat = useProjectChat({
-    projectId: !isGlobal && activeProject ? projectId : null,
+    projectId: !isGlobal ? targetProjectId : null,
   });
 
   const [initialGlobalLastRead, setInitialGlobalLastRead] = useState<number | null>(null);
@@ -540,7 +556,11 @@ export function AdminInbox({ initialProjectId, initialClientId }: AdminInboxProp
           !confirmedClientIds.has(m.clientMessageId) &&
           (m.status === 'sending' || m.status === 'failed')
       )
-      .map((m: ChatMessage) => ({ ...m, sender: 'agent' as const }));
+      .map((m: ChatMessage) => ({
+        ...m,
+        sender: 'agent' as const,
+        staffName: m.staffName || user?.name?.trim() || null,
+      }));
 
     return [...mappedDb, ...pendingOptimistic];
   }, [
@@ -554,6 +574,7 @@ export function AdminInbox({ initialProjectId, initialClientId }: AdminInboxProp
     selectedInquiryThread,
     messageClientMap,
     clientReadMap,
+    user?.name,
   ]);
 
   return (

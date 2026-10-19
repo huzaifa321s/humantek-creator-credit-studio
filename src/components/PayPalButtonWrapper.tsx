@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons, FUNDING, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import type { CreateOrderActions, OnApproveActions } from '@paypal/paypal-js';
-import { useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, AlertCircle } from 'lucide-react';
 import { ProjectRecord } from '@/types';
-import { useUserStore } from '@/lib/userStore';
-import { projectKeys } from '@/lib/queries/projects';
-import { walletKeys } from '@/lib/queries/wallet';
+import {
+  usePayPalConfigQuery,
+  useCreatePayPalOrderMutation,
+  useCapturePayPalOrderMutation,
+} from '@/lib/queries/billing';
 import {
   buildPayPalOrderDetails,
   buildPurchaseUnit,
@@ -163,25 +164,15 @@ export function PayPalButtonWrapper({
   onClientCaptured,
   onError,
 }: PayPalButtonWrapperProps) {
-  const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mode, setMode] = useState<'server' | 'client' | null>(null);
   const isPlaceholderClientId = !isPayPalClientConfigured();
   const clientId = PAYPAL_CLIENT_ID;
 
-  useEffect(() => {
-    if (isPlaceholderClientId) return;
-    let cancelled = false;
-    fetch('/api/paypal/config', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : { mode: 'client' }))
-      .catch(() => ({ mode: 'client' }))
-      .then((data: { mode?: string }) => {
-        if (!cancelled) setMode(data.mode === 'server' ? 'server' : 'client');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isPlaceholderClientId]);
+  const configQuery = usePayPalConfigQuery({ enabled: !isPlaceholderClientId });
+  const createOrderMutation = useCreatePayPalOrderMutation();
+  const captureOrderMutation = useCapturePayPalOrderMutation();
+
+  const mode = configQuery.data?.mode ?? null;
 
   const projectRef = typeof projectPayload.projectId === 'string' ? projectPayload.projectId : packageId;
 
@@ -222,36 +213,12 @@ export function PayPalButtonWrapper({
 
   /** Server validates + prices the full order and returns a PayPal order id. */
   const createOrder = async (): Promise<string> => {
-    const res = await fetch('/api/paypal/create-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...projectPayload, packageId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to create order');
-    return data.orderId as string;
+    return createOrderMutation.mutateAsync({ ...projectPayload, packageId });
   };
 
   /** Only the order id is sent — the server already holds the order details. */
   const captureOrder = async (orderId: string): Promise<ProjectRecord | null> => {
-    const res = await fetch('/api/paypal/capture-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, projectPayload }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to capture payment');
-
-    if (typeof data.newWalletBalance === 'number') {
-      useUserStore.getState().updateUser({ walletBalance: data.newWalletBalance });
-    } else if (typeof data.surplusCredits === 'number' && data.surplusCredits > 0) {
-      useUserStore.getState().addCredits(data.surplusCredits, 'Package unused credits rollover');
-    }
-
-    void queryClient.invalidateQueries({ queryKey: projectKeys.all });
-    void queryClient.invalidateQueries({ queryKey: walletKeys.all });
-
-    return (data.project as ProjectRecord) || null;
+    return captureOrderMutation.mutateAsync({ orderId, projectPayload });
   };
 
   const createCommonButtonProps = (fundingSource: (typeof FUNDING)[keyof typeof FUNDING]) => ({
@@ -305,7 +272,7 @@ export function PayPalButtonWrapper({
           <span>PayPal is currently offline in this environment</span>
         </div>
         <p className="text-2xs text-muted-foreground">
-          You can still submit for review without payment.
+          Please complete your payment using Bank Transfer or Cash App below.
         </p>
       </div>
     );

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   Sheet,
   SheetContent,
@@ -31,7 +30,7 @@ import {
   ProjectDrawerSkeleton,
   ProjectDrawerNotFound,
 } from '@/components/projects/ProjectDrawerSections';
-import type { ClientProjectView } from '@/lib/serializers/project';
+import { useProjectDetailQuery } from '@/lib/queries/projects';
 import type { ProjectRecord } from '@/types';
 
 interface ClientProjectDetailsDrawerProps {
@@ -57,36 +56,16 @@ export function ClientProjectDetailsDrawer({
     }
   }, [projectId]);
 
-  // On-demand project details fetch (signed URLs generated only when drawer opens)
+  // Unified on-demand project details query (seeds placeholderData from cached lists + fetches fresh signed URLs)
   const {
     data: fetchedProject,
     isLoading,
     isFetching,
+    isPlaceholderData,
     refetch,
-  } = useQuery<ClientProjectView>({
-    queryKey: ['projects', 'detail', projectId],
-    queryFn: async () => {
-      if (!projectId) throw new Error('No project ID');
-      const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`);
-      if (res.status === 404) throw new Error('Project not found');
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to load project details');
-      }
-      const json = await res.json();
-      return json.project as ClientProjectView;
-    },
-    enabled: Boolean(projectId),
-    staleTime: 0, // Always ensure fresh signed URLs upon opening
-    retry: (failureCount, err) => {
-      if (err instanceof Error && err.message === 'Project not found') {
-        return false;
-      }
-      return failureCount < 1;
-    },
-  });
+  } = useProjectDetailQuery(projectId, { initialProject });
 
-  // Use freshly fetched detail if available; otherwise fall back to initialProject from the list
+  // Use freshly fetched detail if available; otherwise fall back to placeholder/initialProject from the list
   // so text/brief/services render immediately while signed image URLs load in the background.
   const project = useMemo(() => {
     if (fetchedProject && fetchedProject.id === projectId) return fetchedProject;
@@ -94,7 +73,7 @@ export function ClientProjectDetailsDrawer({
     return null;
   }, [fetchedProject, initialProject, projectId]);
 
-  const isSigningImages = Boolean(!fetchedProject && isFetching);
+  const isSigningImages = Boolean((!fetchedProject || isPlaceholderData) && isFetching);
   const files = useMemo(() => project?.uploadedFiles || [], [project]);
 
   return (

@@ -1,81 +1,51 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useUserStore, computeInitials } from '@/lib/userStore';
 import { useWizardStore } from '@/lib/wizardStore';
 import { useNotificationStore } from '@/lib/notificationStore';
 import { ChatGateProvider } from '@/components/chat/ChatGate';
+import {
+  useSessionQuery,
+  registerSessionQueryClient,
+  type AuthSessionUser,
+} from '@/lib/queries/session';
 
 /**
- * Authoritative session sync: queries `/api/auth/session` on mount to sync
- * the verified user profile & role from the PostgreSQL database into the client store.
- * This automatically corrects any stale elevated roles (e.g. 'admin') in localStorage
- * so that client roles are strictly and reliably enforced.
+ * Authoritative session sync: uses deduplicated `useSessionQuery` (`['auth', 'session']`)
+ * to synchronize the verified user profile & role from PostgreSQL into `useUserStore`.
+ * When `initialUser` is passed from SSR (`RootLayout`), `useSessionQuery` seeds `initialData`
+ * so the redundant initial mount fetch is skipped while window-focus revalidation stays active.
  */
-function SessionSync() {
+function SessionSync({
+  hasServerInitialUser = false,
+  initialUser,
+}: {
+  hasServerInitialUser?: boolean;
+  initialUser?: AuthSessionUser | null;
+}) {
+  const queryClient = useQueryClient();
   const isHydrated = useUserStore((s) => s.isHydrated);
+
+  useEffect(() => {
+    registerSessionQueryClient(queryClient);
+  }, [queryClient]);
 
   // Rehydrate persisted client stores safely in client useEffect
   useEffect(() => {
-    useUserStore.persist.rehydrate();
+    if (!hasServerInitialUser) {
+      useUserStore.persist.rehydrate();
+    }
     useWizardStore.persist.rehydrate();
     useNotificationStore.persist.rehydrate();
-  }, []);
+  }, [hasServerInitialUser]);
 
-  useEffect(() => {
-    if (!isHydrated) return;
-    let isCancelled = false;
-
-    fetch('/api/auth/session')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (isCancelled || !data) return;
-        const currentUser = useUserStore.getState().user;
-        if (data.authenticated && data.user) {
-          // Strictly prevent unnecessary state updates if profile is already up-to-date
-          const needsUpdate =
-            !currentUser ||
-            currentUser.id !== data.user.id ||
-            currentUser.email !== data.user.email ||
-            currentUser.name !== data.user.name ||
-            currentUser.avatarUrl !== data.user.avatarUrl ||
-            currentUser.role !== (data.user.role || 'client') ||
-            currentUser.teamRole !== (data.user.teamRole || null) ||
-            currentUser.emailVerified !== Boolean(data.user.emailConfirmed) ||
-            currentUser.hasProjects !== Boolean(data.user.hasProjects) ||
-            currentUser.canChat !== Boolean(data.user.canChat);
-
-          if (needsUpdate) {
-            useUserStore.getState().updateUser({
-              id: data.user.id,
-              email: data.user.email,
-              name: data.user.name || undefined,
-              avatarUrl: data.user.avatarUrl || null,
-              role: data.user.role || 'client',
-              teamRole: data.user.teamRole || null,
-              emailVerified: Boolean(data.user.emailConfirmed),
-              hasProjects: Boolean(data.user.hasProjects),
-              canChat: Boolean(data.user.canChat),
-            });
-          }
-          useUserStore.getState().setSessionVerified(true);
-        } else if (!data.authenticated) {
-          // If server session is unauthenticated, clear stale user state
-          if (currentUser?.email) {
-            useUserStore.getState().signOut();
-          } else {
-            useUserStore.getState().setSessionVerified(true);
-          }
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isHydrated]);
+  useSessionQuery({
+    enabled: isHydrated,
+    initialUser: hasServerInitialUser ? (initialUser ?? null) : undefined,
+  });
 
   return null;
 }
@@ -96,11 +66,32 @@ export interface AuthProviderProps {
   } | null;
 }
 
-export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
+export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   // Synchronously seed initialUser into userStore during initial SSR and client creation
   useState(() => {
     if (initialUser && initialUser.email) {
       const current = useUserStore.getState().user;
+      let cachedBalance = current?.walletBalance;
+      if (cachedBalance === undefined && typeof window !== 'undefined') {
+        try {
+          const raw = window.localStorage.getItem('humantek_studio_user');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const savedUser = parsed?.state?.user;
+            if (
+              savedUser &&
+              (savedUser.id === initialUser.id ||
+                (savedUser.email &&
+                  savedUser.email.toLowerCase() === initialUser.email.toLowerCase())) &&
+              typeof savedUser.walletBalance === 'number'
+            ) {
+              cachedBalance = savedUser.walletBalance;
+            }
+          }
+        } catch {
+          // Ignore storage read errors
+        }
+      }
       const userName = initialUser.name || current?.name || initialUser.email.split('@')[0];
       const avatarUrl = initialUser.avatarUrl !== undefined ? initialUser.avatarUrl : (current?.avatarUrl ?? null);
       const teamRole = initialUser.teamRole !== undefined ? initialUser.teamRole : (current?.teamRole ?? null);
@@ -115,7 +106,9 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
         current.teamRole !== teamRole ||
         current.emailVerified !== initialUser.emailConfirmed ||
         current.hasProjects !== initialUser.hasProjects ||
-        current.canChat !== initialUser.canChat
+        current.canChat !== initialUser.canChat ||
+        !useUserStore.getState().isHydrated ||
+        !useUserStore.getState().isSessionVerified
       ) {
         useUserStore.setState({
           user: {
@@ -124,7 +117,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
             email: initialUser.email,
             avatarUrl,
             avatarInitials: computeInitials(userName, initialUser.email),
-            walletBalance: current?.walletBalance ?? 0,
+            walletBalance: cachedBalance ?? 0,
             role: initialUser.role || 'client',
             teamRole,
             emailVerified: initialUser.emailConfirmed,
@@ -135,6 +128,23 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
           isSessionVerified: true,
         });
       }
+    } else if (initialUser === null) {
+      // Server explicitly verified there is no active session cookie:
+      // clear any stale persisted user in localStorage immediately so the UI never flashes a logged-out user's avatar
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.removeItem('humantek_studio_user');
+        } catch {
+          // Ignore storage errors
+        }
+      }
+      useUserStore.setState({
+        user: null,
+        isHydrated: true,
+        isSessionVerified: true,
+        hasSyncedInitialBalance: false,
+        recentCreditDelta: null,
+      });
     }
   });
 
@@ -147,11 +157,12 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
  */
 export function Providers({
   children,
-  initialUser = null,
+  initialUser,
 }: {
   children: React.ReactNode;
   initialUser?: AuthProviderProps['initialUser'];
 }) {
+  const hasServerInitialUser = initialUser !== undefined;
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -173,7 +184,7 @@ export function Providers({
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider initialUser={initialUser}>
-          <SessionSync />
+          <SessionSync hasServerInitialUser={hasServerInitialUser} initialUser={initialUser} />
           <ChatGateProvider>
             {children}
           </ChatGateProvider>

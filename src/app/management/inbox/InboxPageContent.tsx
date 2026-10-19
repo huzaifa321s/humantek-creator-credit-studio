@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AdminInbox } from '@/components/management/AdminInbox';
-import { Skeleton } from '@/components/ui/skeleton';
+import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 
 function InnerInboxContent() {
   const searchParams = useSearchParams();
@@ -21,12 +21,12 @@ export function InboxPageContent() {
   return (
     <Suspense
       fallback={
-        <div className="h-[600px] border border-border/80 rounded-xl p-4 space-y-4">
-          <Skeleton className="h-10 w-full rounded-lg" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[500px]">
-            <Skeleton className="h-full w-full rounded-lg" />
-            <Skeleton className="h-full w-full col-span-2 rounded-lg" />
-          </div>
+        <div className="p-3.5 sm:p-5 h-full">
+          <StudioPageLoader
+            label="Loading client messages..."
+            variant="chat"
+            showHeader={false}
+          />
         </div>
       }
     >
