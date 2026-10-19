@@ -119,16 +119,37 @@ function splitPaymentBanner(instructions?: string) {
 
 export interface ProjectDrawerPaymentBannerProps {
   instructions?: string;
+  paymentStatus?: 'paid' | 'unpaid' | 'refunded' | 'pending';
+  projectStatus?: string;
   /** 'admin' shows the verification state; 'client' shows a friendly summary. */
   audience?: 'admin' | 'client';
 }
 
 export function ProjectDrawerPaymentBanner({
   instructions,
+  paymentStatus,
+  projectStatus,
   audience = 'client',
 }: ProjectDrawerPaymentBannerProps) {
   const { banner } = splitPaymentBanner(instructions);
   if (!banner) return null;
+
+  const isConfirmedPaid =
+    paymentStatus === 'paid' ||
+    projectStatus === 'payment_confirmed' ||
+    projectStatus === 'in_production' ||
+    projectStatus === 'review_round' ||
+    projectStatus === 'delivered' ||
+    banner.startsWith('[PAYMENT RECEIVED');
+
+  const isRefunded = paymentStatus === 'refunded';
+
+  // In the Admin Drawer, the Production Management card above already shows
+  // the verified Payment Status and Paid Via method—so hide the "Needs verification"
+  // banner once payment is confirmed/paid or refunded.
+  if (audience === 'admin' && (isConfirmedPaid || isRefunded)) {
+    return null;
+  }
 
   const platform = banner.includes('PayPal')
     ? 'paypal'
@@ -138,25 +159,43 @@ export function ProjectDrawerPaymentBanner({
   const methodLabel =
     platform === 'paypal' ? 'PayPal' : platform === 'cashapp' ? 'Cash App' : 'Bank Transfer';
   const amount = /Amount:\s*([^|]+)/i.exec(banner)?.[1]?.trim();
-  const isReceived = banner.startsWith('[PAYMENT RECEIVED');
-  const status = isReceived
-    ? 'Payment received'
-    : audience === 'admin'
-      ? 'Needs verification'
-      : 'Awaiting verification';
+
+  const statusText = isRefunded
+    ? 'Payment refunded'
+    : isConfirmedPaid
+      ? 'Payment verified & confirmed'
+      : audience === 'admin'
+        ? 'Needs verification'
+        : 'Awaiting verification';
 
   return (
     <div
       data-testid="payment-banner"
-      className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center gap-2.5 min-w-0"
+      className={cn(
+        'p-3 rounded-xl flex items-center gap-2.5 min-w-0 border',
+        isConfirmedPaid
+          ? 'bg-emerald-500/10 border-emerald-500/30'
+          : isRefunded
+            ? 'bg-rose-500/10 border-rose-500/30'
+            : 'bg-amber-400/10 border-amber-400/30'
+      )}
     >
       <PaymentPlatformIcon platform={platform} size="xs" />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold text-foreground truncate">
-          {isReceived ? 'Paid' : 'Payment sent'} via {methodLabel}
+          {isConfirmedPaid ? 'Paid' : 'Payment sent'} via {methodLabel}
           {amount ? ` · ${amount}` : ''}
         </p>
-        <p className="text-2xs text-muted-foreground">{status}</p>
+        <p
+          className={cn(
+            'text-2xs',
+            isConfirmedPaid
+              ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+              : 'text-muted-foreground'
+          )}
+        >
+          {statusText}
+        </p>
       </div>
     </div>
   );

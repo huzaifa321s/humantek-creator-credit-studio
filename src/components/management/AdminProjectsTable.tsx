@@ -1010,9 +1010,11 @@ export function AdminProjectsTable({
                     </CardContent>
                   </Card>
 
-                  {/* Payment status (admin verification) */}
+                  {/* Payment status (admin verification — only shown while unpaid/needs verification) */}
                   <ProjectDrawerPaymentBanner
                     instructions={selectedProject.instructions}
+                    paymentStatus={draftPayment || selectedProject.paymentStatus}
+                    projectStatus={draftStatus || selectedProject.status}
                     audience="admin"
                   />
 

@@ -19,20 +19,12 @@ import { CreditValue } from '@/components/ui/credit-value';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { FilterTabs } from '@/components/ui/filter-tabs';
 import { CopyButton } from '@/components/ui/copy-button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { StudioPageLoader } from '@/components/ui/studio-page-loader';
 import {
   Field,
   FieldLabel,
   FieldDescription,
 } from '@/components/ui/field';
-import {
-  Empty,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
-} from '@/components/ui/empty';
 import { toast } from 'sonner';
 import {
   Check,
@@ -42,7 +34,6 @@ import {
   Wallet,
   Send,
   Sparkles,
-  Clock,
   Mail,
   Ticket,
 } from 'lucide-react';
@@ -57,7 +48,6 @@ import {
   type GiftPromoRecordItem,
 } from '@/lib/queries/wallet';
 import { useNotificationStore } from '@/lib/notificationStore';
-import { cn, formatStudioDate } from '@/lib/utils';
 
 type PromoPageTab = 'redeem' | 'share';
 
@@ -107,12 +97,10 @@ function RedeemCodeContent() {
   // ─── Tab 2: Share / Gift State ───────────────────────────────────────────
   const [recipientEmail, setRecipientEmail] = useState('');
   const [creditsInput, setCreditsInput] = useState('25');
-  const [giftNote, setGiftNote] = useState('');
   const [latestGeneratedGift, setLatestGeneratedGift] = useState<GiftPromoRecordItem | null>(null);
   const isGenerating = createGiftMutation.isPending;
 
   const walletBalance = walletQuery.data?.walletBalance ?? user?.walletBalance ?? 0;
-  const sentGifts = useMemo(() => giftsQuery.data?.sentGifts ?? [], [giftsQuery.data?.sentGifts]);
   const unclaimedReceivedGifts = useMemo(
     () => (giftsQuery.data?.receivedGifts ?? []).filter((g) => g.status === 'active'),
     [giftsQuery.data?.receivedGifts]
@@ -187,12 +175,10 @@ function RedeemCodeContent() {
       const res = await createGiftMutation.mutateAsync({
         recipientEmail: cleanRecipient,
         credits: parsedCreditsToShare,
-        note: giftNote.trim() || undefined,
       });
 
       setLatestGeneratedGift(res.gift);
       setRecipientEmail('');
-      setGiftNote('');
 
       useNotificationStore.getState().addNotification({
         title: `Gift Code Generated · ${res.gift.credits} CR`,
@@ -249,7 +235,6 @@ function RedeemCodeContent() {
                 value: 'share',
                 label: 'Share / Gift Credits',
                 icon: Send,
-                count: sentGifts.length > 0 ? sentGifts.length : undefined,
               },
             ]}
           />
@@ -291,11 +276,6 @@ function RedeemCodeContent() {
                               <p className="text-2xs text-muted-foreground truncate">
                                 Shared by <b className="text-foreground/90">{gift.senderName}</b> ({gift.senderEmail})
                               </p>
-                              {gift.note && (
-                                <p className="text-2xs italic text-foreground/80">
-                                  &ldquo;{gift.note}&rdquo;
-                                </p>
-                              )}
                             </div>
                             <Button
                               type="button"
@@ -398,11 +378,6 @@ function RedeemCodeContent() {
                             </>
                           )}
                         </p>
-                        {redeemedResult.sharedBy?.note && (
-                          <p className="italic opacity-90">
-                            Note: &ldquo;{redeemedResult.sharedBy.note}&rdquo;
-                          </p>
-                        )}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -511,24 +486,7 @@ function RedeemCodeContent() {
                           </div>
                         </Field>
 
-                        <Field>
-                          <FieldLabel className="text-xs sm:text-sm font-bold text-foreground">
-                            Personal Note{' '}
-                            <span className="text-muted-foreground font-normal">(Optional)</span>
-                          </FieldLabel>
-                          <div className="pt-1.5">
-                            <Input
-                              type="text"
-                              maxLength={160}
-                              placeholder="e.g. Here are some credits for your stream overlay!"
-                              value={giftNote}
-                              onChange={(e) => setGiftNote(e.target.value)}
-                              className="h-9 text-xs rounded-lg border-border/80"
-                            />
-                          </div>
-                        </Field>
-
-                        <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-border/60">
+                        <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-border/60">
                           <div className="text-2xs text-muted-foreground">
                             {parsedCreditsToShare > 0 && parsedCreditsToShare <= walletBalance ? (
                               <span>
@@ -624,120 +582,6 @@ function RedeemCodeContent() {
                       </CardContent>
                     </Card>
                   )}
-
-                  {/* History of Sent Gift Promo Codes */}
-                  <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
-                    <CardHeader className="p-4 sm:p-5 pb-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <CardTitle className="text-sm font-bold text-foreground">
-                            Your Shared Promo Codes
-                          </CardTitle>
-                          <CardDescription className="text-xs text-muted-foreground">
-                            Track promo codes you generated from your wallet and see when they are
-                            claimed.
-                          </CardDescription>
-                        </div>
-                        <Badge variant="outline" className="text-2xs font-mono">
-                          {sentGifts.length} {sentGifts.length === 1 ? 'code' : 'codes'}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="p-4 sm:p-5 pt-2">
-                      {giftsQuery.isPending ? (
-                        <div className="space-y-2">
-                          <Skeleton className="h-14 w-full rounded-lg" />
-                          <Skeleton className="h-14 w-full rounded-lg" />
-                        </div>
-                      ) : sentGifts.length === 0 ? (
-                        <Empty className="py-8 border border-dashed border-border/70 rounded-xl">
-                          <EmptyHeader>
-                            <EmptyMedia variant="icon">
-                              <Ticket className="size-4 text-muted-foreground" />
-                            </EmptyMedia>
-                            <EmptyTitle className="text-xs font-bold">
-                              No shared promo codes yet
-                            </EmptyTitle>
-                            <EmptyDescription className="text-2xs">
-                              Codes you generate for friends or collaborators will appear here with
-                              their live redemption status.
-                            </EmptyDescription>
-                          </EmptyHeader>
-                        </Empty>
-                      ) : (
-                        <div className="space-y-2">
-                          {sentGifts.map((item) => {
-                            const isClaimed = item.status === 'claimed';
-                            return (
-                              <div
-                                key={item.id}
-                                className={cn(
-                                  'flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-lg border transition-colors',
-                                  isClaimed
-                                    ? 'border-emerald-500/25 bg-emerald-500/[0.03]'
-                                    : 'border-border/80 bg-secondary/20'
-                                )}
-                              >
-                                <div className="space-y-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-mono text-xs font-bold tracking-wider text-foreground select-all">
-                                      {item.code}
-                                    </span>
-                                    <CopyButton
-                                      value={item.code}
-                                      label="Copy code"
-                                      className="size-6"
-                                    />
-                                    <span className="inline-flex items-center font-mono text-2xs font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 px-1.5 py-0.2 rounded border border-amber-400/25">
-                                      {item.credits} CR
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-2xs text-muted-foreground flex-wrap">
-                                    <span>
-                                      To: <b className="text-foreground/90">{item.recipientEmail}</b>
-                                    </span>
-                                    <span>·</span>
-                                    <span>Created {formatStudioDate(item.createdAt)}</span>
-                                  </div>
-                                  {item.note && (
-                                    <p className="text-2xs italic text-muted-foreground truncate">
-                                      &ldquo;{item.note}&rdquo;
-                                    </p>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {isClaimed ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-2xs font-semibold border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 gap-1"
-                                    >
-                                      <Check className="size-3" />
-                                      <span>
-                                        Claimed
-                                        {item.claimedAt
-                                          ? ` · ${formatStudioDate(item.claimedAt)}`
-                                          : ''}
-                                      </span>
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-2xs font-semibold border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300 gap-1"
-                                    >
-                                      <Clock className="size-3" />
-                                      <span>Unclaimed · Ready</span>
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
                 </>
               )}
             </div>

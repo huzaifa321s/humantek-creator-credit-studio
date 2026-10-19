@@ -20,6 +20,14 @@ export async function GET(_req: NextRequest) {
     if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
       const adminClient = createAdminClient();
 
+      // Ensure a wallet row always exists for authenticated users
+      await adminClient
+        .from('wallets')
+        .upsert(
+          { user_id: user.id },
+          { onConflict: 'user_id', ignoreDuplicates: true }
+        );
+
       const [walletRes, ledgerRes, projectsRes, ordersRes] = await Promise.all([
         adminClient
           .from('wallets')

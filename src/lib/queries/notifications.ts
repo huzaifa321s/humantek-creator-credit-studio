@@ -47,7 +47,7 @@ export function useNotificationsQuery(filter: string = 'all') {
     },
     queryFn: async ({ signal }): Promise<NotificationsQueryData> => {
       const res = await fetch(
-        `/api/notifications?filter=${encodeURIComponent(filter)}&limit=50`,
+        `/api/notifications?filter=${encodeURIComponent(filter)}&limit=100`,
         { signal, cache: 'no-store' }
       );
       if (res.status === 401 || res.status === 403) {

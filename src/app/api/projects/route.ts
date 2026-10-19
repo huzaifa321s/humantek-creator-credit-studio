@@ -572,6 +572,14 @@ export async function POST(req: NextRequest) {
     try {
       const adminClient = createAdminClient();
 
+      // Ensure a wallet row exists for this client account
+      await adminClient
+        .from('wallets')
+        .upsert(
+          { user_id: user.id },
+          { onConflict: 'user_id', ignoreDuplicates: true }
+        );
+
       // Authoritative reference verification: Attach pending uploads from project_uploads
       // If a claimed file is missing, expired, or belongs to another user, fail submission clearly.
       let verifiedReferences: Awaited<ReturnType<typeof verifyReferenceFiles>> = [];
@@ -1175,6 +1183,14 @@ export async function PATCH(req: NextRequest) {
 
       // Post audited credit_ledger entries on payment confirmation / refund
       if (currentProj.user_id && currentProj.project_code) {
+        // Ensure a wallet row exists for this user before posting ledger entries
+        await adminClient
+          .from('wallets')
+          .upsert(
+            { user_id: currentProj.user_id },
+            { onConflict: 'user_id', ignoreDuplicates: true }
+          );
+
         if (paymentStatus === 'paid') {
           // 1. Grant package credits if this is a package project and not already granted
           if (effectivePkgCredits > 0 && currentProj.package_id !== 'studio-wallet') {
@@ -1189,7 +1205,11 @@ export async function PATCH(req: NextRequest) {
               p_reverses_id: null,
             });
             if (grantErr) {
-              console.warn('Ledger grant warning on payment confirmation:', grantErr.message);
+              console.error('Ledger grant error on payment confirmation:', grantErr.message);
+              return NextResponse.json(
+                { error: `Failed to allocate package credits to client wallet: ${grantErr.message}` },
+                { status: 500 }
+              );
             }
           }
 

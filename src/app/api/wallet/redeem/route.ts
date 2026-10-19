@@ -84,6 +84,14 @@ export async function POST(req: NextRequest) {
     if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
       const adminClient = createAdminClient();
 
+      // Ensure wallet row exists before redeeming promo code
+      await adminClient
+        .from('wallets')
+        .upsert(
+          { user_id: user.id },
+          { onConflict: 'user_id', ignoreDuplicates: true }
+        );
+
       // Pre-check if this promo code is a Client-to-Client Gift Code with recipient restrictions
       const { data: promoRow } = await adminClient
         .from('promo_codes')

@@ -17,7 +17,7 @@ const ROUTE_HEADERS: Record<string, { title: string; description: string }> = {
   },
   '/management/clients': {
     title: 'Studio Clients',
-    description: 'View every client’s wallet balance, projects, chat threads, credit history, and billing in one place.',
+    description: 'See each client’s credits, projects, billing, and messages.',
   },
   '/management/inbox': {
     title: 'Client Messages',

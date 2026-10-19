@@ -161,7 +161,12 @@ export function ClientProjectDetailsDrawer({
               ) : (
                 <>
                   {/* 0. Payment status */}
-                  <ProjectDrawerPaymentBanner instructions={project.instructions} audience="client" />
+                  <ProjectDrawerPaymentBanner
+                    instructions={project.instructions}
+                    paymentStatus={project.paymentStatus}
+                    projectStatus={project.status}
+                    audience="client"
+                  />
 
                   {/* 1. Aesthetic Style & Color Palette */}
                   <ProjectDrawerSpecsCard style={project.style} colors={project.colors} />

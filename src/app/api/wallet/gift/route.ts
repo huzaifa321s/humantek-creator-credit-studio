@@ -11,7 +11,6 @@ import {
 import {
   addClientGiftPromo,
   adjustUserBalance,
-  getClientGiftPromosBySender,
   getClientGiftPromosForRecipient,
   getUserBalance,
   type ClientGiftPromoRecord,
@@ -57,41 +56,26 @@ export async function GET() {
     if (isSupabaseConfigured() && user.id && !user.isDevFallback) {
       const admin = createAdminClient();
 
-      // Fetch promo_codes containing client_gift metadata
+      // Fetch only unclaimed active client_gift promo codes addressed to this user's email
       const { data: rows } = await admin
         .from('promo_codes')
         .select('id, code, credits, max_uses, used_count, is_active, description, created_at')
+        .eq('is_active', true)
         .like('description', '%"kind":"client_gift"%')
+        .ilike('description', `%"recipientEmail":"${cleanEmail}"%`)
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(20);
 
-      const promoIds = (rows || []).map((r) => r.id).filter(Boolean);
-      const redemptionMap = new Map<string, { createdAt: string }>();
-
-      if (promoIds.length > 0) {
-        const { data: redemptions } = await admin
-          .from('promo_redemptions')
-          .select('promo_code_id, created_at')
-          .in('promo_code_id', promoIds);
-
-        for (const red of redemptions || []) {
-          redemptionMap.set(String(red.promo_code_id), {
-            createdAt: String(red.created_at),
-          });
-        }
-      }
-
-      const sentGifts: ClientGiftPromoRecord[] = [];
       const receivedGifts: ClientGiftPromoRecord[] = [];
 
       for (const row of rows || []) {
         const meta = parseGiftPromoMetadata(row.description);
-        if (!meta) continue;
+        if (!meta || meta.recipientEmail !== cleanEmail) continue;
 
-        const isClaimed = Number(row.used_count) >= Number(row.max_uses) || redemptionMap.has(String(row.id));
-        const redInfo = redemptionMap.get(String(row.id));
+        const isClaimed = Number(row.used_count) >= Number(row.max_uses);
+        if (isClaimed) continue;
 
-        const record: ClientGiftPromoRecord = {
+        receivedGifts.push({
           id: String(row.id),
           code: String(row.code),
           credits: Number(row.credits),
@@ -99,23 +83,16 @@ export async function GET() {
           senderEmail: meta.senderEmail,
           senderName: meta.senderName,
           recipientEmail: meta.recipientEmail,
-          note: meta.note,
-          status: isClaimed ? 'claimed' : 'active',
-          claimedByEmail: isClaimed ? meta.recipientEmail : null,
-          claimedAt: redInfo?.createdAt || null,
+          status: 'active',
+          claimedByEmail: null,
+          claimedAt: null,
           createdAt: String(row.created_at || meta.createdAt),
-        };
-
-        if (meta.senderId === user.id || meta.senderEmail === cleanEmail) {
-          sentGifts.push(record);
-        } else if (meta.recipientEmail === cleanEmail) {
-          receivedGifts.push(record);
-        }
+        });
       }
 
       return NextResponse.json({
         success: true,
-        sentGifts,
+        sentGifts: [],
         receivedGifts,
       });
     }
@@ -123,8 +100,8 @@ export async function GET() {
     // Offline / Dev Fallback
     return NextResponse.json({
       success: true,
-      sentGifts: getClientGiftPromosBySender(cleanEmail),
-      receivedGifts: getClientGiftPromosForRecipient(cleanEmail),
+      sentGifts: [],
+      receivedGifts: getClientGiftPromosForRecipient(cleanEmail).filter((g) => g.status === 'active'),
     });
   } catch (err) {
     console.error('Error in GET /api/wallet/gift:', err);
@@ -165,7 +142,6 @@ export async function POST(req: NextRequest) {
       .trim()
       .toLowerCase();
     const credits = Number(body.credits);
-    const note = typeof body.note === 'string' ? body.note.trim().slice(0, 200) : '';
 
     if (
       !recipientEmail ||
@@ -205,6 +181,14 @@ export async function POST(req: NextRequest) {
       }
 
       const admin = createAdminClient();
+
+      // Ensure wallet row exists before spending credits
+      await admin
+        .from('wallets')
+        .upsert(
+          { user_id: user.id },
+          { onConflict: 'user_id', ignoreDuplicates: true }
+        );
 
       // Ensure unique promo code
       let code = generateGiftPromoCode(credits);
@@ -252,7 +236,6 @@ export async function POST(req: NextRequest) {
         senderEmail: user.email,
         senderName,
         recipientEmail,
-        note: note || undefined,
         createdAt: nowIso,
       });
 
@@ -295,7 +278,6 @@ export async function POST(req: NextRequest) {
         senderEmail: user.email.toLowerCase(),
         senderName,
         recipientEmail,
-        note: note || undefined,
         status: 'active',
         claimedByEmail: null,
         claimedAt: null,
@@ -309,7 +291,7 @@ export async function POST(req: NextRequest) {
         title: `Gift Promo Code Created · ${credits} CR`,
         message: `Promo code ${code} (${credits} CR) generated for ${recipientEmail}. Share this code with them to redeem.`,
         link: '/redeem-code?tab=share',
-        actionLabel: 'View Shared Codes',
+        actionLabel: 'Share Credits',
         entityType: 'wallet',
         entityId: code,
       });
@@ -327,7 +309,7 @@ export async function POST(req: NextRequest) {
               userId: recipientProfile.id,
               type: 'wallet_credit',
               title: `You Received a ${credits} CR Gift Code!`,
-              message: `${senderName} (${user.email}) shared a ${credits} CR promo code (${code}) with you.${note ? ` Note: "${note}"` : ''}`,
+              message: `${senderName} (${user.email}) shared a ${credits} CR promo code (${code}) with you.`,
               link: `/redeem-code?code=${encodeURIComponent(code)}`,
               actionLabel: 'Redeem Code',
               entityType: 'wallet',
@@ -357,7 +339,6 @@ export async function POST(req: NextRequest) {
           recipientEmail,
           code,
           credits,
-          note: note || undefined,
         })
       );
 
@@ -394,7 +375,6 @@ export async function POST(req: NextRequest) {
       senderEmail: user.email.toLowerCase(),
       senderName,
       recipientEmail,
-      note: note || undefined,
       status: 'active',
       claimedByEmail: null,
       claimedAt: null,
@@ -408,7 +388,6 @@ export async function POST(req: NextRequest) {
         recipientEmail,
         code,
         credits,
-        note: note || undefined,
       })
     );
 
