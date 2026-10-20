@@ -29,7 +29,7 @@ import { ScopeGuideModal } from '@/components/ScopeGuideModal';
 import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
-import { ServiceImageHoverCard } from '@/components/ServiceImageHoverCard';
+import { ServiceImageHoverCard, ServiceInfoPopover } from '@/components/ServiceImageHoverCard';
 import { ManualPaymentOptions, type ManualPaymentMethod } from '@/components/ManualPaymentOptions';
 import { PayPalButtonWrapper, type ClientCapturedPayment } from '@/components/PayPalButtonWrapper';
 import { isPayPalClientConfigured } from '@/lib/paypal-config';
@@ -168,7 +168,6 @@ import {
   Coins,
   FileCheck,
   Plus,
-  Info,
   Sparkles,
   Layers,
   PenTool,
@@ -2386,17 +2385,16 @@ export default function CreatorStudioPage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <ServiceImageHoverCard service={svc}>
-                                <span
-                                  className="inline-flex items-center gap-1.5 cursor-pointer group/title"
-                                  title="Hover for service scope &amp; tier details"
-                                >
-                                  <h3 className="text-sm font-bold text-foreground leading-snug truncate group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors">
-                                    {svc.name}
-                                  </h3>
-                                  <Info className="size-3.5 text-muted-foreground/75 group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors shrink-0" />
-                                </span>
-                              </ServiceImageHoverCard>
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <ServiceImageHoverCard service={svc}>
+                                  <span className="min-w-0 cursor-pointer group/title">
+                                    <h3 className="text-sm font-bold text-foreground leading-snug truncate group-hover/title:text-brand-text dark:group-hover/title:text-amber-400 transition-colors">
+                                      {svc.name}
+                                    </h3>
+                                  </span>
+                                </ServiceImageHoverCard>
+                                <ServiceInfoPopover service={svc} />
+                              </div>
                               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 leading-relaxed">
                                 {svc.description}
                               </p>
