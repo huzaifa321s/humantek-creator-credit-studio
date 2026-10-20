@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { useUserStore } from '@/lib/userStore';
 import { ShieldCheck, Eye } from 'lucide-react';
@@ -51,6 +51,10 @@ function getRoleDisplayLabel(teamRole?: string | null): string {
 
 export function ManagementLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // A single client's page already shows who the client is, so skip the big page title there.
+  const isClientDetail =
+    pathname === '/management/clients' && Boolean((searchParams.get('client') || '').trim());
   const { user } = useUserStore();
   const isInbox = pathname.startsWith('/management/inbox');
 
@@ -98,25 +102,29 @@ export function ManagementLayoutShell({ children }: { children: React.ReactNode 
       topRightBadge={roleBadge}
     >
       <div className="space-y-6 pb-24 sm:pb-32 animate-in fade-in duration-200">
-        {/* Top Header matching the clean standard of ProjectsPage.tsx */}
-        <div className="border-b border-border/60 pb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-          <div>
-            <div className="text-3xs font-extrabold uppercase tracking-widest text-muted-foreground/80 mb-1">
-              MANAGEMENT CONSOLE
+        {!isClientDetail && (
+          <>
+          {/* Top Header matching the clean standard of ProjectsPage.tsx */}
+          <div className="border-b border-border/60 pb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+            <div>
+              <div className="text-3xs font-extrabold uppercase tracking-widest text-muted-foreground/80 mb-1">
+                MANAGEMENT CONSOLE
+              </div>
+              <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
+                {currentHeader.title}
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+                {currentHeader.description}
+              </p>
             </div>
-            <h1 className="scroll-m-20 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
-              {currentHeader.title}
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-              {currentHeader.description}
-            </p>
-          </div>
 
-          <div className="text-xs text-muted-foreground font-medium shrink-0">
-            Signed in as <span className="text-foreground font-semibold">{signedInName}</span> ·{' '}
-            <span className="text-brand-text dark:text-amber-300 font-bold">{teamRoleLabel}</span>
+            <div className="text-xs text-muted-foreground font-medium shrink-0">
+              Signed in as <span className="text-foreground font-semibold">{signedInName}</span> ·{' '}
+              <span className="text-brand-text dark:text-amber-300 font-bold">{teamRoleLabel}</span>
+            </div>
           </div>
-        </div>
+          </>
+        )}
 
         <div className="min-h-[500px]">
           {children}

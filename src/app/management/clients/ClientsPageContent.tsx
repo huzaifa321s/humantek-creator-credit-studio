@@ -10,13 +10,10 @@ import {
   Wallet,
   FolderKanban,
   MessageSquare,
-  Receipt,
-  CreditCard,
   ArrowRight,
   ChevronLeft,
   Clock,
   DollarSign,
-  TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -69,7 +66,12 @@ import type { ProjectRecord } from '@/types';
 
 const PAGE_SIZE_TIERS = [5, 10, 25, 50] as const;
 
-type ClientActivityTab = 'overview' | 'projects' | 'billing' | 'credits' | 'messages';
+type ClientActivityTab = 'projects' | 'billing';
+
+/** Old links used overview/credits/messages; fold them into the two remaining tabs. */
+function normalizeClientTab(value: string | null | undefined): ClientActivityTab {
+  return value === 'billing' || value === 'credits' ? 'billing' : 'projects';
+}
 
 function InnerClientsPage() {
   const router = useRouter();
@@ -81,7 +83,7 @@ function InnerClientsPage() {
   );
 
   const selectedClientParam = (searchParams.get('client') || '').trim().toLowerCase();
-  const activeTabParam = (searchParams.get('section') || 'overview') as ClientActivityTab;
+  const activeTabParam = normalizeClientTab(searchParams.get('section'));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -89,11 +91,7 @@ function InnerClientsPage() {
   const [activeTab, setActiveTab] = useState<ClientActivityTab>(activeTabParam);
 
   useEffect(() => {
-    if (
-      ['overview', 'projects', 'billing', 'credits', 'messages'].includes(activeTabParam)
-    ) {
-      setActiveTab(activeTabParam);
-    }
+    setActiveTab(activeTabParam);
   }, [activeTabParam]);
 
   const { data: ledgerData, isPending: isLedgerPending } = useManagementLedgerQuery({
@@ -150,7 +148,7 @@ function InnerClientsPage() {
   );
 
   const selectClient = useCallback(
-    (email: string | null, section: ClientActivityTab = 'overview') => {
+    (email: string | null, section: ClientActivityTab = 'projects') => {
       const params = new URLSearchParams(searchParams.toString());
       if (email) {
         params.set('client', email.toLowerCase().trim());
@@ -354,13 +352,8 @@ function InnerClientsPage() {
   // ============================================================================
   if (selectedClient) {
     const sectionTabs: { value: string; label: string; count?: number }[] = [
-      { value: 'overview', label: 'All Activity Overview' },
-      { value: 'projects', label: 'Projects', count: selectedClient.projectCount },
-      ...(canViewBilling
-        ? [{ value: 'billing', label: 'Billing & Invoices', count: selectedClient.projectCount }]
-        : []),
-      { value: 'credits', label: 'Credit History' },
-      { value: 'messages', label: 'Chat Messages', count: selectedClientProjects.length },
+      { value: 'projects', label: 'Projects', count: selectedClientProjects.length },
+      { value: 'billing', label: 'Payments' },
     ];
 
     return (
@@ -411,36 +404,30 @@ function InnerClientsPage() {
                 className="h-8 px-3.5 text-xs font-bold gap-1.5 rounded-lg cursor-pointer shadow-xs shadow-amber-400/20"
               >
                 <MessageSquare className="size-3.5" />
-                <span>Open Client Chat</span>
+                <span>Message client</span>
               </Button>
             </div>
           )}
         </div>
 
-        {/* 4 Executive Client KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* KPI 1: Current Wallet Balance */}
+        {/* 3 plain-language summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              <span>Current Wallet Credits</span>
+              <span>Credits left</span>
               <span className="size-7 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center">
                 <Wallet className="size-3.5" />
               </span>
             </div>
             <div className="flex items-baseline justify-between gap-2 pt-1">
               <CreditValue value={selectedClient.walletBalance} size="lg" />
-              <span className="text-2xs text-muted-foreground font-mono">
-                {selectedClient.walletPromo > 0
-                  ? `${selectedClient.walletPurchased} pkg · ${selectedClient.walletPromo} promo`
-                  : 'available now'}
-              </span>
+              <span className="text-2xs text-muted-foreground">available to spend</span>
             </div>
           </div>
 
-          {/* KPI 2: Total Paid Spend */}
           <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              <span>Paid Billing Volume</span>
+              <span>Total paid</span>
               <span className="size-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <DollarSign className="size-3.5" />
               </span>
@@ -452,18 +439,17 @@ function InnerClientsPage() {
                   maximumFractionDigits: 2,
                 })}
               </span>
-              <span className="text-2xs text-muted-foreground font-mono">
+              <span className="text-2xs text-muted-foreground">
                 {selectedClient.pendingUsdVolume > 0
-                  ? `+$${selectedClient.pendingUsdVolume.toLocaleString('en-US')} pending`
-                  : 'verified paid'}
+                  ? `+$${selectedClient.pendingUsdVolume.toLocaleString('en-US')} waiting`
+                  : 'all confirmed'}
               </span>
             </div>
           </div>
 
-          {/* KPI 3: Projects Breakdown */}
           <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              <span>Client Projects</span>
+              <span>Projects</span>
               <span className="size-7 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center">
                 <FolderKanban className="size-3.5" />
               </span>
@@ -472,31 +458,14 @@ function InnerClientsPage() {
               <span className="text-lg font-black font-mono tabular-nums text-foreground">
                 {selectedClient.projectCount}
               </span>
-              <span className="text-2xs text-muted-foreground font-mono">
-                {selectedClient.activeProjectsCount} active · {selectedClient.deliveredProjectsCount}{' '}
-                delivered
-              </span>
-            </div>
-          </div>
-
-          {/* KPI 4: Credits Allocated vs Used */}
-          <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              <span>Lifetime Credits Used</span>
-              <span className="size-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <TrendingUp className="size-3.5" />
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between gap-2 pt-1">
-              <CreditValue value={selectedClient.settledCreditsUsed} size="lg" />
-              <span className="text-2xs text-muted-foreground font-mono">
-                of {selectedClient.settledCreditsAllocated} CR allocated
+              <span className="text-2xs text-muted-foreground">
+                {selectedClient.activeProjectsCount} in progress · {selectedClient.deliveredProjectsCount} done
               </span>
             </div>
           </div>
         </div>
 
-        {/* Section Switcher Tabs (Reusable FilterTabs) */}
+        {/* Two tabs only: Projects (messages live inside each project) and Payments */}
         <FilterTabs
           value={activeTab}
           onValueChange={handleSectionChange}
@@ -504,143 +473,6 @@ function InnerClientsPage() {
           size="sm"
         />
 
-        {/* SECTION 1: ALL ACTIVITY OVERVIEW (Compact unified view of Messages, Projects, Billing, Credits) */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Recent Chat Messages & Threads */}
-            <Card className="border-border/80 shadow-2xs">
-              <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between gap-2">
-                <div>
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <MessageSquare className="size-4 text-brand-text dark:text-amber-400" />
-                    <span>Recent Chat Threads &amp; Messages</span>
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Latest project conversations with {selectedClient.clientName}
-                  </CardDescription>
-                </div>
-                {selectedClientProjects.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSectionChange('messages')}
-                    className="h-8 text-xs font-semibold cursor-pointer gap-1"
-                  >
-                    <span>View All Threads</span>
-                    <ArrowRight className="size-3.5" />
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                {selectedClientProjects.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-4 text-center">
-                    No project chat threads yet for this client.
-                  </p>
-                ) : (
-                  <div className="divide-y divide-border/60 rounded-xl border border-border/80 overflow-hidden">
-                    {selectedClientProjects.slice(0, 4).map((proj) => (
-                      <div
-                        key={proj.id}
-                        className="p-3.5 bg-card hover:bg-muted/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                      >
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge
-                              variant="outline"
-                              size="xs"
-                              className="font-mono font-bold text-brand-text dark:text-amber-300 bg-amber-400/10 border-amber-400/30"
-                            >
-                              {proj.projectCode}
-                            </Badge>
-                            <span className="text-xs font-bold text-foreground">
-                              {proj.packageName}
-                            </span>
-                            <ProjectStatusDotBadge status={proj.status} className="text-2xs" />
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1 italic">
-                            {proj.lastMessagePreview
-                              ? `"${proj.lastMessagePreview}"`
-                              : 'Workspace initialized — click Open Chat to message client.'}
-                          </p>
-                          {proj.lastChatBy && (
-                            <p className="text-2xs text-brand-text dark:text-amber-300 font-medium">
-                              Last message by {proj.lastChatBy}{' '}
-                              {proj.lastMessageAt
-                                ? `· ${formatStudioRelativeTime(proj.lastMessageAt)}`
-                                : ''}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenChat(proj.id)}
-                            className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer"
-                          >
-                            <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
-                            <span>Open Chat</span>
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Client Projects Queue */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <FolderKanban className="size-4 text-brand-text dark:text-amber-400" />
-                  <span>Client Projects ({selectedClient.projectCount})</span>
-                </h3>
-              </div>
-              <AdminProjectsTable
-                key={`overview-proj-${selectedClient.clientEmail}`}
-                projects={selectedClientProjects}
-                lockedCustomer={selectedClient.clientEmail}
-                onOpenChat={handleOpenChat}
-                onUpdateStatus={handleUpdateStatus}
-                isUpdatingId={isUpdatingId}
-              />
-            </div>
-
-            {/* Client Billing & Invoices (Owner & Manager) */}
-            {canViewBilling && (
-              <div className="space-y-2.5 pt-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <CreditCard className="size-4 text-brand-text dark:text-amber-400" />
-                    <span>Client Billing &amp; Invoices</span>
-                  </h3>
-                </div>
-                <BillingHistory scope="all" customerEmail={selectedClient.clientEmail} />
-              </div>
-            )}
-
-            {/* Client Credit History & Ledger */}
-            <div className="space-y-2.5 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Receipt className="size-4 text-brand-text dark:text-amber-400" />
-                  <span>Client Credit Ledger History</span>
-                </h3>
-              </div>
-              <AgencyDataGrid
-                transactions={ledgerData?.transactions || []}
-                customers={ledgerData?.customers || []}
-                sharedPromos={ledgerData?.sharedPromos || []}
-                customerFilter={selectedClient.clientEmail}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* SECTION 2: PROJECTS TAB */}
         {activeTab === 'projects' && (
           <AdminProjectsTable
             key={`tab-proj-${selectedClient.clientEmail}`}
@@ -652,104 +484,24 @@ function InnerClientsPage() {
           />
         )}
 
-        {/* SECTION 3: BILLING TAB */}
-        {activeTab === 'billing' && canViewBilling && (
-          <BillingHistory scope="all" customerEmail={selectedClient.clientEmail} />
-        )}
-
-        {/* SECTION 4: CREDITS TAB */}
-        {activeTab === 'credits' && (
-          <AgencyDataGrid
-            transactions={ledgerData?.transactions || []}
-            customers={ledgerData?.customers || []}
-            sharedPromos={ledgerData?.sharedPromos || []}
-            customerFilter={selectedClient.clientEmail}
-          />
-        )}
-
-        {/* SECTION 5: MESSAGES TAB */}
-        {activeTab === 'messages' && (
-          <Card className="border-border/80 shadow-2xs">
-            <CardHeader className="p-4 pb-3">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <MessageSquare className="size-4 text-brand-text dark:text-amber-400" />
-                <span>All Project Chat Threads ({selectedClientProjects.length})</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Click any project thread below to open the real-time studio inbox with{' '}
-                {selectedClient.clientName}.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {selectedClientProjects.length === 0 ? (
-                <Empty className="p-8 border border-dashed rounded-xl bg-secondary/20">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <MessageSquare className="size-5 text-muted-foreground" />
-                    </EmptyMedia>
-                    <EmptyTitle className="text-sm font-bold">No Chat Threads</EmptyTitle>
-                    <EmptyDescription className="text-xs">
-                      This client has not started any project threads yet.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                <div className="divide-y divide-border/60 rounded-xl border border-border/80 overflow-hidden">
-                  {selectedClientProjects.map((proj) => (
-                    <div
-                      key={proj.id}
-                      className="p-4 bg-card hover:bg-muted/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge
-                            variant="outline"
-                            size="xs"
-                            className="font-mono font-bold text-brand-text dark:text-amber-300 bg-amber-400/10 border-amber-400/30"
-                          >
-                            {proj.projectCode}
-                          </Badge>
-                          <span className="text-xs font-bold text-foreground">
-                            {proj.packageName}
-                          </span>
-                          <ProjectStatusDotBadge status={proj.status} className="text-2xs" />
-                          <span className="text-2xs text-muted-foreground font-mono">
-                            {formatStudioDate(proj.createdAt)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-foreground/90 leading-relaxed">
-                          {proj.lastMessagePreview
-                            ? `"${proj.lastMessagePreview}"`
-                            : 'No messages exchanged yet — click Open Thread to send a message.'}
-                        </p>
-                        {proj.lastChatBy && (
-                          <p className="text-2xs text-brand-text dark:text-amber-300 font-medium">
-                            Last message by {proj.lastChatBy}{' '}
-                            {proj.lastMessageAt
-                              ? `· ${formatStudioRelativeTime(proj.lastMessageAt)}`
-                              : ''}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                        <Button
-                          type="button"
-                          variant="gold"
-                          size="sm"
-                          onClick={() => handleOpenChat(proj.id)}
-                          className="h-8 px-3.5 text-xs font-bold gap-1.5 cursor-pointer shadow-xs shadow-amber-400/20"
-                        >
-                          <MessageSquare className="size-3.5" />
-                          <span>Open Thread</span>
-                          <ArrowRight className="size-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {activeTab === 'billing' && (
+          <div className="space-y-6">
+            {canViewBilling && (
+              <section className="space-y-2.5">
+                <h3 className="text-sm font-bold text-foreground">Invoices</h3>
+                <BillingHistory scope="all" customerEmail={selectedClient.clientEmail} />
+              </section>
+            )}
+            <section className="space-y-2.5">
+              <h3 className="text-sm font-bold text-foreground">Credit activity</h3>
+              <AgencyDataGrid
+                transactions={ledgerData?.transactions || []}
+                customers={ledgerData?.customers || []}
+                sharedPromos={ledgerData?.sharedPromos || []}
+                customerFilter={selectedClient.clientEmail}
+              />
+            </section>
+          </div>
         )}
       </div>
     );

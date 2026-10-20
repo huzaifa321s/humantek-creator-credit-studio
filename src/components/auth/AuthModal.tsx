@@ -15,9 +15,8 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerDescription,
-  DrawerClose,
 } from '@/components/ui/drawer';
-import { ShieldCheck, X } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { AuthForm } from './AuthForm';
 import { StudioUser } from '@/lib/userStore';
 import { ClientOnly } from '@/components/ClientOnly';
@@ -85,13 +84,6 @@ function ResponsiveAuthModalContent({
                 </DrawerDescription>
               </div>
             </div>
-
-            <DrawerClose
-              className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer shrink-0"
-              aria-label="Close drawer"
-            >
-              <X className="size-4" />
-            </DrawerClose>
           </DrawerHeader>
 
           <div className="overflow-y-auto overscroll-contain flex-1 px-4 py-3.5 pb-8">
