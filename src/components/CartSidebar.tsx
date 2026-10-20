@@ -133,7 +133,7 @@ export function CartSidebar({
               </span>
             ) : (
               <span className="inline-flex items-center font-mono tabular-nums text-2xs sm:text-xs font-semibold text-muted-foreground bg-secondary/80 dark:bg-secondary/60 px-2 py-0.5 rounded-md border border-border/60 whitespace-nowrap">
-                ${effectiveRate} USD / CR
+                ${effectiveRate} USD / Credit
               </span>
             )}
           </div>
@@ -142,12 +142,12 @@ export function CartSidebar({
         {/* Row 2: Total Available Credits & Live Selection Status */}
         <div className="flex items-start justify-between gap-3 min-w-0">
           <div className="min-w-0 flex-1">
-            <CreditValue value={effectiveTotal} size="lg" className="tracking-tight" />
+            <CreditValue value={effectiveTotal} size="lg" suffix="Credits" className="tracking-tight" />
             <p
               className="text-2xs sm:text-xs text-muted-foreground mt-0.5 font-medium leading-snug line-clamp-2"
               title={
                 appliedWalletCredits > 0
-                  ? `${pack.name} (${pack.credits} CR) + Wallet (${appliedWalletCredits} CR)`
+                  ? `${pack.name} (${pack.credits} Credits) + Wallet (${appliedWalletCredits} Credits)`
                   : undefined
               }
             >
@@ -170,9 +170,9 @@ export function CartSidebar({
               )}
             >
               {isOverBudget ? (
-                `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`
+                `${Math.abs(remainingCredits).toLocaleString('en-US')} Credits over`
               ) : (
-                `${remainingCredits.toLocaleString('en-US')} CR left`
+                `${remainingCredits.toLocaleString('en-US')} Credits left`
               )}
             </span>
             <div className="flex items-center justify-end gap-1.5 whitespace-nowrap mt-0.5">
@@ -206,7 +206,7 @@ export function CartSidebar({
             className="h-1.5"
           />
           <div className="flex items-center justify-between text-3xs text-muted-foreground font-mono">
-            <span>{usedCredits.toLocaleString('en-US')} CR allocated</span>
+            <span>{usedCredits.toLocaleString('en-US')} Credits allocated</span>
             <span>
               {isOverBudget ? (
                 <strong className="text-rose-600 dark:text-rose-400 font-bold">Over budget</strong>
@@ -300,7 +300,7 @@ export function CartSidebar({
                   {service.quoteOnly ? (
                     <span className="font-bold text-brand-text dark:text-amber-400 text-sm">TBC</span>
                   ) : (
-                    <CreditValue value={credits} size="sm" />
+                    <CreditValue value={credits} size="sm" suffix="Credits" />
                   )}
                   <Button
                     type="button"
@@ -468,7 +468,7 @@ export function CartSidebar({
                             : 'bg-secondary text-muted-foreground border-border/80 group-hover:text-foreground group-hover:border-amber-400/50'
                         )}
                       >
-                        +{cost} CR
+                        +{cost} Credits
                       </span>
                     </div>
                   </div>
@@ -503,7 +503,7 @@ export function CartSidebar({
               <AlertDescription className="text-xs text-muted-foreground leading-snug">
                 <span className="block">
                   {recommendedPack
-                    ? `Includes ${recommendedPack.credits} CR for $${recommendedPack.price.toLocaleString('en-US')}`
+                    ? `Includes ${recommendedPack.credits} Credits for $${recommendedPack.price.toLocaleString('en-US')}`
                     : 'Contact us for a larger custom creator package.'}
                 </span>
                 {recommendedPack && (

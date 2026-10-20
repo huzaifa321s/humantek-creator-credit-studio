@@ -163,8 +163,8 @@ export async function POST(req: NextRequest) {
         void createNotification({
           userId: user.id,
           type: 'wallet_credit',
-          title: `Gift Credits Added · +${result.credits_granted} CR`,
-          message: `+${result.credits_granted} CR shared by ${giftMeta.senderName} (${giftMeta.senderEmail}) via code ${result.code} have been added to your Studio Wallet.`,
+          title: `Gift Credits Added · +${result.credits_granted} Credits`,
+          message: `+${result.credits_granted} Credits shared by ${giftMeta.senderName} (${giftMeta.senderEmail}) via code ${result.code} have been added to your Studio Wallet.`,
           link: '/redeem-code',
           actionLabel: 'View Balance',
           entityType: 'wallet',
@@ -176,8 +176,8 @@ export async function POST(req: NextRequest) {
           void createNotification({
             userId: giftMeta.senderId,
             type: 'wallet_credit',
-            title: `Your ${result.credits_granted} CR Gift Code Was Claimed!`,
-            message: `${recipientName} (${cleanUserEmail}) claimed your shared promo code ${result.code} (+${result.credits_granted} CR).`,
+            title: `Your ${result.credits_granted} Credits Gift Code Was Claimed!`,
+            message: `${recipientName} (${cleanUserEmail}) claimed your shared promo code ${result.code} (+${result.credits_granted} Credits).`,
             link: '/redeem-code?tab=share',
             actionLabel: 'View Shared Codes',
             entityType: 'wallet',
@@ -188,8 +188,8 @@ export async function POST(req: NextRequest) {
         // 1C. Inner Dashboard Notification -> Studio Owner & Management Team
         void notifyAdmins({
           type: 'wallet_credit',
-          title: `Client Gift Code Claimed · ${result.credits_granted} CR`,
-          message: `${recipientName} (${cleanUserEmail}) redeemed promo code ${result.code} (+${result.credits_granted} CR) shared by ${giftMeta.senderName} (${giftMeta.senderEmail}).`,
+          title: `Client Gift Code Claimed · ${result.credits_granted} Credits`,
+          message: `${recipientName} (${cleanUserEmail}) redeemed promo code ${result.code} (+${result.credits_granted} Credits) shared by ${giftMeta.senderName} (${giftMeta.senderEmail}).`,
           link: `/management/ledger?customer=${encodeURIComponent(cleanUserEmail)}`,
           actionLabel: 'View Ledger',
           entityType: 'wallet',
@@ -237,8 +237,8 @@ export async function POST(req: NextRequest) {
         void createNotification({
           userId: user.id,
           type: 'wallet_credit',
-          title: `Credits added · +${result.credits_granted} CR`,
-          message: `+${result.credits_granted} credits from promo code ${result.code} added to your studio wallet.`,
+          title: `Credits added · +${result.credits_granted} Credits`,
+          message: `+${result.credits_granted} Credits from promo code ${result.code} added to your studio wallet.`,
           link: '/redeem-code',
           actionLabel: 'View Balance',
           entityType: 'wallet',
@@ -247,8 +247,8 @@ export async function POST(req: NextRequest) {
 
         void notifyAdmins({
           type: 'wallet_credit',
-          title: `Promo Code Redeemed · ${result.credits_granted} CR`,
-          message: `${recipientName} (${cleanUserEmail}) redeemed studio promo code ${result.code} (+${result.credits_granted} CR).`,
+          title: `Promo Code Redeemed · ${result.credits_granted} Credits`,
+          message: `${recipientName} (${cleanUserEmail}) redeemed studio promo code ${result.code} (+${result.credits_granted} Credits).`,
           link: `/management/ledger?customer=${encodeURIComponent(cleanUserEmail)}`,
           actionLabel: 'View Ledger',
           entityType: 'wallet',
@@ -279,8 +279,8 @@ export async function POST(req: NextRequest) {
           : null,
         emailsDispatched,
         message: giftMeta
-          ? `Successfully claimed ${result.credits_granted} CR shared by ${giftMeta.senderName}!`
-          : `Successfully redeemed ${result.credits_granted} CR to your studio wallet!`,
+          ? `Successfully claimed ${result.credits_granted} Credits shared by ${giftMeta.senderName}!`
+          : `Successfully redeemed ${result.credits_granted} Credits to your studio wallet!`,
       });
     }
 
@@ -341,7 +341,7 @@ export async function POST(req: NextRequest) {
           note: offlineGift.note,
         },
         emailsDispatched: [ownerEmailRes],
-        message: `Successfully claimed ${offlineGift.credits} CR shared by ${offlineGift.senderName}!`,
+        message: `Successfully claimed ${offlineGift.credits} Credits shared by ${offlineGift.senderName}!`,
       });
     }
 
@@ -365,7 +365,7 @@ export async function POST(req: NextRequest) {
       creditsAdded: grantedCredits,
       newWalletBalance: newBalance,
       sharedBy: null,
-      message: `Successfully redeemed ${grantedCredits} CR to your studio wallet!`,
+      message: `Successfully redeemed ${grantedCredits} Credits to your studio wallet!`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';

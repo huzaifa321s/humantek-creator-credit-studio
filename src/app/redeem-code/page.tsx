@@ -145,14 +145,14 @@ function RedeemCodeContent() {
       useNotificationStore.getState().addNotification({
         title: data.sharedBy ? 'Gift Promo Code Claimed' : 'Promo Code Redeemed',
         description: data.sharedBy
-          ? `+${data.creditsAdded} CR shared by ${data.sharedBy.name} added to your wallet. New balance: ${data.newWalletBalance} CR.`
-          : `+${data.creditsAdded} CR deposited into your wallet. New balance: ${data.newWalletBalance} CR.`,
+          ? `+${data.creditsAdded} Credits shared by ${data.sharedBy.name} added to your wallet. New balance: ${data.newWalletBalance} Credits.`
+          : `+${data.creditsAdded} Credits deposited into your wallet. New balance: ${data.newWalletBalance} Credits.`,
         iconType: 'credits',
         link: '/redeem-code',
       });
       toast.success(
         data.message ||
-          `Success! ${data.creditsAdded} CR deposited into your Studio Wallet. New balance: ${data.newWalletBalance} CR.`
+          `Success! ${data.creditsAdded} Credits deposited into your Studio Wallet. New balance: ${data.newWalletBalance} Credits.`
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Redemption failed';
@@ -172,12 +172,12 @@ function RedeemCodeContent() {
       return;
     }
     if (!Number.isInteger(parsedCreditsToShare) || parsedCreditsToShare < 1) {
-      toast.error('Please enter at least 1 CR to share.');
+      toast.error('Please enter at least 1 Credit to share.');
       return;
     }
     if (parsedCreditsToShare > walletBalance) {
       toast.error(
-        `Insufficient balance. You have ${walletBalance} CR available in your Studio Wallet.`
+        `Insufficient balance. You have ${walletBalance} Credits available in your Studio Wallet.`
       );
       return;
     }
@@ -192,15 +192,15 @@ function RedeemCodeContent() {
       setRecipientEmail('');
 
       useNotificationStore.getState().addNotification({
-        title: `Gift Code Generated · ${res.gift.credits} CR`,
-        description: `Code ${res.gift.code} (${res.gift.credits} CR) created for ${res.gift.recipientEmail}.`,
+        title: `Gift Code Generated · ${res.gift.credits} Credits`,
+        description: `Code ${res.gift.code} (${res.gift.credits} Credits) created for ${res.gift.recipientEmail}.`,
         iconType: 'credits',
         link: '/redeem-code?tab=share',
       });
 
       toast.success(
         res.message ||
-          `Generated ${res.gift.credits} CR gift promo code (${res.gift.code}) for ${res.gift.recipientEmail}!`
+          `Generated ${res.gift.credits} Credits gift promo code (${res.gift.code}) for ${res.gift.recipientEmail}!`
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to generate gift promo code';
@@ -283,7 +283,7 @@ function RedeemCodeContent() {
                                 <span className="font-mono text-xs sm:text-sm font-extrabold text-brand-text dark:text-amber-400 tracking-wider">
                                   {gift.code}
                                 </span>
-                                <CreditValue value={gift.credits} size="sm" variant="pill" />
+                                <CreditValue value={gift.credits} size="sm" variant="pill" suffix="Credits" />
                               </div>
                               <p className="text-2xs text-muted-foreground truncate">
                                 Shared by <b className="text-foreground/90">{gift.senderName}</b> ({gift.senderEmail})
@@ -297,7 +297,7 @@ function RedeemCodeContent() {
                               onClick={(e) => handleRedeem(e, gift.code)}
                               className="h-8 px-3 text-xs font-bold shrink-0 cursor-pointer"
                             >
-                              Claim +{gift.credits} CR
+                              Claim +{gift.credits} Credits
                             </Button>
                           </div>
                         ))}
@@ -372,14 +372,14 @@ function RedeemCodeContent() {
                     >
                       <Check className="w-4 h-4 text-emerald-600" />
                       <AlertTitle className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-                        +{redeemedResult.creditsAdded} CR added to your Studio Wallet!
+                        +{redeemedResult.creditsAdded} Credits added to your Studio Wallet!
                       </AlertTitle>
                       <AlertDescription className="text-xs text-emerald-800/90 dark:text-emerald-300 space-y-1">
                         <p>
                           Code <b className="font-mono">{redeemedResult.code}</b> successfully
                           added{' '}
                           <b className="font-mono tabular-nums">
-                            {redeemedResult.creditsAdded} CR
+                            {redeemedResult.creditsAdded} Credits
                           </b>{' '}
                           to your creator balance.
                           {redeemedResult.sharedBy && (
@@ -447,10 +447,10 @@ function RedeemCodeContent() {
                         <Field>
                           <div className="flex items-center justify-between gap-2">
                             <FieldLabel className="text-xs sm:text-sm font-bold text-foreground">
-                              Credits to Share (CR)
+                              Credits to Share
                             </FieldLabel>
                             <span className="text-2xs text-muted-foreground font-mono">
-                              Available: <b className="text-foreground">{walletBalance} CR</b>
+                              Available: <b className="text-foreground">{walletBalance} Credits</b>
                             </span>
                           </div>
                           <div className="pt-1.5 flex flex-col sm:flex-row gap-2.5">
@@ -477,7 +477,7 @@ function RedeemCodeContent() {
                                     onClick={() => setCreditsInput(String(preset))}
                                     className="h-8 px-2.5 font-mono text-2xs font-bold rounded-lg cursor-pointer"
                                   >
-                                    {preset} CR
+                                    {preset} Credits
                                   </Button>
                                 );
                               })}
@@ -491,7 +491,7 @@ function RedeemCodeContent() {
                                   onClick={() => setCreditsInput(String(walletBalance))}
                                   className="h-8 px-2.5 font-mono text-2xs font-bold rounded-lg cursor-pointer"
                                 >
-                                  Max ({walletBalance} CR)
+                                  Max ({walletBalance} Credits)
                                 </Button>
                               )}
                             </div>
@@ -504,15 +504,15 @@ function RedeemCodeContent() {
                               <span>
                                 Remaining balance after generating:{' '}
                                 <b className="font-mono text-foreground">
-                                  {walletBalance - parsedCreditsToShare} CR
+                                  {walletBalance - parsedCreditsToShare} Credits
                                 </b>
                               </span>
                             ) : walletBalance === 0 ? (
                               <span className="text-amber-600 dark:text-amber-400 font-medium">
-                                Your wallet has 0 CR available to share.
+                                Your wallet has 0 Credits available to share.
                               </span>
                             ) : (
-                              <span>Select an amount up to {walletBalance} CR.</span>
+                              <span>Select an amount up to {walletBalance} Credits.</span>
                             )}
                           </div>
 
@@ -530,7 +530,7 @@ function RedeemCodeContent() {
                           >
                             <Ticket className="size-4" />
                             <span>
-                              Generate {parsedCreditsToShare > 0 ? `${parsedCreditsToShare} CR ` : ''}
+                              Generate {parsedCreditsToShare > 0 ? `${parsedCreditsToShare} Credits ` : ''}
                               Promo Code
                             </span>
                           </Button>
@@ -557,7 +557,7 @@ function RedeemCodeContent() {
                               Share this promo code with your friend:
                             </h3>
                           </div>
-                          <CreditValue value={latestGeneratedGift.credits} size="sm" variant="pill" />
+                          <CreditValue value={latestGeneratedGift.credits} size="sm" variant="pill" suffix="Credits" />
                         </div>
 
                         <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-background/90 border border-amber-400/40">
@@ -588,7 +588,7 @@ function RedeemCodeContent() {
                         <p className="text-2xs text-muted-foreground leading-relaxed">
                           When <b>{latestGeneratedGift.recipientEmail}</b> enters this code on their{' '}
                           <b>Redeem Promo Code</b> page, they will receive{' '}
-                          <b className="font-mono">+{latestGeneratedGift.credits} CR</b> and both you
+                          <b className="font-mono">+{latestGeneratedGift.credits} Credits</b> and both you
                           and the Studio Owner will be notified automatically.
                         </p>
                       </CardContent>
@@ -660,7 +660,7 @@ function RedeemCodeContent() {
                                       className="size-6"
                                     />
                                     <span className="inline-flex items-center font-mono text-2xs font-bold text-brand-text dark:text-amber-400 bg-amber-400/10 px-1.5 py-0.2 rounded border border-amber-400/25">
-                                      {item.credits} CR
+                                      {item.credits} Credits
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 text-2xs text-muted-foreground flex-wrap">
@@ -724,7 +724,7 @@ function RedeemCodeContent() {
                       </p>
                     </div>
                   </div>
-                  <CreditValue value={walletBalance} size="sm" variant="pill" />
+                  <CreditValue value={walletBalance} size="sm" variant="pill" suffix="Credits" />
                 </div>
 
                 <Separator />

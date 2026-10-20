@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
 
     if (!Number.isInteger(credits) || credits < 1 || credits > 5000) {
       return NextResponse.json(
-        { error: 'Please enter a valid credit amount between 1 CR and 5,000 CR.' },
+        { error: 'Please enter a valid credit amount between 1 Credit and 5,000 Credits.' },
         { status: 400 }
       );
     }
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
       }
 
       const idempotencyKey = `gift:${code}:${user.id}`;
-      const spendDescription = `Generated gift promo code ${code} (${credits} CR) for ${recipientEmail}`;
+      const spendDescription = `Generated gift promo code ${code} (${credits} Credits) for ${recipientEmail}`;
 
       // Step 1: Atomically deduct credits from sender's wallet via spend_credits RPC
       const { data: newBalanceData, error: spendErr } = await admin.rpc('spend_credits', {
@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
         const msg = spendErr.message || '';
         if (msg.includes('insufficient_credits') || msg.includes('wallet not found')) {
           return NextResponse.json(
-            { error: `Insufficient wallet balance to share ${credits} CR.` },
+            { error: `Insufficient wallet balance to share ${credits} Credits.` },
             { status: 400 }
           );
         }
@@ -311,8 +311,8 @@ export async function POST(req: NextRequest) {
       void createNotification({
         userId: user.id,
         type: 'wallet_credit',
-        title: `Gift Promo Code Created · ${credits} CR`,
-        message: `Promo code ${code} (${credits} CR) generated for ${recipientEmail}. Share this code with them to redeem.`,
+        title: `Gift Promo Code Created · ${credits} Credits`,
+        message: `Promo code ${code} (${credits} Credits) generated for ${recipientEmail}. Share this code with them to redeem.`,
         link: '/redeem-code?tab=share',
         actionLabel: 'Share Credits',
         entityType: 'wallet',
@@ -331,8 +331,8 @@ export async function POST(req: NextRequest) {
             await createNotification({
               userId: recipientProfile.id,
               type: 'wallet_credit',
-              title: `You Received a ${credits} CR Gift Code!`,
-              message: `${senderName} (${user.email}) shared a ${credits} CR promo code (${code}) with you.`,
+              title: `You Received a ${credits} Credits Gift Code!`,
+              message: `${senderName} (${user.email}) shared a ${credits} Credits promo code (${code}) with you.`,
               link: `/redeem-code?code=${encodeURIComponent(code)}`,
               actionLabel: 'Redeem Code',
               entityType: 'wallet',
@@ -346,8 +346,8 @@ export async function POST(req: NextRequest) {
 
       void notifyAdmins({
         type: 'wallet_credit',
-        title: `Client Gift Code Generated · ${credits} CR`,
-        message: `${senderName} (${user.email}) generated gift promo code ${code} (${credits} CR) for ${recipientEmail}.`,
+        title: `Client Gift Code Generated · ${credits} Credits`,
+        message: `${senderName} (${user.email}) generated gift promo code ${code} (${credits} Credits) for ${recipientEmail}.`,
         link: `/management/ledger?customer=${encodeURIComponent(user.email)}`,
         actionLabel: 'View Ledger',
         entityType: 'wallet',
@@ -370,7 +370,7 @@ export async function POST(req: NextRequest) {
         gift: giftRecord,
         newWalletBalance,
         emailDispatched,
-        message: `Generated ${credits} CR promo code (${code}) for ${recipientEmail}!`,
+        message: `Generated ${credits} Credits promo code (${code}) for ${recipientEmail}!`,
       });
     }
 
@@ -378,7 +378,7 @@ export async function POST(req: NextRequest) {
     const currentBal = getUserBalance(user.email);
     if (currentBal < credits) {
       return NextResponse.json(
-        { error: `Insufficient wallet balance (${currentBal} CR available) to share ${credits} CR.` },
+        { error: `Insufficient wallet balance (${currentBal} Credits available) to share ${credits} Credits.` },
         { status: 400 }
       );
     }
@@ -387,7 +387,7 @@ export async function POST(req: NextRequest) {
     const newWalletBalance = adjustUserBalance(
       user.email,
       -credits,
-      `Generated gift promo code ${code} (${credits} CR) for ${recipientEmail}`
+      `Generated gift promo code ${code} (${credits} Credits) for ${recipientEmail}`
     );
 
     const giftRecord = addClientGiftPromo({
@@ -419,7 +419,7 @@ export async function POST(req: NextRequest) {
       gift: giftRecord,
       newWalletBalance,
       emailDispatched,
-      message: `Generated ${credits} CR promo code (${code}) for ${recipientEmail}!`,
+      message: `Generated ${credits} Credits promo code (${code}) for ${recipientEmail}!`,
     });
   } catch (err) {
     console.error('Error in POST /api/wallet/gift:', err);

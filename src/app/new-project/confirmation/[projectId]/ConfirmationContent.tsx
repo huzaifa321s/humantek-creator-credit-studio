@@ -281,19 +281,20 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
                 {confirmationState === 'manual_order' ? (
                   <CreditValue
                     value={resolvedPackageCredits || project.usedCredits}
+                    suffix="Credits"
                     size="xs"
                   />
                 ) : project.fundingSource === 'wallet' ? (
                   <CreditValue
                     value={project.usedCredits}
                     size="xs"
-                    suffix="CR used"
+                    suffix="Credits used"
                   />
                 ) : (
                   <CreditValue
                     value={`${project.usedCredits} / ${resolvedPackageCredits || project.usedCredits}`}
                     size="xs"
-                    suffix="CR"
+                    suffix="Credits"
                   />
                 )}
               </div>

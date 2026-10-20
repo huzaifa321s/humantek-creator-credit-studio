@@ -172,7 +172,7 @@ export function buildGiftCodeRedeemedOwnerEmailTemplate(params: {
   redeemedAt?: string;
 }): StudioEmailPayload {
   const ts = params.redeemedAt || new Date().toISOString();
-  const subject = `[Studio Alert] Gift Promo Code ${params.code} (${params.credits} CR) Claimed by ${params.recipientEmail}`;
+  const subject = `[Studio Alert] Gift Promo Code ${params.code} (${params.credits} Credits) Claimed by ${params.recipientEmail}`;
 
   const bodyHtml = `
     <p style="margin:0 0 16px 0;">
@@ -182,7 +182,7 @@ export function buildGiftCodeRedeemedOwnerEmailTemplate(params: {
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#a1a1aa;margin-bottom:6px;">Redeemed Voucher Code</div>
       <div style="font-family:monospace;font-size:18px;font-weight:800;color:#fbbf24;letter-spacing:0.06em;">${escapeHtml(params.code)}</div>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid #27272a;font-size:13px;">
-        <div style="margin-bottom:4px;"><strong style="color:#ffffff;">Credits Transferred:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">+${params.credits} CR</span></div>
+        <div style="margin-bottom:4px;"><strong style="color:#ffffff;">Credits Transferred:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">+${params.credits} Credits</span></div>
         <div style="margin-bottom:4px;"><strong style="color:#ffffff;">Shared By (Sender):</strong> ${escapeHtml(params.senderName)} (${escapeHtml(params.senderEmail)})</div>
         <div style="margin-bottom:4px;"><strong style="color:#ffffff;">Claimed By (Recipient):</strong> ${escapeHtml(params.recipientName)} (${escapeHtml(params.recipientEmail)})</div>
         <div><strong style="color:#ffffff;">Redeemed At:</strong> ${escapeHtml(new Date(ts).toUTCString())}</div>
@@ -192,7 +192,7 @@ export function buildGiftCodeRedeemedOwnerEmailTemplate(params: {
 
   const text = [
     `[Humantek Creator Credit Studio — Owner Notification]`,
-    `Gift Promo Code Claimed: ${params.code} (+${params.credits} CR)`,
+    `Gift Promo Code Claimed: ${params.code} (+${params.credits} Credits)`,
     `Shared By (Sender): ${params.senderName} (${params.senderEmail})`,
     `Claimed By (Recipient): ${params.recipientName} (${params.recipientEmail})`,
     `Redeemed At: ${ts}`,
@@ -203,7 +203,7 @@ export function buildGiftCodeRedeemedOwnerEmailTemplate(params: {
     subject,
     html: wrapStudioEmailLayout({
       badge: 'Owner Credit Transfer Alert',
-      heading: `Gift Code ${params.code} Claimed (+${params.credits} CR)`,
+      heading: `Gift Code ${params.code} Claimed (+${params.credits} Credits)`,
       subtitle: `${params.recipientName} (${params.recipientEmail}) redeemed credits shared by ${params.senderName}.`,
       bodyHtml,
       ctaLabel: 'Open Credit Ledger',
@@ -226,7 +226,7 @@ export function buildGiftCodeRedeemedSenderEmailTemplate(params: {
   code: string;
   credits: number;
 }): StudioEmailPayload {
-  const subject = `Your ${params.credits} CR Gift Code (${params.code}) Was Claimed by ${params.recipientName}!`;
+  const subject = `Your ${params.credits} Credits Gift Code (${params.code}) Was Claimed by ${params.recipientName}!`;
 
   const bodyHtml = `
     <p style="margin:0 0 16px 0;">
@@ -234,14 +234,14 @@ export function buildGiftCodeRedeemedSenderEmailTemplate(params: {
     </p>
     <div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid #27272a;">
       <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Voucher Code:</strong> <span style="font-family:monospace;color:#fbbf24;font-weight:700;">${escapeHtml(params.code)}</span></div>
-      <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Credits Claimed:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">${params.credits} CR</span></div>
+      <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Credits Claimed:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">${params.credits} Credits</span></div>
       <div><strong style="color:#ffffff;">Claimed By:</strong> ${escapeHtml(params.recipientName)} (${escapeHtml(params.recipientEmail)})</div>
     </div>
   `;
 
   const text = [
     `Hi ${params.senderName},`,
-    `${params.recipientName} (${params.recipientEmail}) has claimed your ${params.credits} CR gift promo code (${params.code}).`,
+    `${params.recipientName} (${params.recipientEmail}) has claimed your ${params.credits} Credits gift promo code (${params.code}).`,
   ].join('\n');
 
   return {
@@ -249,7 +249,7 @@ export function buildGiftCodeRedeemedSenderEmailTemplate(params: {
     subject,
     html: wrapStudioEmailLayout({
       badge: 'Gift Credits Claimed',
-      heading: `${params.recipientName} Claimed Your ${params.credits} CR Gift!`,
+      heading: `${params.recipientName} Claimed Your ${params.credits} Credits Gift!`,
       subtitle: `Promo voucher ${params.code} has been redeemed into their Studio Wallet.`,
       bodyHtml,
       ctaLabel: 'View Shared Promo Codes',
@@ -272,11 +272,11 @@ export function buildGiftCodeCreatedRecipientEmailTemplate(params: {
   credits: number;
   note?: string;
 }): StudioEmailPayload {
-  const subject = `${params.senderName} sent you ${params.credits} CR on Humantek Creator Credit Studio!`;
+  const subject = `${params.senderName} sent you ${params.credits} Credits on Humantek Creator Credit Studio!`;
 
   const bodyHtml = `
     <p style="margin:0 0 16px 0;">
-      <strong>${escapeHtml(params.senderName)}</strong> (${escapeHtml(params.senderEmail)}) has gifted you <strong style="color:#fbbf24;">${params.credits} CR</strong> from their Studio Wallet!
+      <strong>${escapeHtml(params.senderName)}</strong> (${escapeHtml(params.senderEmail)}) has gifted you <strong style="color:#fbbf24;">${params.credits} Credits</strong> from their Studio Wallet!
     </p>
     ${
       params.note
@@ -293,7 +293,7 @@ export function buildGiftCodeCreatedRecipientEmailTemplate(params: {
   `;
 
   const text = [
-    `${params.senderName} (${params.senderEmail}) gifted you ${params.credits} CR on Humantek Creator Credit Studio!`,
+    `${params.senderName} (${params.senderEmail}) gifted you ${params.credits} Credits on Humantek Creator Credit Studio!`,
     params.note ? `Note: "${params.note}"` : '',
     `Your Promo Code: ${params.code}`,
     `Sign in with ${params.recipientEmail} at /redeem-code to claim your credits.`,
@@ -306,8 +306,8 @@ export function buildGiftCodeCreatedRecipientEmailTemplate(params: {
     subject,
     html: wrapStudioEmailLayout({
       badge: 'Creator Credit Gift Voucher',
-      heading: `You Received ${params.credits} CR from ${params.senderName}!`,
-      subtitle: `Redeem your personal promo code to add +${params.credits} CR to your Studio Wallet.`,
+      heading: `You Received ${params.credits} Credits from ${params.senderName}!`,
+      subtitle: `Redeem your personal promo code to add +${params.credits} Credits to your Studio Wallet.`,
       bodyHtml,
       ctaLabel: 'Redeem Promo Code Now',
       ctaUrl: `/redeem-code?code=${encodeURIComponent(params.code)}`,
@@ -330,22 +330,22 @@ export function buildGiftCodeRedeemedRecipientEmailTemplate(params: {
   credits: number;
   newBalance: number;
 }): StudioEmailPayload {
-  const subject = `+${params.credits} CR Added to Your Studio Wallet (Code: ${params.code})`;
+  const subject = `+${params.credits} Credits Added to Your Studio Wallet (Code: ${params.code})`;
 
   const bodyHtml = `
     <p style="margin:0 0 16px 0;">
       Hi <strong>${escapeHtml(params.recipientName)}</strong>, you have successfully redeemed promo code <strong style="font-family:monospace;color:#fbbf24;">${escapeHtml(params.code)}</strong> shared by <strong>${escapeHtml(params.senderName)}</strong>.
     </p>
     <div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid #27272a;">
-      <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Credits Deposited:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">+${params.credits} CR</span></div>
-      <div><strong style="color:#ffffff;">New Studio Wallet Balance:</strong> <span style="font-family:monospace;color:#fbbf24;font-weight:700;">${params.newBalance} CR</span></div>
+      <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Credits Deposited:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">+${params.credits} Credits</span></div>
+      <div><strong style="color:#ffffff;">New Studio Wallet Balance:</strong> <span style="font-family:monospace;color:#fbbf24;font-weight:700;">${params.newBalance} Credits</span></div>
     </div>
   `;
 
   const text = [
     `Hi ${params.recipientName},`,
-    `+${params.credits} CR from promo code ${params.code} (shared by ${params.senderName}) have been added to your Studio Wallet.`,
-    `New Balance: ${params.newBalance} CR`,
+    `+${params.credits} Credits from promo code ${params.code} (shared by ${params.senderName}) have been added to your Studio Wallet.`,
+    `New Balance: ${params.newBalance} Credits`,
   ].join('\n');
 
   return {
@@ -353,7 +353,7 @@ export function buildGiftCodeRedeemedRecipientEmailTemplate(params: {
     subject,
     html: wrapStudioEmailLayout({
       badge: 'Wallet Credit Confirmation',
-      heading: `+${params.credits} CR Added to Your Studio Wallet`,
+      heading: `+${params.credits} Credits Added to Your Studio Wallet`,
       subtitle: `Shared by ${params.senderName} (${params.senderEmail}) via code ${params.code}.`,
       bodyHtml,
       ctaLabel: 'View Studio Wallet',

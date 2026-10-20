@@ -51,7 +51,7 @@ export function ServiceImageHoverCard({
                 Quote
               </Badge>
             ) : (
-              <CreditValue value={service.prices[0]} size="xs" />
+              <CreditValue value={service.prices[0]} size="xs" suffix="Credits" />
             )}
           </div>
         </div>
@@ -75,7 +75,7 @@ export function ServiceImageHoverCard({
         <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-2xs text-muted-foreground font-medium">
           <span>{service.category}</span>
           <span className="font-mono font-semibold text-foreground/85">
-            {service.quoteOnly ? 'Custom quote' : `${service.prices[0]}–${service.prices[2]} CR`}
+            {service.quoteOnly ? 'Custom quote' : `${service.prices[0]}–${service.prices[2]} Credits`}
           </span>
         </div>
       </HoverCardContent>

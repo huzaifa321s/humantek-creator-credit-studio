@@ -258,10 +258,15 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
     // Light-on-dark official logo drawn directly on the header (no background plate)
     doc.addImage(brandLogo, 'PNG', margin, 26, 58, 22.2, undefined, 'FAST');
 
+    // Thin divider + softer, smaller label (matches the navbar)
+    doc.setDrawColor(63, 63, 70); // Zinc-700
+    doc.setLineWidth(0.8);
+    doc.line(margin + 68, 29, margin + 68, 45);
+
     doc.setTextColor(251, 191, 36); // Amber-400
     doc.setFont(fontSans, 'bold');
-    doc.setFontSize(7.5);
-    doc.text('CREATOR CREDITS STUDIO', margin + 70, 40);
+    doc.setFontSize(6.5);
+    doc.text('CREATOR CREDITS STUDIO', margin + 76, 39.5);
   } else {
     // Fallback: text emblem
     doc.setFillColor(251, 191, 36); // Amber-400

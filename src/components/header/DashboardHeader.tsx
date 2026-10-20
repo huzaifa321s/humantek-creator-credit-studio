@@ -347,6 +347,10 @@ export function DashboardHeader({
                 height={24}
                 className="h-6 w-auto shrink-0 group-hover:scale-105 transition-transform"
               />
+              <span className="hidden sm:block h-5 w-px bg-zinc-700/80 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:block min-w-0 truncate text-3xs tracking-wider uppercase font-semibold text-amber-400/90 leading-tight">
+                Creator Credits Studio
+              </span>
             </Link>
           </div>
 

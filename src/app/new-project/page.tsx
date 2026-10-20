@@ -325,10 +325,10 @@ function getServiceIcon(serviceId: string, category: string) {
 
 const PRICE_FILTER_OPTIONS = [
   { id: 'all', label: 'All' },
-  { id: 'under-50', label: 'Under 50 CR' },
-  { id: '50-100', label: '50–100 CR' },
-  { id: '100-200', label: '100–200 CR' },
-  { id: '200-plus', label: '200+ CR' },
+  { id: 'under-50', label: 'Under 50 Credits' },
+  { id: '50-100', label: '50–100 Credits' },
+  { id: '100-200', label: '100–200 Credits' },
+  { id: '200-plus', label: '200+ Credits' },
 ] as const;
 
 const CORE_RESTRICTED_ITEMS = RESTRICTED_GUIDELINES.slice(0, 6);
@@ -878,8 +878,8 @@ export default function CreatorStudioPage() {
           } else if (remainingCredits < 0) {
             toast.error(
               isWalletFunding
-                ? `Studio Wallet balance exceeded by ${Math.abs(remainingCredits)} CR. Adjust your scope or select a package.`
-                : `Credit budget exceeded by ${Math.abs(remainingCredits)} CR. Adjust your scope or upgrade package.`
+                ? `Studio Wallet balance exceeded by ${Math.abs(remainingCredits)} Credits. Adjust your scope or select a package.`
+                : `Credit budget exceeded by ${Math.abs(remainingCredits)} Credits. Adjust your scope or upgrade package.`
             );
           } else if (isTierRestricted) {
             if (currentPackage?.standardLimit !== undefined && standardUnits > currentPackage.standardLimit) {
@@ -1335,7 +1335,7 @@ export default function CreatorStudioPage() {
   const handleLaunchWithWallet = async () => {
     if (!currentPackage || isSubmitting) return;
     if (userBalance < usedCredits) {
-      toast.error(`Insufficient credits. You need ${usedCredits} CR but only have ${userBalance} CR.`);
+      toast.error(`Insufficient credits. You need ${usedCredits} Credits but only have ${userBalance} Credits.`);
       return;
     }
     bypassUnsavedChangesWarning(true);
@@ -1436,7 +1436,7 @@ export default function CreatorStudioPage() {
   ) : null;
 
   // Dedicated mobile chat launcher button, strictly gated by <ChatGate>
-  const renderMobileChat = (label = 'Chat with Team') => (
+  const renderMobileChat = (label = 'Chat with Team', compact = false) => (
     <ChatGate>
       <Button
         data-chat-entry="mobile-footer"
@@ -1449,8 +1449,8 @@ export default function CreatorStudioPage() {
         aria-label={label}
       >
         <MessageSquare className="size-3.5 text-brand-text dark:text-amber-400" />
-        <span className="hidden min-[360px]:inline">{label}</span>
-        <span className="min-[360px]:hidden">Chat</span>
+        <span className={compact ? 'hidden min-[480px]:inline' : 'hidden min-[360px]:inline'}>{label}</span>
+        {!compact && <span className="min-[360px]:hidden">Chat</span>}
       </Button>
     </ChatGate>
   );
@@ -1473,11 +1473,11 @@ export default function CreatorStudioPage() {
                 variant="outline"
                 size="default"
                 onClick={() => goToStep(currentStep - 1)}
-                className="gap-1.5 text-xs font-semibold cursor-pointer h-10 sm:h-9 px-3.5 sm:px-4 shrink-0"
+                className="gap-1.5 text-xs font-semibold cursor-pointer h-10 sm:h-9 px-3 sm:px-4 shrink-0"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
               </Button>
-              {renderMobileChat('Chat')}
+              {renderMobileChat('Chat', true)}
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -1487,7 +1487,7 @@ export default function CreatorStudioPage() {
                   isWalletFunding ? (
                     <>
                       <span className="text-muted-foreground">Funding:</span>
-                      <strong className="text-foreground font-bold">Wallet ({userBalance.toLocaleString('en-US')} CR)</strong>
+                      <strong className="text-foreground font-bold">Wallet ({userBalance.toLocaleString('en-US')} Credits)</strong>
                       <span>·</span>
                       <span className="text-muted-foreground">Pay today:</span>
                       <strong className="font-mono font-bold text-emerald-600 dark:text-emerald-400">$0</strong>
@@ -1497,7 +1497,7 @@ export default function CreatorStudioPage() {
                       <span className="text-muted-foreground">Funding:</span>
                       <strong className="text-foreground font-bold">{currentPackage.name} + wallet</strong>
                       <span>·</span>
-                      <span className="font-mono font-bold text-foreground">{(currentPackage.credits + userBalance).toLocaleString('en-US')} CR</span>
+                      <span className="font-mono font-bold text-foreground">{(currentPackage.credits + userBalance).toLocaleString('en-US')} Credits</span>
                       <span>·</span>
                       <span className="text-muted-foreground">Pay today:</span>
                       <strong className="font-mono font-bold text-foreground">${currentPackage.price.toLocaleString('en-US')}</strong>
@@ -1507,7 +1507,7 @@ export default function CreatorStudioPage() {
                       <span className="text-muted-foreground">Funding:</span>
                       <strong className="text-foreground font-bold">{currentPackage.name}</strong>
                       <span>·</span>
-                      <span className="font-mono font-bold text-foreground">{currentPackage.credits.toLocaleString('en-US')} CR</span>
+                      <span className="font-mono font-bold text-foreground">{currentPackage.credits.toLocaleString('en-US')} Credits</span>
                       <span>·</span>
                       <span className="text-muted-foreground">Pay today:</span>
                       <strong className="font-mono font-bold text-foreground">${currentPackage.price.toLocaleString('en-US')}</strong>
@@ -1527,7 +1527,7 @@ export default function CreatorStudioPage() {
         {/* Right Side: Primary Next / Continue Button */}
         <div className={cn(
           "flex items-center gap-2 sm:gap-3",
-          currentStep === 1 ? "w-full sm:w-auto sm:ml-auto" : "flex-1 sm:flex-none justify-end"
+          currentStep === 1 ? "w-full sm:w-auto sm:ml-auto" : "flex-1 min-w-0 sm:flex-none justify-end"
         )}>
           {currentStep === 1 && (
             <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
@@ -1544,7 +1544,7 @@ export default function CreatorStudioPage() {
                 onClick={() => goToStep(2)}
                 title={!isStep1Valid ? 'Select wallet or package to continue' : 'Continue to Step 2: Pick your services'}
                 className={cn(
-                  'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
+                  'font-semibold px-3 min-[400px]:px-5 sm:px-6 h-10 sm:h-9 min-w-0 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
                   !isStep1Valid && 'opacity-60 cursor-not-allowed'
                 )}
               >
@@ -1562,7 +1562,7 @@ export default function CreatorStudioPage() {
               aria-disabled={!isStep2Valid}
               onClick={() => goToStep(3)}
               className={cn(
-                'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
+                'font-semibold px-3 min-[400px]:px-5 sm:px-6 h-10 sm:h-9 min-w-0 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
                 !isStep2Valid && 'opacity-60'
               )}
             >
@@ -1579,7 +1579,7 @@ export default function CreatorStudioPage() {
               aria-disabled={!isStep3Valid}
               onClick={() => goToStep(4)}
               className={cn(
-                'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
+                'font-semibold px-3 min-[400px]:px-5 sm:px-6 h-10 sm:h-9 min-w-0 gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center',
                 !isStep3Valid && 'opacity-60'
               )}
             >
@@ -1589,7 +1589,7 @@ export default function CreatorStudioPage() {
           )}
 
           {currentStep === 4 && (
-            <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 sm:gap-2.5 w-full min-w-0 sm:w-auto justify-end">
               {!userEmail && (
                 <span className="text-2xs sm:text-xs text-muted-foreground hidden sm:inline">
                   You&apos;ll sign in on the next step
@@ -1602,27 +1602,27 @@ export default function CreatorStudioPage() {
                 aria-disabled={!isStep4Valid}
                 onClick={() => goToStep(5)}
                 className={cn(
-                  'font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center',
+                  'font-semibold px-3 min-[400px]:px-5 sm:px-6 h-10 sm:h-9 min-w-0 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center',
                   !isStep4Valid && 'opacity-60'
                 )}
               >
-                <span>Review & Pay</span>
+                <span className="min-w-0 truncate">Review & Pay</span>
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Button>
             </div>
           )}
 
           {currentStep === 5 && currentPackage && (
-            <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 sm:gap-2.5 w-full min-w-0 sm:w-auto justify-end">
               {!user?.email ? (
                 <Button
                   type="button"
                   variant="default"
                   size="default"
                   onClick={() => setShowAuthModal(true)}
-                  className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
+                  className="font-semibold px-3 min-[400px]:px-5 sm:px-6 h-10 sm:h-9 min-w-0 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
                 >
-                  <span>Sign In to Complete Order</span>
+                  <span className="min-w-0 truncate">Sign In to Complete Order</span>
                   <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               ) : isWalletFunding ? (
@@ -1634,9 +1634,9 @@ export default function CreatorStudioPage() {
                   loadingText="Starting project..."
                   disabled={userBalance < usedCredits}
                   onClick={handleLaunchWithWallet}
-                  className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
+                  className="font-semibold px-3 min-[400px]:px-5 sm:px-6 h-10 sm:h-9 min-w-0 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
                 >
-                  <span>Confirm &amp; Launch</span>
+                  <span className="min-w-0 truncate">Confirm &amp; Launch</span>
                   <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               ) : (
@@ -1649,9 +1649,9 @@ export default function CreatorStudioPage() {
                   onClick={() => {
                     document.getElementById('studio-checkout-section')?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="font-semibold px-5 sm:px-6 h-10 sm:h-9 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
+                  className="font-semibold px-3 min-[400px]:px-5 sm:px-6 h-10 sm:h-9 min-w-0 gap-1.5 sm:gap-2 text-xs sm:text-sm cursor-pointer w-full sm:w-auto justify-center"
                 >
-                  <span>Review &amp; Pay (${currentPackage.price.toLocaleString('en-US')})</span>
+                  <span className="min-w-0 truncate">Review &amp; Pay (${currentPackage.price.toLocaleString('en-US')})</span>
                   <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               )}
@@ -1823,7 +1823,7 @@ export default function CreatorStudioPage() {
                   <div className="pl-8 space-y-1">
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-2xl font-black font-mono tracking-tight text-foreground">
-                        {userBalance.toLocaleString('en-US')} CR
+                        {userBalance.toLocaleString('en-US')} Credits
                       </span>
                       <span className="text-xs text-muted-foreground font-semibold">available</span>
                     </div>
@@ -1888,7 +1888,7 @@ export default function CreatorStudioPage() {
                   </div>
 
                   <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed pl-9">
-                    Your <strong className="font-mono text-foreground font-bold">{userBalance.toLocaleString('en-US')} CR</strong> is ready to use. Click <strong className="text-foreground">Continue</strong> below to pick your art services, and we&apos;ll show exactly how many credits each asset uses in real time.
+                    Your <strong className="font-mono text-foreground font-bold">{userBalance.toLocaleString('en-US')} Credits</strong> is ready to use. Click <strong className="text-foreground">Continue</strong> below to pick your art services, and we&apos;ll show exactly how many credits each asset uses in real time.
                   </p>
 
                   <div className="pl-9 pt-1 flex items-center gap-3">
@@ -1989,7 +1989,7 @@ export default function CreatorStudioPage() {
                           <span className="text-xs text-muted-foreground font-semibold">USD</span>
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <CreditValue value={pkgCredits} size="sm" variant="pill" />
+                          <CreditValue value={pkgCredits} size="sm" variant="pill" suffix="Credits" />
                         </div>
                         <CardDescription className="text-xs leading-relaxed text-muted-foreground line-clamp-2 min-h-[2.5rem] mt-1">
                           {bestForSummary}
@@ -1999,7 +1999,7 @@ export default function CreatorStudioPage() {
                       <CardContent className="p-4 sm:p-5 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
                         <div className="flex items-start gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{pkgCredits.toLocaleString('en-US')} CR package allocation</span>
+                          <span>{pkgCredits.toLocaleString('en-US')} Credits package allocation</span>
                         </div>
                         <div className="flex items-start gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -2048,22 +2048,22 @@ export default function CreatorStudioPage() {
                     <div className="flex items-center gap-2">
                       <Coins className="size-4 text-amber-500" />
                       <span className="text-xs font-bold text-foreground">
-                        Your wallet automatically adds {userBalance.toLocaleString('en-US')} CR
+                        Your wallet automatically adds {userBalance.toLocaleString('en-US')} Credits
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      New purchase {currentPackage.credits.toLocaleString('en-US')} CR + wallet {userBalance.toLocaleString('en-US')} CR = <strong className="font-mono font-bold text-foreground">{(currentPackage.credits + userBalance).toLocaleString('en-US')} CR total budget</strong>
+                      New purchase {currentPackage.credits.toLocaleString('en-US')} Credits + wallet {userBalance.toLocaleString('en-US')} Credits = <strong className="font-mono font-bold text-foreground">{(currentPackage.credits + userBalance).toLocaleString('en-US')} Credits total budget</strong>
                     </p>
                   </div>
                   <Badge variant="gold" size="sm" className="font-mono font-bold self-start sm:self-center shrink-0">
-                    {(currentPackage.credits + userBalance).toLocaleString('en-US')} CR Total
+                    {(currentPackage.credits + userBalance).toLocaleString('en-US')} Credits Total
                   </Badge>
                 </div>
               )}
 
               {/* Centered Bottom Fine Print */}
               <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
-                Base service value: <span className="font-semibold text-foreground/90">$2.50 per CR</span> before package bonuses. Higher packages receive a stronger effective rate.
+                Base service value: <span className="font-semibold text-foreground/90">$2.50 per Credit</span> before package bonuses. Higher packages receive a stronger effective rate.
               </p>
             </div>
           )}
@@ -2085,7 +2085,7 @@ export default function CreatorStudioPage() {
                 {/* Mobile Available Budget Badge (visible in header before and during service selection) */}
                 <div className="sm:hidden inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-400/10 dark:bg-amber-400/15 border border-amber-400/30 text-2xs font-semibold text-brand-text dark:text-amber-300">
                   <Coins className="size-3 text-amber-500 dark:text-amber-400" />
-                  <span className="font-mono font-bold">{totalUsableCredits.toLocaleString('en-US')} CR</span>
+                  <span className="font-mono font-bold">{totalUsableCredits.toLocaleString('en-US')} Credits</span>
                   <span className="text-muted-foreground/80 font-normal">available</span>
                 </div>
               </div>
@@ -2151,7 +2151,7 @@ export default function CreatorStudioPage() {
                       </span>
                       <span className="text-muted-foreground/40">·</span>
                       <span className="font-mono tabular-nums text-foreground/80">
-                        {usedCredits.toLocaleString('en-US')} CR
+                        {usedCredits.toLocaleString('en-US')} Credits
                       </span>
                     </div>
                     <div className="text-2xs leading-tight mt-0.5">
@@ -2164,8 +2164,8 @@ export default function CreatorStudioPage() {
                         )}
                       >
                         {remainingCredits >= 0
-                          ? `${remainingCredits.toLocaleString('en-US')} CR left`
-                          : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
+                          ? `${remainingCredits.toLocaleString('en-US')} Credits left`
+                          : `${Math.abs(remainingCredits).toLocaleString('en-US')} Credits over`}
                       </span>
                     </div>
                   </div>
@@ -2183,11 +2183,11 @@ export default function CreatorStudioPage() {
             <Alert variant="warning" className="rounded-xl border-amber-400/35 bg-amber-400/[0.08]">
               <AlertTriangle className="w-4 h-4 text-brand-text dark:text-amber-400" />
               <AlertTitle className="text-xs sm:text-sm font-bold text-foreground">
-                Wallet Budget Exceeded by {Math.abs(remainingCredits)} CR
+                Wallet Budget Exceeded by {Math.abs(remainingCredits)} Credits
               </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
                 <span>
-                  Your active Studio Wallet balance is <strong>{userBalance} CR</strong>, but your selected scope requires <strong>{usedCredits} CR</strong>. Adjust your services or choose a package to fund the difference.
+                  Your active Studio Wallet balance is <strong>{userBalance} Credits</strong>, but your selected scope requires <strong>{usedCredits} Credits</strong>. Adjust your services or choose a package to fund the difference.
                 </span>
                 <Button
                   type="button"
@@ -2196,7 +2196,7 @@ export default function CreatorStudioPage() {
                   onClick={() => handleUpgradePackage('creator-forge')}
                   className="shrink-0 text-xs font-semibold h-8 rounded-lg cursor-pointer"
                 >
-                  Top Up with Creator Forge (660 CR)
+                  Top Up with Creator Forge (660 Credits)
                 </Button>
               </AlertDescription>
             </Alert>
@@ -2410,10 +2410,10 @@ export default function CreatorStudioPage() {
 
                             <div>
                               {isSelected ? (
-                                <CreditValue value={currentCost} size="sm" />
+                                <CreditValue value={currentCost} size="sm" suffix="Credits" />
                               ) : (
                                 <div className="text-xs text-muted-foreground">
-                                  from <span className="font-bold text-foreground">{svc.prices[0]} CR</span>
+                                  from <span className="font-bold text-foreground">{svc.prices[0]} Credits</span>
                                 </div>
                               )}
                             </div>
@@ -2452,18 +2452,18 @@ export default function CreatorStudioPage() {
                               >
                                 <SelectTrigger className="w-full h-8 text-xs font-semibold bg-card rounded-lg border-border py-0 px-2 sm:px-2.5 shadow-2xs">
                                   <SelectValue placeholder="Tier">
-                                    {TIER_NAMES[choice.level]} ({svc.prices[choice.level]} CR)
+                                    {TIER_NAMES[choice.level]} ({svc.prices[choice.level]} Credits)
                                   </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent className="text-xs">
                                   <SelectItem value="basic" className="text-xs">
-                                    Basic — {svc.prices[0]} CR
+                                    Basic — {svc.prices[0]} Credits
                                   </SelectItem>
                                   <SelectItem value="standard" disabled={isStandardDisabled} className="text-xs">
-                                    Standard — {svc.prices[1]} CR {isStandardDisabled ? '(Plan limit)' : ''}
+                                    Standard — {svc.prices[1]} Credits {isStandardDisabled ? '(Plan limit)' : ''}
                                   </SelectItem>
                                   <SelectItem value="elite" disabled={isEliteDisabled} className="text-xs">
-                                    Elite — {svc.prices[2]} CR {isEliteDisabled ? '(Plan limit)' : ''}
+                                    Elite — {svc.prices[2]} Credits {isEliteDisabled ? '(Plan limit)' : ''}
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
@@ -2510,7 +2510,7 @@ export default function CreatorStudioPage() {
                                     </AlertDialogMedia>
                                     <AlertDialogTitle>Remove {svc.name}?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      This frees up <b className="text-foreground">{currentCost} CR</b> from your package. You can add it back anytime.
+                                      This frees up <b className="text-foreground">{currentCost} Credits</b> from your package. You can add it back anytime.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -2614,7 +2614,7 @@ export default function CreatorStudioPage() {
                       Your Order &amp; Credits
                     </DrawerTitle>
                     <DrawerDescription className="text-2xs text-muted-foreground truncate">
-                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} selected · {usedCredits.toLocaleString('en-US')} CR used · {remainingCredits >= 0 ? `${remainingCredits.toLocaleString('en-US')} CR remaining` : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over budget`}
+                      {selectedEntries.length} {selectedEntries.length === 1 ? 'service' : 'services'} selected · {usedCredits.toLocaleString('en-US')} Credits used · {remainingCredits >= 0 ? `${remainingCredits.toLocaleString('en-US')} Credits remaining` : `${Math.abs(remainingCredits).toLocaleString('en-US')} Credits over budget`}
                     </DrawerDescription>
                   </div>
                 </div>
@@ -2668,8 +2668,8 @@ export default function CreatorStudioPage() {
                       remainingCredits >= 0 ? 'text-brand-text dark:text-amber-400' : 'text-destructive font-black'
                     )}>
                       {remainingCredits >= 0
-                        ? `${remainingCredits.toLocaleString('en-US')} CR`
-                        : `${Math.abs(remainingCredits).toLocaleString('en-US')} CR over`}
+                        ? `${remainingCredits.toLocaleString('en-US')} Credits`
+                        : `${Math.abs(remainingCredits).toLocaleString('en-US')} Credits over`}
                     </strong>
                   </div>
                 </div>
@@ -3424,7 +3424,7 @@ export default function CreatorStudioPage() {
 
                 <Badge variant="gold" className="text-sm font-mono font-bold px-3.5 py-1.5">
                   {isWalletFunding
-                    ? `${usedCredits.toLocaleString('en-US')} CR FROM WALLET · $0 USD`
+                    ? `${usedCredits.toLocaleString('en-US')} CREDITS FROM WALLET · $0 USD`
                     : `TOTAL: $${currentPackage.price.toLocaleString('en-US')} USD`}
                 </Badge>
               </div>
@@ -3463,7 +3463,7 @@ export default function CreatorStudioPage() {
                       <div className="min-w-0">
                         <span className="text-2xs sm:text-xs text-muted-foreground uppercase font-bold block truncate">Total Credits</span>
                         <div className="mt-0.5 flex items-center justify-center">
-                          <CreditValue value={totalPackageCredits} size="sm" />
+                          <CreditValue value={totalPackageCredits} size="sm" suffix="Credits" />
                         </div>
                       </div>
                     </div>
@@ -3483,7 +3483,7 @@ export default function CreatorStudioPage() {
                           )}
                         </CardTitle>
                       </div>
-                      <CreditValue value={usedCredits} size="sm" variant="pill" suffix="CR Used" className="shrink-0" />
+                      <CreditValue value={usedCredits} size="sm" variant="pill" suffix="Credits Used" className="shrink-0" />
                     </CardHeader>
 
                     {/* Mobile View: Collapsed by default */}
@@ -3529,7 +3529,7 @@ export default function CreatorStudioPage() {
                                           {service.quoteOnly ? (
                                             <span className="font-bold text-brand-text dark:text-amber-400 text-xs">TBC</span>
                                           ) : (
-                                            <CreditValue value={credits} size="sm" />
+                                            <CreditValue value={credits} size="sm" suffix="Credits" />
                                           )}
                                         </TableCell>
                                       </TableRow>
@@ -3550,7 +3550,7 @@ export default function CreatorStudioPage() {
                                             {meta?.tag || 'Addition'}
                                           </TableCell>
                                           <TableCell className="py-2 text-xs text-right font-mono font-bold text-foreground">
-                                            +{cost} CR
+                                            +{cost} Credits
                                           </TableCell>
                                         </TableRow>
                                       );
@@ -3625,7 +3625,7 @@ export default function CreatorStudioPage() {
                                     {service.quoteOnly ? (
                                       <span className="font-bold text-brand-text dark:text-amber-400 text-xs">TBC</span>
                                     ) : (
-                                      <CreditValue value={credits} size="sm" />
+                                      <CreditValue value={credits} size="sm" suffix="Credits" />
                                     )}
                                   </TableCell>
                                 </TableRow>
@@ -3646,7 +3646,7 @@ export default function CreatorStudioPage() {
                                       {meta?.tag || 'Addition'}
                                     </TableCell>
                                     <TableCell className="py-2 text-xs text-right font-mono font-bold text-foreground">
-                                      +{cost} CR
+                                      +{cost} Credits
                                     </TableCell>
                                   </TableRow>
                                 );
@@ -3825,11 +3825,11 @@ export default function CreatorStudioPage() {
                             </div>
                             <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
                               <span>Scope Debited</span>
-                              <span className="font-mono tabular-nums">-{usedCredits} CR</span>
+                              <span className="font-mono tabular-nums">-{usedCredits} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                               <span>Remaining Wallet</span>
-                              <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} CR</span>
+                              <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} Credits</span>
                             </div>
                             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                               <span>Total Due</span>
@@ -3849,15 +3849,15 @@ export default function CreatorStudioPage() {
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span>Available Balance</span>
-                              <span className="font-semibold text-foreground font-mono tabular-nums">{userBalance} CR</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">{userBalance} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
                               <span>Project Scope Debited</span>
-                              <span className="font-mono tabular-nums">-{usedCredits} CR</span>
+                              <span className="font-mono tabular-nums">-{usedCredits} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                               <span>Remaining Wallet Balance</span>
-                              <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} CR</span>
+                              <span className="font-mono tabular-nums">{Math.max(0, userBalance - usedCredits)} Credits</span>
                             </div>
                             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
                               <span>Total Due Today</span>
@@ -3877,29 +3877,29 @@ export default function CreatorStudioPage() {
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span>Scope Used</span>
-                              <span className="font-semibold text-foreground font-mono tabular-nums">{usedCredits} of {totalUsableCredits} CR</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">{usedCredits} of {totalUsableCredits} Credits</span>
                             </div>
                             {appliedWalletCredits > 0 && (
                               <div className="flex items-center justify-between text-muted-foreground">
                                 <span>Applied from Wallet</span>
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} CR</span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} Credits</span>
                               </div>
                             )}
                             {totalUsableCredits > usedCredits && (
                               <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                                 <span>Rollover to Wallet</span>
-                                <span className="font-semibold font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
+                                <span className="font-semibold font-mono tabular-nums">+{totalUsableCredits - usedCredits} Credits</span>
                               </div>
                             )}
                             {costBreakdownExpandedMobile && (
                               <div className="pt-1.5 border-t border-border/40 space-y-1 text-2xs text-muted-foreground animate-in fade-in duration-150">
                                 <div className="flex items-center justify-between">
                                   <span>Base Package Allocation</span>
-                                  <span className="font-mono tabular-nums">+{currentPackage.credits} CR</span>
+                                  <span className="font-mono tabular-nums">+{currentPackage.credits} Credits</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span>Total Usable Budget</span>
-                                  <span className="font-mono tabular-nums">{totalUsableCredits} CR</span>
+                                  <span className="font-mono tabular-nums">{totalUsableCredits} Credits</span>
                                 </div>
                               </div>
                             )}
@@ -3926,26 +3926,26 @@ export default function CreatorStudioPage() {
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span>Package Allocation</span>
-                              <span className="font-semibold text-foreground font-mono tabular-nums">+{currentPackage.credits} CR</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">+{currentPackage.credits} Credits</span>
                             </div>
                             {appliedWalletCredits > 0 && (
                               <div className="flex items-center justify-between text-muted-foreground">
                                 <span>Applied from Studio Wallet</span>
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} CR</span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">+{appliedWalletCredits} Credits</span>
                               </div>
                             )}
                             <div className="flex items-center justify-between text-muted-foreground font-medium pt-1 border-t border-border/40">
                               <span>Total Usable Project Budget</span>
-                              <span className="font-semibold text-foreground font-mono tabular-nums">{totalUsableCredits} CR</span>
+                              <span className="font-semibold text-foreground font-mono tabular-nums">{totalUsableCredits} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
                               <span>Service Scope Used</span>
-                              <span className="font-semibold font-mono tabular-nums">-{usedCredits} CR</span>
+                              <span className="font-semibold font-mono tabular-nums">-{usedCredits} Credits</span>
                             </div>
                             {totalUsableCredits > usedCredits && (
                               <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                                 <span>Rollover to Global Wallet</span>
-                                <span className="font-mono tabular-nums">+{totalUsableCredits - usedCredits} CR</span>
+                                <span className="font-mono tabular-nums">+{totalUsableCredits - usedCredits} Credits</span>
                               </div>
                             )}
                             <div className="pt-2 border-t border-border/60 flex items-center justify-between text-sm font-bold text-foreground">
@@ -4036,7 +4036,7 @@ export default function CreatorStudioPage() {
                                 <ArrowRight className="w-4 h-4" />
                               </Button>
                               <p className="text-2xs text-center text-muted-foreground leading-normal">
-                                Instantly debits {usedCredits} CR from your Studio Wallet. Project moves directly to active production.
+                                Instantly debits {usedCredits} Credits from your Studio Wallet. Project moves directly to active production.
                               </p>
                             </div>
                           ) : (
@@ -4046,7 +4046,7 @@ export default function CreatorStudioPage() {
                             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-200 text-xs">
                               <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
                               <span className="leading-snug">
-                                <strong className="font-semibold text-emerald-900 dark:text-emerald-100">+{totalUsableCredits - usedCredits} CR Rollover Benefit:</strong> Any unused package credits automatically roll over into your Global Studio Wallet upon payment!
+                                <strong className="font-semibold text-emerald-900 dark:text-emerald-100">+{totalUsableCredits - usedCredits} Credits Rollover Benefit:</strong> Any unused package credits automatically roll over into your Global Studio Wallet upon payment!
                               </span>
                             </div>
                           )}
@@ -4132,10 +4132,11 @@ export default function CreatorStudioPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => useChatStore.getState().setIsOpen(true)}
-                          className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-brand-text dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal"
+                          className="h-auto py-1 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-brand-text dark:hover:text-amber-400 hover:bg-secondary/40 whitespace-normal items-center justify-center text-center"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-brand-text dark:text-amber-400" />
-                          <span>Have questions about this brief? Chat with our team →</span>
+                          <MessageSquare className="w-3.5 h-3.5 text-brand-text dark:text-amber-400 shrink-0" />
+                          <span className="sm:hidden">Questions? Chat with our team →</span>
+                          <span className="hidden sm:inline">Have questions about this brief? Chat with our team →</span>
                         </Button>
                       </div>
                     </ChatGate>

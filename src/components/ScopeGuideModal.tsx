@@ -107,7 +107,7 @@ export function ScopeGuideModal() {
                 Creative Services · Credit Rates &amp; Guide
               </DialogTitle>
               <DialogDescription className="text-2xs sm:text-xs text-muted-foreground mt-0.5 truncate">
-                All 39 studio services · <span className="font-semibold text-foreground/80">1 CR = $2.50</span> base rate
+                All 39 studio services · <span className="font-semibold text-foreground/80">1 Credit = $2.50</span> base rate
               </DialogDescription>
             </div>
           </div>
@@ -246,7 +246,7 @@ export function ScopeGuideModal() {
                               <TableCell key={idx} wrap className="py-2.5 px-3 align-top">
                                 <div className="flex flex-col gap-0.5">
                                   <div>
-                                    <CreditValue value={price} size="sm" showUsd />
+                                    <CreditValue value={price} size="sm" suffix="Credits" showUsd />
                                   </div>
                                   <p
                                     className="text-xs leading-snug text-muted-foreground line-clamp-2 mt-0.5 break-words"
@@ -298,6 +298,7 @@ export function ScopeGuideModal() {
                             size="xs"
                             variant="pill"
                             prefix="From "
+                            suffix="Credits"
                             showUsd={false}
                           />
                         </div>
@@ -344,6 +345,7 @@ export function ScopeGuideModal() {
                                     <CreditValue
                                       value={price}
                                       size="xs"
+                                      suffix="Credits"
                                       showUsd={false}
                                       className="text-2xs sm:text-xs font-bold"
                                     />

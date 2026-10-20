@@ -743,7 +743,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           type: 'project_status',
           title: `Project submitted · ${projectCode}`,
-          message: `We received your ${pkg.name} brief (${totalCreditsRequired} CR scope) and will review it shortly.`,
+          message: `We received your ${pkg.name} brief (${totalCreditsRequired} Credits scope) and will review it shortly.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
@@ -754,7 +754,7 @@ export async function POST(req: NextRequest) {
         void notifyAdmins({
           type: 'project_status',
           title: `New project request · ${projectCode}`,
-          message: `${ownerName} submitted a ${pkg.name} brief (${totalCreditsRequired} CR) for review.`,
+          message: `${ownerName} submitted a ${pkg.name} brief (${totalCreditsRequired} Credits) for review.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
           actionLabel: 'Review Brief',
           actionId: parsed.data.projectId,
@@ -867,7 +867,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           type: 'project_status',
           title: `Project started · ${projectCode}`,
-          message: `Your project (${spentCredits} CR) was funded with Studio Wallet credits and is now queued.`,
+          message: `Your project (${spentCredits} Credits) was funded with Studio Wallet credits and is now queued.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
@@ -878,7 +878,7 @@ export async function POST(req: NextRequest) {
         void notifyAdmins({
           type: 'project_status',
           title: `New credit project · ${projectCode}`,
-          message: `${ownerName} started a new project (${spentCredits} CR) with wallet credits.`,
+          message: `${ownerName} started a new project (${spentCredits} Credits) with wallet credits.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
@@ -940,7 +940,7 @@ export async function POST(req: NextRequest) {
     if (serverBalance < result.quote.usedCredits) {
       return NextResponse.json(
         {
-          error: `Insufficient wallet balance. You have ${serverBalance} CR but this project requires ${result.quote.usedCredits} CR. Please top up or choose a package.`,
+          error: `Insufficient wallet balance. You have ${serverBalance} Credits but this project requires ${result.quote.usedCredits} Credits. Please top up or choose a package.`,
         },
         { status: 400 }
       );
@@ -1069,7 +1069,7 @@ export async function PATCH(req: NextRequest) {
             title: `Project cancelled · ${pCode}`,
             message:
               wasPaidBeforeCancel && refundedCr > 0
-                ? `Your project (${pCode}) was cancelled and +${refundedCr} CR were refunded to your Studio Wallet.`
+                ? `Your project (${pCode}) was cancelled and +${refundedCr} Credits were refunded to your Studio Wallet.`
                 : `Your project (${pCode}) was cancelled.`,
             link: `/projects/${id}`,
             actionLabel: 'View Details',
@@ -1239,12 +1239,12 @@ export async function PATCH(req: NextRequest) {
             type: 'payment_confirmed',
             title:
               surplusCredits > 0
-                ? `Payment confirmed · +${surplusCredits} CR added`
+                ? `Payment confirmed · +${surplusCredits} Credits added`
                 : `Payment confirmed · ${currentProj.project_code}`,
             message:
               surplusCredits > 0
-                ? `Payment confirmed for ${currentProj.project_code} (${pkgLabel}). ${totalUsed} CR allocated to your project and +${surplusCredits} CR added to your Studio Wallet.`
-                : `Payment confirmed for ${currentProj.project_code} (${pkgLabel} · ${totalUsed} CR). Your project is funded and ready for production.`,
+                ? `Payment confirmed for ${currentProj.project_code} (${pkgLabel}). ${totalUsed} Credits allocated to your project and +${surplusCredits} Credits added to your Studio Wallet.`
+                : `Payment confirmed for ${currentProj.project_code} (${pkgLabel} · ${totalUsed} Credits). Your project is funded and ready for production.`,
             link: `/projects/${id}`,
             actionLabel: 'View Project',
             actionId: id,

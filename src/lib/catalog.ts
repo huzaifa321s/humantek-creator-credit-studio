@@ -37,7 +37,7 @@ export const TOP_UP_OPTIONS = {
   'topup-100': {
     usd: 100,
     credits: 40,
-    label: '$100 top-up — 40 CR',
+    label: '$100 top-up — 40 Credits',
   },
 };
 
@@ -403,18 +403,18 @@ export const RESTRICTED_GUIDELINES = [
 ];
 
 export const REVISION_RULES = [
-  'Extra revision round: 10%, minimum 4 CR. One consolidated feedback list after the included rounds.',
-  'Minor text or color change: 5%, minimum 4 CR. Use this or a revision charge for the same work, not both.',
-  'Additional size or platform: 15%, minimum 4 CR. Major redesign requires a new quote.',
-  'New concept using the same brief: 60%, minimum 12 CR. It replaces the revision fee for that work.',
-  'Direction change after approval: 35%, minimum 12 CR. A new brief and timeline are required.',
-  'Rush delivery: 35%, minimum 12 CR per service unit and subject to production availability.',
-  'Technical export variant: 5%, minimum 4 CR for an extra codec, resolution or format.',
-  'Humantek Art error correction: 0 CR. Corrections required to meet the approved brief are free.',
+  'Extra revision round: 10%, minimum 4 Credits. One consolidated feedback list after the included rounds.',
+  'Minor text or color change: 5%, minimum 4 Credits. Use this or a revision charge for the same work, not both.',
+  'Additional size or platform: 15%, minimum 4 Credits. Major redesign requires a new quote.',
+  'New concept using the same brief: 60%, minimum 12 Credits. It replaces the revision fee for that work.',
+  'Direction change after approval: 35%, minimum 12 Credits. A new brief and timeline are required.',
+  'Rush delivery: 35%, minimum 12 Credits per service unit and subject to production availability.',
+  'Technical export variant: 5%, minimum 4 Credits for an extra codec, resolution or format.',
+  'Humantek Art error correction: 0 Credits. Corrections required to meet the approved brief are free.',
 ];
 
 export const HOW_CREDITS_WORK = [
-  '1 CR represents $2.50 of listed service value before package bonuses.',
+  '1 Credit represents $2.50 of listed service value before package bonuses.',
   'Package bonuses lower the effective USD cost per credit; credits have no cash-redemption value.',
   'This planner is an estimate. Humantek Art confirms the written brief, final credits and delivery date before work starts.',
   'Basic, Standard and Elite are complete alternative scopes. Choose one scope per service unit.',

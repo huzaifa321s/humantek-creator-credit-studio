@@ -156,7 +156,7 @@ export function HorizontalStepper({
                           <span>Selected: {selectedPackageName}</span>
                         </p>
                         <p className="text-zinc-300 text-xs font-mono tabular-nums">
-                          {selectedPackageCredits ? `${selectedPackageCredits} CR` : ''}
+                          {selectedPackageCredits ? `${selectedPackageCredits} Credits` : ''}
                           {selectedPackagePrice ? ` · $${selectedPackagePrice.toLocaleString('en-US')} USD` : ''}
                         </p>
                         <p className="text-amber-400 text-2xs font-semibold pt-0.5">
@@ -173,7 +173,7 @@ export function HorizontalStepper({
                           </span>
                         </p>
                         <p className="text-zinc-300 text-xs font-mono tabular-nums">
-                          {usedCredits} CR allocated · {remainingCredits >= 0 ? `${remainingCredits} CR remaining` : `${Math.abs(remainingCredits)} CR over`}
+                          {usedCredits} Credits allocated · {remainingCredits >= 0 ? `${remainingCredits} Credits remaining` : `${Math.abs(remainingCredits)} Credits over`}
                         </p>
                         {currentStep !== 2 && (
                           <p className="text-amber-400 text-2xs font-semibold pt-0.5">
