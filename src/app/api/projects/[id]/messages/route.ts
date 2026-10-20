@@ -3,6 +3,12 @@ import { getRequestUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
 import { checkRateLimit } from '@/lib/rateLimit';
+import {
+  createStorageSignedViewUrl,
+  createStorageSignedViewUrls,
+  removeStorageObjects,
+} from '@/lib/storage';
+import { triggerCompanyChatEvent } from '@/lib/chat/companyPusherServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -255,19 +261,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
       if (attachments && attachments.length > 0) {
         const paths = attachments.map((att) => att.storage_path);
-        const signedMap = new Map<string, string>();
-        try {
-          const { data: signedList } = await admin.storage
-            .from('project-attachments')
-            .createSignedUrls(paths, 3600);
-          for (const item of signedList || []) {
-            if (item.path && item.signedUrl) {
-              signedMap.set(item.path, item.signedUrl);
-            }
-          }
-        } catch {
-          // Fallback handled below
-        }
+        const signedMap = await createStorageSignedViewUrls(
+          admin,
+          'project-attachments',
+          paths,
+          3600
+        );
 
         for (const att of attachments) {
           if (!attachmentsByMsgId[att.message_id]) {
@@ -601,10 +600,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
           let signedUrl: string | null = null;
           try {
-            const { data: signed } = await admin.storage
-              .from('project-attachments')
-              .createSignedUrl(attRow.storage_path, 3600);
-            signedUrl = signed?.signedUrl || null;
+            signedUrl = await createStorageSignedViewUrl(
+              admin,
+              'project-attachments',
+              attRow.storage_path,
+              3600
+            );
           } catch {
             signedUrl = null;
           }
@@ -710,6 +711,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
         entityId: id,
       });
     }
+
+    // Broadcast live event to Company Server Pusher Hub (when enabled in dual-mode)
+    void triggerCompanyChatEvent({
+      projectId: id,
+      messageId: newMsg.id,
+      kind: newMsg.kind,
+      action: 'new_message',
+    });
 
     return response;
   } catch (err: unknown) {
@@ -819,6 +828,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: updateErr.message }, { status: 500 });
       }
 
+      void triggerCompanyChatEvent({
+        projectId: id,
+        messageId: requestedId,
+        action: 'message_updated',
+      });
+
       return NextResponse.json({
         success: true,
         messageId: requestedId,
@@ -881,6 +896,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: updateErr.message }, { status: 500 });
       }
 
+      void triggerCompanyChatEvent({
+        projectId: id,
+        messageId: requestedId,
+        action: 'message_updated',
+      });
+
       return NextResponse.json({
         success: true,
         messageId: requestedId,
@@ -939,7 +960,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
       if (storagePaths.length > 0) {
         try {
-          await admin.storage.from('project-attachments').remove(storagePaths);
+          await removeStorageObjects(admin, 'project-attachments', storagePaths);
         } catch (storageErr) {
           console.warn('Failed to remove deleted message attachments from storage:', storageErr);
         }
@@ -949,6 +970,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         .from('project_message_attachments')
         .delete()
         .eq('message_id', requestedId);
+
+      void triggerCompanyChatEvent({
+        projectId: id,
+        messageId: requestedId,
+        action: 'message_deleted',
+      });
 
       return NextResponse.json({
         success: true,

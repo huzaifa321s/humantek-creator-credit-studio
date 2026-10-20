@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { UploadedFile } from '@/types';
 import { REFERENCE_LIMITS } from '@/lib/validation';
+import { createStorageSignedViewUrls, listStorageFolder } from '@/lib/storage';
 
 /**
  * Step 4 reference images live in the private `project-references` bucket at:
@@ -86,50 +87,39 @@ export async function listUserDraftReferences(
   }));
 }
 
-/** Lists stored objects directly from the storage bucket. */
+/** Lists stored objects directly from the configured storage provider. */
 export async function listStoredReferences(
   admin: SupabaseClient,
   projectId: string,
   userId?: string
 ): Promise<StoredReference[]> {
   const folder = userId ? referenceFolder(userId, projectId) : `references/${projectId}`;
-  const { data, error } = await admin.storage
-    .from(REFERENCE_LIMITS.bucket)
-    .list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'asc' } });
+  const { data, error } = await listStorageFolder(admin, REFERENCE_LIMITS.bucket, folder);
 
-  if (error) {
+  if (error || !data) {
     // If user folder doesn't exist, try legacy folder
     if (userId) {
-      const fallback = await admin.storage
-        .from(REFERENCE_LIMITS.bucket)
-        .list(`references/${projectId}`, { limit: 100, sortBy: { column: 'created_at', order: 'asc' } });
+      const fallback = await listStorageFolder(admin, REFERENCE_LIMITS.bucket, `references/${projectId}`);
       if (!fallback.error && fallback.data) {
-        return (fallback.data || [])
-          .filter((obj) => obj.id)
-          .map((obj) => ({
-            storagePath: `references/${projectId}/${obj.name}`,
-            filename: obj.name.replace(/^[0-9a-f-]{36}-/i, ''),
-            size: Number((obj.metadata as { size?: number })?.size) || 0,
-            mimeType: (obj.metadata as { mimetype?: string })?.mimetype || 'application/octet-stream',
-            createdAt: obj.created_at || null,
-          }));
+        return fallback.data.map((obj) => ({
+          storagePath: `references/${projectId}/${obj.name}`,
+          filename: obj.name.replace(/^[0-9a-f-]{36}-/i, ''),
+          size: obj.size,
+          mimeType: obj.mimeType,
+          createdAt: obj.createdAt,
+        }));
       }
     }
     return [];
   }
 
-  return (data || [])
-    .filter((obj) => obj.id)
-    .map((obj) => {
-      const meta = (obj.metadata || {}) as { size?: number; mimetype?: string };
-      return {
-        storagePath: `${folder}/${obj.name}`,
-        filename: obj.name.replace(/^[0-9a-f-]{36}-/i, ''),
-        size: Number(meta.size) || 0,
-        mimeType: meta.mimetype || 'application/octet-stream',
-        createdAt: obj.created_at || null,
-      };
-    });
+  return data.map((obj) => ({
+    storagePath: `${folder}/${obj.name}`,
+    filename: obj.name.replace(/^[0-9a-f-]{36}-/i, ''),
+    size: obj.size,
+    mimeType: obj.mimeType,
+    createdAt: obj.createdAt,
+  }));
 }
 
 /**
@@ -269,16 +259,7 @@ export async function signReferenceFiles(
   const paths = list.map((f) => f.storagePath).filter((p): p is string => Boolean(p));
   if (paths.length === 0) return list;
 
-  const { data, error } = await admin.storage
-    .from(REFERENCE_LIMITS.bucket)
-    .createSignedUrls(paths, ttlSeconds);
-
-  if (error || !data) {
-    console.error('Could not sign reference images:', error);
-    return list.map((f) => (f.storagePath ? { ...f, url: '' } : f));
-  }
-
-  const urls = new Map(data.map((d) => [d.path, d.signedUrl]));
+  const urls = await createStorageSignedViewUrls(admin, REFERENCE_LIMITS.bucket, paths, ttlSeconds);
   return list.map((f) => (f.storagePath ? { ...f, url: urls.get(f.storagePath) || '' } : f));
 }
 

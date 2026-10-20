@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { REFERENCE_LIMITS } from '@/lib/validation';
+import { removeStorageObjects } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +79,6 @@ export async function POST(req: NextRequest) {
   const dryRun = isQueryDryRun || isBodyDryRun;
 
   const admin = createAdminClient();
-  const bucket = admin.storage.from(REFERENCE_LIMITS.bucket);
   const cutoffIso = new Date(Date.now() - REFERENCE_LIMITS.abandonedAfterMs).toISOString();
 
   let scanned = 0;
@@ -129,8 +129,12 @@ export async function POST(req: NextRequest) {
       const batchBytes = pendingRows.reduce((acc, r) => acc + (Number(r.size) || 0), 0);
 
       if (!dryRun) {
-        // Delete physical files from Supabase Storage
-        const { error: removeErr } = await bucket.remove(pathsToDelete);
+        // Delete physical files from configured Storage Provider (Company Hub or Supabase)
+        const { error: removeErr } = await removeStorageObjects(
+          admin,
+          REFERENCE_LIMITS.bucket,
+          pathsToDelete
+        );
         if (removeErr) {
           console.error('Storage deletion batch error:', removeErr);
         }

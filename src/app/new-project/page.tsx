@@ -1082,10 +1082,10 @@ export default function CreatorStudioPage() {
         if (!res.ok) throw new Error(data.error || 'Could not prepare the upload');
 
         // 2. Browser uploads straight to Supabase Storage (bypasses the app server).
-        const { error: uploadErr } = await storage.uploadToSignedUrl(data.upload.storagePath, data.upload.token, file, {
+        if (data.upload?.provider === 'company' && data.upload?.uploadUrl) { const putRes = await fetch(data.upload.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file }); if (!putRes.ok) throw new Error(`Upload failed (${putRes.status})`); } else { const { error: uploadErr } = await storage.uploadToSignedUrl(data.upload.storagePath, data.upload.token, file, {
           contentType: file.type,
         });
-        if (uploadErr) throw new Error(uploadErr.message || 'Upload failed');
+        if (uploadErr) throw new Error(uploadErr.message || 'Upload failed'); }
 
         // 3. Draft keeps only metadata + a local preview (never the image bytes).
         setUploadedFiles((prev) => [

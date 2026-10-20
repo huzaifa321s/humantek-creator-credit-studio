@@ -15,7 +15,135 @@ export interface ChatTransport {
 }
 
 /**
- * Supabase Realtime Broadcast implementation of ChatTransport.
+ * 1. Company Server Pusher Protocol v7 WebSocket Transport (Zero-Dependency).
+ * Connects directly to your 24/7 Company Server's `embeddedPusher` WebSocket endpoint
+ * (`/app/<APP_KEY>?protocol=7&client=js&version=7.0.0`), eliminating all Supabase
+ * Realtime connection and message quotas when `NEXT_PUBLIC_CHAT_TRANSPORT=company`.
+ */
+export class CompanyPusherTransport implements ChatTransport {
+  subscribe(
+    projectId: string,
+    onEvent: (event: ChatEvent) => void,
+    onError?: (error: unknown) => void
+  ): () => void {
+    if (typeof window === 'undefined') return () => {};
+
+    const topic = `project:${projectId}`;
+    const rawHubUrl = (process.env.NEXT_PUBLIC_COMPANY_HUB_URL || '').trim().replace(/\/+$/, '');
+    const appKey = (process.env.NEXT_PUBLIC_PUSHER_KEY || 'company-app-key').trim();
+
+    if (!rawHubUrl) {
+      return () => {};
+    }
+
+    const wsBase = rawHubUrl.replace(/^http:\/\//i, 'ws://').replace(/^https:\/\//i, 'wss://');
+    const wsUrl = `${wsBase}/app/${encodeURIComponent(appKey)}?protocol=7&client=js&version=7.0.0`;
+
+    let isCancelled = false;
+    let ws: WebSocket | null = null;
+    let pingTimer: ReturnType<typeof setInterval> | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      if (isCancelled) return;
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (err) {
+        if (onError) onError(err);
+        return;
+      }
+
+      ws.onopen = () => {
+        if (isCancelled || !ws) return;
+        // Keep connection alive with Pusher v7 ping every 45s
+        if (pingTimer) clearInterval(pingTimer);
+        pingTimer = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
+          }
+        }, 45_000);
+      };
+
+      ws.onmessage = (event) => {
+        if (isCancelled || !ws) return;
+        try {
+          const msg = JSON.parse(String(event.data));
+          const eventName: string = msg.event || '';
+          let payload = msg.data;
+          if (typeof payload === 'string' && payload.startsWith('{')) {
+            try {
+              payload = JSON.parse(payload);
+            } catch {}
+          }
+
+          // Handshake complete -> subscribe to project channel
+          if (eventName === 'pusher:connection_established') {
+            ws.send(
+              JSON.stringify({
+                event: 'pusher:subscribe',
+                data: { channel: topic },
+              })
+            );
+            return;
+          }
+
+          // Broadcast event received on channel
+          if (
+            (eventName === 'new_message' || eventName === 'client-new_message') &&
+            (!msg.channel || msg.channel === topic)
+          ) {
+            const pId = payload?.project_id || payload?.projectId || projectId;
+            const mId = Number(payload?.message_id ?? payload?.messageId ?? 0);
+            onEvent({
+              projectId: pId,
+              messageId: mId,
+              kind: payload?.kind,
+            });
+          }
+        } catch {}
+      };
+
+      ws.onerror = (err) => {
+        if (onError) onError(err);
+      };
+
+      ws.onclose = () => {
+        if (pingTimer) {
+          clearInterval(pingTimer);
+          pingTimer = null;
+        }
+        if (!isCancelled) {
+          reconnectTimer = setTimeout(connect, 3000);
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      isCancelled = true;
+      if (pingTimer) clearInterval(pingTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) {
+        try {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                event: 'pusher:unsubscribe',
+                data: { channel: topic },
+              })
+            );
+          }
+          ws.close();
+        } catch {}
+        ws = null;
+      }
+    };
+  }
+}
+
+/**
+ * 2. Supabase Realtime Broadcast implementation of ChatTransport.
  * Uses broadcast and postgres_changes channels (project:<id>).
  */
 export class SupabaseRealtimeTransport implements ChatTransport {
@@ -114,4 +242,18 @@ export class SupabaseRealtimeTransport implements ChatTransport {
   }
 }
 
-export const defaultChatTransport: ChatTransport = new SupabaseRealtimeTransport();
+/**
+ * Dual-mode transport selector:
+ * Uses `CompanyPusherTransport` when `NEXT_PUBLIC_CHAT_TRANSPORT=company` and
+ * `NEXT_PUBLIC_COMPANY_HUB_URL` is configured; otherwise defaults to `SupabaseRealtimeTransport`.
+ */
+function createDefaultChatTransport(): ChatTransport {
+  const mode = (process.env.NEXT_PUBLIC_CHAT_TRANSPORT || 'supabase').trim().toLowerCase();
+  const hubUrl = (process.env.NEXT_PUBLIC_COMPANY_HUB_URL || '').trim();
+  if (mode === 'company' && hubUrl) {
+    return new CompanyPusherTransport();
+  }
+  return new SupabaseRealtimeTransport();
+}
+
+export const defaultChatTransport: ChatTransport = createDefaultChatTransport();

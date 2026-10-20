@@ -16,6 +16,7 @@ import {
   sanitizeReferenceFilename,
   signReferenceFiles,
 } from '@/lib/references';
+import { createStorageSignedUploadUrl, removeStorageObjects } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -160,27 +161,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not initialize upload record.' }, { status: 500 });
     }
 
-    // 7. Issue Signed Upload URL
-    const { data: uploadData, error: storageErr } = await admin.storage
-      .from(REFERENCE_LIMITS.bucket)
-      .createSignedUploadUrl(storagePath);
+    // 7. Issue Signed Upload URL (Company Hub or Supabase Storage)
+    const { data: uploadData, error: storageErr } = await createStorageSignedUploadUrl(
+      admin,
+      REFERENCE_LIMITS.bucket,
+      storagePath
+    );
 
     if (storageErr || !uploadData) {
       // Rollback DB record if signed upload URL creation failed
       await admin.from('project_uploads').delete().eq('id', uploadRow.id);
-      console.error('createSignedUploadUrl failed:', storageErr);
+      console.error('createStorageSignedUploadUrl failed:', storageErr);
       return NextResponse.json({ error: "Couldn't prepare upload link. Please try again." }, { status: 502 });
     }
 
     return NextResponse.json({
       success: true,
-      upload: { storagePath: uploadData.path || storagePath, token: uploadData.token },
+      upload: {
+        provider: uploadData.provider,
+        storagePath: uploadData.storagePath,
+        token: uploadData.token,
+        uploadUrl: uploadData.uploadUrl,
+      },
       file: {
         id: uploadRow.id,
         filename: safeName,
         size,
         mimeType,
-        storagePath: uploadData.path || storagePath,
+        storagePath: uploadData.storagePath,
       },
     });
   } catch (err) {
@@ -281,10 +289,12 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'File not found or unauthorized' }, { status: 404 });
     }
 
-    // 1. Remove from storage
-    const { error: storageErr } = await admin.storage
-      .from(REFERENCE_LIMITS.bucket)
-      .remove([record.storage_path]);
+    // 1. Remove from configured storage provider
+    const { error: storageErr } = await removeStorageObjects(
+      admin,
+      REFERENCE_LIMITS.bucket,
+      [record.storage_path]
+    );
 
     if (storageErr) {
       console.warn('Storage deletion warning:', storageErr);

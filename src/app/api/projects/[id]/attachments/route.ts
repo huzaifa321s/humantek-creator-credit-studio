@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { createStorageSignedViewUrl, uploadStorageObject } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,9 +96,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const fileName = sanitizeFilename(file.name);
     const storagePath = `projects/${id}/${crypto.randomUUID()}-${fileName}`;
 
-    const { error: uploadErr } = await admin.storage
-      .from(BUCKET)
-      .upload(storagePath, file, { contentType: file.type, upsert: false });
+    const { error: uploadErr } = await uploadStorageObject(
+      admin,
+      BUCKET,
+      storagePath,
+      file,
+      file.type
+    );
 
     if (uploadErr) {
       console.error('Chat attachment upload failed:', uploadErr);
@@ -107,7 +112,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(storagePath, 3600);
+    const signedUrl = await createStorageSignedViewUrl(admin, BUCKET, storagePath, 3600);
 
     return NextResponse.json({
       success: true,
@@ -116,7 +121,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         fileName,
         fileSize: file.size,
         mimeType: file.type,
-        url: signed?.signedUrl || null,
+        url: signedUrl,
       },
     });
   } catch (err) {
