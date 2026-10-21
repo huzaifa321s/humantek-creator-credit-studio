@@ -85,17 +85,26 @@ export default function NotificationsPage() {
   // Refresh the list when a new notification arrives via Realtime
   useEffect(() => {
     if (!user?.id) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`notifications-page-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        () => void queryClient.invalidateQueries({ queryKey: notificationKeys.all })
-      )
-      .subscribe();
+    let activeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
+    let supabaseClient: ReturnType<typeof createClient> | null = null;
+
+    const connectTimer = setTimeout(() => {
+      supabaseClient = createClient();
+      activeChannel = supabaseClient
+        .channel(`notifications-page-${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          () => void queryClient.invalidateQueries({ queryKey: notificationKeys.all })
+        )
+        .subscribe();
+    }, 50);
+
     return () => {
-      supabase.removeChannel(channel);
+      clearTimeout(connectTimer);
+      if (activeChannel && supabaseClient) {
+        void supabaseClient.removeChannel(activeChannel);
+      }
     };
   }, [user?.id, queryClient]);
 
