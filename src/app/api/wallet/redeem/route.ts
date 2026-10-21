@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     const cleanUserEmail = user.email.trim().toLowerCase();
     const recipientName = user.name || cleanUserEmail.split('@')[0] || 'Creator';
     const ownerEmail =
-      (process.env.STUDIO_OWNER_EMAIL || '').trim().toLowerCase() || 'admin@humantek.art';
+      (process.env.STUDIO_OWNER_EMAIL || '').trim().toLowerCase() || 'admin-credits@humantekart.com';
 
     // 1. Production / Real Supabase Path (Atomic PostgreSQL RPC)
     if (isSupabaseConfigured() && user.id && !user.isDevFallback) {

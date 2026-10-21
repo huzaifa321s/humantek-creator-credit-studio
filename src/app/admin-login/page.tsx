@@ -193,7 +193,7 @@ export default function AdminLoginPage() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@humantek.art"
+                    placeholder="admin-credits@humantekart.com"
                     disabled={isLoading}
                     className="h-10 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:border-amber-400 focus-visible:ring-amber-400/20"
                   />

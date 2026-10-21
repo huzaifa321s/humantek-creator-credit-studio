@@ -148,7 +148,7 @@ export function TeamAccessPageContent() {
   const [memberToRemove, setMemberToRemove] = useState<TeamMemberRecord | null>(null);
 
   const members = useMemo(() => data?.members || [], [data?.members]);
-  const ownerEmail = data?.ownerEmail || 'admin@humantek.art';
+  const ownerEmail = data?.ownerEmail || 'admin-credits@humantekart.com';
   const currentUserRole: TeamRole =
     data?.currentUserRole || user?.teamRole || 'manager';
   const isOwner = Boolean(data?.canManageTeam || currentUserRole === 'owner');
