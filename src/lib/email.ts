@@ -558,6 +558,19 @@ function resolveFromHeader(smtpUser: string): string {
   return `"${raw.replace(/"/g, '')}" <${smtpUser}>`;
 }
 
+function resolveFromAddress(smtpUser: string): string {
+  const raw = cleanEnvValue(process.env.EMAIL_FROM);
+  if (!raw) return smtpUser;
+  const angleMatch = raw.match(/<([^>]+)>/);
+  if (angleMatch && angleMatch[1]?.includes('@')) {
+    return cleanEnvValue(angleMatch[1]);
+  }
+  if (raw.includes('@') && !raw.includes(' ')) {
+    return raw;
+  }
+  return smtpUser;
+}
+
 function createSmtpTransporter(portOverride?: number): Transporter | null {
   const rawHost = cleanEnvValue(process.env.SMTP_HOST);
   const host = rawHost.toLowerCase() === 'mail.humantekart.com' ? 'chp05.wehostwebserver.com' : rawHost;
@@ -570,7 +583,10 @@ function createSmtpTransporter(portOverride?: number): Transporter | null {
     ? cleanEnvValue(process.env.SMTP_SECURE) === 'true'
     : port === 465;
 
+  const senderDomain = (user.split('@')[1] || 'humantekart.com').trim();
+
   return nodemailer.createTransport({
+    name: senderDomain,
     host,
     port,
     secure,
@@ -615,7 +631,10 @@ export async function sendStudioEmail(
   }
 
   const from = resolveFromHeader(smtpUser);
-  const replyTo = cleanEnvValue(process.env.EMAIL_REPLY_TO);
+  const fromAddress = resolveFromAddress(smtpUser);
+  const senderDomain = (fromAddress.split('@')[1] || 'humantekart.com').trim();
+  const replyTo = cleanEnvValue(process.env.EMAIL_REPLY_TO) || fromAddress;
+  const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2, 10)}@${senderDomain}>`;
   const nodemailerAttachments = payload.attachments?.map((att) => ({
     filename: att.filename,
     content: Buffer.isBuffer(att.content)
@@ -625,11 +644,17 @@ export async function sendStudioEmail(
   }));
   const mailOptions = {
     from,
+    sender: fromAddress,
+    replyTo,
     to: payload.to,
     subject: payload.subject,
+    messageId,
     html: payload.html,
     text: payload.text,
-    ...(replyTo ? { replyTo } : {}),
+    headers: {
+      'X-Entity-Ref-ID': dispatchResult.id,
+      'Auto-Submitted': 'auto-generated',
+    },
     ...(nodemailerAttachments?.length ? { attachments: nodemailerAttachments } : {}),
   };
 
