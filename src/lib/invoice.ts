@@ -487,8 +487,19 @@ async function renderProjectInvoiceDocument(
   // 2. Client & Order Details Two-Column Cards
   // ---------------------------------------------------------------------------
   let y = 134;
-  const cardHeight = 110;
+  const cardHeight = 114;
   const colWidth = (contentWidth - 16) / 2;
+  const leftValX = margin + 62;
+  const maxLeftValWidth = colWidth - 76;
+
+  const fitText = (str: string, maxW: number): string => {
+    if (doc.getTextWidth(str) <= maxW) return str;
+    let trimmed = str;
+    while (trimmed.length > 3 && doc.getTextWidth(`${trimmed}…`) > maxW) {
+      trimmed = trimmed.slice(0, -1);
+    }
+    return `${trimmed}…`;
+  };
 
   // Left Card: Client Details
   doc.setFillColor(250, 250, 250);
@@ -504,52 +515,61 @@ async function renderProjectInvoiceDocument(
   doc.setFont(fontSans, 'bold');
   doc.setFontSize(11);
   const clientDisplay = project.clientName || project.channelName || 'Creator Client';
-  doc.text(clientDisplay.slice(0, 36), margin + 14, y + 35);
+  doc.text(fitText(clientDisplay, colWidth - 28), margin + 14, y + 35);
 
-  doc.setTextColor(82, 82, 91);
-  doc.setFont(fontSans, 'normal');
-  doc.setFontSize(8.8);
-  if (project.email) {
-    doc.text(`Email: ${project.email.slice(0, 36)}`, margin + 14, y + 50);
-  } else {
-    doc.text(
-      `Channel: ${(project.channelName || 'Not specified').slice(0, 34)}`,
-      margin + 14,
-      y + 50
-    );
-  }
-  doc.text(
-    `Channel: ${(project.channelName || 'Not specified').slice(0, 22)}  ·  Platform: ${project.platform || 'General'}`,
-    margin + 14,
-    y + 65
+  const drawLeftRow = (label: string, value: string, rowY: number, boldValue = false) => {
+    doc.setTextColor(113, 113, 122);
+    doc.setFont(fontSans, 'normal');
+    doc.setFontSize(8.8);
+    doc.text(label, margin + 14, rowY);
+
+    doc.setTextColor(24, 24, 27);
+    doc.setFont(fontSans, boldValue ? 'bold' : 'normal');
+    doc.setFontSize(8.8);
+    doc.text(fitText(value, maxLeftValWidth), leftValX, rowY);
+  };
+
+  drawLeftRow('Email:', project.email || 'Not specified', y + 51);
+  drawLeftRow(
+    'Channel:',
+    `${project.channelName || 'Not specified'}  ·  ${project.platform || 'General'}`,
+    y + 66
   );
-  doc.text(
-    `Style: ${(project.style || 'Custom Art').slice(0, 30)}`,
-    margin + 14,
-    y + 80
-  );
+  drawLeftRow('Style:', project.style || 'Custom Art', y + 81);
 
   // Color Palette Row with rendered Swatch Circles
-  const colorLabel = (project.colors || 'Brand Colors').slice(0, 24);
+  const colorLabel = project.colors || 'Brand Colors';
   const swatches = resolvePaletteSwatches(project.colors).slice(0, 4);
-  doc.text('Colors:', margin + 14, y + 95);
+  doc.setTextColor(113, 113, 122);
+  doc.setFont(fontSans, 'normal');
+  doc.setFontSize(8.8);
+  doc.text('Colors:', margin + 14, y + 96);
 
-  let colorCursorX = margin + 14 + doc.getTextWidth('Color Palette:') + 6;
+  let colorCursorX = leftValX;
   for (const hex of swatches) {
     const rgb = hexToRgb(hex);
     if (rgb) {
       doc.setFillColor(rgb.r, rgb.g, rgb.b);
       doc.setDrawColor(212, 212, 216);
-      doc.circle(colorCursorX + 3.5, y + 92, 3.5, 'FD');
+      doc.circle(colorCursorX + 3.5, y + 93, 3.5, 'FD');
       colorCursorX += 9;
     }
   }
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontSans, 'bold');
-  doc.text(colorLabel, colorCursorX + (swatches.length > 0 ? 2 : 0), y + 95);
+  doc.setFontSize(8.8);
+  const swatchOffset = swatches.length > 0 ? swatches.length * 9 + 2 : 0;
+  doc.text(
+    fitText(colorLabel, maxLeftValWidth - swatchOffset),
+    colorCursorX + (swatches.length > 0 ? 2 : 0),
+    y + 96
+  );
 
   // Right Card: Order Summary
   const rightCardX = margin + colWidth + 16;
+  const rightValX = rightCardX + 68;
+  const maxRightValWidth = colWidth - 82;
+
   doc.setFillColor(250, 250, 250);
   doc.setDrawColor(228, 228, 231);
   doc.roundedRect(rightCardX, y, colWidth, cardHeight, 8, 8, 'FD');
@@ -561,34 +581,36 @@ async function renderProjectInvoiceDocument(
 
   doc.setTextColor(82, 82, 91);
   doc.setFont(fontSans, 'bold');
-  doc.setFontSize(10);
-  doc.text('Project Code:', rightCardX + 14, y + 35);
-  const codeLabelWidth = doc.getTextWidth('Project Code:') + 5;
+  doc.setFontSize(9.5);
+  doc.text('Project:', rightCardX + 14, y + 35);
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontMono, 'bold');
-  doc.setFontSize(10);
-  doc.text(project.projectCode, rightCardX + 14 + codeLabelWidth, y + 35);
+  doc.setFontSize(9.5);
+  doc.text(fitText(project.projectCode, maxRightValWidth), rightValX, y + 35);
 
-  doc.setTextColor(82, 82, 91);
-  doc.setFont(fontSans, 'normal');
-  doc.setFontSize(8.8);
-  doc.text(`Package: ${packageName}`, rightCardX + 14, y + 52);
-  doc.text(
-    `Payment: ${
-      isWalletFunded
-        ? 'Studio Wallet Credits'
-        : platform !== 'none'
-          ? PAYMENT_PLATFORM_LABELS[platform]
-          : 'Manual Order Review'
-    }`,
-    rightCardX + 14,
+  const drawRightRow = (label: string, value: string, rowY: number) => {
+    doc.setTextColor(113, 113, 122);
+    doc.setFont(fontSans, 'normal');
+    doc.setFontSize(8.8);
+    doc.text(label, rightCardX + 14, rowY);
+
+    doc.setTextColor(24, 24, 27);
+    doc.setFont(fontSans, 'normal');
+    doc.setFontSize(8.8);
+    doc.text(fitText(value, maxRightValWidth), rightValX, rowY);
+  };
+
+  drawRightRow('Package:', packageName, y + 52);
+  drawRightRow(
+    'Payment:',
+    isWalletFunded
+      ? 'Studio Wallet Credits'
+      : platform !== 'none'
+        ? PAYMENT_PLATFORM_LABELS[platform]
+        : 'Manual Order Review',
     y + 69
   );
-  doc.text(
-    `Status: ${getProjectStatusLabel(project.status)}`,
-    rightCardX + 14,
-    y + 86
-  );
+  drawRightRow('Status:', getProjectStatusLabel(project.status), y + 86);
 
   y += cardHeight + 24;
 
@@ -690,7 +712,7 @@ async function renderProjectInvoiceDocument(
       doc.setFont(fontMono, 'normal');
       doc.setFontSize(8.5);
       doc.text(`${qty}x`, margin + 365, y + 15, { align: 'right' });
-      doc.text(`${unitCr} CR`, margin + 430, y + 15, { align: 'right' });
+      doc.text(`${unitCr} CR`, margin + 435, y + 15, { align: 'right' });
 
       doc.setTextColor(24, 24, 27);
       doc.setFont(fontMono, 'bold');
@@ -738,7 +760,7 @@ async function renderProjectInvoiceDocument(
 
   const summaryBoxWidth = 250;
   const summaryBoxX = pageWidth - margin - summaryBoxWidth;
-  const summaryBoxHeight = isWalletFunded ? 94 : 114;
+  const summaryBoxHeight = isWalletFunded ? 98 : 118;
 
   doc.setFillColor(250, 250, 250);
   doc.setDrawColor(212, 212, 216);
@@ -749,7 +771,7 @@ async function renderProjectInvoiceDocument(
   if (!isWalletFunded) {
     doc.setTextColor(82, 82, 91);
     doc.setFont(fontSans, 'normal');
-    doc.setFontSize(9.5);
+    doc.setFontSize(9.2);
     doc.text('Credits in Package:', summaryBoxX + 14, sy);
     doc.setTextColor(24, 24, 27);
     doc.setFont(fontMono, 'bold');
@@ -760,7 +782,7 @@ async function renderProjectInvoiceDocument(
 
   doc.setTextColor(82, 82, 91);
   doc.setFont(fontSans, 'normal');
-  doc.setFontSize(9.5);
+  doc.setFontSize(9.2);
   doc.text('Credits Used for Services:', summaryBoxX + 14, sy);
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontMono, 'bold');
@@ -768,10 +790,20 @@ async function renderProjectInvoiceDocument(
   doc.text(`-${usedCredits} CR`, summaryBoxX + summaryBoxWidth - 14, sy, { align: 'right' });
   sy += 18;
 
-  if (!isWalletFunded) {
+  if (isWalletFunded) {
     doc.setTextColor(82, 82, 91);
     doc.setFont(fontSans, 'normal');
-    doc.setFontSize(9.5);
+    doc.setFontSize(9.2);
+    doc.text('Funding Method:', summaryBoxX + 14, sy);
+    doc.setTextColor(16, 185, 129);
+    doc.setFont(fontSans, 'bold');
+    doc.setFontSize(9);
+    doc.text('Studio Wallet Credits', summaryBoxX + summaryBoxWidth - 14, sy, { align: 'right' });
+    sy += 16;
+  } else {
+    doc.setTextColor(82, 82, 91);
+    doc.setFont(fontSans, 'normal');
+    doc.setFontSize(9.2);
     doc.text('Remaining in Your Wallet:', summaryBoxX + 14, sy);
     doc.setTextColor(16, 185, 129);
     doc.setFont(fontMono, 'bold');
@@ -783,15 +815,15 @@ async function renderProjectInvoiceDocument(
   // Divider inside summary box
   doc.setDrawColor(228, 228, 231);
   doc.line(summaryBoxX + 14, sy - 4, summaryBoxX + summaryBoxWidth - 14, sy - 4);
-  sy += 14;
+  sy += 15;
 
-  // Total USD Line
+  // Total USD Line (guaranteed no overlap between left label and right value)
   doc.setTextColor(24, 24, 27);
   doc.setFont(fontSans, 'bold');
-  doc.setFontSize(10.5);
+  doc.setFontSize(10);
   doc.text(
     isWalletFunded
-      ? 'Total Due:'
+      ? 'Total Due (USD):'
       : isPaid
         ? 'Total Paid (USD):'
         : 'Total Due (USD):',
@@ -800,10 +832,10 @@ async function renderProjectInvoiceDocument(
   );
 
   doc.setFont(fontMono, 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(10.5);
   doc.text(
     isWalletFunded
-      ? '$0.00 USD (Paid with Credits)'
+      ? '$0.00 USD'
       : `$${usdAmount.toLocaleString('en-US', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
