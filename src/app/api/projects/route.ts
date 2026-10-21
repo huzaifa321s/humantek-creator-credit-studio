@@ -3,6 +3,7 @@ import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { orderRequestSchema, patchProjectSchema, firstIssue } from '@/lib/validation';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
+import { generateProjectInvoicePdfBytes, type InvoiceProjectInput } from '@/lib/invoice';
 import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import {
   getProjects,
@@ -25,6 +26,17 @@ import {
   sanitizeSearchQuery,
   PAGINATION_LIMITS,
 } from '@/lib/pagination';
+
+async function buildProjectInvoiceAttachment(project: InvoiceProjectInput | null | undefined) {
+  if (!project) return undefined;
+  try {
+    const pdf = await generateProjectInvoicePdfBytes(project);
+    return [{ filename: pdf.filename, content: pdf.content, contentType: 'application/pdf' }];
+  } catch (err) {
+    console.warn('[Projects] Could not generate invoice PDF attachment:', err);
+    return undefined;
+  }
+}
 
 
 export async function GET(req: NextRequest) {
@@ -738,6 +750,9 @@ export async function POST(req: NextRequest) {
           .eq('id', parsed.data.projectId)
           .single();
 
+        const formattedUnpaidProject = freshProj ? formatDbProject(freshProj) : null;
+        const unpaidInvoiceAttachments = await buildProjectInvoiceAttachment(formattedUnpaidProject);
+
         // Major action notification: Brief submitted
         await createNotification({
           userId: user.id,
@@ -748,12 +763,16 @@ export async function POST(req: NextRequest) {
             badge: 'Order Confirmation',
             details: [
               ['Project', projectCode],
+              ['Invoice', `INV-${projectCode}`],
               ['Package', pkg.name],
               ['Credits', `${totalCreditsRequired} Credits`],
               ['Status', 'Awaiting studio review'],
             ],
+            secondaryCtaLabel: 'Download Invoice PDF',
+            secondaryCtaUrl: `/projects/${parsed.data.projectId}?invoice=1`,
+            attachments: unpaidInvoiceAttachments,
           },
-          message: `We received your ${pkg.name} brief (${totalCreditsRequired} Credits scope) and will review it shortly.`,
+          message: `We received your ${pkg.name} brief (${totalCreditsRequired} Credits scope) and will review it shortly. Your official project invoice (INV-${projectCode}) is attached to this email.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
@@ -771,9 +790,11 @@ export async function POST(req: NextRequest) {
             details: [
               ['Client', ownerName],
               ['Project', projectCode],
+              ['Invoice', `INV-${projectCode}`],
               ['Package', pkg.name],
               ['Credits', `${totalCreditsRequired} Credits`],
             ],
+            attachments: unpaidInvoiceAttachments,
           },
           message: `${ownerName} submitted a ${pkg.name} brief (${totalCreditsRequired} Credits) for review.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
@@ -785,7 +806,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          project: freshProj ? formatDbProject(freshProj) : null,
+          project: formattedUnpaidProject,
           fundingSource: parsed.data.fundingSource || 'package',
           notificationStatus: 'sent',
           message: 'Project brief submitted for manual studio review!',
@@ -884,6 +905,7 @@ export async function POST(req: NextRequest) {
       // Major action notification: Project started with credits (only on initial creation, not replay)
       if (!rpcRes?.replayed) {
         const spentCredits = project?.usedCredits || Number(projRow?.total_credits) || 0;
+        const walletInvoiceAttachments = await buildProjectInvoiceAttachment(project);
         await createNotification({
           userId: user.id,
           type: 'project_status',
@@ -893,11 +915,15 @@ export async function POST(req: NextRequest) {
             badge: 'Order Confirmation',
             details: [
               ['Project', projectCode],
+              ['Invoice', `INV-${projectCode}`],
               ['Credits used', `${spentCredits} Credits`],
               ['Funding', 'Studio Wallet'],
             ],
+            secondaryCtaLabel: 'Download Invoice PDF',
+            secondaryCtaUrl: `/projects/${parsed.data.projectId}?invoice=1`,
+            attachments: walletInvoiceAttachments,
           },
-          message: `Your project (${spentCredits} Credits) was funded with Studio Wallet credits and is now queued.`,
+          message: `Your project (${spentCredits} Credits) was funded with Studio Wallet credits and is now queued. Your official receipt & invoice (INV-${projectCode}) is attached.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
           actionId: parsed.data.projectId,
@@ -915,8 +941,10 @@ export async function POST(req: NextRequest) {
             details: [
               ['Client', ownerName],
               ['Project', projectCode],
+              ['Invoice', `INV-${projectCode}`],
               ['Credits used', `${spentCredits} Credits`],
             ],
+            attachments: walletInvoiceAttachments,
           },
           message: `${ownerName} started a new project (${spentCredits} Credits) with wallet credits.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
@@ -1278,6 +1306,15 @@ export async function PATCH(req: NextRequest) {
           const surplusCredits = isPackageFunding ? Math.max(0, effectivePkgCredits - totalUsed) : 0;
           const pkgLabel = currentProj.package_name || catalogPkg?.name || 'Studio Package';
 
+          const { data: paidProjForInvoice } = await adminClient
+            .from('projects')
+            .select('*, project_items(*), project_additions(*)')
+            .eq('id', id)
+            .maybeSingle();
+          const paidInvoiceAttachments = await buildProjectInvoiceAttachment(
+            paidProjForInvoice ? formatDbProject(paidProjForInvoice) : null
+          );
+
           notifiedPaymentConfirmed = true;
           await createNotification({
             userId: currentProj.user_id,
@@ -1287,10 +1324,14 @@ export async function PATCH(req: NextRequest) {
               badge: 'Payment Receipt',
               details: [
                 ['Project', currentProj.project_code],
+                ['Invoice', `INV-${currentProj.project_code}`],
                 ['Package', pkgLabel],
                 ['Credits allocated', `${totalUsed} Credits`],
                 ...(surplusCredits > 0 ? ([['Added to wallet', `+${surplusCredits} Credits`]] as Array<[string, string]>) : []),
               ],
+              secondaryCtaLabel: 'Download Invoice PDF',
+              secondaryCtaUrl: `/projects/${id}?invoice=1`,
+              attachments: paidInvoiceAttachments,
             },
             title:
               surplusCredits > 0
@@ -1298,8 +1339,8 @@ export async function PATCH(req: NextRequest) {
                 : `Payment confirmed · ${currentProj.project_code}`,
             message:
               surplusCredits > 0
-                ? `Payment confirmed for ${currentProj.project_code} (${pkgLabel}). ${totalUsed} Credits allocated to your project and +${surplusCredits} Credits added to your Studio Wallet.`
-                : `Payment confirmed for ${currentProj.project_code} (${pkgLabel} · ${totalUsed} Credits). Your project is funded and ready for production.`,
+                ? `Payment confirmed for ${currentProj.project_code} (${pkgLabel}). ${totalUsed} Credits allocated to your project and +${surplusCredits} Credits added to your Studio Wallet. Your official receipt & invoice (INV-${currentProj.project_code}) is attached.`
+                : `Payment confirmed for ${currentProj.project_code} (${pkgLabel} · ${totalUsed} Credits). Your project is funded and ready for production. Your official receipt & invoice (INV-${currentProj.project_code}) is attached.`,
             link: `/projects/${id}`,
             actionLabel: 'View Project',
             actionId: id,
@@ -1399,6 +1440,7 @@ export async function PATCH(req: NextRequest) {
     if (updatedProj && updatedProj.user_id && status !== currentProj.status) {
       const pCode = updatedProj.project_code || id;
       if (status === 'payment_confirmed' && !notifiedPaymentConfirmed) {
+        const paidInvoiceAttachments = await buildProjectInvoiceAttachment(formatDbProject(updatedProj));
         await createNotification({
           userId: updatedProj.user_id,
           type: 'payment_confirmed',
@@ -1406,9 +1448,16 @@ export async function PATCH(req: NextRequest) {
           email: {
             category: 'payment_receipt_client',
             badge: 'Payment Receipt',
-            details: [['Project', pCode], ['Status', 'Payment confirmed']],
+            details: [
+              ['Project', pCode],
+              ['Invoice', `INV-${pCode}`],
+              ['Status', 'Payment confirmed'],
+            ],
+            secondaryCtaLabel: 'Download Invoice PDF',
+            secondaryCtaUrl: `/projects/${id}?invoice=1`,
+            attachments: paidInvoiceAttachments,
           },
-          message: `Your payment for ${pCode} has been confirmed and your project is ready for production.`,
+          message: `Your payment for ${pCode} has been confirmed and your project is ready for production. Your official receipt & invoice (INV-${pCode}) is attached.`,
           link: `/projects/${id}`,
           actionLabel: 'View Project',
           actionId: id,

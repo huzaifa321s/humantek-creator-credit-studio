@@ -1,6 +1,11 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/server';
-import { buildStudioNotificationEmail, sendStudioEmail, type StudioEmailPayload } from '@/lib/email';
+import {
+  buildStudioNotificationEmail,
+  sendStudioEmail,
+  type StudioEmailAttachment,
+  type StudioEmailPayload,
+} from '@/lib/email';
 
 export type NotificationType =
   | 'project_status'
@@ -32,6 +37,9 @@ export interface NotificationEmailOptions {
   /** Defaults to the notification title. */
   subject?: string;
   details?: Array<[label: string, value: string]>;
+  secondaryCtaLabel?: string;
+  secondaryCtaUrl?: string;
+  attachments?: StudioEmailAttachment[];
   /** Only email when the recipient has no other unread notification for the same entity (used for chat alerts). */
   onlyIfFirstUnread?: boolean;
 }
@@ -75,6 +83,9 @@ async function emailNotification(
       details: opts.details,
       ctaLabel: params.actionLabel,
       ctaUrl: params.link,
+      secondaryCtaLabel: opts.secondaryCtaLabel,
+      secondaryCtaUrl: opts.secondaryCtaUrl,
+      attachments: opts.attachments,
     })
   );
 }

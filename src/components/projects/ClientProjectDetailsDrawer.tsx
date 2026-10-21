@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -76,6 +76,42 @@ export function ClientProjectDetailsDrawer({
 
   const isSigningImages = Boolean((!fetchedProject || isPlaceholderData) && isFetching);
   const files = useMemo(() => project?.uploadedFiles || [], [project]);
+  const autoDownloadedInvoiceForIdRef = useRef<string | null>(null);
+
+  // Support one-click `?invoice=1` links from emails to automatically download the PDF invoice
+  useEffect(() => {
+    if (typeof window === 'undefined' || !projectId || !fetchedProject || fetchedProject.id !== projectId) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const wantsInvoice = params.get('invoice') === '1' || params.get('downloadInvoice') === '1';
+    if (!wantsInvoice || autoDownloadedInvoiceForIdRef.current === projectId) {
+      return;
+    }
+    autoDownloadedInvoiceForIdRef.current = projectId;
+
+    // Remove query param so refreshing the page doesn't re-trigger the download
+    params.delete('invoice');
+    params.delete('downloadInvoice');
+    const nextQuery = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname
+    );
+
+    setIsDownloadingInvoice(true);
+    downloadProjectInvoice(fetchedProject)
+      .then(() => {
+        toast.success(`Invoice INV-${fetchedProject.projectCode} downloaded`);
+      })
+      .catch(() => {
+        toast.error('Could not generate invoice PDF');
+      })
+      .finally(() => {
+        setIsDownloadingInvoice(false);
+      });
+  }, [projectId, fetchedProject]);
 
   return (
     <>

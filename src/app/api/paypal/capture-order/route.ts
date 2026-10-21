@@ -3,6 +3,7 @@ import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { capturePayPalOrder } from '@/lib/paypal';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
+import { generateProjectInvoicePdfBytes } from '@/lib/invoice';
 import { adjustUserBalance, getUserBalance } from '@/lib/store';
 import { attachProjectReferences, verifyReferenceFiles } from '@/lib/references';
 
@@ -261,47 +262,87 @@ export async function POST(req: NextRequest) {
         const finalWalletBalance =
           rpcBalance ?? latestWallet?.balance_credits ?? fulfillRes.new_balance;
 
+        let paypalInvoiceAttachments:
+          | Array<{ filename: string; content: ArrayBuffer; contentType: string }>
+          | undefined;
+        if (dbProject) {
+          try {
+            const pdf = await generateProjectInvoicePdfBytes(dbProject as any);
+            paypalInvoiceAttachments = [
+              { filename: pdf.filename, content: pdf.content, contentType: 'application/pdf' },
+            ];
+          } catch (err) {
+            console.warn('[PayPal] Could not generate invoice PDF attachment:', err);
+          }
+        }
+
         // Major action notification: Payment received
         await createNotification({
           userId: order.user_id,
           type: 'payment_confirmed',
-          title: 'Payment received',
+          title: dbProject
+            ? `Payment received · ${dbProject.projectCode}`
+            : 'Payment received',
           email: {
             category: 'payment_receipt_client',
             badge: 'Payment Receipt',
-            subject: `Payment receipt · $${(capturedAmountCents / 100).toFixed(2)}`,
+            subject: dbProject
+              ? `Payment receipt & invoice · ${dbProject.projectCode} ($${(capturedAmountCents / 100).toFixed(2)})`
+              : `Payment receipt · $${(capturedAmountCents / 100).toFixed(2)}`,
             details: [
+              ...(dbProject
+                ? ([
+                    ['Project', dbProject.projectCode],
+                    ['Invoice', `INV-${dbProject.projectCode}`],
+                  ] as Array<[string, string]>)
+                : []),
               ['Amount paid', `$${(capturedAmountCents / 100).toFixed(2)} ${capture.currency || 'USD'}`],
               ['Order ID', order.id],
               ['PayPal capture ID', capture.captureId || '—'],
-              ['Credits added', String(fulfillRes.credits_granted ?? 0)],
+              ['Credits added', `+${fulfillRes.credits_granted ?? 0} Credits`],
               ['Wallet balance', `${finalWalletBalance ?? 0} Credits`],
               ['Date', new Date().toUTCString()],
             ],
+            ...(dbProject
+              ? {
+                  secondaryCtaLabel: 'Download Invoice PDF',
+                  secondaryCtaUrl: `/projects/${dbProject.id}?invoice=1`,
+                  attachments: paypalInvoiceAttachments,
+                }
+              : {}),
           },
-          message: `We received your payment of $${(capturedAmountCents / 100).toFixed(2)}.`,
-          link: '/projects',
-          actionLabel: 'View Projects',
-          actionId: order.id,
+          message: dbProject
+            ? `We received your payment of $${(capturedAmountCents / 100).toFixed(2)} and launched your project (${dbProject.projectCode}). Your official receipt & invoice (INV-${dbProject.projectCode}) is attached.`
+            : `We received your payment of $${(capturedAmountCents / 100).toFixed(2)}.`,
+          link: dbProject ? `/projects/${dbProject.id}` : '/projects',
+          actionLabel: dbProject ? 'View Project' : 'View Projects',
+          actionId: dbProject ? dbProject.id : order.id,
         });
 
         await notifyAdmins({
           type: 'order_status',
-          title: 'New paid order',
+          title: dbProject ? `New paid order · ${dbProject.projectCode}` : 'New paid order',
           email: {
             category: 'payment_received_owner',
             badge: 'New Payment',
             subject: `[Studio Alert] New payment $${(capturedAmountCents / 100).toFixed(2)} from ${user.email}`,
             details: [
               ['Client', user.email || '—'],
+              ...(dbProject
+                ? ([
+                    ['Project', dbProject.projectCode],
+                    ['Invoice', `INV-${dbProject.projectCode}`],
+                  ] as Array<[string, string]>)
+                : []),
               ['Amount', `$${(capturedAmountCents / 100).toFixed(2)} ${capture.currency || 'USD'}`],
               ['Order ID', order.id],
-              ['Credits granted', String(fulfillRes.credits_granted ?? 0)],
+              ['Credits granted', `+${fulfillRes.credits_granted ?? 0} Credits`],
             ],
+            attachments: paypalInvoiceAttachments,
           },
           message: `${user.email} paid $${(capturedAmountCents / 100).toFixed(2)}.`,
-          link: `/management/ledger`,
-          actionLabel: 'View Ledger',
+          link: dbProject ? `/management?tab=projects&id=${dbProject.id}` : `/management/ledger`,
+          actionLabel: dbProject ? 'View Project' : 'View Ledger',
           actionId: order.id,
         });
 

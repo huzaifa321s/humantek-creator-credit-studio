@@ -36,22 +36,40 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 let brandLogoPromise: Promise<string | null> | null = null;
 
 /** Fetches the official Humantek Art logo (PNG, transparent) as a data URL for the PDF header. */
-function loadBrandLogoDataUrl(): Promise<string | null> {
-  if (typeof window === 'undefined' || typeof fetch === 'undefined') {
-    return Promise.resolve(null);
-  }
-  if (!brandLogoPromise) {
-    brandLogoPromise = fetch('/brand/logo-light.png', { cache: 'force-cache' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load brand logo');
-        return `data:image/png;base64,${arrayBufferToBase64(await res.arrayBuffer())}`;
-      })
-      .catch((err) => {
-        console.warn('[Invoice] Brand logo unavailable, using text emblem:', err);
+async function loadBrandLogoDataUrl(): Promise<string | null> {
+  if (brandLogoPromise) return brandLogoPromise;
+
+  if (typeof window === 'undefined') {
+    brandLogoPromise = (async () => {
+      try {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const filePath = path.join(process.cwd(), 'public', 'brand', 'logo-light.png');
+        const buf = await fs.readFile(filePath);
+        return `data:image/png;base64,${buf.toString('base64')}`;
+      } catch (err) {
+        console.warn('[Invoice] Server brand logo unavailable, using text emblem:', err);
         brandLogoPromise = null;
         return null;
-      });
+      }
+    })();
+    return brandLogoPromise;
   }
+
+  if (typeof fetch === 'undefined') {
+    return Promise.resolve(null);
+  }
+
+  brandLogoPromise = fetch('/brand/logo-light.png', { cache: 'force-cache' })
+    .then(async (res) => {
+      if (!res.ok) throw new Error('Failed to load brand logo');
+      return `data:image/png;base64,${arrayBufferToBase64(await res.arrayBuffer())}`;
+    })
+    .catch((err) => {
+      console.warn('[Invoice] Brand logo unavailable, using text emblem:', err);
+      brandLogoPromise = null;
+      return null;
+    });
   return brandLogoPromise;
 }
 
@@ -63,27 +81,52 @@ function loadJsPdfModule(): Promise<typeof import('jspdf')> {
 }
 
 function loadStudioFontPayloads(): Promise<boolean> {
-  if (typeof window === 'undefined' || typeof fetch === 'undefined') {
-    return Promise.resolve(false);
-  }
-  if (!fontPayloadsPromise) {
-    fontPayloadsPromise = Promise.all(
-      STUDIO_PDF_FONTS.map(async (spec) => {
-        if (!fontBase64Cache.has(spec.fileName)) {
-          const res = await fetch(spec.url, { cache: 'force-cache' });
-          if (!res.ok) throw new Error(`Failed to load font ${spec.fileName}`);
-          const buf = await res.arrayBuffer();
-          fontBase64Cache.set(spec.fileName, arrayBufferToBase64(buf));
-        }
-      })
-    )
-      .then(() => true)
-      .catch((err) => {
-        console.warn('[Invoice] Falling back to standard PDF fonts:', err);
+  if (fontPayloadsPromise) return fontPayloadsPromise;
+
+  if (typeof window === 'undefined') {
+    fontPayloadsPromise = (async () => {
+      try {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        await Promise.all(
+          STUDIO_PDF_FONTS.map(async (spec) => {
+            if (!fontBase64Cache.has(spec.fileName)) {
+              const filePath = path.join(process.cwd(), 'public', 'fonts', spec.fileName);
+              const buf = await fs.readFile(filePath);
+              fontBase64Cache.set(spec.fileName, buf.toString('base64'));
+            }
+          })
+        );
+        return true;
+      } catch (err) {
+        console.warn('[Invoice] Server falling back to standard PDF fonts:', err);
         fontPayloadsPromise = null;
         return false;
-      });
+      }
+    })();
+    return fontPayloadsPromise;
   }
+
+  if (typeof fetch === 'undefined') {
+    return Promise.resolve(false);
+  }
+
+  fontPayloadsPromise = Promise.all(
+    STUDIO_PDF_FONTS.map(async (spec) => {
+      if (!fontBase64Cache.has(spec.fileName)) {
+        const res = await fetch(spec.url, { cache: 'force-cache' });
+        if (!res.ok) throw new Error(`Failed to load font ${spec.fileName}`);
+        const buf = await res.arrayBuffer();
+        fontBase64Cache.set(spec.fileName, arrayBufferToBase64(buf));
+      }
+    })
+  )
+    .then(() => true)
+    .catch((err) => {
+      console.warn('[Invoice] Falling back to standard PDF fonts:', err);
+      fontPayloadsPromise = null;
+      return false;
+    });
   return fontPayloadsPromise;
 }
 
@@ -169,11 +212,9 @@ export type InvoiceProjectInput =
       createdAt?: string;
     };
 
-/**
- * Generates and downloads a branded PDF Invoice / Receipt for any Studio Project.
- * Dynamically imports jsPDF and embeds Outfit + GeistMono fonts in parallel.
- */
-export async function downloadProjectInvoice(project: InvoiceProjectInput): Promise<void> {
+async function renderProjectInvoiceDocument(
+  project: InvoiceProjectInput
+): Promise<{ doc: import('jspdf').jsPDF; filename: string }> {
   const [{ jsPDF }] = await Promise.all([
     loadJsPdfModule(),
     loadStudioFontPayloads(),
@@ -762,5 +803,27 @@ export async function downloadProjectInvoice(project: InvoiceProjectInput): Prom
   }
 
   const safeCode = (project.projectCode || project.id || 'PROJECT').replace(/[^a-zA-Z0-9_-]/g, '');
-  doc.save(`Humantek-Invoice-${safeCode}.pdf`);
+  const filename = `Humantek-Invoice-${safeCode}.pdf`;
+  return { doc, filename };
+}
+
+/**
+ * Generates and downloads a branded PDF Invoice / Receipt for any Studio Project in the browser.
+ */
+export async function downloadProjectInvoice(project: InvoiceProjectInput): Promise<void> {
+  const { doc, filename } = await renderProjectInvoiceDocument(project);
+  doc.save(filename);
+}
+
+/**
+ * Generates a branded PDF Invoice / Receipt as a binary ArrayBuffer (for email attachments or API downloads).
+ */
+export async function generateProjectInvoicePdfBytes(
+  project: InvoiceProjectInput
+): Promise<{ filename: string; content: ArrayBuffer }> {
+  const { doc, filename } = await renderProjectInvoiceDocument(project);
+  return {
+    filename,
+    content: doc.output('arraybuffer'),
+  };
 }
