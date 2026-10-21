@@ -30,6 +30,7 @@ export type ManualPaymentMethod = 'Bank Transfer' | 'Cash App';
 interface ManualPaymentOptionsProps {
   amount: number;
   isSubmitting: boolean;
+  isCompleted?: boolean;
   onConfirm: (method: ManualPaymentMethod, reference: string) => void;
 }
 
@@ -39,10 +40,8 @@ function ConfirmSentPayment({
   amount,
   isSubmitting,
   onConfirm,
-  onSubmitted,
 }: ManualPaymentOptionsProps & {
   method: ManualPaymentMethod;
-  onSubmitted: () => void;
 }) {
   const [sent, setSent] = useState(false);
   const [reference, setReference] = useState('');
@@ -50,13 +49,19 @@ function ConfirmSentPayment({
   return (
     <div className="space-y-3 border-t pt-3">
       <label className="flex items-start gap-2.5 text-sm cursor-pointer">
-        <Checkbox checked={sent} onCheckedChange={(checked) => setSent(checked === true)} className="mt-0.5" />
+        <Checkbox
+          checked={sent}
+          disabled={isSubmitting}
+          onCheckedChange={(checked) => setSent(checked === true)}
+          className="mt-0.5"
+        />
         <span>
           I have sent <strong>${amount.toLocaleString('en-US')} USD</strong> via {method}.
         </span>
       </label>
       <Input
         value={reference}
+        disabled={isSubmitting}
         onChange={(e) => setReference(e.target.value)}
         placeholder="Transaction / reference ID (optional)"
         maxLength={100}
@@ -65,12 +70,14 @@ function ConfirmSentPayment({
         type="button"
         className="w-full font-bold cursor-pointer"
         disabled={!sent || isSubmitting}
+        loading={isSubmitting}
+        loadingText="Submitting..."
         onClick={() => {
+          if (isSubmitting) return;
           onConfirm(method, reference.trim());
-          onSubmitted();
         }}
       >
-        {isSubmitting ? 'Submitting...' : 'Submit for review'}
+        Submit for review
       </Button>
       <p className="text-xs text-muted-foreground">
         Our team will verify your payment and then start your project.
@@ -86,12 +93,21 @@ export function ManualPaymentOptions(props: ManualPaymentOptionsProps) {
 
   return (
     <div className="grid grid-cols-2 gap-2 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-400 to-amber-200 p-4 text-zinc-950">
-      <Dialog open={bankOpen} onOpenChange={setBankOpen}>
+      <Dialog
+        open={bankOpen && !props.isCompleted}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && props.isSubmitting) return;
+          setBankOpen(nextOpen);
+        }}
+      >
         <DialogTrigger className={optionClass}>
           <Landmark className="w-9 h-9 text-sky-700" />
           <span className="text-sm sm:text-base font-bold underline underline-offset-2">Pay with Bank</span>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          showCloseButton={!props.isSubmitting}
+          className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PaymentPlatformIcon platform="bank_transfer" size="sm" />
@@ -127,20 +143,28 @@ export function ManualPaymentOptions(props: ManualPaymentOptionsProps) {
             <ConfirmSentPayment
               method="Bank Transfer"
               {...props}
-              onSubmitted={() => setBankOpen(false)}
             />
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={cashAppOpen} onOpenChange={setCashAppOpen}>
+      <Dialog
+        open={cashAppOpen && !props.isCompleted}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && props.isSubmitting) return;
+          setCashAppOpen(nextOpen);
+        }}
+      >
         <DialogTrigger className={optionClass}>
           <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#00d64f]">
             <CashAppBrandMark className="w-6 h-6 text-white" />
           </span>
           <span className="text-sm sm:text-base font-bold underline underline-offset-2">Pay with Cashapp</span>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          showCloseButton={!props.isSubmitting}
+          className="sm:max-w-sm max-h-[90vh] overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PaymentPlatformIcon platform="cashapp" size="sm" />
@@ -160,7 +184,6 @@ export function ManualPaymentOptions(props: ManualPaymentOptionsProps) {
           <ConfirmSentPayment
             method="Cash App"
             {...props}
-            onSubmitted={() => setCashAppOpen(false)}
           />
         </DialogContent>
       </Dialog>
