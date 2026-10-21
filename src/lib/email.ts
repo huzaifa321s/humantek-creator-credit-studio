@@ -462,7 +462,8 @@ function resolveFromHeader(smtpUser: string): string {
 }
 
 function createSmtpTransporter(portOverride?: number): Transporter | null {
-  const host = cleanEnvValue(process.env.SMTP_HOST);
+  const rawHost = cleanEnvValue(process.env.SMTP_HOST);
+  const host = rawHost.toLowerCase() === 'mail.humantekart.com' ? 'chp05.wehostwebserver.com' : rawHost;
   const user = cleanEnvValue(process.env.SMTP_USER);
   const pass = cleanEnvValue(process.env.SMTP_PASS);
   if (!host || !user || !pass) return null;
