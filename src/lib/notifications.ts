@@ -1,5 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/server';
+import { buildStudioNotificationEmail, sendStudioEmail, type StudioEmailPayload } from '@/lib/email';
 
 export type NotificationType =
   | 'project_status'
@@ -21,6 +22,61 @@ export interface CreateNotificationParams {
   actionId?: string;
   entityType?: NotificationEntityType;
   entityId?: string;
+  /** Also deliver this notification by email (SMTP). */
+  email?: NotificationEmailOptions;
+}
+
+export interface NotificationEmailOptions {
+  category: StudioEmailPayload['category'];
+  badge: string;
+  /** Defaults to the notification title. */
+  subject?: string;
+  details?: Array<[label: string, value: string]>;
+  /** Only email when the recipient has no other unread notification for the same entity (used for chat alerts). */
+  onlyIfFirstUnread?: boolean;
+}
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+async function hasUnreadForEntity(
+  admin: AdminClient,
+  userId: string,
+  params: Omit<CreateNotificationParams, 'userId'>,
+  entityId: string | null
+): Promise<boolean> {
+  if (!entityId) return false;
+  const { count } = await admin
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('type', params.type)
+    .eq('entity_id', entityId)
+    .eq('is_read', false);
+  return (count || 0) > 0;
+}
+
+async function emailNotification(
+  recipient: { email?: string | null; full_name?: string | null },
+  params: Omit<CreateNotificationParams, 'userId'>
+): Promise<void> {
+  const opts = params.email;
+  if (!opts || !recipient.email) return;
+  const greetingName =
+    (recipient.full_name || '').trim() || recipient.email.split('@')[0] || undefined;
+  await sendStudioEmail(
+    buildStudioNotificationEmail({
+      to: recipient.email,
+      category: opts.category,
+      subject: opts.subject || params.title,
+      badge: opts.badge,
+      heading: params.title,
+      message: params.message,
+      greetingName,
+      details: opts.details,
+      ctaLabel: params.actionLabel,
+      ctaUrl: params.link,
+    })
+  );
 }
 
 function inferEntityType(params: Omit<CreateNotificationParams, 'userId'>): NotificationEntityType | null {
@@ -49,6 +105,9 @@ export async function createNotification(params: CreateNotificationParams): Prom
     const admin = createAdminClient();
     const resolvedEntityType = inferEntityType(params);
     const resolvedEntityId = params.entityId || (params.actionId && params.actionId !== 'open-chat' ? params.actionId : null);
+    const skipEmail =
+      params.email?.onlyIfFirstUnread &&
+      (await hasUnreadForEntity(admin, params.userId, params, resolvedEntityId));
 
     const { data, error } = await admin
       .from('notifications')
@@ -71,6 +130,16 @@ export async function createNotification(params: CreateNotificationParams): Prom
       console.warn('[Notifications] Failed to create notification:', error.message);
       return null;
     }
+
+    if (params.email && !skipEmail) {
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', params.userId)
+        .maybeSingle();
+      if (profile) await emailNotification(profile, params);
+    }
+
     return data?.id || null;
   } catch (err) {
     console.warn('[Notifications] Unexpected error:', err);
@@ -88,7 +157,7 @@ export async function notifyAdmins(
     const admin = createAdminClient();
     const { data: admins, error } = await admin
       .from('profiles')
-      .select('id')
+      .select('id, email, full_name')
       .eq('role', 'admin');
 
     if (error || !admins?.length) return;
@@ -109,7 +178,22 @@ export async function notifyAdmins(
       is_read: false,
     }));
 
+    const emailRecipients = params.email
+      ? (
+          await Promise.all(
+            admins.map(async (a) =>
+              params.email?.onlyIfFirstUnread &&
+              (await hasUnreadForEntity(admin, a.id, params, resolvedEntityId))
+                ? null
+                : a
+            )
+          )
+        ).filter((a): a is (typeof admins)[number] => Boolean(a))
+      : [];
+
     await admin.from('notifications').insert(rows);
+
+    await Promise.all(emailRecipients.map((a) => emailNotification(a, params)));
   } catch (err) {
     console.warn('[Notifications] Failed to broadcast to admins:', err);
   }

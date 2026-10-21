@@ -7,6 +7,7 @@ import {
   type TeamRole,
 } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
+import { buildStudioNotificationEmail, sendStudioEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -277,6 +278,7 @@ export async function POST(req: NextRequest) {
     ).slice(0, 80);
 
     let targetUserId: string | null = existingProfile?.id || null;
+    let createdNewAccount = false;
     let existingAuthUser: {
       id: string;
       created_at?: string;
@@ -323,6 +325,7 @@ export async function POST(req: NextRequest) {
       }
 
       targetUserId = createdAuth.user.id;
+      createdNewAccount = true;
     } else {
       // Update existing auth user's metadata & optional password
       const { data: existingAuth } = await admin.auth.admin.getUserById(targetUserId);
@@ -381,6 +384,30 @@ export async function POST(req: NextRequest) {
         balance_promo: 0,
       },
       { onConflict: 'user_id', ignoreDuplicates: true }
+    );
+
+    const roleLabel = requestedRole === 'viewer' ? 'Viewer' : 'Manager';
+    const passwordHint = password.length >= 8
+      ? 'Use the password the Studio Owner shared with you.'
+      : createdNewAccount
+        ? 'Set your password with "Forgot password" on the sign-in page using this email address.'
+        : 'Sign in with your existing password.';
+    void sendStudioEmail(
+      buildStudioNotificationEmail({
+        to: email,
+        category: 'team_invitation',
+        subject: `You've been added to the Humantek Studio team as ${roleLabel}`,
+        badge: 'Team Invitation',
+        heading: `Welcome to the Studio team, ${displayName}!`,
+        greetingName: displayName,
+        message: `${authRes.user.name || 'The Studio Owner'} added you to Humantek Creator Credit Studio with ${roleLabel} access. ${passwordHint}`,
+        details: [
+          ['Sign-in email', email],
+          ['Role', roleLabel],
+        ],
+        ctaLabel: 'Sign In to the Studio',
+        ctaUrl: '/admin-login',
+      })
     );
 
     const resolvedAvatarUrl =

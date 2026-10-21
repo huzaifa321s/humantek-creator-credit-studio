@@ -1,4 +1,5 @@
 import 'server-only';
+import nodemailer, { type Transporter } from 'nodemailer';
 
 /**
  * Structured metadata stored inside `public.promo_codes.description` for
@@ -69,7 +70,16 @@ export interface StudioEmailPayload {
     | 'gift_code_generated_owner'
     | 'gift_code_redeemed_owner'
     | 'gift_code_redeemed_sender'
-    | 'gift_code_redeemed_recipient';
+    | 'gift_code_redeemed_recipient'
+    | 'payment_receipt_client'
+    | 'payment_received_owner'
+    | 'payment_refunded_client'
+    | 'project_order_client'
+    | 'project_order_owner'
+    | 'project_status_client'
+    | 'wallet_adjustment_client'
+    | 'team_invitation'
+    | 'chat_message_alert';
   metadata?: Record<string, unknown>;
 }
 
@@ -78,8 +88,9 @@ export interface StudioEmailDispatchResult {
   to: string;
   subject: string;
   category: StudioEmailPayload['category'];
-  status: 'queued_template';
+  status: 'sent' | 'skipped_not_configured' | 'failed';
   dispatchedAt: string;
+  error?: string;
 }
 
 function escapeHtml(str: string): string {
@@ -91,6 +102,16 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function resolveAppUrl(pathOrUrl: string): string {
+  if (pathOrUrl.startsWith('http')) return pathOrUrl;
+  const appUrl = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'http://localhost:3000'
+  ).replace(/\/$/, '');
+  return `${appUrl}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
+}
+
 function wrapStudioEmailLayout(opts: {
   badge: string;
   heading: string;
@@ -99,12 +120,7 @@ function wrapStudioEmailLayout(opts: {
   ctaLabel?: string;
   ctaUrl?: string;
 }): string {
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
-  const resolvedCtaUrl = opts.ctaUrl
-    ? opts.ctaUrl.startsWith('http')
-      ? opts.ctaUrl
-      : `${appUrl}${opts.ctaUrl}`
-    : `${appUrl}/redeem-code`;
+  const resolvedCtaUrl = resolveAppUrl(opts.ctaUrl || '/redeem-code');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -366,8 +382,90 @@ export function buildGiftCodeRedeemedRecipientEmailTemplate(params: {
 }
 
 /**
- * Template-based email dispatcher (no external SMTP configuration required).
- * Renders and logs structured email dispatches for Owner, Sender, and Recipient notifications.
+ * Generic branded template used by in-app notification events (payments,
+ * orders, project status, wallet adjustments, team invites, chat alerts).
+ */
+export function buildStudioNotificationEmail(params: {
+  to: string;
+  category: StudioEmailPayload['category'];
+  subject: string;
+  badge: string;
+  heading: string;
+  message: string;
+  greetingName?: string;
+  details?: Array<[label: string, value: string]>;
+  ctaLabel?: string;
+  ctaUrl?: string;
+}): StudioEmailPayload {
+  const detailsHtml = params.details?.length
+    ? `<div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid #27272a;margin-top:16px;">
+        ${params.details
+          .map(
+            ([label, value]) =>
+              `<div style="margin-bottom:6px;"><strong style="color:#ffffff;">${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`
+          )
+          .join('')}
+      </div>`
+    : '';
+
+  const bodyHtml = `
+    ${params.greetingName ? `<p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(params.greetingName)}</strong>,</p>` : ''}
+    <p style="margin:0;">${escapeHtml(params.message)}</p>
+    ${detailsHtml}
+  `;
+
+  const text = [
+    params.greetingName ? `Hi ${params.greetingName},` : '',
+    params.message,
+    ...(params.details || []).map(([label, value]) => `${label}: ${value}`),
+    params.ctaUrl ? `${params.ctaLabel || 'Open'}: ${resolveAppUrl(params.ctaUrl)}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return {
+    to: params.to,
+    subject: params.subject,
+    html: wrapStudioEmailLayout({
+      badge: params.badge,
+      heading: params.heading,
+      subtitle: params.subject,
+      bodyHtml,
+      ctaLabel: params.ctaLabel,
+      ctaUrl: params.ctaUrl,
+    }),
+    text,
+    category: params.category,
+  };
+}
+
+let cachedTransporter: Transporter | null = null;
+
+/**
+ * SMTP transport (Hostinger: smtp.hostinger.com, port 465 SSL or 587 STARTTLS).
+ * Returns null when SMTP credentials are not configured.
+ */
+function getSmtpTransporter(): Transporter | null {
+  if (cachedTransporter) return cachedTransporter;
+  const host = process.env.SMTP_HOST?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+
+  const port = Number(process.env.SMTP_PORT) || 465;
+  cachedTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
+    auth: { user, pass },
+  });
+  return cachedTransporter;
+}
+
+/**
+ * Delivers a studio email over SMTP. Never throws: failures are logged and
+ * reported in the result so callers' main flows are not interrupted.
+ * Without SMTP configuration the email is only logged (local development).
  */
 export async function sendStudioEmail(
   payload: StudioEmailPayload
@@ -377,15 +475,40 @@ export async function sendStudioEmail(
     to: payload.to,
     subject: payload.subject,
     category: payload.category,
-    status: 'queued_template',
+    status: 'skipped_not_configured',
     dispatchedAt: new Date().toISOString(),
   };
 
-  if (process.env.NODE_ENV !== 'test') {
-    console.info(
-      `[StudioEmailTemplate] Dispatched (${payload.category}) -> To: ${payload.to} | Subject: "${payload.subject}"`
-    );
+  if (!payload.to || !payload.to.includes('@')) {
+    return { ...dispatchResult, status: 'failed', error: 'Invalid recipient address' };
   }
 
-  return dispatchResult;
+  const transporter = getSmtpTransporter();
+  if (!transporter) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.info(
+        `[StudioEmail] SMTP not configured, skipped (${payload.category}) -> To: ${payload.to} | Subject: "${payload.subject}"`
+      );
+    }
+    return dispatchResult;
+  }
+
+  try {
+    const from =
+      process.env.EMAIL_FROM?.trim() ||
+      `"Humantek Creator Credit Studio" <${process.env.SMTP_USER?.trim()}>`;
+    const info = await transporter.sendMail({
+      from,
+      to: payload.to,
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text,
+      ...(process.env.EMAIL_REPLY_TO ? { replyTo: process.env.EMAIL_REPLY_TO } : {}),
+    });
+    return { ...dispatchResult, id: info.messageId || dispatchResult.id, status: 'sent' };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[StudioEmail] Failed to send (${payload.category}) -> ${payload.to}: ${message}`);
+    return { ...dispatchResult, status: 'failed', error: message };
+  }
 }

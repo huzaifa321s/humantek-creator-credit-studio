@@ -266,6 +266,19 @@ export async function POST(req: NextRequest) {
           userId: order.user_id,
           type: 'payment_confirmed',
           title: 'Payment received',
+          email: {
+            category: 'payment_receipt_client',
+            badge: 'Payment Receipt',
+            subject: `Payment receipt · $${(capturedAmountCents / 100).toFixed(2)}`,
+            details: [
+              ['Amount paid', `$${(capturedAmountCents / 100).toFixed(2)} ${capture.currency || 'USD'}`],
+              ['Order ID', order.id],
+              ['PayPal capture ID', capture.captureId || '—'],
+              ['Credits added', String(fulfillRes.credits_granted ?? 0)],
+              ['Wallet balance', `${finalWalletBalance ?? 0} Credits`],
+              ['Date', new Date().toUTCString()],
+            ],
+          },
           message: `We received your payment of $${(capturedAmountCents / 100).toFixed(2)}.`,
           link: '/projects',
           actionLabel: 'View Projects',
@@ -275,6 +288,17 @@ export async function POST(req: NextRequest) {
         void notifyAdmins({
           type: 'order_status',
           title: 'New paid order',
+          email: {
+            category: 'payment_received_owner',
+            badge: 'New Payment',
+            subject: `[Studio Alert] New payment $${(capturedAmountCents / 100).toFixed(2)} from ${user.email}`,
+            details: [
+              ['Client', user.email || '—'],
+              ['Amount', `$${(capturedAmountCents / 100).toFixed(2)} ${capture.currency || 'USD'}`],
+              ['Order ID', order.id],
+              ['Credits granted', String(fulfillRes.credits_granted ?? 0)],
+            ],
+          },
           message: `${user.email} paid $${(capturedAmountCents / 100).toFixed(2)}.`,
           link: `/management/ledger`,
           actionLabel: 'View Ledger',
