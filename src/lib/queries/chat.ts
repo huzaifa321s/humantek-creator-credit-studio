@@ -33,9 +33,10 @@ export function useChatUnreadQuery() {
       const data = (await res.json()) as Partial<ChatUnreadResponse>;
       return { counts: data.counts || {}, total: data.total || 0 };
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
-    staleTime: 10_000,
+    staleTime: 25_000,
   });
 
   return query.data ?? EMPTY_UNREAD;

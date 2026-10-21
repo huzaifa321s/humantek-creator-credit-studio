@@ -82,7 +82,7 @@ function mergeScopedMessages(
 export function useProjectChat({
   projectId,
   transport = defaultChatTransport,
-  pollIntervalMs = 15_000,
+  pollIntervalMs = 60_000,
 }: UseProjectChatOptions) {
   const isRealProject = Boolean(projectId);
   const queryClient = useQueryClient();
@@ -141,7 +141,8 @@ export function useProjectChat({
         lastReadId: resolvedLastReadId,
       };
     },
-    staleTime: 5_000,
+    staleTime: 15_000,
+    refetchIntervalInBackground: false,
     refetchInterval: (query) => {
       if (query.state.error?.message === 'Access denied') return false;
       return pollIntervalMs;
