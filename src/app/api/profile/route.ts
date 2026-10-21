@@ -114,7 +114,7 @@ export async function GET() {
 
 /**
  * PATCH /api/profile
- * Updates the authenticated user's Full Name in public.profiles and auth.users.
+ * Updates the authenticated user's Full Name (and optional password) in public.profiles and auth.users.
  */
 export async function PATCH(req: NextRequest) {
   try {
@@ -125,8 +125,16 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const nextName = cleanText(body.name, 80);
+    const nextPassword = typeof body.password === 'string' ? body.password.trim() : '';
 
-    if (!nextName || nextName.length < 2) {
+    if (nextPassword && nextPassword.length < 8) {
+      return NextResponse.json(
+        { error: 'New password must be at least 8 characters long.' },
+        { status: 400 }
+      );
+    }
+
+    if (!nextPassword && (!nextName || nextName.length < 2)) {
       return NextResponse.json(
         { error: 'Full name must be at least 2 characters long.' },
         { status: 400 }
@@ -139,33 +147,40 @@ export async function PATCH(req: NextRequest) {
         profile: {
           id: reqUser.id,
           email: reqUser.email,
-          name: nextName,
+          name: nextName || reqUser.name,
         },
       });
     }
 
     const admin = createAdminClient();
 
-    // 1. Update public.profiles full_name
-    const { error: profErr } = await admin
-      .from('profiles')
-      .update({ full_name: nextName })
-      .eq('id', reqUser.id);
+    // 1. Update public.profiles full_name if provided
+    if (nextName && nextName.length >= 2) {
+      const { error: profErr } = await admin
+        .from('profiles')
+        .update({ full_name: nextName })
+        .eq('id', reqUser.id);
 
-    if (profErr) {
-      return NextResponse.json({ error: profErr.message }, { status: 400 });
+      if (profErr) {
+        return NextResponse.json({ error: profErr.message }, { status: 400 });
+      }
     }
 
-    // 2. Sync auth.users user_metadata full_name & name
+    // 2. Sync auth.users user_metadata full_name & name (and optional password)
     const { data: existingAuth } = await admin.auth.admin.getUserById(reqUser.id);
     const currentMeta = (existingAuth?.user?.user_metadata || {}) as Record<string, unknown>;
 
     const { error: authErr } = await admin.auth.admin.updateUserById(reqUser.id, {
-      user_metadata: {
-        ...currentMeta,
-        full_name: nextName,
-        name: nextName,
-      },
+      ...(nextPassword ? { password: nextPassword } : {}),
+      ...(nextName && nextName.length >= 2
+        ? {
+            user_metadata: {
+              ...currentMeta,
+              full_name: nextName,
+              name: nextName,
+            },
+          }
+        : {}),
     });
 
     if (authErr) {
@@ -177,7 +192,7 @@ export async function PATCH(req: NextRequest) {
       profile: {
         id: reqUser.id,
         email: reqUser.email,
-        name: nextName,
+        name: nextName || reqUser.name,
       },
     });
   } catch (err) {
