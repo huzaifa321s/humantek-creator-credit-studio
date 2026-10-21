@@ -458,6 +458,10 @@ function getSmtpTransporter(): Transporter | null {
     port,
     secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
     auth: { user, pass },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
   });
   return cachedTransporter;
 }

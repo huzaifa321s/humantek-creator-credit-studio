@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (order.user_id) {
-          void createNotification({
+          await ({
             userId: order.user_id,
             type: 'payment_confirmed',
             title: 'Payment refunded',

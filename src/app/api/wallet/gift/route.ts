@@ -308,7 +308,7 @@ export async function POST(req: NextRequest) {
       };
 
       // Step 3: Inner Dashboard Notifications (Sender, Recipient if registered, and Studio Owner/Admins)
-      void createNotification({
+      await ({
         userId: user.id,
         type: 'wallet_credit',
         title: `Gift Promo Code Created · ${credits} Credits`,
@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
         }
       })();
 
-      void notifyAdmins({
+      await ({
         type: 'wallet_credit',
         title: `Client Gift Code Generated · ${credits} Credits`,
         message: `${senderName} (${user.email}) generated gift promo code ${code} (${credits} Credits) for ${recipientEmail}.`,
