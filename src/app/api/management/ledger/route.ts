@@ -673,12 +673,42 @@ export async function POST(req: NextRequest) {
         userId: profile.id,
         type: 'wallet_credit',
         title: `Credits added · +${rawDelta} CR`,
+        email: {
+          category: 'wallet_adjustment_client',
+          badge: 'Studio Wallet Update',
+          details: [
+            ['Credits added', `+${rawDelta} Credits`],
+            ['Reason', effectiveDesc],
+            ['Reference', refId],
+          ],
+        },
         message: `${effectiveDesc}. +${rawDelta} CR have been added to your Studio Wallet.`,
         link: '/wallet',
         actionLabel: 'View Wallet',
         actionId: refId,
         entityType: 'wallet',
         entityId: refId,
+      });
+    } else if (rawDelta < 0) {
+      void createNotification({
+        userId: profile.id,
+        type: 'wallet_credit',
+        title: `Credits deducted · ${rawDelta} CR`,
+        message: `${effectiveDesc}. ${Math.abs(rawDelta)} CR have been deducted from your Studio Wallet.`,
+        link: '/wallet',
+        actionLabel: 'View Wallet',
+        actionId: refId,
+        entityType: 'wallet',
+        entityId: refId,
+        email: {
+          category: 'wallet_adjustment_client',
+          badge: 'Studio Wallet Update',
+          details: [
+            ['Credits deducted', `${rawDelta} Credits`],
+            ['Reason', effectiveDesc],
+            ['Reference', refId],
+          ],
+        },
       });
     }
 

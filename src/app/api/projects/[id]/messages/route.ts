@@ -681,6 +681,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
           userId: targetUserId,
           type: 'chat_message',
           title: isGlobal ? 'New support reply' : 'New message',
+          email: {
+            category: 'chat_message_alert',
+            badge: 'New Message',
+            onlyIfFirstUnread: true,
+          },
           message: isGlobal
             ? 'Studio team replied to your support inquiry.'
             : 'Studio team sent you a message.',
@@ -699,6 +704,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       void notifyAdmins({
         type: 'chat_message',
         title: isGlobal ? 'New support inquiry' : 'New client message',
+        email: {
+          category: 'chat_message_alert',
+          badge: 'New Client Message',
+          onlyIfFirstUnread: true,
+        },
         message: isGlobal
           ? `${senderDisplay} sent a support inquiry.`
           : `${senderDisplay} sent a message.`,
