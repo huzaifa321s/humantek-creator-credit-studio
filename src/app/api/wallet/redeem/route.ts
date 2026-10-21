@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
 
       if (giftMeta) {
         // 1A. Inner Dashboard Notification -> Recipient (Client B)
-        await ({
+        await createNotification({
           userId: user.id,
           type: 'wallet_credit',
           title: `Gift Credits Added · +${result.credits_granted} Credits`,
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
 
         // 1B. Inner Dashboard Notification -> Sender (Client A)
         if (giftMeta.senderId) {
-          await ({
+          await createNotification({
             userId: giftMeta.senderId,
             type: 'wallet_credit',
             title: `Your ${result.credits_granted} Credits Gift Code Was Claimed!`,
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 1C. Inner Dashboard Notification -> Studio Owner & Management Team
-        await ({
+        await notifyAdmins({
           type: 'wallet_credit',
           title: `Client Gift Code Claimed · ${result.credits_granted} Credits`,
           message: `${recipientName} (${cleanUserEmail}) redeemed promo code ${result.code} (+${result.credits_granted} Credits) shared by ${giftMeta.senderName} (${giftMeta.senderEmail}).`,
@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
         emailsDispatched.push(ownerEmailRes, senderEmailRes, recipientEmailRes);
       } else {
         // Standard Studio Promo Code Notifications (Recipient + Studio Owner/Admins + Owner Email)
-        await ({
+        await createNotification({
           userId: user.id,
           type: 'wallet_credit',
           title: `Credits added · +${result.credits_granted} Credits`,
@@ -245,7 +245,7 @@ export async function POST(req: NextRequest) {
           entityId: result.code,
         });
 
-        await ({
+        await notifyAdmins({
           type: 'wallet_credit',
           title: `Promo Code Redeemed · ${result.credits_granted} Credits`,
           message: `${recipientName} (${cleanUserEmail}) redeemed studio promo code ${result.code} (+${result.credits_granted} Credits).`,
