@@ -764,12 +764,19 @@ export async function POST(req: NextRequest) {
             details: [
               ['Project', projectCode],
               ['Invoice', `INV-${projectCode}`],
+              ...(parsed.data.channelName?.trim()
+                ? ([['Channel / Brand', parsed.data.channelName.trim()]] as Array<[string, string]>)
+                : []),
               ['Package', pkg.name],
+              ...(parsed.data.platform?.trim()
+                ? ([['Platform', parsed.data.platform.trim()]] as Array<[string, string]>)
+                : []),
+              ...(parsed.data.style?.trim()
+                ? ([['Aesthetic Style', parsed.data.style.trim()]] as Array<[string, string]>)
+                : []),
               ['Credits', `${totalCreditsRequired} Credits`],
               ['Status', 'Awaiting studio review'],
             ],
-            secondaryCtaLabel: 'Download Invoice PDF',
-            secondaryCtaUrl: `/projects/${parsed.data.projectId}?invoice=1`,
             attachments: unpaidInvoiceAttachments,
           },
           message: `We received your ${pkg.name} brief (${totalCreditsRequired} Credits scope) and will review it shortly. Your official project invoice (INV-${projectCode}) is attached to this email.`,
@@ -916,11 +923,18 @@ export async function POST(req: NextRequest) {
             details: [
               ['Project', projectCode],
               ['Invoice', `INV-${projectCode}`],
+              ...(parsed.data.channelName?.trim()
+                ? ([['Channel / Brand', parsed.data.channelName.trim()]] as Array<[string, string]>)
+                : []),
+              ...(parsed.data.platform?.trim()
+                ? ([['Platform', parsed.data.platform.trim()]] as Array<[string, string]>)
+                : []),
+              ...(parsed.data.style?.trim()
+                ? ([['Aesthetic Style', parsed.data.style.trim()]] as Array<[string, string]>)
+                : []),
               ['Credits used', `${spentCredits} Credits`],
               ['Funding', 'Studio Wallet'],
             ],
-            secondaryCtaLabel: 'Download Invoice PDF',
-            secondaryCtaUrl: `/projects/${parsed.data.projectId}?invoice=1`,
             attachments: walletInvoiceAttachments,
           },
           message: `Your project (${spentCredits} Credits) was funded with Studio Wallet credits and is now queued. Your official receipt & invoice (INV-${projectCode}) is attached.`,
@@ -1329,8 +1343,6 @@ export async function PATCH(req: NextRequest) {
                 ['Credits allocated', `${totalUsed} Credits`],
                 ...(surplusCredits > 0 ? ([['Added to wallet', `+${surplusCredits} Credits`]] as Array<[string, string]>) : []),
               ],
-              secondaryCtaLabel: 'Download Invoice PDF',
-              secondaryCtaUrl: `/projects/${id}?invoice=1`,
               attachments: paidInvoiceAttachments,
             },
             title:
@@ -1453,8 +1465,6 @@ export async function PATCH(req: NextRequest) {
               ['Invoice', `INV-${pCode}`],
               ['Status', 'Payment confirmed'],
             ],
-            secondaryCtaLabel: 'Download Invoice PDF',
-            secondaryCtaUrl: `/projects/${id}?invoice=1`,
             attachments: paidInvoiceAttachments,
           },
           message: `Your payment for ${pCode} has been confirmed and your project is ready for production. Your official receipt & invoice (INV-${pCode}) is attached.`,

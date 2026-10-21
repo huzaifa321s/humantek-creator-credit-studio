@@ -305,8 +305,6 @@ export async function POST(req: NextRequest) {
             ],
             ...(dbProject
               ? {
-                  secondaryCtaLabel: 'Download Invoice PDF',
-                  secondaryCtaUrl: `/projects/${dbProject.id}?invoice=1`,
                   attachments: paypalInvoiceAttachments,
                 }
               : {}),

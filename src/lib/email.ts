@@ -159,14 +159,10 @@ function wrapStudioEmailLayout(opts: {
   bodyHtml: string;
   ctaLabel?: string;
   ctaUrl?: string;
-  secondaryCtaLabel?: string;
-  secondaryCtaUrl?: string;
 }): string {
   const resolvedCtaUrl = resolveAppUrl(opts.ctaUrl || '/dashboard');
-  const resolvedSecondaryCtaUrl = opts.secondaryCtaUrl
-    ? resolveAppUrl(opts.secondaryCtaUrl)
-    : '';
   const studioHomeUrl = resolveAppUrl('/dashboard');
+  const brandLogoUrl = resolveAppUrl('/brand/logo-light.png');
   const cleanHeading = opts.heading.trim();
   const cleanSubtitle = (opts.subtitle || '').trim();
   const showSubtitle = Boolean(
@@ -193,16 +189,25 @@ function wrapStudioEmailLayout(opts: {
           </tr>
           <!-- Dark Studio Brand Header -->
           <tr>
-            <td style="padding:20px 28px;background-color:#18181b;border-bottom:1px solid #27272a;">
+            <td style="padding:18px 28px;background-color:#18181b;border-bottom:1px solid #27272a;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td valign="middle">
-                    <div style="font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#ffffff;">
-                      HUMANTEK <span style="color:#f59e0b;">ART</span>
-                    </div>
-                    <div style="font-size:11px;font-weight:500;color:#a1a1aa;letter-spacing:0.03em;margin-top:2px;">
-                      Creator Credit Studio
-                    </div>
+                    <table role="presentation" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td valign="middle" style="padding-right:12px;">
+                          <img src="${escapeHtml(brandLogoUrl)}" alt="Humantek Art" width="64" height="25" style="display:block;border:0;outline:none;text-decoration:none;height:25px;width:auto;color:#ffffff;font-size:12px;font-weight:800;" />
+                        </td>
+                        <td valign="middle" style="border-left:1px solid #3f3f46;padding-left:12px;">
+                          <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;">
+                            CREATOR CREDIT STUDIO
+                          </div>
+                          <div style="font-size:11px;font-weight:500;color:#a1a1aa;margin-top:1px;">
+                            Humantek Art Official Portal
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                   <td align="right" valign="middle">
                     <span style="display:inline-block;padding:5px 11px;border-radius:999px;background-color:rgba(245,158,11,0.16);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
@@ -233,22 +238,11 @@ function wrapStudioEmailLayout(opts: {
             <td style="padding:20px 28px 28px 28px;font-size:14px;line-height:1.65;color:#3f3f46;">
               ${opts.bodyHtml}
               ${
-                opts.ctaLabel || (opts.secondaryCtaLabel && resolvedSecondaryCtaUrl)
+                opts.ctaLabel
                   ? `<div style="margin-top:24px;">
-                      ${
-                        opts.ctaLabel
-                          ? `<a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 22px;margin-right:10px;margin-bottom:8px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
-                              ${escapeHtml(opts.ctaLabel)} &rarr;
-                            </a>`
-                          : ''
-                      }
-                      ${
-                        opts.secondaryCtaLabel && resolvedSecondaryCtaUrl
-                          ? `<a href="${escapeHtml(resolvedSecondaryCtaUrl)}" style="display:inline-block;padding:11px 18px;margin-bottom:8px;border-radius:10px;background-color:#ffffff;border:1px solid #d4d4d8;color:#18181b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;">
-                              &#8681; ${escapeHtml(opts.secondaryCtaLabel)}
-                            </a>`
-                          : ''
-                      }
+                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 22px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
+                        ${escapeHtml(opts.ctaLabel)} &rarr;
+                      </a>
                     </div>`
                   : ''
               }
@@ -498,26 +492,29 @@ export function buildStudioNotificationEmail(params: {
   details?: Array<[label: string, value: string]>;
   ctaLabel?: string;
   ctaUrl?: string;
-  secondaryCtaLabel?: string;
-  secondaryCtaUrl?: string;
   attachments?: StudioEmailAttachment[];
 }): StudioEmailPayload {
   const detailsHtml = params.details?.length ? buildEmailDetailsTable(params.details) : '';
+  const attachedPdfName = params.attachments?.[0]?.filename;
+  const attachmentBannerHtml = attachedPdfName
+    ? `<div style="margin-top:14px;padding:10px 14px;border-radius:10px;background-color:#fffbeb;border:1px solid #fde68a;font-size:12px;color:#92400e;">
+        &#128206; <strong>Attached PDF Invoice:</strong> <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;color:#78350f;">${escapeHtml(attachedPdfName)}</span> (download directly from this email)
+      </div>`
+    : '';
 
   const bodyHtml = `
     ${params.greetingName ? `<p style="margin:0 0 12px 0;">Hi <strong style="color:#18181b;">${escapeHtml(params.greetingName)}</strong>,</p>` : ''}
     <p style="margin:0;color:#3f3f46;">${escapeHtml(params.message)}</p>
     ${detailsHtml}
+    ${attachmentBannerHtml}
   `;
 
   const text = [
     params.greetingName ? `Hi ${params.greetingName},` : '',
     params.message,
     ...(params.details || []).map(([label, value]) => `${label}: ${value}`),
+    attachedPdfName ? `Attached PDF Invoice: ${attachedPdfName}` : '',
     params.ctaUrl ? `${params.ctaLabel || 'Open'}: ${resolveAppUrl(params.ctaUrl)}` : '',
-    params.secondaryCtaUrl
-      ? `${params.secondaryCtaLabel || 'Download Invoice'}: ${resolveAppUrl(params.secondaryCtaUrl)}`
-      : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -532,8 +529,6 @@ export function buildStudioNotificationEmail(params: {
       bodyHtml,
       ctaLabel: params.ctaLabel,
       ctaUrl: params.ctaUrl,
-      secondaryCtaLabel: params.secondaryCtaLabel,
-      secondaryCtaUrl: params.secondaryCtaUrl,
     }),
     text,
     category: params.category,
