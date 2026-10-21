@@ -739,7 +739,7 @@ export async function POST(req: NextRequest) {
           .single();
 
         // Major action notification: Brief submitted
-        await ({
+        await createNotification({
           userId: user.id,
           type: 'project_status',
           title: `Project submitted · ${projectCode}`,
@@ -761,7 +761,7 @@ export async function POST(req: NextRequest) {
           entityId: parsed.data.projectId,
         });
 
-        await ({
+        await notifyAdmins({
           type: 'project_status',
           title: `New project request · ${projectCode}`,
           email: {
@@ -884,7 +884,7 @@ export async function POST(req: NextRequest) {
       // Major action notification: Project started with credits (only on initial creation, not replay)
       if (!rpcRes?.replayed) {
         const spentCredits = project?.usedCredits || Number(projRow?.total_credits) || 0;
-        await ({
+        await createNotification({
           userId: user.id,
           type: 'project_status',
           title: `Project started · ${projectCode}`,
@@ -905,7 +905,7 @@ export async function POST(req: NextRequest) {
           entityId: parsed.data.projectId,
         });
 
-        await ({
+        await notifyAdmins({
           type: 'project_status',
           title: `New credit project · ${projectCode}`,
           email: {
@@ -1103,7 +1103,7 @@ export async function PATCH(req: NextRequest) {
             0
         );
         if (user.isAdmin && updatedProj.user_id !== user.id) {
-          await ({
+          await createNotification({
             userId: updatedProj.user_id,
             type: 'project_status',
             title: `Project cancelled · ${pCode}`,
@@ -1123,7 +1123,7 @@ export async function PATCH(req: NextRequest) {
             entityId: id,
           });
         } else if (!user.isAdmin) {
-          await ({
+          await notifyAdmins({
             type: 'project_status',
             title: `Project cancelled · ${pCode}`,
             message: `${user.email} cancelled project ${pCode}.`,
@@ -1279,7 +1279,7 @@ export async function PATCH(req: NextRequest) {
           const pkgLabel = currentProj.package_name || catalogPkg?.name || 'Studio Package';
 
           notifiedPaymentConfirmed = true;
-          await ({
+          await createNotification({
             userId: currentProj.user_id,
             type: 'payment_confirmed',
             email: {
@@ -1352,7 +1352,7 @@ export async function PATCH(req: NextRequest) {
           }
 
           // Notify client that payment was refunded and credit balance updated
-          await ({
+          await createNotification({
             userId: currentProj.user_id,
             type: 'payment_confirmed',
             title: `Payment refunded · ${currentProj.project_code}`,
@@ -1399,7 +1399,7 @@ export async function PATCH(req: NextRequest) {
     if (updatedProj && updatedProj.user_id && status !== currentProj.status) {
       const pCode = updatedProj.project_code || id;
       if (status === 'payment_confirmed' && !notifiedPaymentConfirmed) {
-        await ({
+        await createNotification({
           userId: updatedProj.user_id,
           type: 'payment_confirmed',
           title: `Payment confirmed · ${pCode}`,
@@ -1416,7 +1416,7 @@ export async function PATCH(req: NextRequest) {
           entityId: id,
         });
       } else if (status === 'in_production') {
-        await ({
+        await createNotification({
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Production started · ${pCode}`,
@@ -1433,7 +1433,7 @@ export async function PATCH(req: NextRequest) {
           entityId: id,
         });
       } else if (status === 'review_round') {
-        await ({
+        await createNotification({
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Preview ready · ${pCode}`,
@@ -1450,7 +1450,7 @@ export async function PATCH(req: NextRequest) {
           entityId: id,
         });
       } else if (status === 'delivered') {
-        await ({
+        await createNotification({
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Project completed! 🎉 · ${pCode}`,
@@ -1467,7 +1467,7 @@ export async function PATCH(req: NextRequest) {
           entityId: id,
         });
       } else if (status === 'declined') {
-        await ({
+        await createNotification({
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Brief declined · ${pCode}`,

@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
           rpcBalance ?? latestWallet?.balance_credits ?? fulfillRes.new_balance;
 
         // Major action notification: Payment received
-        await ({
+        await createNotification({
           userId: order.user_id,
           type: 'payment_confirmed',
           title: 'Payment received',
@@ -285,7 +285,7 @@ export async function POST(req: NextRequest) {
           actionId: order.id,
         });
 
-        await ({
+        await notifyAdmins({
           type: 'order_status',
           title: 'New paid order',
           email: {
