@@ -1,5 +1,10 @@
 const PROD_ALLOWED_REDIRECT_HOSTS = [
   'humantekartclient.webportfolio.live',
+  'humantekartclientpaypal.webportfolio.live',
+  'humantekart.com',
+  'www.humantekart.com',
+  'studio.humantekart.com',
+  'credits.humantekart.com',
   'humantek.art',
   'www.humantek.art',
 ];
