@@ -49,6 +49,7 @@ import { projectKeys } from '@/lib/queries/projects';
 import { useUserStore } from '@/lib/userStore';
 import { walletKeys } from '@/lib/queries/wallet';
 import { createClient } from '@/lib/supabase/client';
+import { isCompanyTransportEnabled } from '@/lib/chat/transport';
 import { useChatStore } from '@/lib/chatStore';
 import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
@@ -87,72 +88,80 @@ export function DashboardNotificationDropdown() {
 
   // Realtime subscription to new notifications and wallet balance changes
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || isCompanyTransportEnabled()) return;
 
-    try {
-      const supabase = createClient();
-      const channel = supabase
-        .channel(`realtime-notifications-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
-            const newRow = payload.new as {
-              type?: string;
-              title?: string;
-              message?: string;
-            } | undefined;
-            if (
-              !newRow?.type ||
-              newRow.type === 'payment_confirmed' ||
-              newRow.type === 'wallet_credit' ||
-              newRow.type === 'project_status'
-            ) {
+    let activeChannel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
+    let supabaseClient: ReturnType<typeof createClient> | null = null;
+
+    const connectTimer = setTimeout(() => {
+      try {
+        supabaseClient = createClient();
+        activeChannel = supabaseClient
+          .channel(`realtime-notifications-${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+              const newRow = payload.new as {
+                type?: string;
+                title?: string;
+                message?: string;
+              } | undefined;
+              if (
+                !newRow?.type ||
+                newRow.type === 'payment_confirmed' ||
+                newRow.type === 'wallet_credit' ||
+                newRow.type === 'project_status'
+              ) {
+                void queryClient.invalidateQueries({ queryKey: walletKeys.all });
+                void queryClient.invalidateQueries({ queryKey: projectKeys.all });
+              }
+
+              // Show live toast for incoming studio/payment updates (skip self-triggered wizard/redeem toasts)
+              if (
+                payload.eventType === 'INSERT' &&
+                newRow?.title &&
+                (newRow.type === 'payment_confirmed' ||
+                  (newRow.type === 'project_status' &&
+                    !newRow.title.startsWith('Project submitted') &&
+                    !newRow.title.startsWith('Project started')))
+              ) {
+                toast.success(newRow.title, {
+                  description: newRow.message,
+                });
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'wallets',
+              filter: `user_id=eq.${user.id}`,
+            },
+            () => {
               void queryClient.invalidateQueries({ queryKey: walletKeys.all });
-              void queryClient.invalidateQueries({ queryKey: projectKeys.all });
             }
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn('[RealtimeNotifications] Failed to connect:', err);
+      }
+    }, 50);
 
-            // Show live toast for incoming studio/payment updates (skip self-triggered wizard/redeem toasts)
-            if (
-              payload.eventType === 'INSERT' &&
-              newRow?.title &&
-              (newRow.type === 'payment_confirmed' ||
-                (newRow.type === 'project_status' &&
-                  !newRow.title.startsWith('Project submitted') &&
-                  !newRow.title.startsWith('Project started')))
-            ) {
-              toast.success(newRow.title, {
-                description: newRow.message,
-              });
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'wallets',
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            void queryClient.invalidateQueries({ queryKey: walletKeys.all });
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    } catch (err) {
-      console.warn('[RealtimeNotifications] Failed to connect:', err);
-    }
+    return () => {
+      clearTimeout(connectTimer);
+      if (activeChannel && supabaseClient) {
+        void supabaseClient.removeChannel(activeChannel);
+      }
+    };
   }, [user?.id, queryClient]);
 
   const handleMarkAll = (e: React.MouseEvent) => {
