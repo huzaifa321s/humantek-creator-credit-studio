@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { REFERENCE_LIMITS } from '@/lib/validation';
+import { buildStudioNotificationEmail, sendStudioEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,38 @@ export async function POST(req: NextRequest) {
   // 1. Secret authorization
   if (!authorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const testEmailTo = req.nextUrl.searchParams.get('test_email')?.trim();
+  if (testEmailTo) {
+    const result = await sendStudioEmail(
+      buildStudioNotificationEmail({
+        to: testEmailTo,
+        category: 'project_status_client',
+        subject: 'Humantek Creator Credit Studio — Live SMTP Verification',
+        badge: 'SMTP Verified',
+        heading: 'Your Studio Email Delivery is Live!',
+        message: 'This is a live verification email sent from your Hostinger Node.js server via mail.humantekart.com.',
+        greetingName: 'Muhammad Huzaifa',
+        details: [
+          ['SMTP Host', process.env.SMTP_HOST || '(not set)'],
+          ['SMTP User', process.env.SMTP_USER || '(not set)'],
+          ['SMTP Port', process.env.SMTP_PORT || '465'],
+        ],
+        ctaLabel: 'Open Studio',
+        ctaUrl: '/projects',
+      })
+    );
+    return NextResponse.json({
+      smtpConfigured: {
+        host: process.env.SMTP_HOST || null,
+        port: process.env.SMTP_PORT || null,
+        user: process.env.SMTP_USER || null,
+        hasPass: Boolean(process.env.SMTP_PASS),
+        emailFrom: process.env.EMAIL_FROM || null,
+      },
+      result,
+    });
   }
 
   if (!isSupabaseConfigured()) {

@@ -439,31 +439,49 @@ export function buildStudioNotificationEmail(params: {
   };
 }
 
-let cachedTransporter: Transporter | null = null;
+function cleanEnvValue(val?: string | null): string {
+  if (!val) return '';
+  return val.trim().replace(/^["']+|["']+$/g, '').trim();
+}
 
-/**
- * SMTP transport (Hostinger: smtp.hostinger.com, port 465 SSL or 587 STARTTLS).
- * Returns null when SMTP credentials are not configured.
- */
-function getSmtpTransporter(): Transporter | null {
-  if (cachedTransporter) return cachedTransporter;
-  const host = process.env.SMTP_HOST?.trim();
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS;
+function resolveFromHeader(smtpUser: string): string {
+  const raw = cleanEnvValue(process.env.EMAIL_FROM);
+  if (!raw) {
+    return `"Humantek Creator Credit Studio" <${smtpUser}>`;
+  }
+  const angleMatch = raw.match(/^(.*?)<([^>]+)>\s*$/);
+  if (angleMatch) {
+    const displayName = cleanEnvValue(angleMatch[1]) || 'Humantek Creator Credit Studio';
+    const addr = cleanEnvValue(angleMatch[2]) || smtpUser;
+    return `"${displayName.replace(/"/g, '')}" <${addr}>`;
+  }
+  if (raw.includes('@')) {
+    return raw;
+  }
+  return `"${raw.replace(/"/g, '')}" <${smtpUser}>`;
+}
+
+function createSmtpTransporter(portOverride?: number): Transporter | null {
+  const host = cleanEnvValue(process.env.SMTP_HOST);
+  const user = cleanEnvValue(process.env.SMTP_USER);
+  const pass = cleanEnvValue(process.env.SMTP_PASS);
   if (!host || !user || !pass) return null;
 
-  const port = Number(process.env.SMTP_PORT) || 465;
-  cachedTransporter = nodemailer.createTransport({
+  const port = portOverride || Number(cleanEnvValue(process.env.SMTP_PORT)) || 465;
+  const secure = process.env.SMTP_SECURE
+    ? cleanEnvValue(process.env.SMTP_SECURE) === 'true'
+    : port === 465;
+
+  return nodemailer.createTransport({
     host,
     port,
-    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
+    secure,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 10000,
   });
-  return cachedTransporter;
 }
 
 /**
@@ -487,7 +505,8 @@ export async function sendStudioEmail(
     return { ...dispatchResult, status: 'failed', error: 'Invalid recipient address' };
   }
 
-  const transporter = getSmtpTransporter();
+  const smtpUser = cleanEnvValue(process.env.SMTP_USER);
+  const transporter = createSmtpTransporter();
   if (!transporter) {
     if (process.env.NODE_ENV !== 'test') {
       console.info(
@@ -497,22 +516,37 @@ export async function sendStudioEmail(
     return dispatchResult;
   }
 
+  const from = resolveFromHeader(smtpUser);
+  const replyTo = cleanEnvValue(process.env.EMAIL_REPLY_TO);
+  const mailOptions = {
+    from,
+    to: payload.to,
+    subject: payload.subject,
+    html: payload.html,
+    text: payload.text,
+    ...(replyTo ? { replyTo } : {}),
+  };
+
   try {
-    const from =
-      process.env.EMAIL_FROM?.trim() ||
-      `"Humantek Creator Credit Studio" <${process.env.SMTP_USER?.trim()}>`;
-    const info = await transporter.sendMail({
-      from,
-      to: payload.to,
-      subject: payload.subject,
-      html: payload.html,
-      text: payload.text,
-      ...(process.env.EMAIL_REPLY_TO ? { replyTo: process.env.EMAIL_REPLY_TO } : {}),
-    });
+    const info = await transporter.sendMail(mailOptions);
     return { ...dispatchResult, id: info.messageId || dispatchResult.id, status: 'sent' };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[StudioEmail] Failed to send (${payload.category}) -> ${payload.to}: ${message}`);
-    return { ...dispatchResult, status: 'failed', error: message };
+    const primaryMsg = err instanceof Error ? err.message : String(err);
+    const configuredPort = Number(cleanEnvValue(process.env.SMTP_PORT)) || 465;
+    const fallbackPort = configuredPort === 465 ? 587 : 465;
+    try {
+      const fallbackTransporter = createSmtpTransporter(fallbackPort);
+      if (fallbackTransporter) {
+        const info = await fallbackTransporter.sendMail(mailOptions);
+        return { ...dispatchResult, id: info.messageId || dispatchResult.id, status: 'sent' };
+      }
+    } catch (fallbackErr) {
+      const fbMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+      const combined = `Port ${configuredPort}: ${primaryMsg} | Port ${fallbackPort}: ${fbMsg}`;
+      console.warn(`[StudioEmail] Failed to send (${payload.category}) -> ${payload.to}: ${combined}`);
+      return { ...dispatchResult, status: 'failed', error: combined };
+    }
+    console.warn(`[StudioEmail] Failed to send (${payload.category}) -> ${payload.to}: ${primaryMsg}`);
+    return { ...dispatchResult, status: 'failed', error: primaryMsg };
   }
 }
