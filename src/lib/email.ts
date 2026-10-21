@@ -182,46 +182,51 @@ function wrapStudioEmailLayout(opts: {
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f4f4f5;padding:36px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(24,24,27,0.06);">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(24,24,27,0.06);">
           <!-- Top Amber Gold Studio Accent Bar -->
           <tr>
             <td style="height:4px;background:linear-gradient(90deg,#f59e0b 0%,#fbbf24 50%,#d97706 100%);font-size:0;line-height:0;">&nbsp;</td>
           </tr>
           <!-- Dark Studio Brand Header -->
           <tr>
-            <td style="padding:18px 28px;background-color:#18181b;border-bottom:1px solid #27272a;">
+            <td style="padding:20px 32px;background-color:#18181b;border-bottom:1px solid #27272a;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td valign="middle">
                     <table role="presentation" cellspacing="0" cellpadding="0">
                       <tr>
                         <td valign="middle" style="padding-right:12px;">
-                          <img src="${escapeHtml(brandLogoUrl)}" alt="Humantek Art" width="64" height="25" style="display:block;border:0;outline:none;text-decoration:none;height:25px;width:auto;color:#ffffff;font-size:12px;font-weight:800;" />
+                          <img src="${escapeHtml(brandLogoUrl)}" alt="Humantek Art" width="68" height="26" style="display:block;border:0;outline:none;text-decoration:none;height:26px;width:auto;color:#ffffff;font-size:13px;font-weight:800;" />
                         </td>
                         <td valign="middle" style="border-left:1px solid #3f3f46;padding-left:12px;">
-                          <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;">
-                            CREATOR CREDIT STUDIO
+                          <div style="font-size:13px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;line-height:1.2;">
+                            HUMANTEK <span style="color:#f59e0b;">ART</span>
                           </div>
-                          <div style="font-size:11px;font-weight:500;color:#a1a1aa;margin-top:1px;">
-                            Humantek Art Official Portal
+                          <div style="font-size:11px;font-weight:500;color:#a1a1aa;margin-top:2px;">
+                            Official Studio Portal
                           </div>
                         </td>
                       </tr>
                     </table>
                   </td>
-                  <td align="right" valign="middle">
-                    <span style="display:inline-block;padding:5px 11px;border-radius:999px;background-color:rgba(245,158,11,0.16);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
-                      ${escapeHtml(opts.badge)}
+                  <td align="right" valign="middle" style="padding-left:12px;">
+                    <span style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#fbbf24;white-space:nowrap;">
+                      Creator Credit Studio
                     </span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
-          <!-- Main Heading & Optional Subtitle -->
+          <!-- Event Pill Badge + Main Heading & Optional Subtitle -->
           <tr>
-            <td style="padding:26px 28px 14px 28px;border-bottom:1px solid #f4f4f5;">
-              <h1 style="margin:0;font-size:20px;font-weight:800;color:#18181b;letter-spacing:-0.02em;line-height:1.35;">
+            <td style="padding:26px 32px 16px 32px;border-bottom:1px solid #f4f4f5;">
+              <div style="margin-bottom:10px;">
+                <span style="display:inline-block;padding:4px 11px;border-radius:999px;background-color:#fffbeb;border:1px solid #fde68a;color:#b45309;font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;">
+                  ${escapeHtml(opts.badge)}
+                </span>
+              </div>
+              <h1 style="margin:0;font-size:21px;font-weight:800;color:#18181b;letter-spacing:-0.02em;line-height:1.35;">
                 ${escapeHtml(cleanHeading)}
               </h1>
               ${
@@ -235,12 +240,12 @@ function wrapStudioEmailLayout(opts: {
           </tr>
           <!-- Body Content & CTA -->
           <tr>
-            <td style="padding:20px 28px 28px 28px;font-size:14px;line-height:1.65;color:#3f3f46;">
+            <td style="padding:22px 32px 30px 32px;font-size:14px;line-height:1.65;color:#3f3f46;">
               ${opts.bodyHtml}
               ${
                 opts.ctaLabel
                   ? `<div style="margin-top:24px;">
-                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 22px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
+                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 24px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
                         ${escapeHtml(opts.ctaLabel)} &rarr;
                       </a>
                     </div>`
@@ -250,7 +255,7 @@ function wrapStudioEmailLayout(opts: {
           </tr>
           <!-- Studio Footer -->
           <tr>
-            <td style="padding:18px 28px;border-top:1px solid #e4e4e7;background-color:#fafafa;font-size:11px;color:#71717a;line-height:1.5;">
+            <td style="padding:18px 32px;border-top:1px solid #e4e4e7;background-color:#fafafa;font-size:11px;color:#71717a;line-height:1.5;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td>
@@ -495,10 +500,18 @@ export function buildStudioNotificationEmail(params: {
   attachments?: StudioEmailAttachment[];
 }): StudioEmailPayload {
   const detailsHtml = params.details?.length ? buildEmailDetailsTable(params.details) : '';
-  const attachedPdfName = params.attachments?.[0]?.filename;
+  const invoiceRow = params.details?.find(([label]) => label.toLowerCase() === 'invoice');
+  const projectRow = params.details?.find(([label]) => label.toLowerCase() === 'project');
+  const fallbackPdfName =
+    projectRow?.[1]
+      ? `Humantek-Invoice-${projectRow[1].replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`
+      : invoiceRow?.[1]
+        ? `Humantek-${invoiceRow[1].replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`
+        : undefined;
+  const attachedPdfName = params.attachments?.[0]?.filename || fallbackPdfName;
   const attachmentBannerHtml = attachedPdfName
     ? `<div style="margin-top:14px;padding:10px 14px;border-radius:10px;background-color:#fffbeb;border:1px solid #fde68a;font-size:12px;color:#92400e;">
-        &#128206; <strong>Attached PDF Invoice:</strong> <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;color:#78350f;">${escapeHtml(attachedPdfName)}</span> (download directly from this email)
+        &#128206; <strong>Official PDF Invoice:</strong> <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;color:#78350f;">${escapeHtml(attachedPdfName)}</span> ${params.attachments?.length ? '(attached to this email)' : '(available in your project drawer)'}
       </div>`
     : '';
 

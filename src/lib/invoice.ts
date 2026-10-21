@@ -1,9 +1,99 @@
 import { PACKAGES, TIER_NAMES, TOP_UP_OPTIONS } from '@/lib/catalog';
 import { getProjectStatusLabel } from '@/lib/utils';
 import { getPaymentPlatform, PAYMENT_PLATFORM_LABELS } from '@/lib/payment-platform';
-import { resolvePaletteSwatches, hexToRgb } from '@/components/reui/color-picker';
 import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import type { ClientProjectView } from '@/lib/serializers/project';
+
+function normalizeHex(hex: string): string | null {
+  const clean = hex.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(clean)) {
+    return `#${(clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2]).toUpperCase()}`;
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(clean)) {
+    return `#${clean.toUpperCase()}`;
+  }
+  return null;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = normalizeHex(hex);
+  if (!normalized) return null;
+  const num = parseInt(normalized.slice(1), 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+}
+
+const INVOICE_COLOR_PRESETS: Array<{ hex: string; name: string }> = [
+  { hex: '#FF007F', name: 'Neon Pink' },
+  { hex: '#00F0FF', name: 'Cyber Cyan' },
+  { hex: '#F59E0B', name: 'Studio Gold' },
+  { hex: '#8B5CF6', name: 'Electric Violet' },
+  { hex: '#10B981', name: 'Emerald Glow' },
+  { hex: '#EF4444', name: 'Crimson Red' },
+  { hex: '#3B82F6', name: 'Cobalt Blue' },
+  { hex: '#EC4899', name: 'Sakura Magenta' },
+  { hex: '#A855F7', name: 'Neon Purple' },
+  { hex: '#14B8A6', name: 'Mint Teal' },
+  { hex: '#F97316', name: 'Sunset Orange' },
+  { hex: '#0F172A', name: 'Deep Slate' },
+];
+
+const INVOICE_NAMED_COLOR_KEYWORDS: Array<{ pattern: RegExp; hex: string }> = [
+  { pattern: /\bcrimson\b/i, hex: '#EF4444' },
+  { pattern: /\bred\b/i, hex: '#EF4444' },
+  { pattern: /\bpink\b/i, hex: '#FF007F' },
+  { pattern: /\bmagenta\b/i, hex: '#EC4899' },
+  { pattern: /\bsakura\b/i, hex: '#EC4899' },
+  { pattern: /\bcyan\b/i, hex: '#00F0FF' },
+  { pattern: /\bteal\b/i, hex: '#14B8A6' },
+  { pattern: /\bmint\b/i, hex: '#14B8A6' },
+  { pattern: /\bgold\b/i, hex: '#F59E0B' },
+  { pattern: /\bamber\b/i, hex: '#F59E0B' },
+  { pattern: /\byellow\b/i, hex: '#EAB308' },
+  { pattern: /\borange\b/i, hex: '#F97316' },
+  { pattern: /\bviolet\b/i, hex: '#8B5CF6' },
+  { pattern: /\bpurple\b/i, hex: '#A855F7' },
+  { pattern: /\bemerald\b/i, hex: '#10B981' },
+  { pattern: /\bgreen\b/i, hex: '#10B981' },
+  { pattern: /\bcobalt\b/i, hex: '#3B82F6' },
+  { pattern: /\bblue\b/i, hex: '#3B82F6' },
+  { pattern: /\bslate\b/i, hex: '#1E293B' },
+  { pattern: /\bobsidian\b/i, hex: '#0F172A' },
+  { pattern: /\bblack\b/i, hex: '#0F172A' },
+  { pattern: /\bdark\b/i, hex: '#1E293B' },
+  { pattern: /\bwhite\b/i, hex: '#F8FAFC' },
+  { pattern: /\bsilver\b/i, hex: '#94A3B8' },
+];
+
+function resolvePaletteSwatches(text?: string): string[] {
+  if (!text) return [];
+  const matches = text.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g) || [];
+  const hexes: string[] = [];
+  for (const m of matches) {
+    const norm = normalizeHex(m);
+    if (norm && !hexes.includes(norm)) hexes.push(norm);
+  }
+  if (hexes.length > 0) return hexes;
+
+  const matched: Array<{ index: number; hex: string }> = [];
+  for (const preset of INVOICE_COLOR_PRESETS) {
+    const idx = text.toLowerCase().indexOf(preset.name.toLowerCase());
+    if (idx !== -1) matched.push({ index: idx, hex: preset.hex });
+  }
+  for (const kw of INVOICE_NAMED_COLOR_KEYWORDS) {
+    const m = kw.pattern.exec(text);
+    if (m && m.index !== undefined) matched.push({ index: m.index, hex: kw.hex });
+  }
+  matched.sort((a, b) => a.index - b.index);
+  const unique: string[] = [];
+  for (const item of matched) {
+    if (!unique.includes(item.hex)) unique.push(item.hex);
+  }
+  return unique;
+}
 
 interface StudioFontSpec {
   fileName: string;
@@ -295,20 +385,27 @@ async function renderProjectInvoiceDocument(
   doc.rect(0, 109, pageWidth, 3, 'F');
 
   const brandLogo = await loadBrandLogoDataUrl();
+  let drewBrandLogo = false;
   if (brandLogo) {
-    // Light-on-dark official logo drawn directly on the header (no background plate)
-    doc.addImage(brandLogo, 'PNG', margin, 26, 58, 22.2, undefined, 'FAST');
+    try {
+      // Light-on-dark official logo drawn directly on the header (no background plate)
+      doc.addImage(brandLogo, 'PNG', margin, 26, 58, 22.2);
+      drewBrandLogo = true;
 
-    // Thin divider + softer, smaller label (matches the navbar)
-    doc.setDrawColor(63, 63, 70); // Zinc-700
-    doc.setLineWidth(0.8);
-    doc.line(margin + 68, 29, margin + 68, 45);
+      // Thin divider + softer, smaller label (matches the navbar)
+      doc.setDrawColor(63, 63, 70); // Zinc-700
+      doc.setLineWidth(0.8);
+      doc.line(margin + 68, 29, margin + 68, 45);
 
-    doc.setTextColor(251, 191, 36); // Amber-400
-    doc.setFont(fontSans, 'bold');
-    doc.setFontSize(6.5);
-    doc.text('CREATOR CREDITS STUDIO', margin + 76, 39.5);
-  } else {
+      doc.setTextColor(251, 191, 36); // Amber-400
+      doc.setFont(fontSans, 'bold');
+      doc.setFontSize(6.5);
+      doc.text('CREATOR CREDITS STUDIO', margin + 76, 39.5);
+    } catch (logoErr) {
+      console.warn('[Invoice] Could not embed PNG logo, using text emblem:', logoErr);
+    }
+  }
+  if (!drewBrandLogo) {
     // Fallback: text emblem
     doc.setFillColor(251, 191, 36); // Amber-400
     doc.roundedRect(margin, 24, 26, 26, 7, 7, 'F');
