@@ -4104,6 +4104,7 @@ export default function CreatorStudioPage() {
                           <ManualPaymentOptions
                             amount={currentPackage.price}
                             isSubmitting={isSubmitting}
+                            isCompleted={isNavigatingToConfirmation}
                             onConfirm={handleManualPaymentSent}
                           />
 
