@@ -71,7 +71,7 @@ export function useNotificationsQuery(filter: string = 'all') {
 
       return { notifications: mapped, unreadCount };
     },
-    staleTime: 15_000,
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });

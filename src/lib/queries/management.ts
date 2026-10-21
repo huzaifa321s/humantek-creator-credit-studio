@@ -61,8 +61,9 @@ export function useManagementSummaryQuery() {
       }
       return data as ManagementSummaryData;
     },
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: 30_000,
+    refetchInterval: 90_000,
+    refetchIntervalInBackground: false,
   });
 }
 
