@@ -59,6 +59,12 @@ export function parseGiftPromoMetadata(rawDescription?: string | null): GiftProm
   return null;
 }
 
+export interface StudioEmailAttachment {
+  filename: string;
+  content: Buffer | Uint8Array | ArrayBuffer;
+  contentType?: string;
+}
+
 export interface StudioEmailPayload {
   to: string;
   subject: string;
@@ -80,6 +86,7 @@ export interface StudioEmailPayload {
     | 'wallet_adjustment_client'
     | 'team_invitation'
     | 'chat_message_alert';
+  attachments?: StudioEmailAttachment[];
   metadata?: Record<string, unknown>;
 }
 
@@ -152,8 +159,13 @@ function wrapStudioEmailLayout(opts: {
   bodyHtml: string;
   ctaLabel?: string;
   ctaUrl?: string;
+  secondaryCtaLabel?: string;
+  secondaryCtaUrl?: string;
 }): string {
   const resolvedCtaUrl = resolveAppUrl(opts.ctaUrl || '/dashboard');
+  const resolvedSecondaryCtaUrl = opts.secondaryCtaUrl
+    ? resolveAppUrl(opts.secondaryCtaUrl)
+    : '';
   const studioHomeUrl = resolveAppUrl('/dashboard');
   const cleanHeading = opts.heading.trim();
   const cleanSubtitle = (opts.subtitle || '').trim();
@@ -221,11 +233,22 @@ function wrapStudioEmailLayout(opts: {
             <td style="padding:20px 28px 28px 28px;font-size:14px;line-height:1.65;color:#3f3f46;">
               ${opts.bodyHtml}
               ${
-                opts.ctaLabel
+                opts.ctaLabel || (opts.secondaryCtaLabel && resolvedSecondaryCtaUrl)
                   ? `<div style="margin-top:24px;">
-                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 22px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
-                        ${escapeHtml(opts.ctaLabel)} &rarr;
-                      </a>
+                      ${
+                        opts.ctaLabel
+                          ? `<a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 22px;margin-right:10px;margin-bottom:8px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
+                              ${escapeHtml(opts.ctaLabel)} &rarr;
+                            </a>`
+                          : ''
+                      }
+                      ${
+                        opts.secondaryCtaLabel && resolvedSecondaryCtaUrl
+                          ? `<a href="${escapeHtml(resolvedSecondaryCtaUrl)}" style="display:inline-block;padding:11px 18px;margin-bottom:8px;border-radius:10px;background-color:#ffffff;border:1px solid #d4d4d8;color:#18181b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;">
+                              &#8681; ${escapeHtml(opts.secondaryCtaLabel)}
+                            </a>`
+                          : ''
+                      }
                     </div>`
                   : ''
               }
@@ -475,6 +498,9 @@ export function buildStudioNotificationEmail(params: {
   details?: Array<[label: string, value: string]>;
   ctaLabel?: string;
   ctaUrl?: string;
+  secondaryCtaLabel?: string;
+  secondaryCtaUrl?: string;
+  attachments?: StudioEmailAttachment[];
 }): StudioEmailPayload {
   const detailsHtml = params.details?.length ? buildEmailDetailsTable(params.details) : '';
 
@@ -489,6 +515,9 @@ export function buildStudioNotificationEmail(params: {
     params.message,
     ...(params.details || []).map(([label, value]) => `${label}: ${value}`),
     params.ctaUrl ? `${params.ctaLabel || 'Open'}: ${resolveAppUrl(params.ctaUrl)}` : '',
+    params.secondaryCtaUrl
+      ? `${params.secondaryCtaLabel || 'Download Invoice'}: ${resolveAppUrl(params.secondaryCtaUrl)}`
+      : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -503,9 +532,12 @@ export function buildStudioNotificationEmail(params: {
       bodyHtml,
       ctaLabel: params.ctaLabel,
       ctaUrl: params.ctaUrl,
+      secondaryCtaLabel: params.secondaryCtaLabel,
+      secondaryCtaUrl: params.secondaryCtaUrl,
     }),
     text,
     category: params.category,
+    attachments: params.attachments,
   };
 }
 
@@ -589,6 +621,13 @@ export async function sendStudioEmail(
 
   const from = resolveFromHeader(smtpUser);
   const replyTo = cleanEnvValue(process.env.EMAIL_REPLY_TO);
+  const nodemailerAttachments = payload.attachments?.map((att) => ({
+    filename: att.filename,
+    content: Buffer.isBuffer(att.content)
+      ? att.content
+      : Buffer.from(att.content instanceof ArrayBuffer ? new Uint8Array(att.content) : att.content),
+    contentType: att.contentType || 'application/pdf',
+  }));
   const mailOptions = {
     from,
     to: payload.to,
@@ -596,6 +635,7 @@ export async function sendStudioEmail(
     html: payload.html,
     text: payload.text,
     ...(replyTo ? { replyTo } : {}),
+    ...(nodemailerAttachments?.length ? { attachments: nodemailerAttachments } : {}),
   };
 
   try {
