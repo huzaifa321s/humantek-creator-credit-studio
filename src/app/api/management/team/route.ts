@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
       : createdNewAccount
         ? 'Set your password with "Forgot password" on the sign-in page using this email address.'
         : 'Sign in with your existing password.';
-    void sendStudioEmail(
+    await (
       buildStudioNotificationEmail({
         to: email,
         category: 'team_invitation',

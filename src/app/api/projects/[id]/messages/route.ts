@@ -676,7 +676,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     if (user.isAdmin) {
       const targetUserId = isGlobal ? globalClientUserId : projectUserId;
       if (targetUserId && targetUserId !== user.id) {
-        void createNotification({
+        await ({
           userId: targetUserId,
           type: 'chat_message',
           title: isGlobal ? 'New support reply' : 'New message',
@@ -700,7 +700,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         newSenderProfile?.full_name ||
         postProjectClientName ||
         (user.email ? user.email.split('@')[0] : 'Client');
-      void notifyAdmins({
+      await ({
         type: 'chat_message',
         title: isGlobal ? 'New support inquiry' : 'New client message',
         email: {

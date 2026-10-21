@@ -669,7 +669,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (rawDelta > 0) {
-      void createNotification({
+      await ({
         userId: profile.id,
         type: 'wallet_credit',
         title: `Credits added · +${rawDelta} CR`,
@@ -690,7 +690,7 @@ export async function POST(req: NextRequest) {
         entityId: refId,
       });
     } else if (rawDelta < 0) {
-      void createNotification({
+      await ({
         userId: profile.id,
         type: 'wallet_credit',
         title: `Credits deducted · ${rawDelta} CR`,
