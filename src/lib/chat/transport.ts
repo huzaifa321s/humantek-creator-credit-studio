@@ -43,18 +43,22 @@ export class CompanyPusherTransport implements ChatTransport {
     let ws: WebSocket | null = null;
     let pingTimer: ReturnType<typeof setInterval> | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
 
     const connect = () => {
       if (isCancelled) return;
       try {
         ws = new WebSocket(wsUrl);
       } catch (err) {
-        if (onError) onError(err);
+        if (!isCancelled && onError) onError(err);
         return;
       }
 
       ws.onopen = () => {
-        if (isCancelled || !ws) return;
+        if (isCancelled || !ws) {
+          ws?.close();
+          return;
+        }
         // Keep connection alive with Pusher v7 ping every 45s
         if (pingTimer) clearInterval(pingTimer);
         pingTimer = setInterval(() => {
@@ -104,7 +108,7 @@ export class CompanyPusherTransport implements ChatTransport {
       };
 
       ws.onerror = (err) => {
-        if (onError) onError(err);
+        if (!isCancelled && onError) onError(err);
       };
 
       ws.onclose = () => {
@@ -118,14 +122,22 @@ export class CompanyPusherTransport implements ChatTransport {
       };
     };
 
-    connect();
+    // Defer socket creation by 15ms so React Strict Mode's immediate dev unmount
+    // cancels the timer cleanly without opening & aborting a throwaway socket.
+    connectTimer = setTimeout(connect, 15);
 
     return () => {
       isCancelled = true;
+      if (connectTimer) clearTimeout(connectTimer);
       if (pingTimer) clearInterval(pingTimer);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) {
         try {
+          // Detach handlers before closing so intentional cleanup never triggers onerror
+          ws.onopen = null;
+          ws.onmessage = null;
+          ws.onerror = null;
+          ws.onclose = null;
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
@@ -133,8 +145,8 @@ export class CompanyPusherTransport implements ChatTransport {
                 data: { channel: topic },
               })
             );
+            ws.close();
           }
-          ws.close();
         } catch {}
         ws = null;
       }

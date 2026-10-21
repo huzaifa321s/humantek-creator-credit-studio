@@ -91,9 +91,9 @@ export function AdminInbox({ initialProjectId, initialClientId }: AdminInboxProp
   // so ChatInputBar and useProjectChat have a stable projectId immediately without a render-after-effect reset.
   useState(() => {
     if (initialProjectId) {
-      useChatStore.setState({ activeProjectId: initialProjectId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     } else if (initialClientId) {
-      useChatStore.setState({ activeProjectId: GLOBAL_CHAT_ID });
+    if (initialClientId && !initialProjectId) { /* handled in useEffect below */ }
     }
   });
 
