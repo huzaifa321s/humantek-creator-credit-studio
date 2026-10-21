@@ -254,15 +254,19 @@ export class SupabaseRealtimeTransport implements ChatTransport {
   }
 }
 
+export function isCompanyTransportEnabled(): boolean {
+  const mode = (process.env.NEXT_PUBLIC_CHAT_TRANSPORT || 'supabase').trim().toLowerCase();
+  const hubUrl = (process.env.NEXT_PUBLIC_COMPANY_HUB_URL || '').trim();
+  return mode === 'company' && Boolean(hubUrl);
+}
+
 /**
  * Dual-mode transport selector:
  * Uses `CompanyPusherTransport` when `NEXT_PUBLIC_CHAT_TRANSPORT=company` and
  * `NEXT_PUBLIC_COMPANY_HUB_URL` is configured; otherwise defaults to `SupabaseRealtimeTransport`.
  */
 function createDefaultChatTransport(): ChatTransport {
-  const mode = (process.env.NEXT_PUBLIC_CHAT_TRANSPORT || 'supabase').trim().toLowerCase();
-  const hubUrl = (process.env.NEXT_PUBLIC_COMPANY_HUB_URL || '').trim();
-  if (mode === 'company' && hubUrl) {
+  if (isCompanyTransportEnabled()) {
     return new CompanyPusherTransport();
   }
   return new SupabaseRealtimeTransport();
