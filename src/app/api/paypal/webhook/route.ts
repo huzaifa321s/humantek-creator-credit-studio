@@ -183,6 +183,14 @@ export async function POST(req: NextRequest) {
             userId: order.user_id,
             type: 'payment_confirmed',
             title: 'Payment refunded',
+            email: {
+              category: 'payment_refunded_client',
+              badge: 'Payment Refunded',
+              details: [
+                ['Refund amount', `$${((refundAmountCents || 0) / 100).toFixed(2)}`],
+                ['Order ID', order.id],
+              ],
+            },
             message: `Your payment of $${((refundAmountCents || 0) / 100).toFixed(2)} has been refunded and your studio credit balance was updated.`,
             link: '/projects',
             actionLabel: 'View Projects',

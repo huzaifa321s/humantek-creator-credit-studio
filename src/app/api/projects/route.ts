@@ -743,6 +743,16 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           type: 'project_status',
           title: `Project submitted · ${projectCode}`,
+          email: {
+            category: 'project_order_client',
+            badge: 'Order Confirmation',
+            details: [
+              ['Project', projectCode],
+              ['Package', pkg.name],
+              ['Credits', `${totalCreditsRequired} Credits`],
+              ['Status', 'Awaiting studio review'],
+            ],
+          },
           message: `We received your ${pkg.name} brief (${totalCreditsRequired} Credits scope) and will review it shortly.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
@@ -754,6 +764,17 @@ export async function POST(req: NextRequest) {
         void notifyAdmins({
           type: 'project_status',
           title: `New project request · ${projectCode}`,
+          email: {
+            category: 'project_order_owner',
+            badge: 'New Project Order',
+            subject: `[Studio Alert] New project request ${projectCode} from ${ownerName}`,
+            details: [
+              ['Client', ownerName],
+              ['Project', projectCode],
+              ['Package', pkg.name],
+              ['Credits', `${totalCreditsRequired} Credits`],
+            ],
+          },
           message: `${ownerName} submitted a ${pkg.name} brief (${totalCreditsRequired} Credits) for review.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
           actionLabel: 'Review Brief',
@@ -867,6 +888,15 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           type: 'project_status',
           title: `Project started · ${projectCode}`,
+          email: {
+            category: 'project_order_client',
+            badge: 'Order Confirmation',
+            details: [
+              ['Project', projectCode],
+              ['Credits used', `${spentCredits} Credits`],
+              ['Funding', 'Studio Wallet'],
+            ],
+          },
           message: `Your project (${spentCredits} Credits) was funded with Studio Wallet credits and is now queued.`,
           link: `/projects/${parsed.data.projectId}`,
           actionLabel: 'View Project',
@@ -878,6 +908,16 @@ export async function POST(req: NextRequest) {
         void notifyAdmins({
           type: 'project_status',
           title: `New credit project · ${projectCode}`,
+          email: {
+            category: 'project_order_owner',
+            badge: 'New Project Order',
+            subject: `[Studio Alert] New project ${projectCode} from ${ownerName}`,
+            details: [
+              ['Client', ownerName],
+              ['Project', projectCode],
+              ['Credits used', `${spentCredits} Credits`],
+            ],
+          },
           message: `${ownerName} started a new project (${spentCredits} Credits) with wallet credits.`,
           link: `/management?tab=projects&id=${parsed.data.projectId}`,
           actionLabel: 'View Project',
@@ -1067,6 +1107,11 @@ export async function PATCH(req: NextRequest) {
             userId: updatedProj.user_id,
             type: 'project_status',
             title: `Project cancelled · ${pCode}`,
+            email: {
+              category: 'project_status_client',
+              badge: 'Project Update',
+              details: [['Project', pCode], ['Status', 'Cancelled']],
+            },
             message:
               wasPaidBeforeCancel && refundedCr > 0
                 ? `Your project (${pCode}) was cancelled and +${refundedCr} Credits were refunded to your Studio Wallet.`
@@ -1237,6 +1282,16 @@ export async function PATCH(req: NextRequest) {
           void createNotification({
             userId: currentProj.user_id,
             type: 'payment_confirmed',
+            email: {
+              category: 'payment_receipt_client',
+              badge: 'Payment Receipt',
+              details: [
+                ['Project', currentProj.project_code],
+                ['Package', pkgLabel],
+                ['Credits allocated', `${totalUsed} Credits`],
+                ...(surplusCredits > 0 ? ([['Added to wallet', `+${surplusCredits} Credits`]] as Array<[string, string]>) : []),
+              ],
+            },
             title:
               surplusCredits > 0
                 ? `Payment confirmed · +${surplusCredits} Credits added`
@@ -1301,6 +1356,11 @@ export async function PATCH(req: NextRequest) {
             userId: currentProj.user_id,
             type: 'payment_confirmed',
             title: `Payment refunded · ${currentProj.project_code}`,
+            email: {
+              category: 'payment_refunded_client',
+              badge: 'Payment Refunded',
+              details: [['Project', currentProj.project_code]],
+            },
             message: `Your payment for project ${currentProj.project_code} has been refunded and your studio credit balance was updated.`,
             link: `/projects/${id}`,
             actionLabel: 'View Project',
@@ -1343,6 +1403,11 @@ export async function PATCH(req: NextRequest) {
           userId: updatedProj.user_id,
           type: 'payment_confirmed',
           title: `Payment confirmed · ${pCode}`,
+          email: {
+            category: 'payment_receipt_client',
+            badge: 'Payment Receipt',
+            details: [['Project', pCode], ['Status', 'Payment confirmed']],
+          },
           message: `Your payment for ${pCode} has been confirmed and your project is ready for production.`,
           link: `/projects/${id}`,
           actionLabel: 'View Project',
@@ -1355,6 +1420,11 @@ export async function PATCH(req: NextRequest) {
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Production started · ${pCode}`,
+          email: {
+            category: 'project_status_client',
+            badge: 'Project Update',
+            details: [['Project', pCode], ['Status', 'In production']],
+          },
           message: `We started working on your ${updatedProj.package_name || 'Studio'} project (${pCode}).`,
           link: `/projects/${id}`,
           actionLabel: 'View Project',
@@ -1367,6 +1437,11 @@ export async function PATCH(req: NextRequest) {
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Preview ready · ${pCode}`,
+          email: {
+            category: 'project_status_client',
+            badge: 'Project Update',
+            details: [['Project', pCode], ['Status', 'Ready for review']],
+          },
           message: `Your design preview for ${pCode} is ready to review.`,
           link: `/projects/${id}`,
           actionLabel: 'Review Now',
@@ -1379,6 +1454,11 @@ export async function PATCH(req: NextRequest) {
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Project completed! 🎉 · ${pCode}`,
+          email: {
+            category: 'project_status_client',
+            badge: 'Project Update',
+            details: [['Project', pCode], ['Status', 'Completed']],
+          },
           message: `Your project (${pCode}) has been marked as completed.`,
           link: `/projects/${id}`,
           actionLabel: 'View Project',
@@ -1391,6 +1471,11 @@ export async function PATCH(req: NextRequest) {
           userId: updatedProj.user_id,
           type: 'project_status',
           title: `Brief declined · ${pCode}`,
+          email: {
+            category: 'project_status_client',
+            badge: 'Project Update',
+            details: [['Project', pCode], ['Status', 'Declined']],
+          },
           message: `Your project brief (${pCode}) could not be accepted. Check project details.`,
           link: `/projects/${id}`,
           actionLabel: 'View Details',
