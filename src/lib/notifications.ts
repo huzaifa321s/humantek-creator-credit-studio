@@ -37,8 +37,6 @@ export interface NotificationEmailOptions {
   /** Defaults to the notification title. */
   subject?: string;
   details?: Array<[label: string, value: string]>;
-  secondaryCtaLabel?: string;
-  secondaryCtaUrl?: string;
   attachments?: StudioEmailAttachment[];
   /** Only email when the recipient has no other unread notification for the same entity (used for chat alerts). */
   onlyIfFirstUnread?: boolean;
@@ -83,8 +81,6 @@ async function emailNotification(
       details: opts.details,
       ctaLabel: params.actionLabel,
       ctaUrl: params.link,
-      secondaryCtaLabel: opts.secondaryCtaLabel,
-      secondaryCtaUrl: opts.secondaryCtaUrl,
       attachments: opts.attachments,
     })
   );
