@@ -16,12 +16,11 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const MASTER_ADMIN_EMAIL = 'admin@humantek.art';
-const MASTER_ADMIN_PASS = 'AdminPassword123!';
+const MASTER_ADMIN_EMAIL = 'admin-credits@humantekart.com';
 
 async function wipeDatabase() {
   console.log('========================================================================');
-  console.log('WIPING ALL USERS EXCEPT MASTER ADMIN (admin@humantek.art)');
+  console.log('WIPING ALL USERS EXCEPT MASTER ADMIN (admin-credits@humantekart.com)');
   console.log('========================================================================\n');
 
   // STEP 1: Ensure master admin exists or create it
@@ -30,28 +29,31 @@ async function wipeDatabase() {
   if (listErr) throw listErr;
 
   let masterUser = existingUsers.users.find(
-    (u) => u.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()
+    (u) =>
+      u.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase() ||
+      u.email?.toLowerCase() === 'admin@humantek.art'
   );
 
   if (!masterUser) {
     console.log(`  Creating master admin ${MASTER_ADMIN_EMAIL}...`);
     const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
       email: MASTER_ADMIN_EMAIL,
-      password: MASTER_ADMIN_PASS,
       email_confirm: true,
       user_metadata: { full_name: 'Humantek Admin' },
+      app_metadata: { role: 'admin', team_role: 'owner' },
     });
     if (createErr) throw createErr;
     masterUser = newUser.user;
     console.log(`  ✓ Created master admin with ID: ${masterUser.id}`);
   } else {
-    console.log(`  Master admin exists with ID: ${masterUser.id}. Updating password & confirmation...`);
+    console.log(`  Master admin exists with ID: ${masterUser.id}. Preserving password & confirming email...`);
     await admin.auth.admin.updateUserById(masterUser.id, {
-      password: MASTER_ADMIN_PASS,
+      email: MASTER_ADMIN_EMAIL,
       email_confirm: true,
       user_metadata: { full_name: 'Humantek Admin' },
+      app_metadata: { role: 'admin', team_role: 'owner' },
     });
-    console.log(`  ✓ Updated master admin credentials.`);
+    console.log(`  ✓ Verified master admin account (${MASTER_ADMIN_EMAIL}).`);
   }
 
   // Ensure profile exists for master admin
@@ -108,11 +110,14 @@ async function wipeDatabase() {
   if (errProj) console.warn('  Error:', errProj.message);
   else console.log('  ✓ Cleared all projects.');
 
-  // STEP 7: Delete admin alerts & webhook events
-  console.log('\n[7/12] Cleaning admin alerts and webhook events...');
+  // STEP 7: Delete notifications, admin alerts & webhook events
+  console.log('\n[7/12] Cleaning notifications, admin alerts, and webhook events...');
+  await admin.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   await admin.from('admin_alerts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   await admin.from('webhook_events').delete().gte('id', 0);
-  console.log('  ✓ Cleared admin alerts and webhook events.');
+  await admin.from('promo_codes').delete().not('code', 'in', '("HT-50CR-WELCOME","HT-150CR-STUDIO")');
+  await admin.from('promo_codes').update({ used_count: 0 }).in('code', ['HT-50CR-WELCOME', 'HT-150CR-STUDIO']);
+  console.log('  ✓ Cleared notifications, admin alerts, webhook events, and test gift codes.');
 
   // STEP 8: Delete orders
   console.log('\n[8/12] Cleaning orders table...');
@@ -209,9 +214,9 @@ async function wipeDatabase() {
   console.log(`Messages:         ${finalM} rows`);
   console.log(`Orders:           ${finalO} rows`);
   console.log(`Ledger:           ${finalLedger} rows`);
-  console.log(`Profiles:         ${finalProf} row (admin@humantek.art)`);
-  console.log(`Wallets:          ${finalW} row (admin@humantek.art)`);
-  console.log(`Auth Users:       ${finalUsers?.users.length} user (admin@humantek.art)`);
+  console.log(`Profiles:         ${finalProf} row (${MASTER_ADMIN_EMAIL})`);
+  console.log(`Wallets:          ${finalW} row (${MASTER_ADMIN_EMAIL})`);
+  console.log(`Auth Users:       ${finalUsers?.users.length} user (${MASTER_ADMIN_EMAIL})`);
 
   console.log('\nActive Users in Supabase:');
   for (const u of finalUsers?.users || []) {
@@ -221,7 +226,6 @@ async function wipeDatabase() {
   console.log('\n========================================================================');
   console.log('✓ FRESH DATABASE RESET COMPLETE!');
   console.log(`  Master Admin: ${MASTER_ADMIN_EMAIL}`);
-  console.log(`  Password:     ${MASTER_ADMIN_PASS}`);
   console.log('========================================================================');
 }
 

@@ -169,7 +169,7 @@ export default function AdminLoginPage() {
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleAdminLogin} className="space-y-4">
+            <form onSubmit={handleAdminLogin} autoComplete="off" className="space-y-4">
               {errorMessage && (
                 <Alert variant="destructive" className="py-2.5 px-3 text-xs animate-in fade-in-50">
                   <ShieldAlert className="size-4 shrink-0 text-destructive" />
@@ -188,14 +188,20 @@ export default function AdminLoginPage() {
                   </FieldLabel>
                   <Input
                     type="email"
+                    name="studio_admin_identifier"
                     required
                     autoFocus
-                    autoComplete="email"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-1p-ignore="true"
+                    data-form-type="other"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin-credits@humantekart.com"
                     disabled={isLoading}
-                    className="h-10 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:border-amber-400 focus-visible:ring-amber-400/20"
+                    className="h-10 text-sm bg-background/50 border-border/80 text-foreground focus-visible:border-amber-400 focus-visible:ring-amber-400/20"
                   />
                 </Field>
 
@@ -207,13 +213,19 @@ export default function AdminLoginPage() {
                   <div className="relative">
                     <Input
                       type={showPassword ? 'text' : 'password'}
+                      name="studio_admin_secret"
                       required
-                      autoComplete="current-password"
+                      autoComplete="new-password"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-form-type="other"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
                       disabled={isLoading}
-                      className="h-10 text-sm bg-background/50 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:border-amber-400 focus-visible:ring-amber-400/20 pr-10"
+                      className="h-10 text-sm bg-background/50 border-border/80 text-foreground focus-visible:border-amber-400 focus-visible:ring-amber-400/20 pr-10"
                     />
                     <button
                       type="button"
