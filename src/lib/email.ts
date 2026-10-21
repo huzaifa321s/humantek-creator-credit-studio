@@ -112,58 +112,138 @@ function resolveAppUrl(pathOrUrl: string): string {
   return `${appUrl}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
 }
 
+function buildEmailDetailsTable(rows: Array<[label: string, value: string]>): string {
+  if (!rows.length) return '';
+  const rowsHtml = rows
+    .map(([label, value], idx) => {
+      const isLast = idx === rows.length - 1;
+      const borderStyle = isLast ? '' : 'border-bottom:1px solid #e4e4e7;';
+      const isCreditPositive = /^\+\d+/.test(value.trim());
+      const isCreditNegative = /^-\d+/.test(value.trim());
+      const valueColor = isCreditPositive
+        ? '#059669'
+        : isCreditNegative
+          ? '#dc2626'
+          : '#18181b';
+      const valueFont =
+        /^(HT-|GIFT-|\+|-|\$|\d+\s*Credits)/i.test(value.trim())
+          ? "font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;"
+          : 'font-weight:600;';
+      return `<tr>
+        <td style="padding:10px 14px;${borderStyle}font-size:12px;font-weight:600;color:#71717a;width:42%;vertical-align:top;">
+          ${escapeHtml(label)}
+        </td>
+        <td align="right" style="padding:10px 14px;${borderStyle}font-size:13px;color:${valueColor};${valueFont}text-align:right;vertical-align:top;">
+          ${escapeHtml(value)}
+        </td>
+      </tr>`;
+    })
+    .join('');
+
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e4e4e7;border-radius:12px;background-color:#fafafa;border-collapse:separate;overflow:hidden;">
+    ${rowsHtml}
+  </table>`;
+}
+
 function wrapStudioEmailLayout(opts: {
   badge: string;
   heading: string;
-  subtitle: string;
+  subtitle?: string;
   bodyHtml: string;
   ctaLabel?: string;
   ctaUrl?: string;
 }): string {
-  const resolvedCtaUrl = resolveAppUrl(opts.ctaUrl || '/redeem-code');
+  const resolvedCtaUrl = resolveAppUrl(opts.ctaUrl || '/dashboard');
+  const studioHomeUrl = resolveAppUrl('/dashboard');
+  const cleanHeading = opts.heading.trim();
+  const cleanSubtitle = (opts.subtitle || '').trim();
+  const showSubtitle = Boolean(
+    cleanSubtitle && cleanSubtitle.toLowerCase() !== cleanHeading.toLowerCase()
+  );
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(opts.heading)}</title>
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>${escapeHtml(cleanHeading)}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f4f4f5;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#09090b;padding:32px 16px;">
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#18181b;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f4f4f5;padding:36px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background-color:#121215;border:1px solid #27272a;border-radius:16px;overflow:hidden;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(24,24,27,0.06);">
+          <!-- Top Amber Gold Studio Accent Bar -->
           <tr>
-            <td style="padding:24px 28px;border-bottom:1px solid #27272a;background:linear-gradient(135deg,rgba(245,158,11,0.12),rgba(24,24,27,0.4));">
-              <div style="display:inline-block;padding:4px 10px;border-radius:6px;background-color:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.35);color:#fbbf24;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
-                ${escapeHtml(opts.badge)}
-              </div>
-              <h1 style="margin:12px 0 4px 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">
-                ${escapeHtml(opts.heading)}
-              </h1>
-              <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.5;">
-                ${escapeHtml(opts.subtitle)}
-              </p>
+            <td style="height:4px;background:linear-gradient(90deg,#f59e0b 0%,#fbbf24 50%,#d97706 100%);font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <!-- Dark Studio Brand Header -->
+          <tr>
+            <td style="padding:20px 28px;background-color:#18181b;border-bottom:1px solid #27272a;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td valign="middle">
+                    <div style="font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#ffffff;">
+                      HUMANTEK <span style="color:#f59e0b;">ART</span>
+                    </div>
+                    <div style="font-size:11px;font-weight:500;color:#a1a1aa;letter-spacing:0.03em;margin-top:2px;">
+                      Creator Credit Studio
+                    </div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display:inline-block;padding:5px 11px;border-radius:999px;background-color:rgba(245,158,11,0.16);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+                      ${escapeHtml(opts.badge)}
+                    </span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+          <!-- Main Heading & Optional Subtitle -->
           <tr>
-            <td style="padding:24px 28px;font-size:14px;line-height:1.6;color:#d4d4d8;">
+            <td style="padding:26px 28px 14px 28px;border-bottom:1px solid #f4f4f5;">
+              <h1 style="margin:0;font-size:20px;font-weight:800;color:#18181b;letter-spacing:-0.02em;line-height:1.35;">
+                ${escapeHtml(cleanHeading)}
+              </h1>
+              ${
+                showSubtitle
+                  ? `<p style="margin:6px 0 0 0;font-size:13px;color:#71717a;line-height:1.5;">
+                      ${escapeHtml(cleanSubtitle)}
+                    </p>`
+                  : ''
+              }
+            </td>
+          </tr>
+          <!-- Body Content & CTA -->
+          <tr>
+            <td style="padding:20px 28px 28px 28px;font-size:14px;line-height:1.65;color:#3f3f46;">
               ${opts.bodyHtml}
               ${
                 opts.ctaLabel
                   ? `<div style="margin-top:24px;">
-                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:10px 20px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;">
-                        ${escapeHtml(opts.ctaLabel)}
+                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 22px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
+                        ${escapeHtml(opts.ctaLabel)} &rarr;
                       </a>
                     </div>`
                   : ''
               }
             </td>
           </tr>
+          <!-- Studio Footer -->
           <tr>
-            <td style="padding:16px 28px;border-top:1px solid #27272a;background-color:#0c0c0e;font-size:11px;color:#71717a;">
-              Humantek Creator Credit Studio · Automated Studio Notification
+            <td style="padding:18px 28px;border-top:1px solid #e4e4e7;background-color:#fafafa;font-size:11px;color:#71717a;line-height:1.5;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <strong style="color:#3f3f46;">Humantek Creator Credit Studio</strong> · Official Studio Notification
+                  </td>
+                  <td align="right">
+                    <a href="${escapeHtml(studioHomeUrl)}" style="color:#d97706;font-weight:600;text-decoration:none;">Open Studio</a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -191,19 +271,16 @@ export function buildGiftCodeRedeemedOwnerEmailTemplate(params: {
   const subject = `[Studio Alert] Gift Promo Code ${params.code} (${params.credits} Credits) Claimed by ${params.recipientEmail}`;
 
   const bodyHtml = `
-    <p style="margin:0 0 16px 0;">
-      A client-generated gift promo voucher has just been redeemed on <strong>Humantek Creator Credit Studio</strong>.
+    <p style="margin:0;">
+      A client-generated gift promo voucher has just been redeemed on <strong style="color:#18181b;">Humantek Creator Credit Studio</strong>.
     </p>
-    <div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid #27272a;margin-bottom:16px;">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#a1a1aa;margin-bottom:6px;">Redeemed Voucher Code</div>
-      <div style="font-family:monospace;font-size:18px;font-weight:800;color:#fbbf24;letter-spacing:0.06em;">${escapeHtml(params.code)}</div>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #27272a;font-size:13px;">
-        <div style="margin-bottom:4px;"><strong style="color:#ffffff;">Credits Transferred:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">+${params.credits} Credits</span></div>
-        <div style="margin-bottom:4px;"><strong style="color:#ffffff;">Shared By (Sender):</strong> ${escapeHtml(params.senderName)} (${escapeHtml(params.senderEmail)})</div>
-        <div style="margin-bottom:4px;"><strong style="color:#ffffff;">Claimed By (Recipient):</strong> ${escapeHtml(params.recipientName)} (${escapeHtml(params.recipientEmail)})</div>
-        <div><strong style="color:#ffffff;">Redeemed At:</strong> ${escapeHtml(new Date(ts).toUTCString())}</div>
-      </div>
-    </div>
+    ${buildEmailDetailsTable([
+      ['Voucher Code', params.code],
+      ['Credits Transferred', `+${params.credits} Credits`],
+      ['Shared By (Sender)', `${params.senderName} (${params.senderEmail})`],
+      ['Claimed By (Recipient)', `${params.recipientName} (${params.recipientEmail})`],
+      ['Redeemed At', new Date(ts).toUTCString()],
+    ])}
   `;
 
   const text = [
@@ -218,7 +295,7 @@ export function buildGiftCodeRedeemedOwnerEmailTemplate(params: {
     to: params.ownerEmail,
     subject,
     html: wrapStudioEmailLayout({
-      badge: 'Owner Credit Transfer Alert',
+      badge: 'Owner Credit Transfer',
       heading: `Gift Code ${params.code} Claimed (+${params.credits} Credits)`,
       subtitle: `${params.recipientName} (${params.recipientEmail}) redeemed credits shared by ${params.senderName}.`,
       bodyHtml,
@@ -245,14 +322,14 @@ export function buildGiftCodeRedeemedSenderEmailTemplate(params: {
   const subject = `Your ${params.credits} Credits Gift Code (${params.code}) Was Claimed by ${params.recipientName}!`;
 
   const bodyHtml = `
-    <p style="margin:0 0 16px 0;">
-      Hi <strong>${escapeHtml(params.senderName)}</strong>, your shared creator credits have been claimed!
+    <p style="margin:0;">
+      Hi <strong style="color:#18181b;">${escapeHtml(params.senderName)}</strong>, your shared creator credits have been claimed!
     </p>
-    <div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid #27272a;">
-      <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Voucher Code:</strong> <span style="font-family:monospace;color:#fbbf24;font-weight:700;">${escapeHtml(params.code)}</span></div>
-      <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Credits Claimed:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">${params.credits} Credits</span></div>
-      <div><strong style="color:#ffffff;">Claimed By:</strong> ${escapeHtml(params.recipientName)} (${escapeHtml(params.recipientEmail)})</div>
-    </div>
+    ${buildEmailDetailsTable([
+      ['Voucher Code', params.code],
+      ['Credits Claimed', `+${params.credits} Credits`],
+      ['Claimed By', `${params.recipientName} (${params.recipientEmail})`],
+    ])}
   `;
 
   const text = [
@@ -292,19 +369,19 @@ export function buildGiftCodeCreatedRecipientEmailTemplate(params: {
 
   const bodyHtml = `
     <p style="margin:0 0 16px 0;">
-      <strong>${escapeHtml(params.senderName)}</strong> (${escapeHtml(params.senderEmail)}) has gifted you <strong style="color:#fbbf24;">${params.credits} Credits</strong> from their Studio Wallet!
+      <strong style="color:#18181b;">${escapeHtml(params.senderName)}</strong> (${escapeHtml(params.senderEmail)}) has gifted you <strong style="color:#d97706;">+${params.credits} Credits</strong> from their Studio Wallet!
     </p>
     ${
       params.note
-        ? `<div style="padding:12px 16px;border-left:3px solid #f59e0b;background-color:#18181b;border-radius:6px;margin-bottom:16px;font-style:italic;color:#e4e4e7;">
+        ? `<div style="padding:12px 16px;border-left:3px solid #f59e0b;background-color:#fffbeb;border-radius:8px;margin-bottom:16px;font-style:italic;color:#78350f;">
             "${escapeHtml(params.note)}"
           </div>`
         : ''
     }
-    <div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid rgba(245,158,11,0.35);text-align:center;">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#a1a1aa;margin-bottom:6px;">Your Exclusive Promo Code</div>
-      <div style="font-family:monospace;font-size:22px;font-weight:800;color:#fbbf24;letter-spacing:0.08em;">${escapeHtml(params.code)}</div>
-      <div style="margin-top:8px;font-size:12px;color:#a1a1aa;">Sign in with <strong>${escapeHtml(params.recipientEmail)}</strong> and enter this code on the Redeem Promo Code page.</div>
+    <div style="padding:20px;border-radius:12px;background-color:#fffbeb;border:1px solid #fde68a;text-align:center;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#92400e;margin-bottom:6px;">Your Exclusive Promo Code</div>
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:22px;font-weight:800;color:#18181b;letter-spacing:0.08em;">${escapeHtml(params.code)}</div>
+      <div style="margin-top:8px;font-size:12px;color:#71717a;">Sign in with <strong style="color:#18181b;">${escapeHtml(params.recipientEmail)}</strong> and enter this code on the Redeem Promo Code page.</div>
     </div>
   `;
 
@@ -349,13 +426,14 @@ export function buildGiftCodeRedeemedRecipientEmailTemplate(params: {
   const subject = `+${params.credits} Credits Added to Your Studio Wallet (Code: ${params.code})`;
 
   const bodyHtml = `
-    <p style="margin:0 0 16px 0;">
-      Hi <strong>${escapeHtml(params.recipientName)}</strong>, you have successfully redeemed promo code <strong style="font-family:monospace;color:#fbbf24;">${escapeHtml(params.code)}</strong> shared by <strong>${escapeHtml(params.senderName)}</strong>.
+    <p style="margin:0;">
+      Hi <strong style="color:#18181b;">${escapeHtml(params.recipientName)}</strong>, you have successfully redeemed promo code <strong style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#d97706;">${escapeHtml(params.code)}</strong> shared by <strong style="color:#18181b;">${escapeHtml(params.senderName)}</strong>.
     </p>
-    <div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid #27272a;">
-      <div style="margin-bottom:6px;"><strong style="color:#ffffff;">Credits Deposited:</strong> <span style="font-family:monospace;color:#34d399;font-weight:700;">+${params.credits} Credits</span></div>
-      <div><strong style="color:#ffffff;">New Studio Wallet Balance:</strong> <span style="font-family:monospace;color:#fbbf24;font-weight:700;">${params.newBalance} Credits</span></div>
-    </div>
+    ${buildEmailDetailsTable([
+      ['Voucher Code', params.code],
+      ['Credits Deposited', `+${params.credits} Credits`],
+      ['New Studio Wallet Balance', `${params.newBalance} Credits`],
+    ])}
   `;
 
   const text = [
@@ -391,26 +469,18 @@ export function buildStudioNotificationEmail(params: {
   subject: string;
   badge: string;
   heading: string;
+  subtitle?: string;
   message: string;
   greetingName?: string;
   details?: Array<[label: string, value: string]>;
   ctaLabel?: string;
   ctaUrl?: string;
 }): StudioEmailPayload {
-  const detailsHtml = params.details?.length
-    ? `<div style="padding:16px;border-radius:12px;background-color:#18181b;border:1px solid #27272a;margin-top:16px;">
-        ${params.details
-          .map(
-            ([label, value]) =>
-              `<div style="margin-bottom:6px;"><strong style="color:#ffffff;">${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`
-          )
-          .join('')}
-      </div>`
-    : '';
+  const detailsHtml = params.details?.length ? buildEmailDetailsTable(params.details) : '';
 
   const bodyHtml = `
-    ${params.greetingName ? `<p style="margin:0 0 12px 0;">Hi <strong>${escapeHtml(params.greetingName)}</strong>,</p>` : ''}
-    <p style="margin:0;">${escapeHtml(params.message)}</p>
+    ${params.greetingName ? `<p style="margin:0 0 12px 0;">Hi <strong style="color:#18181b;">${escapeHtml(params.greetingName)}</strong>,</p>` : ''}
+    <p style="margin:0;color:#3f3f46;">${escapeHtml(params.message)}</p>
     ${detailsHtml}
   `;
 
@@ -429,7 +499,7 @@ export function buildStudioNotificationEmail(params: {
     html: wrapStudioEmailLayout({
       badge: params.badge,
       heading: params.heading,
-      subtitle: params.subject,
+      subtitle: params.subtitle,
       bodyHtml,
       ctaLabel: params.ctaLabel,
       ctaUrl: params.ctaUrl,
