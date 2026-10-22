@@ -150,7 +150,7 @@ function resolveAppUrl(pathOrUrl: string): string {
 }
 
 const STUDIO_EMAIL_FONT_STACK =
-  "'Outfit','Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  "'Outfit','Google Sans','Product Sans','Century Gothic','Trebuchet MS',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 function buildEmailDetailsTable(rows: Array<[label: string, value: string]>): string {
   if (!rows.length) return '';
