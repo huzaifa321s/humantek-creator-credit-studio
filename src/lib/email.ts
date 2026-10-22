@@ -143,7 +143,7 @@ function resolveAppUrl(pathOrUrl: string): string {
   const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(rawEnvUrl);
   const appUrl = (
     !rawEnvUrl || isLocalhost
-      ? 'https://humantekartclient.webportfolio.live'
+      ? 'https://credits.humantekart.com'
       : rawEnvUrl
   ).replace(/\/$/, '');
   return `${appUrl}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
