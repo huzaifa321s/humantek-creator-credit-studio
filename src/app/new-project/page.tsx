@@ -2059,11 +2059,6 @@ export default function CreatorStudioPage() {
                   </Badge>
                 </div>
               )}
-
-              {/* Centered Bottom Fine Print */}
-              <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
-                Base service value: <span className="font-semibold text-foreground/90">$2.50 per Credit</span> before package bonuses. Higher packages receive a stronger effective rate.
-              </p>
             </div>
           )}
         </div>

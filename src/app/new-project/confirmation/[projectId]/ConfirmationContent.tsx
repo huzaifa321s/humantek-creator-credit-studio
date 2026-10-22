@@ -241,6 +241,9 @@ export default function ConfirmationContent({ project, canChat }: ConfirmationCo
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xs sm:max-w-sm mx-auto leading-relaxed">
               {description}
             </p>
+            <p className="text-2xs sm:text-xs text-muted-foreground/80 max-w-xs sm:max-w-sm mx-auto pt-0.5">
+              We&apos;ve sent a confirmation email with your invoice — please also check your spam or junk folder.
+            </p>
           </div>
 
           {/* Order Spec Snapshot Card */}
