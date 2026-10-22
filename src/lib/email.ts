@@ -1,5 +1,29 @@
 import 'server-only';
+import fs from 'fs';
+import path from 'path';
 import nodemailer, { type Transporter } from 'nodemailer';
+
+const STUDIO_LOGO_CID = 'humantek-studio-logo@humantekart.com';
+let cachedBrandLogoBuffer: Buffer | null = null;
+
+function loadBrandLogoBuffer(): Buffer | null {
+  if (cachedBrandLogoBuffer) return cachedBrandLogoBuffer;
+  const candidates = [
+    path.join(process.cwd(), 'public', 'brand', 'logo-email.png'),
+    path.join(process.cwd(), 'public', 'brand', 'logo-light.png'),
+  ];
+  for (const filePath of candidates) {
+    try {
+      if (fs.existsSync(filePath)) {
+        cachedBrandLogoBuffer = fs.readFileSync(filePath);
+        return cachedBrandLogoBuffer;
+      }
+    } catch {
+      // Try next candidate
+    }
+  }
+  return null;
+}
 
 /**
  * Structured metadata stored inside `public.promo_codes.description` for
@@ -111,10 +135,16 @@ function escapeHtml(str: string): string {
 
 function resolveAppUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith('http')) return pathOrUrl;
-  const appUrl = (
+  const rawEnvUrl = (
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
-    'http://localhost:3000'
+    ''
+  ).trim();
+  const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(rawEnvUrl);
+  const appUrl = (
+    !rawEnvUrl || isLocalhost
+      ? 'https://humantekartclient.webportfolio.live'
+      : rawEnvUrl
   ).replace(/\/$/, '');
   return `${appUrl}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
 }
@@ -162,7 +192,10 @@ function wrapStudioEmailLayout(opts: {
 }): string {
   const resolvedCtaUrl = resolveAppUrl(opts.ctaUrl || '/dashboard');
   const studioHomeUrl = resolveAppUrl('/dashboard');
-  const brandLogoUrl = resolveAppUrl('/brand/logo-light.png');
+  const hasInlineLogo = Boolean(loadBrandLogoBuffer());
+  const brandLogoSrc = hasInlineLogo
+    ? `cid:${STUDIO_LOGO_CID}`
+    : resolveAppUrl('/brand/logo-email.png');
   const cleanHeading = opts.heading.trim();
   const cleanSubtitle = (opts.subtitle || '').trim();
   const showSubtitle = Boolean(
@@ -196,7 +229,7 @@ function wrapStudioEmailLayout(opts: {
                     <table role="presentation" cellspacing="0" cellpadding="0">
                       <tr>
                         <td valign="middle" style="padding-right:12px;">
-                          <img src="${escapeHtml(brandLogoUrl)}" alt="Humantek Art" width="68" height="26" style="display:block;border:0;outline:none;text-decoration:none;height:26px;width:auto;color:#ffffff;font-size:13px;font-weight:800;" />
+                          <img src="${escapeHtml(brandLogoSrc)}" alt="Humantek Art" width="64" height="26" style="display:block;border:0;outline:none;text-decoration:none;height:26px;width:64px;color:#ffffff;font-size:13px;font-weight:800;" />
                         </td>
                         <td valign="middle" style="border-left:1px solid #3f3f46;padding-left:12px;">
                           <div style="font-size:13px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;line-height:1.2;">
@@ -648,13 +681,32 @@ export async function sendStudioEmail(
   const senderDomain = (fromAddress.split('@')[1] || 'humantekart.com').trim();
   const replyTo = cleanEnvValue(process.env.EMAIL_REPLY_TO) || fromAddress;
   const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2, 10)}@${senderDomain}>`;
-  const nodemailerAttachments = payload.attachments?.map((att) => ({
-    filename: att.filename,
-    content: Buffer.isBuffer(att.content)
-      ? att.content
-      : Buffer.from(att.content instanceof ArrayBuffer ? new Uint8Array(att.content) : att.content),
-    contentType: att.contentType || 'application/pdf',
-  }));
+  const userAttachments =
+    payload.attachments?.map((att) => ({
+      filename: att.filename,
+      content: Buffer.isBuffer(att.content)
+        ? att.content
+        : Buffer.from(
+            att.content instanceof ArrayBuffer ? new Uint8Array(att.content) : att.content
+          ),
+      contentType: att.contentType || 'application/pdf',
+    })) || [];
+
+  const brandLogoBuf = loadBrandLogoBuffer();
+  const inlineLogoAttachment =
+    brandLogoBuf && payload.html.includes(`cid:${STUDIO_LOGO_CID}`)
+      ? [
+          {
+            filename: 'logo-email.png',
+            content: brandLogoBuf,
+            contentType: 'image/png',
+            cid: STUDIO_LOGO_CID,
+            contentDisposition: 'inline' as const,
+          },
+        ]
+      : [];
+
+  const nodemailerAttachments = [...inlineLogoAttachment, ...userAttachments];
   const mailOptions = {
     from,
     sender: fromAddress,

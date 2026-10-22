@@ -55,6 +55,7 @@ async function run() {
       .toBuffer();
     fs.writeFileSync(path.join(BRAND, 'logo-light.png'), lightPng);
     await sharp(lightPng).webp({ quality: 90, alphaQuality: 100 }).toFile(path.join(BRAND, 'logo-light.webp'));
+    await sharp(lightPng).resize({ height: 52 }).png({ compressionLevel: 9 }).toFile(path.join(BRAND, 'logo-email.png'));
   }
 
   // 2. Icon mark: whole logo on a TRANSPARENT square (no background tile)
