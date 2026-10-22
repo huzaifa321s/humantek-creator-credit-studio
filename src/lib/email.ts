@@ -149,6 +149,9 @@ function resolveAppUrl(pathOrUrl: string): string {
   return `${appUrl}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
 }
 
+const STUDIO_EMAIL_FONT_STACK =
+  "'Outfit','Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
 function buildEmailDetailsTable(rows: Array<[label: string, value: string]>): string {
   if (!rows.length) return '';
   const rowsHtml = rows
@@ -162,22 +165,24 @@ function buildEmailDetailsTable(rows: Array<[label: string, value: string]>): st
         : isCreditNegative
           ? '#dc2626'
           : '#18181b';
-      const valueFont =
-        /^(HT-|GIFT-|\+|-|\$|\d+\s*Credits)/i.test(value.trim())
-          ? "font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;"
+      const isReferenceCode = /^(HT-|INV-HT-|GIFT-)/i.test(value.trim());
+      const valueWeight =
+        isReferenceCode || isCreditPositive || isCreditNegative || /^(\$|\d+\s*Credits)/i.test(value.trim())
+          ? 'font-weight:700;'
           : 'font-weight:600;';
+      const valueTracking = isReferenceCode ? 'letter-spacing:0.02em;' : '';
       return `<tr>
-        <td style="padding:10px 14px;${borderStyle}font-size:12px;font-weight:600;color:#71717a;width:42%;vertical-align:top;">
+        <td style="padding:10px 14px;${borderStyle}font-family:${STUDIO_EMAIL_FONT_STACK};font-size:12px;font-weight:600;color:#71717a;width:42%;vertical-align:top;">
           ${escapeHtml(label)}
         </td>
-        <td align="right" style="padding:10px 14px;${borderStyle}font-size:13px;color:${valueColor};${valueFont}text-align:right;vertical-align:top;">
+        <td align="right" style="padding:10px 14px;${borderStyle}font-family:${STUDIO_EMAIL_FONT_STACK};font-size:13px;color:${valueColor};${valueWeight}${valueTracking}text-align:right;vertical-align:top;">
           ${escapeHtml(value)}
         </td>
       </tr>`;
     })
     .join('');
 
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e4e4e7;border-radius:12px;background-color:#fafafa;border-collapse:separate;overflow:hidden;">
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;border:1px solid #e4e4e7;border-radius:12px;background-color:#fafafa;border-collapse:separate;overflow:hidden;font-family:${STUDIO_EMAIL_FONT_STACK};">
     ${rowsHtml}
   </table>`;
 }
@@ -210,40 +215,49 @@ function wrapStudioEmailLayout(opts: {
   <meta name="color-scheme" content="light" />
   <meta name="supported-color-schemes" content="light" />
   <title>${escapeHtml(cleanHeading)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+    body, table, td, div, p, span, a, h1, strong {
+      font-family: ${STUDIO_EMAIL_FONT_STACK};
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#18181b;-webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f4f4f5;padding:36px 16px;">
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:${STUDIO_EMAIL_FONT_STACK};color:#18181b;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f4f4f5;padding:36px 16px;font-family:${STUDIO_EMAIL_FONT_STACK};">
     <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(24,24,27,0.06);">
+      <td align="center" style="font-family:${STUDIO_EMAIL_FONT_STACK};">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(24,24,27,0.06);font-family:${STUDIO_EMAIL_FONT_STACK};">
           <!-- Top Amber Gold Studio Accent Bar -->
           <tr>
             <td style="height:4px;background:linear-gradient(90deg,#f59e0b 0%,#fbbf24 50%,#d97706 100%);font-size:0;line-height:0;">&nbsp;</td>
           </tr>
           <!-- Dark Studio Brand Header -->
           <tr>
-            <td style="padding:20px 32px;background-color:#18181b;border-bottom:1px solid #27272a;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <td style="padding:20px 32px;background-color:#18181b;border-bottom:1px solid #27272a;font-family:${STUDIO_EMAIL_FONT_STACK};">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-family:${STUDIO_EMAIL_FONT_STACK};">
                 <tr>
-                  <td valign="middle">
-                    <table role="presentation" cellspacing="0" cellpadding="0">
+                  <td valign="middle" style="font-family:${STUDIO_EMAIL_FONT_STACK};">
+                    <table role="presentation" cellspacing="0" cellpadding="0" style="font-family:${STUDIO_EMAIL_FONT_STACK};">
                       <tr>
                         <td valign="middle" style="padding-right:12px;">
-                          <img src="${escapeHtml(brandLogoSrc)}" alt="Humantek Art" width="64" height="26" style="display:block;border:0;outline:none;text-decoration:none;height:26px;width:64px;color:#ffffff;font-size:13px;font-weight:800;" />
+                          <img src="${escapeHtml(brandLogoSrc)}" alt="Humantek Art" width="64" height="26" style="display:block;border:0;outline:none;text-decoration:none;height:26px;width:64px;color:#ffffff;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:13px;font-weight:800;" />
                         </td>
-                        <td valign="middle" style="border-left:1px solid #3f3f46;padding-left:12px;">
-                          <div style="font-size:13px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;line-height:1.2;">
+                        <td valign="middle" style="border-left:1px solid #3f3f46;padding-left:12px;font-family:${STUDIO_EMAIL_FONT_STACK};">
+                          <div style="font-family:${STUDIO_EMAIL_FONT_STACK};font-size:13px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;line-height:1.2;">
                             HUMANTEK <span style="color:#f59e0b;">ART</span>
                           </div>
-                          <div style="font-size:11px;font-weight:500;color:#a1a1aa;margin-top:2px;">
+                          <div style="font-family:${STUDIO_EMAIL_FONT_STACK};font-size:11px;font-weight:500;color:#a1a1aa;margin-top:2px;">
                             Official Studio Portal
                           </div>
                         </td>
                       </tr>
                     </table>
                   </td>
-                  <td align="right" valign="middle" style="padding-left:12px;">
-                    <span style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#fbbf24;white-space:nowrap;">
+                  <td align="right" valign="middle" style="padding-left:12px;font-family:${STUDIO_EMAIL_FONT_STACK};">
+                    <span style="font-family:${STUDIO_EMAIL_FONT_STACK};font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#fbbf24;white-space:nowrap;">
                       Creator Credit Studio
                     </span>
                   </td>
@@ -253,18 +267,18 @@ function wrapStudioEmailLayout(opts: {
           </tr>
           <!-- Event Pill Badge + Main Heading & Optional Subtitle -->
           <tr>
-            <td style="padding:26px 32px 16px 32px;border-bottom:1px solid #f4f4f5;">
-              <div style="margin-bottom:10px;">
-                <span style="display:inline-block;padding:4px 11px;border-radius:999px;background-color:#fffbeb;border:1px solid #fde68a;color:#b45309;font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;">
+            <td style="padding:26px 32px 16px 32px;border-bottom:1px solid #f4f4f5;font-family:${STUDIO_EMAIL_FONT_STACK};">
+              <div style="margin-bottom:10px;font-family:${STUDIO_EMAIL_FONT_STACK};">
+                <span style="display:inline-block;padding:4px 11px;border-radius:999px;background-color:#fffbeb;border:1px solid #fde68a;color:#b45309;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;">
                   ${escapeHtml(opts.badge)}
                 </span>
               </div>
-              <h1 style="margin:0;font-size:21px;font-weight:800;color:#18181b;letter-spacing:-0.02em;line-height:1.35;">
+              <h1 style="margin:0;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:21px;font-weight:800;color:#18181b;letter-spacing:-0.02em;line-height:1.35;">
                 ${escapeHtml(cleanHeading)}
               </h1>
               ${
                 showSubtitle
-                  ? `<p style="margin:6px 0 0 0;font-size:13px;color:#71717a;line-height:1.5;">
+                  ? `<p style="margin:6px 0 0 0;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:13px;color:#71717a;line-height:1.5;">
                       ${escapeHtml(cleanSubtitle)}
                     </p>`
                   : ''
@@ -273,12 +287,12 @@ function wrapStudioEmailLayout(opts: {
           </tr>
           <!-- Body Content & CTA -->
           <tr>
-            <td style="padding:22px 32px 30px 32px;font-size:14px;line-height:1.65;color:#3f3f46;">
+            <td style="padding:22px 32px 30px 32px;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:14px;line-height:1.65;color:#3f3f46;">
               ${opts.bodyHtml}
               ${
                 opts.ctaLabel
-                  ? `<div style="margin-top:24px;">
-                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 24px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
+                  ? `<div style="margin-top:24px;font-family:${STUDIO_EMAIL_FONT_STACK};">
+                      <a href="${escapeHtml(resolvedCtaUrl)}" style="display:inline-block;padding:12px 24px;border-radius:10px;background-color:#f59e0b;color:#09090b;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.01em;box-shadow:0 2px 6px rgba(245,158,11,0.28);">
                         ${escapeHtml(opts.ctaLabel)} &rarr;
                       </a>
                     </div>`
@@ -288,14 +302,14 @@ function wrapStudioEmailLayout(opts: {
           </tr>
           <!-- Studio Footer -->
           <tr>
-            <td style="padding:18px 32px;border-top:1px solid #e4e4e7;background-color:#fafafa;font-size:11px;color:#71717a;line-height:1.5;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <td style="padding:18px 32px;border-top:1px solid #e4e4e7;background-color:#fafafa;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:11px;color:#71717a;line-height:1.5;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-family:${STUDIO_EMAIL_FONT_STACK};">
                 <tr>
-                  <td>
-                    <strong style="color:#3f3f46;">Humantek Creator Credit Studio</strong> · Official Studio Notification
+                  <td style="font-family:${STUDIO_EMAIL_FONT_STACK};">
+                    <strong style="color:#3f3f46;font-family:${STUDIO_EMAIL_FONT_STACK};">Humantek Creator Credit Studio</strong> · Official Studio Notification
                   </td>
-                  <td align="right">
-                    <a href="${escapeHtml(studioHomeUrl)}" style="color:#d97706;font-weight:600;text-decoration:none;">Open Studio</a>
+                  <td align="right" style="font-family:${STUDIO_EMAIL_FONT_STACK};">
+                    <a href="${escapeHtml(studioHomeUrl)}" style="color:#d97706;font-family:${STUDIO_EMAIL_FONT_STACK};font-weight:600;text-decoration:none;">Open Studio</a>
                   </td>
                 </tr>
               </table>
@@ -433,10 +447,10 @@ export function buildGiftCodeCreatedRecipientEmailTemplate(params: {
           </div>`
         : ''
     }
-    <div style="padding:20px;border-radius:12px;background-color:#fffbeb;border:1px solid #fde68a;text-align:center;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#92400e;margin-bottom:6px;">Your Exclusive Promo Code</div>
-      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:22px;font-weight:800;color:#18181b;letter-spacing:0.08em;">${escapeHtml(params.code)}</div>
-      <div style="margin-top:8px;font-size:12px;color:#71717a;">Sign in with <strong style="color:#18181b;">${escapeHtml(params.recipientEmail)}</strong> and enter this code on the Redeem Promo Code page.</div>
+    <div style="padding:20px;border-radius:12px;background-color:#fffbeb;border:1px solid #fde68a;text-align:center;font-family:${STUDIO_EMAIL_FONT_STACK};">
+      <div style="font-family:${STUDIO_EMAIL_FONT_STACK};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#92400e;margin-bottom:6px;">Your Exclusive Promo Code</div>
+      <div style="font-family:${STUDIO_EMAIL_FONT_STACK};font-size:22px;font-weight:800;color:#18181b;letter-spacing:0.08em;">${escapeHtml(params.code)}</div>
+      <div style="margin-top:8px;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:12px;color:#71717a;">Sign in with <strong style="color:#18181b;">${escapeHtml(params.recipientEmail)}</strong> and enter this code on the Redeem Promo Code page.</div>
     </div>
   `;
 
@@ -481,8 +495,8 @@ export function buildGiftCodeRedeemedRecipientEmailTemplate(params: {
   const subject = `+${params.credits} Credits Added to Your Studio Wallet (Code: ${params.code})`;
 
   const bodyHtml = `
-    <p style="margin:0;">
-      Hi <strong style="color:#18181b;">${escapeHtml(params.recipientName)}</strong>, you have successfully redeemed promo code <strong style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#d97706;">${escapeHtml(params.code)}</strong> shared by <strong style="color:#18181b;">${escapeHtml(params.senderName)}</strong>.
+    <p style="margin:0;font-family:${STUDIO_EMAIL_FONT_STACK};">
+      Hi <strong style="color:#18181b;">${escapeHtml(params.recipientName)}</strong>, you have successfully redeemed promo code <strong style="font-family:${STUDIO_EMAIL_FONT_STACK};color:#d97706;">${escapeHtml(params.code)}</strong> shared by <strong style="color:#18181b;">${escapeHtml(params.senderName)}</strong>.
     </p>
     ${buildEmailDetailsTable([
       ['Voucher Code', params.code],
@@ -543,14 +557,14 @@ export function buildStudioNotificationEmail(params: {
         : undefined;
   const attachedPdfName = params.attachments?.[0]?.filename || fallbackPdfName;
   const attachmentBannerHtml = attachedPdfName
-    ? `<div style="margin-top:14px;padding:10px 14px;border-radius:10px;background-color:#fffbeb;border:1px solid #fde68a;font-size:12px;color:#92400e;">
-        &#128206; <strong>Official PDF Invoice:</strong> <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-weight:700;color:#78350f;">${escapeHtml(attachedPdfName)}</span> ${params.attachments?.length ? '(attached to this email)' : '(available in your project drawer)'}
+    ? `<div style="margin-top:14px;padding:10px 14px;border-radius:10px;background-color:#fffbeb;border:1px solid #fde68a;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:12px;color:#92400e;">
+        &#128206; <strong>Official PDF Invoice:</strong> <span style="font-family:${STUDIO_EMAIL_FONT_STACK};font-weight:700;color:#78350f;">${escapeHtml(attachedPdfName)}</span> ${params.attachments?.length ? '(attached to this email)' : '(available in your project drawer)'}
       </div>`
     : '';
 
   const bodyHtml = `
-    ${params.greetingName ? `<p style="margin:0 0 12px 0;">Hi <strong style="color:#18181b;">${escapeHtml(params.greetingName)}</strong>,</p>` : ''}
-    <p style="margin:0;color:#3f3f46;">${escapeHtml(params.message)}</p>
+    ${params.greetingName ? `<p style="margin:0 0 12px 0;font-family:${STUDIO_EMAIL_FONT_STACK};">Hi <strong style="color:#18181b;font-family:${STUDIO_EMAIL_FONT_STACK};">${escapeHtml(params.greetingName)}</strong>,</p>` : ''}
+    <p style="margin:0;color:#3f3f46;font-family:${STUDIO_EMAIL_FONT_STACK};">${escapeHtml(params.message)}</p>
     ${detailsHtml}
     ${attachmentBannerHtml}
   `;
