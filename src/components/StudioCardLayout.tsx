@@ -734,7 +734,7 @@ export function StudioCardLayout({
     return (
       <SidebarProvider
         defaultOpen={true}
-        style={{ "--sidebar-width": "15rem" } as React.CSSProperties}
+        style={{ "--sidebar-width": "16.5rem" } as React.CSSProperties}
         className={cn(
           "w-full bg-background flex flex-col font-sans antialiased",
           fullBleed ? "h-screen max-h-screen overflow-hidden" : "min-h-screen"

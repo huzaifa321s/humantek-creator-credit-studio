@@ -312,10 +312,10 @@ export function DashboardHeader({
             'h-full flex items-center min-w-0 transition-[width] duration-200 ease-linear select-none',
             mode === 'standalone'
               ? cn(
-                  'shrink-0 border-r border-zinc-800/80 bg-zinc-950',
+                  'shrink-0 md:border-r border-zinc-800/80 bg-zinc-950 overflow-hidden',
                   isSidebarCollapsed
                     ? 'w-(--sidebar-width-icon) justify-center px-1.5'
-                    : 'w-auto md:w-(--sidebar-width) px-2 sm:px-3.5'
+                    : 'w-auto md:w-(--sidebar-width) px-2 sm:px-2.5'
                 )
               : 'shrink-0 gap-1.5 sm:gap-2.5'
           )}
@@ -324,18 +324,18 @@ export function DashboardHeader({
             className={cn(
               'flex items-center min-w-0',
               mode === 'standalone' && 'w-full',
-              isSidebarCollapsed ? 'justify-center' : 'gap-2 sm:gap-2.5'
+              isSidebarCollapsed ? 'justify-center' : 'gap-1.5 sm:gap-2'
             )}
           >
             {mode === 'standalone' && (
-              <SidebarTrigger className="-ml-0.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 size-8 rounded-md transition-colors cursor-pointer shrink-0" />
+              <SidebarTrigger className="-ml-0.5 text-zinc-400 hover:text-white hover:bg-zinc-800/80 size-7.5 rounded-md transition-colors cursor-pointer shrink-0" />
             )}
 
             {/* Unified Brand Logo & Title across all modes */}
             <Link
               href={isManagementRoute ? '/management' : '/projects'}
               className={cn(
-                'flex items-center gap-2 group select-none shrink-0 min-w-0',
+                'flex items-center gap-1.5 sm:gap-2 group select-none min-w-0',
                 isSidebarCollapsed && 'hidden'
               )}
             >
@@ -343,12 +343,12 @@ export function DashboardHeader({
               <img
                 src="/brand/logo-light.webp"
                 alt="Humantek Art — Creator Credits Studio"
-                width={62}
-                height={24}
-                className="h-6 w-auto shrink-0 group-hover:scale-105 transition-transform"
+                width={58}
+                height={22}
+                className="h-5.5 w-auto shrink-0 group-hover:scale-105 transition-transform"
               />
-              <span className="hidden sm:block h-5 w-px bg-zinc-700/80 shrink-0" aria-hidden="true" />
-              <span className="hidden sm:block min-w-0 truncate text-3xs tracking-wider uppercase font-semibold text-amber-400/90 leading-tight">
+              <span className="hidden sm:block h-4.5 w-px bg-zinc-700/80 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:block min-w-0 truncate text-[9.5px] tracking-wide uppercase font-semibold text-amber-400/90 leading-tight">
                 Creator Credits Studio
               </span>
             </Link>
