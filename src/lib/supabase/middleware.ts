@@ -144,7 +144,12 @@ export async function updateSession(request: NextRequest) {
   // 1. UNHEALTHY / UNAUTHENTICATED USERS
   if (!isAuthenticated) {
     if (isAdminPath || isAdminTotpPage) {
-      return redirectWithCookies(new URL('/admin-login', request.url), supabaseResponse);
+      const redirectUrl = new URL('/admin-login', request.url);
+      const targetUrl = sanitizeRedirectUrl(pathname + request.nextUrl.search, '');
+      if (targetUrl && targetUrl !== '/management' && targetUrl !== '/admin-totp') {
+        redirectUrl.searchParams.set('next', targetUrl);
+      }
+      return redirectWithCookies(redirectUrl, supabaseResponse);
     }
     if (isClientPath || isSharedAuthPath) {
       const redirectUrl = new URL('/login', request.url);
@@ -178,7 +183,12 @@ export async function updateSession(request: NextRequest) {
 
     // Admins accessing login routes are redirected to console
     if (isClientAuthPage || isAdminAuthPage) {
-      return redirectWithCookies(new URL('/management', request.url), supabaseResponse);
+      const nextParam = request.nextUrl.searchParams.get('next');
+      const target = sanitizeRedirectUrl(nextParam, '/management');
+      const safeAdminTarget = ADMIN_ONLY_PATHS.some((p) => target === p || target.startsWith(p + '/'))
+        ? target
+        : '/management';
+      return redirectWithCookies(new URL(safeAdminTarget, request.url), supabaseResponse);
     }
 
     return supabaseResponse;

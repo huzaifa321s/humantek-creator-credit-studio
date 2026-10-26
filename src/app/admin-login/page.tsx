@@ -31,6 +31,26 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+function getSafeAdminNextPath(): string {
+  if (typeof window === 'undefined') return '/management';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const next = (params.get('next') || '').trim();
+    if (
+      (next === '/management' ||
+        next.startsWith('/management/') ||
+        next === '/admin' ||
+        next.startsWith('/admin/')) &&
+      !next.startsWith('//') &&
+      !next.includes('\\') &&
+      !next.includes(':')
+    ) {
+      return next;
+    }
+  } catch {}
+  return '/management';
+}
+
 export default function AdminLoginPage() {
   const { signInAsClient, signOut, updateUser, setSessionVerified } = useUserStore();
 
@@ -62,7 +82,7 @@ export default function AdminLoginPage() {
           });
           setSessionVerified(true);
           if ((data.user.role || '').toLowerCase() === 'admin') {
-            window.location.replace('/management');
+            window.location.replace(getSafeAdminNextPath());
           }
         } else {
           signOut();
@@ -125,7 +145,7 @@ export default function AdminLoginPage() {
 
       // Perform clean document navigation so newly set auth cookies are sent fresh
       // and any cached unauthenticated RSC redirects are bypassed.
-      window.location.replace(data.redirect || '/management');
+      window.location.replace(getSafeAdminNextPath() !== '/management' ? getSafeAdminNextPath() : (data.redirect || '/management'));
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred during admin authentication.');
       setIsLoading(false);
