@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { isPrimaryOwnerEmail, normalizeTeamRole, type TeamRole } from '@/lib/auth';
+import { recordLoginEvent } from '@/lib/login-tracker';
 
 // Sliding-window rate limiting map: IP -> attempts & reset time
 const loginRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -92,6 +93,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (error || !data.user) {
+      if (adminOnly) {
+        await recordLoginEvent(req, {
+          email: userEmail,
+          role: 'admin_attempt',
+          authMethod: 'failed_admin_login',
+        });
+      }
       return NextResponse.json(
         { error: 'Invalid email or password.' },
         { status: 401 }
@@ -153,6 +161,12 @@ export async function POST(req: NextRequest) {
 
     // If this request came from the restricted /admin-login portal, strictly enforce admin role
     if (adminOnly && !isAdmin) {
+      await recordLoginEvent(req, {
+        userId,
+        email: userEmail,
+        role: 'unauthorized_client_on_admin_portal',
+        authMethod: 'failed_admin_login',
+      });
       await supabase.auth.signOut();
       return NextResponse.json(
         { error: 'Access denied: Administrator privileges required. Client accounts must use the client portal.' },
@@ -192,6 +206,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     const walletBalance = wallet?.balance_credits ?? 0;
+
+    await recordLoginEvent(req, {
+      userId,
+      email: userEmail,
+      role: teamRole || userRole,
+      authMethod: adminOnly ? 'admin_console' : 'password',
+    });
 
     return NextResponse.json({
       ok: true,
