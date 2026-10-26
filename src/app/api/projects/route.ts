@@ -3,6 +3,7 @@ import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { orderRequestSchema, patchProjectSchema, firstIssue } from '@/lib/validation';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
+import { reportStudioError } from '@/lib/error-reporter';
 import { generateProjectInvoicePdfBytes, type InvoiceProjectInput } from '@/lib/invoice';
 import type { ProjectRecord, ServiceTierLevel } from '@/types';
 import {
@@ -719,6 +720,14 @@ export async function POST(req: NextRequest) {
 
         if (insertErr) {
           console.error('Failed to insert unpaid project:', insertErr);
+          await reportStudioError({
+            area: 'Unpaid Project Submission Failed',
+            route: 'POST /api/projects',
+            severity: 'CRITICAL',
+            error: insertErr,
+            user,
+            context: { projectId: parsed.data.projectId, packageId: parsed.data.packageId },
+          });
           return NextResponse.json({ error: 'Failed to submit project for review' }, { status: 500 });
         }
 
@@ -898,6 +907,14 @@ export async function POST(req: NextRequest) {
             });
           }
         }
+        await reportStudioError({
+          area: 'Wallet Project Creation RPC Failed',
+          route: 'POST /api/projects',
+          severity: 'ERROR',
+          error: rpcErr,
+          user,
+          context: { projectId: parsed.data.projectId, projectCode, packageId: parsed.data.packageId },
+        });
         return NextResponse.json({ error: rpcErr.message }, { status: 400 });
       }
 
@@ -980,6 +997,14 @@ export async function POST(req: NextRequest) {
       });
     } catch (err) {
       console.error('Error processing project in PostgreSQL pipeline:', err);
+      await reportStudioError({
+        area: 'Project Order Pipeline Exception',
+        route: 'POST /api/projects',
+        severity: 'CRITICAL',
+        error: err,
+        user,
+        context: { projectId: parsed.data.projectId, projectCode, packageId: parsed.data.packageId },
+      });
       return NextResponse.json({ error: 'Failed to process project order' }, { status: 500 });
     }
   }
@@ -1293,6 +1318,14 @@ export async function PATCH(req: NextRequest) {
             });
             if (grantErr) {
               console.error('Ledger grant error on payment confirmation:', grantErr.message);
+              await reportStudioError({
+                area: 'Payment Confirmation Ledger Grant Failed',
+                route: 'PATCH /api/projects',
+                severity: 'CRITICAL',
+                error: grantErr,
+                user,
+                context: { projectId: currentProj.id, projectCode: currentProj.project_code, targetUserId: currentProj.user_id },
+              });
               return NextResponse.json(
                 { error: `Failed to allocate package credits to client wallet: ${grantErr.message}` },
                 { status: 500 }

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportStudioError } from '@/lib/error-reporter';
 import {
   REFERENCE_LIMITS,
   firstIssue,
@@ -157,6 +158,14 @@ export async function POST(req: NextRequest) {
 
     if (dbErr || !uploadRow) {
       console.error('Failed to insert project_upload record:', dbErr);
+      await reportStudioError({
+        area: 'Reference Upload DB Record Failed',
+        route: 'POST /api/uploads',
+        severity: 'ERROR',
+        error: dbErr || 'Missing uploadRow',
+        user,
+        context: { projectId, filename: safeName, size, mimeType },
+      });
       return NextResponse.json({ error: 'Could not initialize upload record.' }, { status: 500 });
     }
 
@@ -169,6 +178,14 @@ export async function POST(req: NextRequest) {
       // Rollback DB record if signed upload URL creation failed
       await admin.from('project_uploads').delete().eq('id', uploadRow.id);
       console.error('createSignedUploadUrl failed:', storageErr);
+      await reportStudioError({
+        area: 'Reference Upload Signed URL Failed',
+        route: 'POST /api/uploads',
+        severity: 'ERROR',
+        error: storageErr || 'Missing uploadData',
+        user,
+        context: { projectId, filename: safeName, storagePath },
+      });
       return NextResponse.json({ error: "Couldn't prepare upload link. Please try again." }, { status: 502 });
     }
 
@@ -185,6 +202,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('Error in POST /api/uploads:', err);
+    await reportStudioError({
+      area: 'Reference Upload Exception',
+      route: 'POST /api/uploads',
+      severity: 'ERROR',
+      error: err,
+      user,
+      context: { projectId },
+    });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

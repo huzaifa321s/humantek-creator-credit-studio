@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { createPayPalOrder } from '@/lib/paypal';
 import { PACKAGES } from '@/lib/catalog';
 import { buildPayPalOrderDetails } from '@/lib/paypal-order-details';
+import { reportStudioError } from '@/lib/error-reporter';
 
 export async function POST(req: NextRequest) {
   const user = await getRequestUser();
@@ -137,11 +138,24 @@ export async function POST(req: NextRequest) {
         orderId: paypalOrder.id,
         internalOrderId: newOrder.id,
         priceUSD,
-        credits: pkg.credits,
-        packageName: pkg.name,
+        credits: pkg?.credits ?? pkgData.credits,
+        packageName: pkg?.name ?? pkgData.name,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create PayPal order';
+      await reportStudioError({
+        area: 'PayPal Create Order Failed',
+        route: 'POST /api/paypal/create-order',
+        severity: 'CRITICAL',
+        error: err,
+        user,
+        context: {
+          packageId: pkgData.id,
+          packageName: pkgData.name,
+          priceUSD,
+          idempotencyKey: idempKey,
+        },
+      });
       return NextResponse.json({ error: message }, { status: 502 });
     }
   }

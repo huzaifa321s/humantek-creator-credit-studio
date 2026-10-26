@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { verifyPayPalWebhookSignature } from '@/lib/paypal';
 import { createNotification } from '@/lib/notifications';
+import { reportStudioError } from '@/lib/error-reporter';
 
 export async function POST(req: NextRequest) {
   let rawBody = '';
@@ -83,6 +84,13 @@ export async function POST(req: NextRequest) {
         webhookDbId = retryCheck?.id ?? 0;
       } else {
         console.error('Failed to log webhook event in database:', insertErr);
+        await reportStudioError({
+          area: 'PayPal Webhook DB Logging Failed',
+          route: 'POST /api/paypal/webhook',
+          severity: 'CRITICAL',
+          error: insertErr,
+          context: { eventId, eventType },
+        });
         return NextResponse.json({ error: 'Database logging failed' }, { status: 500 });
       }
     } else {
@@ -266,6 +274,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, processed: true }, { status: 200 });
   } catch (err: any) {
     console.error('[PayPal Webhook] Error during event processing:', err);
+
+    await reportStudioError({
+      area: 'PayPal Webhook Processing Error',
+      route: 'POST /api/paypal/webhook',
+      severity: 'CRITICAL',
+      error: err,
+      context: { eventId, eventType, resourceId: resource?.id },
+    });
 
     if (webhookDbId) {
       await adminClient

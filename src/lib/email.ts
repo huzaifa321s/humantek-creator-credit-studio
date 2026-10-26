@@ -109,7 +109,8 @@ export interface StudioEmailPayload {
     | 'project_status_client'
     | 'wallet_adjustment_client'
     | 'team_invitation'
-    | 'chat_message_alert';
+    | 'chat_message_alert'
+    | 'developer_error_alert';
   attachments?: StudioEmailAttachment[];
   metadata?: Record<string, unknown>;
 }
@@ -547,18 +548,10 @@ export function buildStudioNotificationEmail(params: {
   attachments?: StudioEmailAttachment[];
 }): StudioEmailPayload {
   const detailsHtml = params.details?.length ? buildEmailDetailsTable(params.details) : '';
-  const invoiceRow = params.details?.find(([label]) => label.toLowerCase() === 'invoice');
-  const projectRow = params.details?.find(([label]) => label.toLowerCase() === 'project');
-  const fallbackPdfName =
-    projectRow?.[1]
-      ? `Humantek-Invoice-${projectRow[1].replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`
-      : invoiceRow?.[1]
-        ? `Humantek-${invoiceRow[1].replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`
-        : undefined;
-  const attachedPdfName = params.attachments?.[0]?.filename || fallbackPdfName;
+  const attachedPdfName = params.attachments?.[0]?.filename;
   const attachmentBannerHtml = attachedPdfName
     ? `<div style="margin-top:14px;padding:10px 14px;border-radius:10px;background-color:#fffbeb;border:1px solid #fde68a;font-family:${STUDIO_EMAIL_FONT_STACK};font-size:12px;color:#92400e;">
-        &#128206; <strong>Official PDF Invoice:</strong> <span style="font-family:${STUDIO_EMAIL_FONT_STACK};font-weight:700;color:#78350f;">${escapeHtml(attachedPdfName)}</span> ${params.attachments?.length ? '(attached to this email)' : '(available in your project drawer)'}
+        &#128206; <strong>Official PDF Invoice:</strong> <span style="font-family:${STUDIO_EMAIL_FONT_STACK};font-weight:700;color:#78350f;">${escapeHtml(attachedPdfName)}</span> (attached to this email)
       </div>`
     : '';
 
@@ -593,6 +586,92 @@ export function buildStudioNotificationEmail(params: {
     text,
     category: params.category,
     attachments: params.attachments,
+  };
+}
+
+/**
+ * 6. Developer Error Alert Email Template sent to dev.humantek@gmail.com
+ * whenever an unexpected backend, payment, database, or client UI error occurs.
+ */
+export function buildDeveloperErrorEmailTemplate(params: {
+  to: string;
+  area: string;
+  route: string;
+  severity: 'CRITICAL' | 'ERROR' | 'WARNING';
+  errorMessage: string;
+  errorCode?: string;
+  stackTrace?: string;
+  clientEmail?: string | null;
+  clientName?: string | null;
+  userId?: string | null;
+  userRole?: string | null;
+  contextRows?: Array<[label: string, value: string]>;
+  occurredAt?: string;
+}): StudioEmailPayload {
+  const ts = params.occurredAt || new Date().toISOString();
+  const clientLabel = params.clientEmail || 'Guest / Unauthenticated';
+  const shortMsg = params.errorMessage.replace(/\s+/g, ' ').trim().slice(0, 72);
+  const subject = `[Developer Alert] ${params.area}: ${shortMsg} (${clientLabel})`;
+
+  const rows: Array<[string, string]> = [
+    ['Client Email', clientLabel],
+    ...(params.clientName ? ([['Client Name', params.clientName]] as Array<[string, string]>) : []),
+    ...(params.userId ? ([['User ID', params.userId]] as Array<[string, string]>) : []),
+    ['User Role', params.userRole || 'guest'],
+    ['Location / Route', params.route || params.area],
+    ['Severity', params.severity],
+    ...(params.errorCode ? ([['Error Code', params.errorCode]] as Array<[string, string]>) : []),
+    ['Occurred At (UTC)', new Date(ts).toUTCString()],
+    ...(params.contextRows || []),
+  ];
+
+  const trimmedStack = params.stackTrace
+    ? params.stackTrace.split('\n').slice(0, 12).join('\n')
+    : '';
+
+  const bodyHtml = `
+    <p style="margin:0 0 12px 0;font-family:${STUDIO_EMAIL_FONT_STACK};color:#3f3f46;">
+      An unexpected runtime or API issue occurred on <strong style="color:#18181b;">Humantek Creator Credit Studio</strong>.
+    </p>
+    <div style="margin-top:12px;padding:14px 16px;border-radius:12px;background-color:#fef2f2;border:1px solid #fecaca;font-family:${STUDIO_EMAIL_FONT_STACK};">
+      <div style="font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#991b1b;margin-bottom:4px;">
+        Error Message
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#7f1d1d;word-break:break-word;line-height:1.5;">
+        ${escapeHtml(params.errorMessage)}
+      </div>
+    </div>
+    ${buildEmailDetailsTable(rows)}
+    ${
+      trimmedStack
+        ? `<div style="margin-top:16px;padding:12px 14px;border-radius:10px;background-color:#18181b;color:#e4e4e7;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-word;">${escapeHtml(trimmedStack)}</div>`
+        : ''
+    }
+  `;
+
+  const text = [
+    `[Humantek Creator Credit Studio — Developer Error Alert]`,
+    `Area: ${params.area}`,
+    `Error: ${params.errorMessage}`,
+    ...rows.map(([k, v]) => `${k}: ${v}`),
+    trimmedStack ? `\nStack Trace:\n${trimmedStack}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return {
+    to: params.to,
+    subject,
+    html: wrapStudioEmailLayout({
+      badge: `${params.severity} · DEVELOPER ALERT`,
+      heading: `${params.area}`,
+      subtitle: `Affected user: ${clientLabel}`,
+      bodyHtml,
+      ctaLabel: 'Open Studio Console',
+      ctaUrl: '/management',
+    }),
+    text,
+    category: 'developer_error_alert',
   };
 }
 

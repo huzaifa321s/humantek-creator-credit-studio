@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
+import { reportStudioError } from '@/lib/error-reporter';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
@@ -724,6 +725,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return response;
   } catch (err: unknown) {
     console.error('Error in POST /api/projects/[id]/messages:', err);
+    await reportStudioError({
+      area: 'Chat Message Send Failed',
+      route: 'POST /api/projects/[id]/messages',
+      severity: 'ERROR',
+      error: err,
+    });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
