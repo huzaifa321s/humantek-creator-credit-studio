@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportStudioError } from '@/lib/error-reporter';
 import { createStorageSignedViewUrl, uploadStorageObject } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
@@ -106,6 +107,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     if (uploadErr) {
       console.error('Chat attachment upload failed:', uploadErr);
+      await reportStudioError({
+        area: 'Chat Attachment Upload Failed',
+        route: 'POST /api/projects/[id]/attachments',
+        severity: 'ERROR',
+        error: uploadErr,
+        user,
+        context: { projectId: id, fileName, fileSize: file.size, mimeType: file.type },
+      });
       return NextResponse.json(
         { error: "Couldn't upload the image. Please try again." },
         { status: 502 }
@@ -126,6 +135,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
     });
   } catch (err) {
     console.error('Error in POST /api/projects/[id]/attachments:', err);
+    await reportStudioError({
+      area: 'Chat Attachment Exception',
+      route: 'POST /api/projects/[id]/attachments',
+      severity: 'ERROR',
+      error: err,
+    });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
+import { reportStudioError } from '@/lib/error-reporter';
 import {
   parseGiftPromoMetadata,
   buildGiftCodeRedeemedOwnerEmailTemplate,
@@ -143,6 +144,14 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
+        await reportStudioError({
+          area: 'Promo Redemption RPC Failed',
+          route: 'POST /api/wallet/redeem',
+          severity: 'ERROR',
+          error,
+          user,
+          context: { code: cleanCode },
+        });
         return NextResponse.json(
           { error: 'Unable to redeem code. Please verify and try again.' },
           { status: 400 }
@@ -369,6 +378,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
+    await reportStudioError({
+      area: 'Promo Redemption Exception',
+      route: 'POST /api/wallet/redeem',
+      severity: 'CRITICAL',
+      error,
+    });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

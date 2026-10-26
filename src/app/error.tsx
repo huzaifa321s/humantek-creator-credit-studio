@@ -11,6 +11,7 @@ import {
   TypographyMuted,
 } from '@/components/ui/typography';
 import { cn } from '@/lib/utils';
+import { reportClientError } from '@/lib/client-error-reporter';
 import { AlertCircle, RotateCcw, ArrowLeft, Home } from 'lucide-react';
 
 export default function ErrorPage({
@@ -23,8 +24,13 @@ export default function ErrorPage({
   const router = useRouter();
 
   useEffect(() => {
-    // Log unexpected runtime errors to console
+    // Log unexpected runtime errors to console and notify developer email
     console.error('Studio application error:', error);
+    reportClientError({
+      area: 'Client UI Crash',
+      severity: 'CRITICAL',
+      error,
+    });
   }, [error]);
 
   return (

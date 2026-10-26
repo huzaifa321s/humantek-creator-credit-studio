@@ -4,8 +4,9 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { capturePayPalOrder } from '@/lib/paypal';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
 import { generateProjectInvoicePdfBytes } from '@/lib/invoice';
-import { adjustUserBalance, getUserBalance } from '@/lib/store';
-import { attachProjectReferences, verifyReferenceFiles } from '@/lib/references';
+import { adjustUserBalance } from '@/lib/store';
+import { attachProjectReferences } from '@/lib/references';
+import { reportStudioError } from '@/lib/error-reporter';
 
 export async function POST(req: NextRequest) {
   const user = await getRequestUser();
@@ -114,6 +115,20 @@ export async function POST(req: NextRequest) {
           'Project creation RPC error after capture (credits remain safely in wallet):',
           rpcErr
         );
+        await reportStudioError({
+          area: 'Post-PayPal Project Creation RPC Error',
+          route: 'POST /api/paypal/capture-order',
+          severity: 'CRITICAL',
+          error: rpcErr,
+          user,
+          context: {
+            orderId: order.id,
+            providerOrderId: order.provider_order_id,
+            projectId: rawPayload.projectId,
+            projectCode,
+            packageId: rawPayload.packageId || order.package_id,
+          },
+        });
       } else if (rawPayload.projectId) {
         const expectedUsd = Number(order.expected_amount_cents) > 0 ? Number(order.expected_amount_cents) / 100 : 0;
         const pkgCredits = Number(order.credits_to_grant) || 0;
@@ -239,6 +254,19 @@ export async function POST(req: NextRequest) {
         }
 
         if (!fulfillRes?.success) {
+          await reportStudioError({
+            area: 'PayPal Order Fulfillment Rejected',
+            route: 'POST /api/paypal/capture-order',
+            severity: 'CRITICAL',
+            error: fulfillRes?.error || 'Order fulfillment failed after PayPal capture',
+            user,
+            context: {
+              orderId: order.id,
+              providerOrderId: order.provider_order_id,
+              captureId: capture.captureId,
+              capturedAmountCents,
+            },
+          });
           return NextResponse.json({ error: fulfillRes?.error || 'Order fulfillment failed' }, { status: 422 });
         }
 
@@ -371,6 +399,19 @@ export async function POST(req: NextRequest) {
           .update({ status: 'denied' })
           .eq('id', order.id);
 
+        await reportStudioError({
+          area: 'PayPal Capture Denied',
+          route: 'POST /api/paypal/capture-order',
+          severity: 'WARNING',
+          error: `PayPal returned capture status ${capture.status}`,
+          user,
+          context: {
+            orderId: order.id,
+            providerOrderId: order.provider_order_id,
+            expectedUSD,
+          },
+        });
+
         return NextResponse.json({
           success: false,
           status: capture.status,
@@ -379,6 +420,18 @@ export async function POST(req: NextRequest) {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Could not capture PayPal order';
+      await reportStudioError({
+        area: 'PayPal Capture Exception',
+        route: 'POST /api/paypal/capture-order',
+        severity: 'CRITICAL',
+        error: err,
+        user,
+        context: {
+          orderId: order.id,
+          providerOrderId: order.provider_order_id,
+          expectedUSD,
+        },
+      });
       return NextResponse.json({ error: message }, { status: 502 });
     }
   }

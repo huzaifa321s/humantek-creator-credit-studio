@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { createNotification, notifyAdmins } from '@/lib/notifications';
+import { reportStudioError } from '@/lib/error-reporter';
 import {
   serializeGiftPromoMetadata,
   parseGiftPromoMetadata,
@@ -287,6 +288,14 @@ export async function POST(req: NextRequest) {
           p_desc: `Refund for failed gift promo generation ${code}`,
           p_reverses_id: null,
         });
+        await reportStudioError({
+          area: 'Gift Promo Voucher Insert Failed',
+          route: 'POST /api/wallet/gift',
+          severity: 'CRITICAL',
+          error: insertErr || 'Failed to insert gift promo code',
+          user,
+          context: { code, credits, recipientEmail },
+        });
         return NextResponse.json(
           { error: 'Failed to generate promo voucher. Your wallet balance was not charged.' },
           { status: 500 }
@@ -423,6 +432,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('Error in POST /api/wallet/gift:', err);
+    await reportStudioError({
+      area: 'Gift Code Generation Exception',
+      route: 'POST /api/wallet/gift',
+      severity: 'CRITICAL',
+      error: err,
+    });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to generate gift promo code' },
       { status: 500 }
