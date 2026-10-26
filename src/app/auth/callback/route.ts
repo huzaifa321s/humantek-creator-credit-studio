@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getSafeRedirectUrl } from '@/lib/utils';
 import { resolveSafeRedirectBase } from '@/lib/auth/redirects';
+import { recordLoginEvent } from '@/lib/login-tracker';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -98,6 +99,13 @@ export async function GET(request: NextRequest) {
 
       const userRole = profile?.role === 'admin' ? 'admin' : 'client';
       const isAdmin = userRole === 'admin';
+
+      await recordLoginEvent(request, {
+        userId: data.user.id,
+        email: data.user.email || 'unknown@oauth',
+        role: userRole,
+        authMethod: 'google_oauth',
+      });
 
       // If user is admin, redirect directly to management console
       if (isAdmin) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { recordLoginEvent } from '@/lib/login-tracker';
 
 const signupRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -121,6 +122,12 @@ export async function POST(req: NextRequest) {
     try {
       const admin = createAdminClient();
       await admin.from('profiles').update({ full_name: userName }).eq('id', data.user.id);
+      await recordLoginEvent(req, {
+        userId: data.user.id,
+        email: userEmail,
+        role: 'client',
+        authMethod: 'signup',
+      });
     } catch (e) {
       console.warn('Could not update profile full_name on signup:', e);
     }

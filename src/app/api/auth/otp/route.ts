@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { isRealSupabaseConfigured } from '@/lib/supabase/config';
 import { isPrimaryOwnerEmail, normalizeTeamRole, type TeamRole } from '@/lib/auth';
+import { recordLoginEvent } from '@/lib/login-tracker';
 
 interface RateLimitRecord {
   attempts: number;
@@ -188,6 +189,13 @@ export async function POST(req: NextRequest) {
       .select('balance_credits')
       .eq('user_id', user.id)
       .maybeSingle();
+
+    await recordLoginEvent(req, {
+      userId: user.id,
+      email: userEmail,
+      role: teamRole || userRole,
+      authMethod: 'otp',
+    });
 
     return NextResponse.json({
       ok: true,
