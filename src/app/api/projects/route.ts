@@ -1003,7 +1003,7 @@ export async function POST(req: NextRequest) {
         severity: 'CRITICAL',
         error: err,
         user,
-        context: { projectId: parsed.data.projectId, projectCode, packageId: parsed.data.packageId },
+        context: { projectId: parsed.data.projectId, packageId: parsed.data.packageId },
       });
       return NextResponse.json({ error: 'Failed to process project order' }, { status: 500 });
     }
