@@ -913,7 +913,7 @@ export async function POST(req: NextRequest) {
           severity: 'ERROR',
           error: rpcErr,
           user,
-          context: { projectId: parsed.data.projectId, projectCode, packageId: parsed.data.packageId },
+          context: { projectId: parsed.data.projectId, packageId: parsed.data.packageId },
         });
         return NextResponse.json({ error: rpcErr.message }, { status: 400 });
       }
