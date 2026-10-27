@@ -562,3 +562,19 @@ body {
 .dark .paypal-buttons-container {
   background-color: transparent !important;
 }
+
+/* ========================================================= */
+/* Accessible Text Selection Across Light & Dark Modes       */
+/* ========================================================= */
+::selection {
+  background-color: rgba(252, 211, 77, 0.6);
+  color: #451a03;
+}
+
+.dark ::selection,
+:root.dark ::selection,
+.dark input::selection,
+.dark textarea::selection {
+  background-color: rgba(251, 191, 36, 0.38);
+  color: #ffffff;
+}
