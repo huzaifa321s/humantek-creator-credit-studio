@@ -1,17 +1,16 @@
+import React from 'react';
 import { redirect } from 'next/navigation';
 import { getRequestUser } from '@/lib/auth';
+import CreatorStudioPage from './new-project/page';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Root Gateway Page (`/`)
  *
- * Architecture:
- * - Contains NO client UI and renders NO heavy components.
- * - Redirect-only gateway:
- *     - Signed-in users   -> `/projects`
- *     - Signed-out users  -> `/login`
- * - Guarantees zero flash of unauthenticated wizard content (FOUC).
+ * - Signed-in admins  -> `/management`
+ * - Signed-in clients -> `/projects`
+ * - Guests            -> Renders `<CreatorStudioPage />` directly (200 OK without HTTP 307 redirect penalty)
  */
 export default async function RootGatewayPage() {
   const user = await getRequestUser();
@@ -21,7 +20,7 @@ export default async function RootGatewayPage() {
       redirect('/management');
     }
     redirect('/projects');
-  } else {
-    redirect('/new-project');
   }
+
+  return <CreatorStudioPage />;
 }

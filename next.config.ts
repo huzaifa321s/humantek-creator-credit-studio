@@ -9,6 +9,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  compress: true,
   devIndicators: {
     position: "bottom-left",
   },
@@ -18,6 +19,7 @@ const nextConfig: NextConfig = {
   experimental: {
     cpus: 2,
     workerThreads: false,
+    optimizePackageImports: ["lucide-react", "@base-ui/react", "sonner"],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
