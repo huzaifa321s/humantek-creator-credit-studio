@@ -136,7 +136,11 @@ export async function updateSession(request: NextRequest) {
   // Handle Root Gateway ('/')
   if (pathname === '/') {
     if (!isAuthenticated) {
-      return redirectWithCookies(new URL('/new-project', request.url), supabaseResponse);
+      const rewriteRes = NextResponse.rewrite(new URL('/new-project', request.url), {
+        request,
+      });
+      supabaseResponse.cookies.getAll().forEach((c) => rewriteRes.cookies.set(c));
+      return rewriteRes;
     }
     if (userRole === 'admin') {
       return redirectWithCookies(new URL('/management', request.url), supabaseResponse);
