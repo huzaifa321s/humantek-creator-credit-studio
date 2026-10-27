@@ -34,7 +34,7 @@ export default function ErrorPage({
   }, [error]);
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground antialiased selection:bg-amber-400/25 selection:text-amber-950 overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground antialiased selection:bg-amber-300/60 selection:text-amber-950 dark:selection:bg-amber-400/35 dark:selection:text-amber-50 overflow-x-hidden">
       {/* 1. Ambient Studio Lighting Background */}
       <StudioBackground variant="subtle" showDots={true} />
 
