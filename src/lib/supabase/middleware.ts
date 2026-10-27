@@ -77,10 +77,7 @@ export async function updateSession(request: NextRequest) {
   let user: { id: string; email?: string } | null = null;
   let userRole: 'admin' | 'client' = 'client';
 
-  const hasAuthCookie = request.cookies.getAll().some((c) => c.name.startsWith('sb-'));
-
-  if (hasAuthCookie) {
-    try {
+  try {
     const supabase = createServerClient(url, key, {
       cookies: {
         getAll() {
@@ -119,9 +116,9 @@ export async function updateSession(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle();
       userRole = profile?.role === 'admin' ? 'admin' : 'client';
-    }    } catch {
-      user = null;
     }
+  } catch {
+    user = null;
   }
 
   const isAuthenticated = Boolean(user && user.email);
@@ -136,11 +133,7 @@ export async function updateSession(request: NextRequest) {
   // Handle Root Gateway ('/')
   if (pathname === '/') {
     if (!isAuthenticated) {
-      const rewriteRes = NextResponse.rewrite(new URL('/new-project', request.url), {
-        request,
-      });
-      supabaseResponse.cookies.getAll().forEach((c) => rewriteRes.cookies.set(c));
-      return rewriteRes;
+      return redirectWithCookies(new URL('/new-project', request.url), supabaseResponse);
     }
     if (userRole === 'admin') {
       return redirectWithCookies(new URL('/management', request.url), supabaseResponse);

@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   PACKAGES,
@@ -26,17 +25,15 @@ import {
 import { StudioCardLayout } from '@/components/StudioCardLayout';
 import { useStepFocus, getStepAnnouncement } from '@/hooks/useStepNavigation';
 import { useUnsavedChangesWarning, bypassUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
-const ScopeGuideModal = dynamic(() => import('@/components/ScopeGuideModal').then((m) => m.ScopeGuideModal), { ssr: false });
+import { ScopeGuideModal } from '@/components/ScopeGuideModal';
 import { StudioNoticeBanner } from '@/components/StudioNoticeBanner';
 import { ServiceCategoryTabs } from '@/components/ServiceCategoryTabs';
 import { CartSidebar } from '@/components/CartSidebar';
 import { ServiceImageHoverCard, ServiceInfoPopover } from '@/components/ServiceImageHoverCard';
-import type { ManualPaymentMethod } from '@/components/ManualPaymentOptions';
-const ManualPaymentOptions = dynamic(() => import('@/components/ManualPaymentOptions').then((m) => m.ManualPaymentOptions), { ssr: false });
-import type { ClientCapturedPayment } from '@/components/PayPalButtonWrapper';
-const PayPalButtonWrapper = dynamic(() => import('@/components/PayPalButtonWrapper').then((m) => m.PayPalButtonWrapper), { ssr: false });
+import { ManualPaymentOptions, type ManualPaymentMethod } from '@/components/ManualPaymentOptions';
+import { PayPalButtonWrapper, type ClientCapturedPayment } from '@/components/PayPalButtonWrapper';
 import { isPayPalClientConfigured } from '@/lib/paypal-config';
-const AuthModal = dynamic(() => import('@/components/auth/AuthModal').then((m) => m.AuthModal), { ssr: false });
+import { AuthModal } from '@/components/auth/AuthModal';
 import { ClientOnly } from '@/components/ClientOnly';
 import { FieldError } from '@/components/ui/field-error';
 import { useBriefValidation, briefFieldId } from '@/lib/hooks/useBriefValidation';
@@ -4153,17 +4150,15 @@ export default function CreatorStudioPage() {
       )}
 
       {/* Auth Gate Modal for Unauthenticated Guests */}
-      {showAuthModal && (
-        <AuthModal
-          open={showAuthModal}
-          onOpenChange={setShowAuthModal}
-          onSuccess={() => {
-            if (authModalIntentRef.current === 'checkout' && isStep4Valid) {
-              setCurrentStep(5);
-            }
-          }}
-        />
-      )}
+      <AuthModal
+        open={showAuthModal}
+        onOpenChange={setShowAuthModal}
+        onSuccess={() => {
+          if (authModalIntentRef.current === 'checkout' && isStep4Valid) {
+            setCurrentStep(5);
+          }
+        }}
+      />
     </StudioCardLayout>
   );
 }
