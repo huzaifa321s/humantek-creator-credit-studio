@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useUserStore } from '@/lib/userStore';
+import { getClientDeviceFingerprint } from '@/lib/device-fingerprint';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
