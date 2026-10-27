@@ -69,6 +69,28 @@ interface SecurityDiagnostics {
   serverTime: string;
 }
 
+function isStaffOrAdminRole(roleRaw?: string | null): boolean {
+  const clean = (roleRaw || '').trim().toLowerCase();
+  return (
+    clean === 'admin' ||
+    clean === 'owner' ||
+    clean === 'manager' ||
+    clean === 'viewer'
+  );
+}
+
+function formatRoleLabel(roleRaw?: string | null): string {
+  const clean = (roleRaw || 'client').trim().toLowerCase();
+  if (clean === 'owner') return 'Admin · Owner';
+  if (clean === 'manager') return 'Admin · Manager';
+  if (clean === 'viewer') return 'Admin · Viewer';
+  if (clean === 'admin') return 'Admin';
+  if (clean.includes('failed') || clean.includes('unauthorized') || clean === 'admin_attempt') {
+    return 'Failed Attempt';
+  }
+  return 'Client';
+}
+
 function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return 'Never';
   const date = new Date(iso);
@@ -101,17 +123,43 @@ function formatExactTime(iso: string | null | undefined): string {
 function formatAuthMethodBadge(method: string) {
   const clean = (method || 'password').toLowerCase();
   switch (clean) {
+    case 'admin_console':
+      return {
+        label: 'Admin Console',
+        className: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+      };
     case 'google_oauth':
-      return { label: 'Google OAuth', className: 'bg-blue-500/10 text-blue-400 border-blue-500/30' };
+      return {
+        label: 'Google OAuth',
+        className: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+      };
+    case 'otp':
     case 'otp_code':
-      return { label: 'Email OTP', className: 'bg-purple-500/10 text-purple-400 border-purple-500/30' };
+      return {
+        label: 'Email OTP',
+        className: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+      };
     case 'magic_link':
-      return { label: 'Magic Link', className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' };
+      return {
+        label: 'Magic Link',
+        className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+      };
     case 'signup':
-      return { label: 'New Signup', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' };
+      return {
+        label: 'New Signup',
+        className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+      };
+    case 'failed_admin_login':
+      return {
+        label: 'Blocked Attempt',
+        className: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+      };
     case 'password':
     default:
-      return { label: 'Password', className: 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30' };
+      return {
+        label: 'Password',
+        className: 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30',
+      };
   }
 }
 
@@ -211,9 +259,9 @@ export function DevSecurityVaultClient() {
   const filteredEntries = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return entries.filter((item) => {
-      if (roleFilter !== 'all' && (item.role || '').toLowerCase() !== roleFilter) {
-        return false;
-      }
+      const isAdmin = isStaffOrAdminRole(item.role);
+      if (roleFilter === 'admin' && !isAdmin) return false;
+      if (roleFilter === 'client' && isAdmin) return false;
       if (methodFilter !== 'all' && (item.auth_method || '').toLowerCase() !== methodFilter) {
         return false;
       }
@@ -231,9 +279,9 @@ export function DevSecurityVaultClient() {
   const filteredProfiles = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return profiles.filter((p) => {
-      if (roleFilter !== 'all' && (p.role || '').toLowerCase() !== roleFilter) {
-        return false;
-      }
+      const isAdmin = isStaffOrAdminRole(p.role) || isStaffOrAdminRole(p.team_role);
+      if (roleFilter === 'admin' && !isAdmin) return false;
+      if (roleFilter === 'client' && isAdmin) return false;
       if (!q) return true;
       return (
         (p.email || '').toLowerCase().includes(q) ||
@@ -248,7 +296,7 @@ export function DevSecurityVaultClient() {
   const stats = useMemo(() => {
     const uniqueIps = new Set(entries.map((e) => e.ip_address).filter(Boolean)).size;
     const uniqueUsers = new Set(entries.map((e) => e.email).filter(Boolean)).size;
-    const adminLogins = entries.filter((e) => (e.role || '').toLowerCase() === 'admin').length;
+    const adminLogins = entries.filter((e) => isStaffOrAdminRole(e.role)).length;
     const clientLogins = entries.length - adminLogins;
     return { uniqueIps, uniqueUsers, adminLogins, clientLogins };
   }, [entries]);
@@ -263,9 +311,9 @@ export function DevSecurityVaultClient() {
       'Email',
       'Role',
       'Auth Method',
-      'IP Address',
+      'Public WAN IP',
       'Location',
-      'Device',
+      'Device & Machine ID',
       'User ID',
       'User Agent',
     ];
@@ -391,7 +439,7 @@ export function DevSecurityVaultClient() {
         <Card className="border-border/70 bg-card/80">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs flex items-center justify-between">
-              <span>Distinct IP Footprints</span>
+              <span>Distinct Public WAN IPs</span>
               <Globe className="size-3.5 text-cyan-400" />
             </CardDescription>
             <CardTitle className="text-2xl font-extrabold tracking-tight">
@@ -496,7 +544,7 @@ export function DevSecurityVaultClient() {
               <Search className="size-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
                 type="text"
-                placeholder="Search email, IP, location, device..."
+                placeholder="Search email, IP, location, machine ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-8 pl-8 text-xs bg-background/60"
@@ -522,11 +570,12 @@ export function DevSecurityVaultClient() {
                 className="h-8 rounded-md border border-border/80 bg-background px-2.5 text-xs text-foreground focus:outline-none focus:border-amber-400"
               >
                 <option value="all">All Auth Methods</option>
+                <option value="admin_console">Admin Console</option>
                 <option value="password">Password</option>
                 <option value="google_oauth">Google OAuth</option>
-                <option value="otp_code">Email OTP</option>
-                <option value="magic_link">Magic Link</option>
+                <option value="otp">Email OTP</option>
                 <option value="signup">New Signup</option>
+                <option value="failed_admin_login">Blocked Attempts</option>
               </select>
             )}
           </div>
@@ -544,9 +593,9 @@ export function DevSecurityVaultClient() {
                   <th className="py-3 px-4">User Account</th>
                   <th className="py-3 px-4">Role</th>
                   <th className="py-3 px-4">Auth Method</th>
-                  <th className="py-3 px-4">IP Address</th>
-                  <th className="py-3 px-4">Geo Location</th>
-                  <th className="py-3 px-4">Device / Browser</th>
+                  <th className="py-3 px-4">Public WAN IP</th>
+                  <th className="py-3 px-4">Geo Location / ISP</th>
+                  <th className="py-3 px-4">Device & Machine Tag</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50 text-xs">
@@ -564,7 +613,12 @@ export function DevSecurityVaultClient() {
                   </tr>
                 ) : (
                   filteredEntries.map((entry) => {
-                    const isAdminRole = (entry.role || '').toLowerCase() === 'admin';
+                    const isAdminRole = isStaffOrAdminRole(entry.role);
+                    const isFailedAttempt =
+                      (entry.role || '').includes('failed') ||
+                      (entry.role || '').includes('unauthorized') ||
+                      entry.role === 'admin_attempt';
+                    const roleLabel = formatRoleLabel(entry.role);
                     const methodBadge = formatAuthMethodBadge(entry.auth_method);
                     const isExpanded = expandedRowId === entry.id;
 
@@ -599,11 +653,16 @@ export function DevSecurityVaultClient() {
                             {isAdminRole ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-300 border border-amber-400/30">
                                 <ShieldCheck className="size-3" />
-                                Admin
+                                {roleLabel}
+                              </span>
+                            ) : isFailedAttempt ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                                <ShieldAlert className="size-3" />
+                                {roleLabel}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-secondary text-muted-foreground border border-border">
-                                Client
+                                {roleLabel}
                               </span>
                             )}
                           </td>
@@ -638,10 +697,12 @@ export function DevSecurityVaultClient() {
                             </div>
                           </td>
 
-                          <td className="py-3 px-4 whitespace-nowrap">
+                          <td className="py-3 px-4">
                             <div className="inline-flex items-center gap-1.5 text-muted-foreground">
-                              <Globe className="size-3.5 text-muted-foreground/70 shrink-0" />
-                              <span>{entry.location || 'Unknown'}</span>
+                              <Globe className="size-3.5 text-cyan-400/80 shrink-0" />
+                              <span className="text-foreground/90">
+                                {entry.location || 'Resolving...'}
+                              </span>
                             </div>
                           </td>
 
@@ -699,7 +760,7 @@ export function DevSecurityVaultClient() {
                   <th className="py-3 px-4">User / Email</th>
                   <th className="py-3 px-4">System Role</th>
                   <th className="py-3 px-4">Last Login Time</th>
-                  <th className="py-3 px-4">Last Known IP</th>
+                  <th className="py-3 px-4">Last Known WAN IP</th>
                   <th className="py-3 px-4">Last Known Device</th>
                   <th className="py-3 px-4">Account Created</th>
                 </tr>
@@ -713,7 +774,7 @@ export function DevSecurityVaultClient() {
                   </tr>
                 ) : (
                   filteredProfiles.map((prof) => {
-                    const isAdmin = (prof.role || '').toLowerCase() === 'admin';
+                    const isAdmin = isStaffOrAdminRole(prof.role) || isStaffOrAdminRole(prof.team_role);
                     return (
                       <tr key={prof.id} className="hover:bg-secondary/30 transition-colors">
                         <td className="py-3 px-4">
@@ -726,6 +787,7 @@ export function DevSecurityVaultClient() {
                         <td className="py-3 px-4 whitespace-nowrap">
                           {isAdmin ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-300 border border-amber-400/30">
+                              <ShieldCheck className="size-3" />
                               Admin {prof.team_role ? `· ${prof.team_role}` : ''}
                             </span>
                           ) : (
@@ -855,7 +917,7 @@ export function DevSecurityVaultClient() {
               <div className="flex items-center justify-between py-2 border-b border-border/50">
                 <span className="text-muted-foreground">Tracked Auth Flows</span>
                 <span className="text-foreground font-medium">
-                  Password, Google OAuth, OTP Code, Magic Link, Signup
+                  Password, Admin Console, Google OAuth, OTP Code, Signup
                 </span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-border/50">

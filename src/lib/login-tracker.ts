@@ -16,6 +16,39 @@ export interface RecordLoginEventParams {
   email: string;
   role?: string | null;
   authMethod: LoginAuthMethod;
+  deviceHint?: string | null;
+}
+
+const geoCache = new Map<string, { location: string; expiresAt: number }>();
+const GEO_CACHE_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
+
+function isPrivateOrLocalIp(ip: string): boolean {
+  const clean = ip.trim().toLowerCase();
+  if (
+    !clean ||
+    clean === 'unknown' ||
+    clean === '127.0.0.1' ||
+    clean === '::1' ||
+    clean === 'localhost'
+  ) {
+    return true;
+  }
+  if (
+    clean.startsWith('10.') ||
+    clean.startsWith('192.168.') ||
+    clean.startsWith('172.16.') ||
+    clean.startsWith('172.17.') ||
+    clean.startsWith('172.18.') ||
+    clean.startsWith('172.19.') ||
+    clean.startsWith('172.2') ||
+    clean.startsWith('172.30.') ||
+    clean.startsWith('172.31.') ||
+    clean.startsWith('fc00:') ||
+    clean.startsWith('fe80:')
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export function extractRequestIp(req: NextRequest | Request): string {
@@ -26,11 +59,11 @@ export function extractRequestIp(req: NextRequest | Request): string {
   const forwarded = h.get('x-forwarded-for');
   if (forwarded) {
     const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
+    if (first) return first.replace(/^::ffff:/i, '');
   }
 
   const realIp = h.get('x-real-ip')?.trim() || h.get('x-client-ip')?.trim();
-  if (realIp) return realIp;
+  if (realIp) return realIp.replace(/^::ffff:/i, '');
 
   return 'unknown';
 }
@@ -41,8 +74,13 @@ export function extractRequestLocation(req: NextRequest | Request): string | nul
     h.get('cf-ipcountry')?.trim() ||
     h.get('x-vercel-ip-country')?.trim() ||
     h.get('x-country-code')?.trim() ||
+    h.get('x-geo-country')?.trim() ||
     '';
-  const city = h.get('x-vercel-ip-city')?.trim() || h.get('cf-ipcity')?.trim() || '';
+  const city =
+    h.get('x-vercel-ip-city')?.trim() ||
+    h.get('cf-ipcity')?.trim() ||
+    h.get('x-geo-city')?.trim() ||
+    '';
   if (city && country) {
     try {
       return `${decodeURIComponent(city)}, ${country}`;
@@ -53,8 +91,94 @@ export function extractRequestLocation(req: NextRequest | Request): string | nul
   return country || null;
 }
 
-export function summarizeUserAgent(uaRaw?: string | null): string {
-  if (!uaRaw) return 'Unknown Device';
+/**
+ * Resolves city/region/country (+ ISP) for a public IP address when reverse-proxy
+ * geo headers (Cloudflare / Vercel) are not present (e.g. on Hostinger Node.js).
+ */
+export async function resolveIpGeoLocation(
+  ip: string,
+  req?: NextRequest | Request
+): Promise<string | null> {
+  if (req) {
+    const fromHeaders = extractRequestLocation(req);
+    if (fromHeaders && fromHeaders.toLowerCase() !== 'unknown' && fromHeaders !== 'XX') {
+      return fromHeaders;
+    }
+  }
+
+  const cleanIp = (ip || '').trim().replace(/^::ffff:/i, '');
+  if (!cleanIp || cleanIp === 'unknown') return null;
+  if (isPrivateOrLocalIp(cleanIp)) {
+    return 'Local Network (LAN / Dev)';
+  }
+
+  const cached = geoCache.get(cleanIp);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.location;
+  }
+
+  // Primary lookup: ipwho.is (HTTPS, zero API key required)
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1800);
+    const res = await fetch(`https://ipwho.is/${encodeURIComponent(cleanIp)}`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success !== false) {
+        const parts = [data.city, data.region, data.country].filter(Boolean);
+        const isp = data.connection?.isp || data.connection?.org || '';
+        if (parts.length > 0) {
+          const loc = isp ? `${parts.join(', ')} (${isp})` : parts.join(', ');
+          geoCache.set(cleanIp, { location: loc, expiresAt: Date.now() + GEO_CACHE_TTL_MS });
+          return loc;
+        }
+      }
+    }
+  } catch {
+    // Fall through to backup lookup
+  }
+
+  // Backup lookup: ip-api.com
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1800);
+    const res = await fetch(
+      `http://ip-api.com/json/${encodeURIComponent(cleanIp)}?fields=status,country,regionName,city,isp`,
+      {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      }
+    );
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === 'success') {
+        const parts = [data.city, data.regionName, data.country].filter(Boolean);
+        const isp = data.isp || '';
+        if (parts.length > 0) {
+          const loc = isp ? `${parts.join(', ')} (${isp})` : parts.join(', ');
+          geoCache.set(cleanIp, { location: loc, expiresAt: Date.now() + GEO_CACHE_TTL_MS });
+          return loc;
+        }
+      }
+    }
+  } catch {
+    // Ignore geo lookup network timeout
+  }
+
+  return null;
+}
+
+export function summarizeUserAgent(uaRaw?: string | null, deviceHint?: string | null): string {
+  if (!uaRaw) return deviceHint ? `Unknown Browser · ${deviceHint}` : 'Unknown Device';
   const ua = uaRaw.slice(0, 300);
 
   let browser = 'Browser';
@@ -87,7 +211,9 @@ export function summarizeUserAgent(uaRaw?: string | null): string {
     os = 'Linux';
   }
 
-  return `${browser} on ${os}`;
+  const base = `${browser} on ${os}`;
+  const cleanHint = (deviceHint || '').trim().slice(0, 80);
+  return cleanHint ? `${base} · ${cleanHint}` : base;
 }
 
 /**
@@ -106,9 +232,9 @@ export async function recordLoginEvent(
     if (!cleanEmail) return;
 
     const ipAddress = extractRequestIp(req);
-    const location = extractRequestLocation(req);
+    const location = await resolveIpGeoLocation(ipAddress, req);
     const rawUa = req.headers.get('user-agent') || null;
-    const device = summarizeUserAgent(rawUa);
+    const device = summarizeUserAgent(rawUa, params.deviceHint);
     const nowIso = new Date().toISOString();
     const role = (params.role || 'client').trim().toLowerCase();
 

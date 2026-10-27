@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { email, password, adminOnly } = body;
+    const { email, password, adminOnly, deviceHint } = body;
 
     const userEmail = (email || '').trim().toLowerCase();
     const userPass = (password || '').trim();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser, isSupabaseConfigured } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getDeveloperAlertEmail, reportStudioError } from '@/lib/error-reporter';
+import { resolveIpGeoLocation } from '@/lib/login-tracker';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,9 +65,7 @@ export async function GET(req: NextRequest) {
 
     const profilesQuery = admin
       .from('profiles')
-      .select(
-        'id, email, name, role, team_role, last_login_at, last_login_ip, last_login_device, created_at'
-      )
+      .select('*')
       .order('last_login_at', { ascending: false, nullsFirst: false })
       .limit(200);
 
@@ -76,10 +75,66 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: historyRes.error.message }, { status: 500 });
     }
 
+    const rawEntries = historyRes.data || [];
+
+    // Backfill missing Geo Location for up to 10 distinct public IPs in existing rows
+    const missingGeoIps = Array.from(
+      new Set(
+        rawEntries
+          .filter(
+            (e) =>
+              (!e.location || e.location.toLowerCase() === 'unknown') &&
+              e.ip_address &&
+              e.ip_address !== 'unknown'
+          )
+          .map((e) => e.ip_address as string)
+      )
+    ).slice(0, 10);
+
+    if (missingGeoIps.length > 0) {
+      const resolvedMap = new Map<string, string>();
+      await Promise.all(
+        missingGeoIps.map(async (ip) => {
+          const geo = await resolveIpGeoLocation(ip);
+          if (geo) {
+            resolvedMap.set(ip, geo);
+            // Persist backfilled location in Supabase asynchronously
+            admin
+              .from('login_history')
+              .update({ location: geo })
+              .eq('ip_address', ip)
+              .is('location', null)
+              .then(() => {});
+          }
+        })
+      );
+
+      for (const entry of rawEntries) {
+        if ((!entry.location || entry.location.toLowerCase() === 'unknown') && entry.ip_address) {
+          const resolved = resolvedMap.get(entry.ip_address);
+          if (resolved) {
+            entry.location = resolved;
+          }
+        }
+      }
+    }
+
+    const mappedProfiles = (profilesRes.data || []).map((p: Record<string, unknown>) => ({
+      id: String(p.id || ''),
+      email: String(p.email || ''),
+      name: (p.full_name as string) || (p.name as string) || null,
+      role: String(p.role || 'client'),
+      team_role: (p.team_role as string) || null,
+      last_login_at: (p.last_login_at as string) || null,
+      last_login_ip: (p.last_login_ip as string) || null,
+      last_login_device: (p.last_login_device as string) || null,
+      created_at: String(p.created_at || ''),
+    }));
+
     return NextResponse.json({
-      entries: historyRes.data || [],
-      profiles: profilesRes.data || [],
-      total: historyRes.count ?? (historyRes.data?.length || 0),
+      entries: rawEntries,
+      profiles: mappedProfiles,
+      total: historyRes.count ?? rawEntries.length,
       maxCap: 500,
       diagnostics,
     });
