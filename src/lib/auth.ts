@@ -1,4 +1,5 @@
 import 'server-only';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
@@ -82,6 +83,12 @@ export async function getRequestUser(): Promise<RequestUser | null> {
   }
 
   try {
+    const cookieStore = await cookies();
+    const hasAuthCookie = cookieStore.getAll().some((c) => c.name.startsWith('sb-'));
+    if (!hasAuthCookie) {
+      return null;
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

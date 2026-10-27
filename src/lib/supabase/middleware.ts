@@ -77,7 +77,10 @@ export async function updateSession(request: NextRequest) {
   let user: { id: string; email?: string } | null = null;
   let userRole: 'admin' | 'client' = 'client';
 
-  try {
+  const hasAuthCookie = request.cookies.getAll().some((c) => c.name.startsWith('sb-'));
+
+  if (hasAuthCookie) {
+    try {
     const supabase = createServerClient(url, key, {
       cookies: {
         getAll() {
@@ -116,9 +119,9 @@ export async function updateSession(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle();
       userRole = profile?.role === 'admin' ? 'admin' : 'client';
+    }    } catch {
+      user = null;
     }
-  } catch {
-    user = null;
   }
 
   const isAuthenticated = Boolean(user && user.email);
