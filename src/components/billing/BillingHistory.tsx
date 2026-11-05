@@ -72,6 +72,7 @@ export function BillingHistory({
   scope: 'mine' | 'all';
   customerEmail?: string;
 }) {
+  const isAdminScope = scope === 'all';
   const isAdminView = scope === 'all' && !customerEmail;
   const [platform, setPlatform] = useState<PlatformFilter>('all');
   const [search, setSearch] = useState('');
@@ -291,12 +292,14 @@ export function BillingHistory({
               No invoices yet
             </EmptyTitle>
             <EmptyDescription className="text-muted-foreground text-sm">
-              {isAdminView
-                ? 'Client project invoices and payment records will appear here as orders are placed.'
+              {isAdminScope
+                ? customerEmail
+                  ? 'This client has no invoices or payment records yet.'
+                  : 'Client project invoices and payment records will appear here as orders are placed.'
                 : 'Start a project to view your official studio invoices and download PDF receipts.'}
             </EmptyDescription>
           </EmptyHeader>
-          {!isAdminView && (
+          {!isAdminScope && (
             <EmptyContent>
               <Button
                 variant="default"
