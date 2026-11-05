@@ -4,15 +4,14 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { StudioBackground } from '@/components/StudioBackground';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   TypographyH1,
   TypographyMuted,
 } from '@/components/ui/typography';
-import { cn } from '@/lib/utils';
-import { reportClientError } from '@/lib/client-error-reporter';
-import { AlertCircle, RotateCcw, ArrowLeft, Home } from 'lucide-react';
+import { isChunkLoadError, reportClientError } from '@/lib/client-error-reporter';
+import { AlertCircle, RotateCcw, ArrowLeft } from 'lucide-react';
 
 export default function ErrorPage({
   error,
@@ -32,6 +31,14 @@ export default function ErrorPage({
       error,
     });
   }, [error]);
+
+  const handleRetry = () => {
+    if (isChunkLoadError(error) && typeof window !== 'undefined') {
+      window.location.reload();
+      return;
+    }
+    reset();
+  };
 
   return (
     <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground antialiased selection:bg-amber-300/60 selection:text-amber-950 dark:selection:bg-amber-400/35 dark:selection:text-amber-50 overflow-x-hidden">
@@ -98,7 +105,7 @@ export default function ErrorPage({
               type="button"
               variant="gold"
               size="default"
-              onClick={() => reset()}
+              onClick={handleRetry}
               className="font-bold shadow-xs cursor-pointer min-w-28"
             >
               <RotateCcw className="size-4 mr-2" />

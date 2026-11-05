@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { reportClientError } from '@/lib/client-error-reporter';
+import { isChunkLoadError, reportClientError } from '@/lib/client-error-reporter';
 
 export default function GlobalError({
   error,
@@ -18,6 +18,14 @@ export default function GlobalError({
       error,
     });
   }, [error]);
+
+  const handleRetry = () => {
+    if (isChunkLoadError(error) && typeof window !== 'undefined') {
+      window.location.reload();
+      return;
+    }
+    reset();
+  };
 
   return (
     <html lang="en">
@@ -38,11 +46,11 @@ export default function GlobalError({
               Something Went Wrong
             </h1>
             <p style={{ fontSize: '14px', color: '#a1a1aa', marginBottom: '24px', lineHeight: 1.6 }}>
-              An unexpected error occurred while loading Humantek Creator Credit Studio. Our team has been notified.
+              An unexpected error occurred while loading Humantek Creator Credit Studio. Please refresh the page to continue.
             </p>
             <button
               type="button"
-              onClick={() => reset()}
+              onClick={handleRetry}
               style={{
                 padding: '10px 20px',
                 borderRadius: '10px',
