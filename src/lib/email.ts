@@ -369,7 +369,7 @@ export function buildGiftCodeRedeemedOwnerEmailTemplate(params: {
       heading: `Gift Code ${params.code} Claimed (+${params.credits} Credits)`,
       subtitle: `${params.recipientName} (${params.recipientEmail}) redeemed credits shared by ${params.senderName}.`,
       bodyHtml,
-      ctaLabel: 'Open Credit Ledger',
+      ctaLabel: 'Open Credit History',
       ctaUrl: `/management/ledger?customer=${encodeURIComponent(params.recipientEmail)}`,
     }),
     text,

@@ -237,7 +237,7 @@ export function ScopeGuideModal() {
                             colSpan={3}
                             className="py-2.5 px-3 text-center font-semibold text-brand-text dark:text-amber-400 bg-amber-400/10 text-xs rounded-lg border border-dashed border-amber-400/30"
                           >
-                            Custom Scope / Studio Quote Required
+                            Custom Quote Required
                           </TableCell>
                         ) : (
                           s.prices.map((price, idx) => {
@@ -308,7 +308,7 @@ export function ScopeGuideModal() {
                     {/* Scope Breakdown */}
                     {s.quoteOnly ? (
                       <div className="py-2 px-3 text-center font-semibold text-brand-text dark:text-amber-400 bg-amber-400/10 text-2xs rounded-lg border border-dashed border-amber-400/30">
-                        Custom Scope / Studio Quote Required
+                        Custom Quote Required
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 gap-1.5 pt-0.5">

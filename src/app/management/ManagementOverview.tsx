@@ -302,7 +302,7 @@ export function ManagementOverview() {
                     <Receipt className="size-4" />
                   </span>
                   <Badge variant="outline" size="sm" className="text-muted-foreground">
-                    Ledger
+                    Credit History
                   </Badge>
                 </div>
 
@@ -319,7 +319,7 @@ export function ManagementOverview() {
               <CardContent className="p-4 sm:p-5 pt-0 pb-3">
                 <div className="flex items-baseline gap-2">
                   <CreditValue value={kpis.totalCreditsAllocated} size="lg" />
-                  <span className="text-xs text-muted-foreground">allocated</span>
+                  <span className="text-xs text-muted-foreground">added</span>
                 </div>
               </CardContent>
 

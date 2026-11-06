@@ -206,7 +206,7 @@ export function CartSidebar({
             className="h-1.5"
           />
           <div className="flex items-center justify-between text-3xs text-muted-foreground font-mono">
-            <span>{usedCredits.toLocaleString('en-US')} Credits allocated</span>
+            <span>{usedCredits.toLocaleString('en-US')} Credits used</span>
             <span>
               {isOverBudget ? (
                 <strong className="text-rose-600 dark:text-rose-400 font-bold">Over budget</strong>
@@ -292,7 +292,7 @@ export function CartSidebar({
                   </b>
                   <span className="text-xs text-muted-foreground">
                     {service.quoteOnly
-                      ? 'Custom Scope'
+                      ? 'Custom Quote'
                       : `${TIER_NAMES[choice.level]} × ${choice.quantity}`}
                   </span>
                 </div>

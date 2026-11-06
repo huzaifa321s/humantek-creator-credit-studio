@@ -173,7 +173,7 @@ export function HorizontalStepper({
                           </span>
                         </p>
                         <p className="text-zinc-300 text-xs font-mono tabular-nums">
-                          {usedCredits} Credits allocated · {remainingCredits >= 0 ? `${remainingCredits} Credits remaining` : `${Math.abs(remainingCredits)} Credits over`}
+                          {usedCredits} Credits used · {remainingCredits >= 0 ? `${remainingCredits} Credits remaining` : `${Math.abs(remainingCredits)} Credits over`}
                         </p>
                         {currentStep !== 2 && (
                           <p className="text-amber-400 text-2xs font-semibold pt-0.5">
@@ -186,7 +186,7 @@ export function HorizontalStepper({
                       <div className="mt-1.5 pt-1.5 border-t border-zinc-700/80 space-y-0.5">
                         <p className="text-emerald-400 text-xs font-bold flex items-center gap-1">
                           <Check className="w-3.5 h-3.5 stroke-[3]" />
-                          <span>Scope & Revision Policy Accepted</span>
+                          <span>Credit & Revision Rules Accepted</span>
                         </p>
                         <p className="text-zinc-300 text-xs">
                           Commercial streaming rights & revision rules confirmed
@@ -221,7 +221,7 @@ export function HorizontalStepper({
                           <span>Ready for Review & Payment</span>
                         </p>
                         <p className="text-zinc-300 text-xs">
-                          Final scope verification & secure PayPal checkout
+                          Final order review & secure PayPal checkout
                         </p>
                       </div>
                     ) : (

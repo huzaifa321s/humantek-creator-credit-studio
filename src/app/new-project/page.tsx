@@ -168,7 +168,7 @@ import {
   Coins,
   FileCheck,
   Plus,
-  Sparkles,
+  Smile,
   Layers,
   PenTool,
   Image,
@@ -244,7 +244,7 @@ function getServiceIcon(serviceId: string, category: string) {
       return Image;
     case 'emote':
     case 'animated-emote':
-      return Sparkles;
+      return Smile;
     case 'alert':
     case 'animated-alert':
       return BellRing;
@@ -877,8 +877,8 @@ export default function CreatorStudioPage() {
           } else if (remainingCredits < 0) {
             toast.error(
               isWalletFunding
-                ? `Studio Wallet balance exceeded by ${Math.abs(remainingCredits)} Credits. Adjust your scope or select a package.`
-                : `Credit budget exceeded by ${Math.abs(remainingCredits)} Credits. Adjust your scope or upgrade package.`
+                ? `Studio Wallet balance exceeded by ${Math.abs(remainingCredits)} Credits. Adjust your services or select a package.`
+                : `Credit budget exceeded by ${Math.abs(remainingCredits)} Credits. Adjust your services or upgrade package.`
             );
           } else if (isTierRestricted) {
             if (currentPackage?.standardLimit !== undefined && standardUnits > currentPackage.standardLimit) {
@@ -1221,7 +1221,7 @@ export default function CreatorStudioPage() {
     useNotificationStore.getState().addNotification({
       title: isPaidCheckout ? 'Project Launched' : 'Project Submitted for Review',
       description: `Project ${formattedCode} (${project.packageName}) is now in our studio system.`,
-      iconType: isPaidCheckout ? 'check' : 'sparkles',
+      iconType: 'check',
       link: `/new-project/confirmation/${project.id}`,
     });
 
@@ -1998,7 +1998,7 @@ export default function CreatorStudioPage() {
                       <CardContent className="p-4 sm:p-5 pt-2.5 space-y-2 text-xs text-muted-foreground border-t border-border/50 flex-1">
                         <div className="flex items-start gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{pkgCredits.toLocaleString('en-US')} Credits package allocation</span>
+                          <span>{pkgCredits.toLocaleString('en-US')} Credits included</span>
                         </div>
                         <div className="flex items-start gap-2 text-foreground font-medium text-xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -2101,7 +2101,7 @@ export default function CreatorStudioPage() {
                 </button>
               </div>
               <p className="hidden sm:block text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                Pick every asset you need, set its scope and quantity, and watch your credit balance update instantly.
+                Pick every item you need, choose its level and quantity, and watch your credit balance update instantly.
               </p>
             </div>
 
@@ -2181,7 +2181,7 @@ export default function CreatorStudioPage() {
               </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
                 <span>
-                  Your active Studio Wallet balance is <strong>{userBalance} Credits</strong>, but your selected scope requires <strong>{usedCredits} Credits</strong>. Adjust your services or choose a package to fund the difference.
+                  Your active Studio Wallet balance is <strong>{userBalance} Credits</strong>, but your selected services require <strong>{usedCredits} Credits</strong>. Adjust your services or choose a package to fund the difference.
                 </span>
                 <Button
                   type="button"
@@ -2912,7 +2912,7 @@ export default function CreatorStudioPage() {
                           How credits work
                         </span>
                         <span className="text-xs text-muted-foreground font-normal">
-                          Credit valuation, deduction timing, scope tiers, and approval rules
+                          Credit value, when credits are used, service levels, and approval rules
                         </span>
                       </div>
                     </div>
@@ -3292,7 +3292,7 @@ export default function CreatorStudioPage() {
             ) : (
               <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium py-2 px-3 rounded-lg bg-secondary/20 border border-border/50">
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>No obvious policy conflict detected. The team still completes final scope review.</span>
+                <span>No obvious policy conflict detected. The team still reviews your final project details.</span>
               </div>
             )}
 
@@ -3483,7 +3483,7 @@ export default function CreatorStudioPage() {
                     <div className="block md:hidden">
                       {selectedEntries.length === 0 && (!additions || additions.length === 0) ? (
                         <div className="p-3 text-center text-xs text-muted-foreground">
-                          No specific services pre-allocated · Full balance in wallet
+                          No services picked yet · Full balance in wallet
                         </div>
                       ) : (
                         <>
@@ -3503,7 +3503,7 @@ export default function CreatorStudioPage() {
                                   <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-xs z-10 border-b border-border/70 shadow-2xs">
                                     <TableRow className="hover:bg-transparent border-b border-border/60">
                                       <TableHead className="text-xs font-semibold py-2 bg-card/95">Service / Item</TableHead>
-                                      <TableHead className="text-xs font-semibold py-2 bg-card/95">Scope</TableHead>
+                                      <TableHead className="text-xs font-semibold py-2 bg-card/95">Level</TableHead>
                                       <TableHead className="text-xs font-semibold py-2 text-right bg-card/95">Credits</TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -3515,7 +3515,7 @@ export default function CreatorStudioPage() {
                                         </TableCell>
                                         <TableCell className="py-2 text-xs text-muted-foreground">
                                           {service.quoteOnly
-                                            ? 'Custom Scope'
+                                            ? 'Custom Quote'
                                             : `${TIER_NAMES[choice.level]} × ${choice.quantity}`}
                                         </TableCell>
                                         <TableCell className="py-2 text-xs text-right">
@@ -3576,7 +3576,7 @@ export default function CreatorStudioPage() {
                         <div className="py-6 px-4 text-center rounded-xl bg-secondary/20 border border-dashed border-border/80 space-y-2">
                           <Layers className="w-5 h-5 text-brand-text/80 dark:text-amber-400/80 mx-auto" />
                           <b className="text-xs sm:text-sm font-semibold text-foreground block">
-                            No specific services pre-allocated
+                            No services picked yet
                           </b>
                           <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
                             Your full balance of <b className="font-mono tabular-nums">{totalPackageCredits} Credits</b> will remain active in your studio wallet, ready to deploy on any approved creative request.
@@ -3599,7 +3599,7 @@ export default function CreatorStudioPage() {
                             <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-xs z-10 border-b border-border/70 shadow-2xs">
                               <TableRow className="hover:bg-transparent border-b border-border/60">
                                 <TableHead className="text-xs font-semibold py-2 bg-card/95">Service / Item</TableHead>
-                                <TableHead className="text-xs font-semibold py-2 bg-card/95">Scope</TableHead>
+                                <TableHead className="text-xs font-semibold py-2 bg-card/95">Level</TableHead>
                                 <TableHead className="text-xs font-semibold py-2 text-right bg-card/95">Credits</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -3611,7 +3611,7 @@ export default function CreatorStudioPage() {
                                   </TableCell>
                                   <TableCell className="py-2 text-xs text-muted-foreground">
                                     {service.quoteOnly
-                                      ? 'Custom Scope'
+                                      ? 'Custom Quote'
                                       : `${TIER_NAMES[choice.level]} × ${choice.quantity}`}
                                   </TableCell>
                                   <TableCell className="py-2 text-xs text-right">
@@ -3817,7 +3817,7 @@ export default function CreatorStudioPage() {
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
-                              <span>Scope Debited</span>
+                              <span>Credits Used</span>
                               <span className="font-mono tabular-nums">-{usedCredits} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
@@ -3845,7 +3845,7 @@ export default function CreatorStudioPage() {
                               <span className="font-semibold text-foreground font-mono tabular-nums">{userBalance} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
-                              <span>Project Scope Debited</span>
+                              <span>Project Credits Used</span>
                               <span className="font-mono tabular-nums">-{usedCredits} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
@@ -3869,7 +3869,7 @@ export default function CreatorStudioPage() {
                               <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString('en-US')} USD</span>
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
-                              <span>Scope Used</span>
+                              <span>Credits Used</span>
                               <span className="font-semibold text-foreground font-mono tabular-nums">{usedCredits} of {totalUsableCredits} Credits</span>
                             </div>
                             {appliedWalletCredits > 0 && (
@@ -3887,7 +3887,7 @@ export default function CreatorStudioPage() {
                             {costBreakdownExpandedMobile && (
                               <div className="pt-1.5 border-t border-border/40 space-y-1 text-2xs text-muted-foreground animate-in fade-in duration-150">
                                 <div className="flex items-center justify-between">
-                                  <span>Base Package Allocation</span>
+                                  <span>Package Credits</span>
                                   <span className="font-mono tabular-nums">+{currentPackage.credits} Credits</span>
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -3918,7 +3918,7 @@ export default function CreatorStudioPage() {
                               <span className="font-semibold text-foreground font-mono tabular-nums">${currentPackage.price.toLocaleString('en-US')} USD</span>
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
-                              <span>Package Allocation</span>
+                              <span>Package Credits</span>
                               <span className="font-semibold text-foreground font-mono tabular-nums">+{currentPackage.credits} Credits</span>
                             </div>
                             {appliedWalletCredits > 0 && (
@@ -3932,7 +3932,7 @@ export default function CreatorStudioPage() {
                               <span className="font-semibold text-foreground font-mono tabular-nums">{totalUsableCredits} Credits</span>
                             </div>
                             <div className="flex items-center justify-between text-brand-text dark:text-amber-400 font-medium">
-                              <span>Service Scope Used</span>
+                              <span>Credits Used</span>
                               <span className="font-semibold font-mono tabular-nums">-{usedCredits} Credits</span>
                             </div>
                             {totalUsableCredits > usedCredits && (
@@ -4139,7 +4139,7 @@ export default function CreatorStudioPage() {
                     <div className="pt-2 border-t border-border/50 text-center">
                       <p className="text-2xs text-muted-foreground leading-relaxed">
                         <CheckCircle className="size-3.5 text-emerald-600 dark:text-emerald-400 inline-block align-[-2px] mr-1.5 shrink-0" />
-                        <strong className="font-semibold text-foreground/90">Full scope protection</strong> — Unused credits stay in your Studio Wallet, and credits are refunded if any request cannot be fulfilled.
+                        <strong className="font-semibold text-foreground/90">Full credit protection</strong> — Unused credits stay in your Studio Wallet, and credits are refunded if any request cannot be fulfilled.
                       </p>
                     </div>
                   </Card>

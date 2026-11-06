@@ -41,7 +41,6 @@ import {
   ArrowRight,
   Wallet,
   Send,
-  Sparkles,
   Clock,
   Mail,
   Ticket,
@@ -265,7 +264,7 @@ function RedeemCodeContent() {
                     <Card className="rounded-xl border border-amber-400/40 bg-amber-400/[0.06] shadow-xs">
                       <CardHeader className="p-4 sm:p-5 pb-2">
                         <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                          <Sparkles className="size-4 text-brand-text dark:text-amber-400" />
+                          <Gift className="size-4 text-brand-text dark:text-amber-400" />
                           <span>Gift Vouchers Waiting for You</span>
                         </CardTitle>
                         <CardDescription className="text-xs text-muted-foreground">

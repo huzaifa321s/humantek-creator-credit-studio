@@ -83,7 +83,7 @@ function ClientLedgerTypeBadge({ type }: { type: CreditLedgerEntry['type'] }) {
       variant="outline"
       className="text-2xs font-semibold text-brand-text dark:text-amber-400 border-amber-400/30 px-2 py-0.5"
     >
-      Service Scope
+      Project Order
     </Badge>
   );
 }
@@ -210,7 +210,7 @@ export default function ClientWalletLedgerPage() {
               Credit History
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-              Track your credit balance, package allocations, promo codes, and project usage.
+              Track your credit balance, credit packages, gift codes, and project spending.
             </p>
           </div>
 

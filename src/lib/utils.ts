@@ -129,7 +129,7 @@ export function getPaymentStatusLabel(status?: string): string {
 
 export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   package_purchase: 'Package Purchase',
-  service_deduction: 'Service Scope',
+  service_deduction: 'Project Order',
   promo_credit: 'Promo Code',
   refund: 'Refund',
 }
