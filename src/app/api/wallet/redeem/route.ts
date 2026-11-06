@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
           title: `Client Gift Code Claimed · ${result.credits_granted} Credits`,
           message: `${recipientName} (${cleanUserEmail}) redeemed promo code ${result.code} (+${result.credits_granted} Credits) shared by ${giftMeta.senderName} (${giftMeta.senderEmail}).`,
           link: `/management/ledger?customer=${encodeURIComponent(cleanUserEmail)}`,
-          actionLabel: 'View Ledger',
+          actionLabel: 'View Credit History',
           entityType: 'wallet',
           entityId: result.code,
         });
@@ -259,7 +259,7 @@ export async function POST(req: NextRequest) {
           title: `Promo Code Redeemed · ${result.credits_granted} Credits`,
           message: `${recipientName} (${cleanUserEmail}) redeemed studio promo code ${result.code} (+${result.credits_granted} Credits).`,
           link: `/management/ledger?customer=${encodeURIComponent(cleanUserEmail)}`,
-          actionLabel: 'View Ledger',
+          actionLabel: 'View Credit History',
           entityType: 'wallet',
           entityId: result.code,
         });

@@ -309,7 +309,7 @@ function CompactProjectRow({
               </div>
             ) : (
               <p className="text-2xs text-muted-foreground">
-                Project scope completed.
+                Project work completed.
               </p>
             )}
           </div>
@@ -799,7 +799,7 @@ function ProjectsPageContent() {
                       ) : (
                         <div className="p-3 rounded-lg border border-dashed border-border/70 bg-muted/10 text-xs text-muted-foreground flex items-center justify-between">
                           <span>Services will be tailored with your lead during brief review.</span>
-                          <span className="font-mono text-2xs text-muted-foreground/60">Custom Scope</span>
+                          <span className="font-mono text-2xs text-muted-foreground/60">Custom Quote</span>
                         </div>
                       )}
                     </div>

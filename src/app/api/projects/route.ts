@@ -1373,7 +1373,7 @@ export async function PATCH(req: NextRequest) {
                 ['Project', currentProj.project_code],
                 ['Invoice', `INV-${currentProj.project_code}`],
                 ['Package', pkgLabel],
-                ['Credits allocated', `${totalUsed} Credits`],
+                ['Credits used', `${totalUsed} Credits`],
                 ...(surplusCredits > 0 ? ([['Added to wallet', `+${surplusCredits} Credits`]] as Array<[string, string]>) : []),
               ],
               attachments: paidInvoiceAttachments,
@@ -1384,7 +1384,7 @@ export async function PATCH(req: NextRequest) {
                 : `Payment confirmed · ${currentProj.project_code}`,
             message:
               surplusCredits > 0
-                ? `Payment confirmed for ${currentProj.project_code} (${pkgLabel}). ${totalUsed} Credits allocated to your project and +${surplusCredits} Credits added to your Studio Wallet. Your official receipt & invoice (INV-${currentProj.project_code}) is attached.`
+                ? `Payment confirmed for ${currentProj.project_code} (${pkgLabel}). ${totalUsed} Credits used for your project and +${surplusCredits} Credits added to your Studio Wallet. Your official receipt & invoice (INV-${currentProj.project_code}) is attached.`
                 : `Payment confirmed for ${currentProj.project_code} (${pkgLabel} · ${totalUsed} Credits). Your project is funded and ready for production. Your official receipt & invoice (INV-${currentProj.project_code}) is attached.`,
             link: `/projects/${id}`,
             actionLabel: 'View Project',

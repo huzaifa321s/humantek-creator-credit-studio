@@ -368,7 +368,7 @@ export async function POST(req: NextRequest) {
           },
           message: `${user.email} paid $${(capturedAmountCents / 100).toFixed(2)}.`,
           link: dbProject ? `/management?tab=projects&id=${dbProject.id}` : `/management/ledger`,
-          actionLabel: dbProject ? 'View Project' : 'View Ledger',
+          actionLabel: dbProject ? 'View Project' : 'View Credit History',
           actionId: order.id,
         });
 

@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
         title: `Client Gift Code Generated · ${credits} Credits`,
         message: `${senderName} (${user.email}) generated gift promo code ${code} (${credits} Credits) for ${recipientEmail}.`,
         link: `/management/ledger?customer=${encodeURIComponent(user.email)}`,
-        actionLabel: 'View Ledger',
+        actionLabel: 'View Credit History',
         entityType: 'wallet',
         entityId: code,
       });

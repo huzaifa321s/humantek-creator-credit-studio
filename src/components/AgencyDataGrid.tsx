@@ -459,7 +459,7 @@ export function AgencyDataGrid({
         <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
             <span>
-              {selectedCustomer ? 'Customer Credits Purchased' : 'Total Credits Allocated'}
+              {selectedCustomer ? 'Customer Credits Purchased' : 'Total Credits Added'}
             </span>
             <span className="size-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <TrendingUp className="size-3.5" />
@@ -480,7 +480,7 @@ export function AgencyDataGrid({
         <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
             <span>
-              {selectedCustomer ? 'Customer Credits Used' : 'Total Scope Deductions'}
+              {selectedCustomer ? 'Customer Credits Used' : 'Total Credits Used'}
             </span>
             <span className="size-7 rounded-lg bg-amber-400/15 text-brand-text dark:text-amber-400 flex items-center justify-center">
               <TrendingDown className="size-3.5" />
@@ -576,7 +576,7 @@ export function AgencyDataGrid({
                   {typeFilter === 'package_purchase'
                     ? 'Package Purchase'
                     : typeFilter === 'service_deduction'
-                      ? 'Service Scope'
+                      ? 'Project Order'
                       : typeFilter === 'promo_credit'
                         ? 'Promo Code'
                         : typeFilter === 'shared_promo'
@@ -589,7 +589,7 @@ export function AgencyDataGrid({
               <SelectContent>
                 <SelectItem value="all" className="text-xs">All Types</SelectItem>
                 <SelectItem value="package_purchase" className="text-xs">Package Purchase</SelectItem>
-                <SelectItem value="service_deduction" className="text-xs">Service Scope</SelectItem>
+                <SelectItem value="service_deduction" className="text-xs">Project Order</SelectItem>
                 <SelectItem value="promo_credit" className="text-xs">Promo Code</SelectItem>
                 <SelectItem value="shared_promo" className="text-xs">Shared Promo Codes</SelectItem>
                 <SelectItem value="refund" className="text-xs">Refund</SelectItem>
@@ -1056,7 +1056,7 @@ const LedgerTypeBadge = React.memo(function LedgerTypeBadge({
         variant="outline"
         className="text-2xs font-semibold text-brand-text dark:text-amber-400 border-amber-400/30 px-2 py-0.5"
       >
-        Service Scope
+        Project Order
       </Badge>
     );
   }
@@ -1162,7 +1162,7 @@ const LedgerMobileCard = React.memo(function LedgerMobileCard({
           title={
             isSelectedCustomer
               ? 'Click to show all customers'
-              : `Filter ledger by ${item.clientName || item.clientEmail}`
+              : `Filter credit history by ${item.clientName || item.clientEmail}`
           }
           className="min-w-0 text-left group cursor-pointer"
         >
@@ -1269,7 +1269,7 @@ const LedgerTableRow = React.memo(function LedgerTableRow({
           title={
             isSelectedCustomer
               ? 'Click to show all customers'
-              : `Filter ledger by ${item.clientName || item.clientEmail}`
+              : `Filter credit history by ${item.clientName || item.clientEmail}`
           }
           className="text-left group cursor-pointer"
         >
