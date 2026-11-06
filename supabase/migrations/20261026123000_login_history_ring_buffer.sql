@@ -71,3 +71,12 @@ BEGIN
       EXECUTE FUNCTION public.cap_login_history_rows();
   END IF;
 END $$;
+
+
+-- 4. Explicit Data API grants (Supabase Oct 30 policy compliance)
+REVOKE ALL ON TABLE public.login_history FROM anon, authenticated;
+GRANT SELECT ON TABLE public.login_history TO authenticated;
+GRANT ALL ON TABLE public.login_history TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.login_history_id_seq TO service_role;
+REVOKE EXECUTE ON FUNCTION public.cap_login_history_rows() FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cap_login_history_rows() TO service_role;
